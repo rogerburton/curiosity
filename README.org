@@ -1,5 +1,9 @@
 * Prototyping Smart
 
+This repository contains a prototype for the
+[[https://github.com/smartcoop/][Smart]] cooperative. What we hear about
+"prototype" is written in =start-servant='s README.
+
 ** Goals
 
 - Use and exemplify the use of
