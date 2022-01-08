@@ -1,6 +1,11 @@
-* Prototype Haskell library
+* Prototyping Smart
 
 ** Goals
-   - Use and exemplify the use of design-hs as a design component library.
-   - Use and exemplify the use of start-servant
-   - Ensure prototyping any real-life aspect of the Smart system is easy and quick. 
+
+- Use and exemplify the use of
+  [[https://github.com/smartcoop/design-hs/][design-hs]] as a design
+  component library.
+- Use and exemplify the use of
+  [[https://github.com/noteed/start-servant][start-servant]]
+- Ensure prototyping any real-life aspect of the Smart system is easy
+  and quick.
