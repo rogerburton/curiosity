@@ -1,0 +1,4 @@
+let sources = import ./nix/sources.nix;
+    nixpkgs = import sources.nixpkgs { inherit overlays; };
+    overlays = import ./nix/overlays.nix; 
+in  with nixpkgs.haskellPackages; { inherit prototype-hs-exe; } 

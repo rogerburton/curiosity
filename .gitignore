@@ -1,0 +1,7 @@
+/dist/
+*TAGS*
+/dist-newstyle/
+/cabal.project.local
+/result
+/.envrc
+/.direnv/

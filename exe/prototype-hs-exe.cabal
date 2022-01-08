@@ -1,0 +1,56 @@
+cabal-version:      2.2
+name:               prototype-hs-exe
+version:            0.1.0.0
+category:           web
+extra-source-files:
+    README.md
+
+common common-extensions
+  default-language: Haskell2010
+  default-extensions:
+    StrictData
+    MultiParamTypeClasses
+    DerivingStrategies
+    DerivingVia
+    DeriveGeneric
+    RecordWildCards
+    TypeSynonymInstances
+    FlexibleInstances
+    FlexibleContexts
+    UndecidableInstances
+    LambdaCase
+    TypeApplications
+    ScopedTypeVariables
+    GADTs
+    OverloadedStrings
+
+-- Common language settings
+common lang-settings
+  default-language: Haskell2010
+  ghc-options:
+    -Wall
+    -Wmissing-export-lists
+    -fno-warn-missing-signatures
+    -fno-warn-unused-do-bind
+
+-- Dependencies common to both the exe and the lib.
+-- This list can be "Extended" using explicit build-depends stanzas in the library or executable.
+-- So far, I've omitted most version bounds, they can be generated using `nix-shell --run 'cabal freeze'`
+common common-dependencies
+  build-depends:
+      base-noprelude >=4.7 && <5
+    , protolude 
+
+  mixins: protolude (Protolude as Prelude)
+
+executable prototype-hs-exe
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: Main.hs
+  
+--   main-is:          serve.hs
+  build-depends:
+     -- Parse cli arguments.
+     optparse-applicative
+
+  hs-source-dirs: src
+  other-modules:
