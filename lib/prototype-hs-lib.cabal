@@ -1,5 +1,5 @@
 cabal-version:      2.2
-name:               prototype-hs-exe
+name:               prototype-hs-lib
 version:            0.1.0.0
 category:           web
 
@@ -36,27 +36,12 @@ common lang-settings
 -- So far, I've omitted most version bounds, they can be generated using `nix-shell --run 'cabal freeze'`
 common common-dependencies
   build-depends:
-    -- Prelude comes from prototype-hs-lib, so we don't need the Prelude from Base
       base-noprelude >=4.7 && <5
     , protolude 
+    , brick
 
-    -- custom packages
-    , prototype-hs-lib 
-    , start-servant 
-    , design-hs-lib
-
-  mixins:
-    -- We want Prelude to come from prototype-hs-lib and not these pkgs. 
-      design-hs-lib hiding (Prelude)
-    , start-servant hiding (Prelude)
-
-executable prototype-hs-exe
+library 
   import: common-dependencies, lang-settings, common-extensions
-  main-is: Main.hs
-  
   build-depends:
-     -- Parse cli arguments.
-     optparse-applicative
-
   hs-source-dirs: src
-  other-modules:
+  exposed-modules: Prelude
