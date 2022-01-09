@@ -4,8 +4,14 @@
 let
 
   sources = import ./sources.nix;
+  inherit (sources) start-servant design-hs; 
+
+  getOverlays = pkg : import "${pkg}/nix/overlays.nix";
 
   # We can overlay haskell packages here.
-  haskellOverlays = [ ];
+  haskellOverlays =
+          getOverlays start-servant
+       ++ getOverlays design-hs
+       ;
 
 in haskellOverlays ++ [ (import ./overlay.nix) ]

@@ -40,6 +40,8 @@ common common-dependencies
   build-depends:
       base-noprelude >=4.7 && <5
     , protolude 
+    , start-servant 
+    , design-hs-lib
 
   mixins: protolude (Protolude as Prelude)
 

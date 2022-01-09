@@ -1,8 +1,14 @@
 {
     "brittany": {
-        "ref": "master",
+        "branch": "master",
         "repo": "https://github.com/lspitzner/brittany",
         "rev": "434f9f8e49b847ef3e648672c5564b6dd0d3be67",
+        "type": "git"
+    },
+    "design-hs": {
+        "branch": "main",
+        "repo": "git@github.com:smartcoop/design-hs.git",
+        "rev": "45b18c0e733fbf16c7135731c5a14f4e5006c903",
         "type": "git"
     },
     "gitignore": {
@@ -39,5 +45,11 @@
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs-channels/archive/4b6bfecc0bd.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "start-servant": {
+        "branch": "asheshambasta/feature/nix-directory-fixes",
+        "repo": "git@github.com:noteed/start-servant.git",
+        "rev": "d5261270302d3c0b9be265b0291cc9a8f3f928b9",
+        "type": "git"
     }
 }
