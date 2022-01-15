@@ -7,21 +7,27 @@ Description: Live state server
 module Prototype.Backend.LiveState
   () where
 
-import           Brick
+import "start-servant" Prototype.Runtime.Storage
+
 
 -- | The output medium for the live state. 
-data LiveStateOutput = Brick
+data LiveStateOutput = Repl
   deriving Show
 
 {- |
-Backend's live state visualisation.
 
-Usually, @storage@ is the product type containing STM based values you'd like to output into an @output@.
+= Synopsis:
 
-At the time of writing, we only support the Brick terminal output. 
+The live state of the backend offers a way to visualise and alter the "state" of the application. By "state" here, we refer to the
+storage state. This lets the /executor/ of the service, modify & visualise the stored values on the fly, irrespective of the UI.
 
-In the future, we'd also like to support additional modes like a @Repl@ etc. 
+This greatly aids in the process of rapid prototyping where the executing party doesn't need to fiddle around with the UI. 
+
+= Note:
+
+In the future, we'd also like to support additional modes like a @Brick@ etc., if needed. 
 -}
+
 class LiveState storage (output :: LiveStateOutput) where
 
 
