@@ -3,6 +3,9 @@ name:               prototype-hs-lib
 version:            0.1.0.0
 category:           web
 
+-- PackageImports + NoImplicitPrelude are required to disambiguate the Prelude modules from upstream dependencies.
+-- At the time of writing, cabal's mixins "feature" causes more problems than solving (as is with most things in cabal). 
+-- Mixins can be used to hide modules from dependencies, but introducing a mixin also introduces complexity, and doesn't seem to work correctly.
 common common-extensions
   default-language: Haskell2010
   default-extensions:
@@ -21,6 +24,8 @@ common common-extensions
     ScopedTypeVariables
     GADTs
     OverloadedStrings
+    PackageImports 
+    NoImplicitPrelude 
 
 -- Common language settings
 common lang-settings
@@ -38,10 +43,15 @@ common common-dependencies
   build-depends:
       base-noprelude >=4.7 && <5
     , protolude 
-    , brick
+
+    -- Our dependencies 
+    , start-servant 
+    , pretty-simple 
 
 library 
   import: common-dependencies, lang-settings, common-extensions
-  build-depends:
+  build-depends: start-servant
   hs-source-dirs: src
-  exposed-modules: Prelude
+  exposed-modules:
+    Prelude
+    Prototype.Backend.InteractiveState 
