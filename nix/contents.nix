@@ -12,6 +12,7 @@ in {
   # The used directory should be the path of the directory relative to the root of the project.
   pkgList = { prototype-hs-exe = ../exe;
               prototype-hs-lib = ../lib;
+              prototype-hs-example = ../example;
             };
   # Get an attribute from a string path from a larger attrSet
   getPkg = pkgs: pPath: getAttrFromPath [pPath] pkgs;
