@@ -46,6 +46,7 @@ common common-dependencies
     , prototype-hs-lib 
 
     , stm
+    , data-default-class
     
   mixins:
     start-servant hiding (Prelude)
@@ -56,3 +57,5 @@ library
   hs-source-dirs: src
   exposed-modules:
     Prototype.Example.State 
+    Prototype.Example.Data.Todo
+    Prototype.Example.Data.User 
