@@ -19,6 +19,7 @@ module Prototype.Backend.InteractiveState
   , execAnyInputOnState
   ) where
 
+import qualified Data.String                   as String
 import "this"    Prelude
 import qualified Text.Pretty.Simple            as Pretty
 
@@ -39,15 +40,21 @@ class InteractiveDisp (dispType :: DispType) where
 instance InteractiveDisp 'Repl where
   
   newtype DispInput 'Repl = ReplInputStrict { replInputStrict :: Text }
-                          deriving Show
+                          deriving (Show)
+                          deriving IsString via Text
   
   data DispOutput 'Repl = ReplOutputStrict Text
                         | ReplOutputLazy LText
                         deriving Show
 
+instance IsString (DispOutput 'Repl) where
+  fromString = ReplOutputStrict . String.fromString
+
 -- | A sum-type that encodes any operation on an interactive state. 
 data AnyStateInput state =
+  -- | Operation to visualise the state: this is usually querying the state for some data, but not modifying it. 
   AnyStateVisualisation (StateVisualisation state)
+  -- | Operation to _modify_ the state: this is when we execute operations to modify the state. 
   | AnyStateModification (StateModification state)
 
 -- | A sum-type that encodes any operation on an interactive state. 
