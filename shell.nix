@@ -20,7 +20,7 @@ let
   nix-tooling = with hp; [ niv ];
 
   # Haskell tools
-  haskell-tooling = with hp; [ cabal-install ghcid hlint ];
+  haskell-tooling = with hp; [ cabal-install ghcid hlint hasktags ];
 
   # Add more as we need them.
   formatters =
