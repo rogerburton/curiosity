@@ -3,6 +3,8 @@ module Prototype.Example.Data
   ( Db(..)
   , StmDb
   , HaskDb
+  -- * Constraints
+  , RuntimeHasStmDb(..)
   -- * Instantiating databases. 
   , emptyHask
   , instantiateStmDb
@@ -14,12 +16,16 @@ import qualified Prototype.Backend.InteractiveState
                                                as IS
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
+import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 
--- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
--- dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be
--- STM based. 
-data Db (datastore :: Type -> Type) = Db
+{- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
+dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be
+STM based. 
+
+Additionally, we want to parameterise over a @runtime@ type parameter. This is a container type of the database. 
+-}
+data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbUserProfiles :: datastore [U.UserProfile]
   , _dbTodos        :: datastore [Todo.TodoList]
   }
@@ -30,10 +36,11 @@ type HaskDb = Db Identity
 type StmDb = Db STM.TVar
 
 -- | Instantiate a seed database that is empty.
-emptyHask :: HaskDb
+emptyHask :: forall runtime . HaskDb runtime
 emptyHask = Db (pure mempty) (pure mempty)
 
-instantiateStmDb :: MonadIO m => HaskDb -> m StmDb
+instantiateStmDb
+  :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db { _dbUserProfiles = seedProfiles, _dbTodos = seedTodos } =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole instantiation under a single STM transaction (@atomically@)
   liftIO . STM.atomically $ do
@@ -42,8 +49,16 @@ instantiateStmDb Db { _dbUserProfiles = seedProfiles, _dbTodos = seedTodos } =
     _dbTodos        <- STM.newTVar $ runIdentity seedTodos
     pure Db { .. }
 
-instantiateEmptyStmDb :: MonadIO m => m StmDb
+instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
+
+{- | Provides us with the ability to constrain on a larger product-type (the @runtime@) to contain, in some form or another, a value
+of the `StmDb`, which can be accessed from the @runtime@.
+
+This solves cyclic imports, without caring about the concrete @runtime@ types, we can just rely on the constraints. 
+-}
+class RuntimeHasStmDb runtime where
+  stmDbFromRuntime :: runtime -> StmDb runtime
 
 {- | We want to represent our `StmDb` as an interactive state; and allow modifications of users and todos
 it currently contains, for example. 
@@ -58,19 +73,28 @@ Some notes:
 lift `IO` ops. to some arbitrary `m`
 
 -}
-instance IS.InteractiveState StmDb where
+instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
   
-  data StateModification StmDb =
+  data StateModification (StmDb runtime) =
     ModifyUser (S.DBUpdate U.UserProfile)
     | ModifyTodo (S.DBUpdate Todo.TodoList)
   
-  data StateVisualisation StmDb =
+  data StateVisualisation (StmDb runtime) =
     VisualiseUser (S.DBSelect U.UserProfile)
     | VisualiseTodo (S.DBSelect Todo.TodoList)
     | VisualiseFullStmDb
 
-  type StateModificationC StmDb m = (MonadIO m)
-  type StateVisualisationC StmDb m = (MonadIO m)
+  type StateModificationC (StmDb runtime) m
+    = ( MonadIO m
+      , MonadError Errs.RuntimeErr m
+      , MonadReader runtime m
+      , RuntimeHasStmDb runtime
+      -- The constraints that actually let us perform the updates
+      -- within this @m@.
+      , S.DBStorage m U.UserProfile
+      , S.DBStorage m Todo.TodoList
+      )
+  type StateVisualisationC (StmDb runtime) m = (MonadIO m)
   
-  data StateModificationOutput StmDb = UsersModified [U.UserProfile]
+  data StateModificationOutput (StmDb runtime) = UsersModified [U.UserProfile]
                                      | TodoListsModified [Todo.TodoList]

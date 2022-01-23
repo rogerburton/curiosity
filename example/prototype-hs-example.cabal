@@ -56,7 +56,7 @@ library
   build-depends: start-servant
   hs-source-dirs: src
   exposed-modules:
-    Prototype.Example.State 
     Prototype.Example.Data 
+    Prototype.Example.Runtime  
     Prototype.Example.Data.Todo
     Prototype.Example.Data.User 
