@@ -1,14 +1,50 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
 {- |
 Module: Prototype.Example.Data.User
 Description: User related datatypes
 -}
 module Prototype.Example.Data.User
-  ( UserProfile
+  ( UserProfile(..)
   , UserId(..)
+  , UserName(..)
+  , UserPassword(..)
+  -- * Export all DB ops.
+  , Storage.DBUpdate(..)
+  , Storage.DBSelect(..)
   ) where
 
-data UserProfile
+import qualified Prototype.Runtime.Storage     as Storage
+import           Prototype.Types.Secret        as Secret
+
+data UserProfile = UserProfile
+  { _userProfileId       :: UserId -- ^ Unique ID of the user, used for logging a user in.
+  , _userProfileName     :: UserName -- ^ User's human friendly name.
+  , _userProfilePassword :: UserPassword -- ^ User's password. 
+  }
+
+newtype UserName = UserName Text
+                 deriving (Eq, Show, IsString) via Text
+
+newtype UserPassword = UserPassword (Secret.Secret '[] Text)
+                 deriving (Eq, Show, IsString) via Text
 
 newtype UserId = UserId Text
                deriving (Eq, Show)
                deriving IsString via Text
+
+instance Storage.DBIdentity UserProfile where
+  type DBId UserProfile = UserId
+  dbId = _userProfileId
+
+instance Storage.DBStorageOps UserProfile where
+  data DBUpdate UserProfile =
+    UserCreate UserProfile
+    | UserDelete UserId
+    | UserUpdate UserProfile
+  
+  data DBSelect UserProfile =
+    UserLogin UserId UserPassword
+
+
+
