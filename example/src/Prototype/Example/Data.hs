@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies   #-}
 module Prototype.Example.Data
@@ -17,6 +18,8 @@ module Prototype.Example.Data
 import qualified Control.Concurrent.STM        as STM
 import qualified Prototype.Backend.InteractiveState
                                                as IS
+import qualified Prototype.Backend.InteractiveState.Disp.Helpers
+                                               as Disp
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
 import qualified Prototype.Runtime.Errors      as Errs
@@ -120,6 +123,7 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
   
   data StateModificationOutput (StmDb runtime) = UsersModified [U.UserProfile]
                                                | TodoListsModified [Todo.TodoList]
+                                               deriving Show
   
   data StateVisualisationOutput (StmDb runtime) = UsersVisualised [U.UserProfile]
                                                 | TodoListsVisualised [Todo.TodoList]
@@ -134,4 +138,12 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
   execModification = \case
     ModifyUser userUpdate -> S.dbUpdate userUpdate >>= undefined
     ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= undefined
+
+instance RuntimeHasStmDb runtime => IS.InteractiveStateOnDisp (StmDb runtime) 'IS.Repl where
+
+  type StateParseInputC (StmDb runtime) 'IS.Repl m = (MonadError Errs.RuntimeErr m)
+
+  parseModificationInput (IS.ReplInputStrict text) = undefined
+  parseVisualisationInput (IS.ReplInputStrict text) = undefined 
+
 

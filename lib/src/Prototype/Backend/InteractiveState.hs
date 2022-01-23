@@ -17,6 +17,12 @@ module Prototype.Backend.InteractiveState
   , DispType(..)
   -- * Common functions
   , execAnyInputOnState
+  -- * Types 
+  , AnyStateInput(..)
+  , AnyStateOutput(..)
+  -- ** Instance definitions
+  , DispInput(..)
+  , DispOutput(..)
   ) where
 
 import qualified Data.String                   as String
@@ -151,7 +157,7 @@ class ( InteractiveDisp dispType
       => InteractiveStateOnDisp state (dispType :: DispType) where
 
   -- | Constraints needed to be able to parse state inputs. 
-  type StateParseInputC state dispType :: (Type -> Type) -> Constraint
+  type StateParseInputC state dispType (m :: Type -> Type) :: Constraint
 
   -- | Parse either the modofication or visualisation inputs. 
   parseAnyStateInput
