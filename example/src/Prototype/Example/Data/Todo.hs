@@ -11,10 +11,17 @@ module Prototype.Example.Data.Todo
   , TodoListName(..)
   , TodoListItemName(..)
   , TodoListItemDesc(..)
+  -- * Export all DB operations
+  , Storage.DBUpdate(..)
+  , Storage.DBSelect(..)
+  -- ** Parsers
+  , dbUpdateParser
+  , dbSelectParser
   ) where
 
 import           Data.Default.Class
 import qualified Prototype.Example.Data.User   as U
+import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Storage     as Storage
 
 -- | The name of a `TodoList`.
@@ -72,3 +79,9 @@ instance Storage.DBStorageOps TodoList where
     | DeleteItem (Storage.DBId TodoList) TodoListItemName
     | MarkItem (Storage.DBId TodoList) TodoListItemName TodoListItemState
     deriving Show
+
+dbUpdateParser :: P.ParserText (Storage.DBUpdate TodoList)
+dbUpdateParser = undefined
+
+dbSelectParser :: P.ParserText (Storage.DBSelect TodoList)
+dbSelectParser = undefined

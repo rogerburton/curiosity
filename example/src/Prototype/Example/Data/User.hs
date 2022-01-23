@@ -12,8 +12,12 @@ module Prototype.Example.Data.User
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
+  -- ** Parsers 
+  , dbUpdateParser
+  , dbSelectParser
   ) where
 
+import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
 
@@ -47,5 +51,8 @@ instance Storage.DBStorageOps UserProfile where
   data DBSelect UserProfile =
     UserLogin UserId UserPassword
 
+dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
+dbUpdateParser = undefined
 
-
+dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
+dbSelectParser = undefined

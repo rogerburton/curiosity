@@ -6,13 +6,17 @@ module Prototype.Example.Repl.Parse
   -- ** All of @Megaparsec@ for convenience, and re-exports in this case
   -- shouldn't be misleading. 
   , module MP
+  , module MP.Char
   -- * Running parsers
   , parseInputCtx
+  -- * Common parser combinators
+  , withTrailSpaces
   ) where
 
 import qualified Data.Text                     as T
 import qualified Prototype.Runtime.Errors      as Errs
 import           Text.Megaparsec               as MP
+import           Text.Megaparsec.Char          as MP.Char
 
 data CustomErrInfo = CustomErrInfo
   deriving (Eq, Ord)
@@ -31,3 +35,7 @@ type ParserText = MP.Parsec ParseErr Text
 parseInputCtx :: ParserText a -> Text -> Either ParseErr a
 parseInputCtx parser text =
   first (ParseErr . show) $ MP.parse parser (T.unpack text) text
+
+-- | Expect a string with at least 1 whitespace character. 
+withTrailSpaces :: (MP.Tokens Text) -> ParserText ()
+withTrailSpaces txt = MP.Char.string' txt *> MP.Char.space1

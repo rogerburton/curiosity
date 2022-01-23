@@ -15,6 +15,7 @@ module Prototype.Example.Data
   , readFullStmDbInHask
   ) where
 
+import qualified Prototype.Example.Repl.Parse as P 
 import qualified Control.Concurrent.STM        as STM
 import qualified Prototype.Backend.InteractiveState
                                                as IS
@@ -139,11 +140,28 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
     ModifyUser userUpdate -> S.dbUpdate userUpdate >>= undefined
     ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= undefined
 
+{- | This instance defines parsing for incoming inputs that visualise or modify the `Db` state.. 
+
+All modification inputs need to start with the word @mod@ (case insensitive)
+
+For example, to modfify a user, we should have commands of the form:
+
+@
+mod user <UserSubcommand>
+@
+
+etc.
+-}
 instance RuntimeHasStmDb runtime => IS.InteractiveStateOnDisp (StmDb runtime) 'IS.Repl where
 
   type StateParseInputC (StmDb runtime) 'IS.Repl m = (MonadError Errs.RuntimeErr m)
 
-  parseModificationInput (IS.ReplInputStrict text) = undefined
+  parseModificationInput (IS.ReplInputStrict text) =
+    let 
+      userMod = P.try $ P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
+      todoMod = P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo 
+    in P.parseInputCtx (P.withTrailSpaces "mod" *> userMod <|> todoMod) text & either undefined undefined 
+
   parseVisualisationInput (IS.ReplInputStrict text) = undefined 
 
 
