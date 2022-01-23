@@ -46,6 +46,8 @@ common common-dependencies
 
     -- Our dependencies 
     , start-servant 
+
+    , text 
     , pretty-simple 
 
 library 
@@ -55,3 +57,4 @@ library
   exposed-modules:
     Prelude
     Prototype.Backend.InteractiveState 
+    Prototype.Backend.InteractiveState.Disp.Helpers
