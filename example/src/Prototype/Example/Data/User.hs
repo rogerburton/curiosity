@@ -22,6 +22,7 @@ data UserProfile = UserProfile
   , _userProfileName     :: UserName -- ^ User's human friendly name.
   , _userProfilePassword :: UserPassword -- ^ User's password. 
   }
+  deriving Show
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString) via Text

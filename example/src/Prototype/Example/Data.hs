@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies   #-}
 module Prototype.Example.Data
   ( Db(..)
@@ -9,6 +10,8 @@ module Prototype.Example.Data
   , emptyHask
   , instantiateStmDb
   , instantiateEmptyStmDb
+  -- * Reading values from the database.
+  , readFullStmDbInHask
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -18,6 +21,7 @@ import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
+import qualified Text.Pretty.Simple            as Pretty
 
 {- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
 dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be
@@ -32,6 +36,9 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
 
 -- | Hask database type: used for starting the system, values reside in @Hask@ (thus `Identity`)
 type HaskDb = Db Identity
+
+deriving instance Show (HaskDb runtime)
+
 -- | Stm database type, used for live example applications, values reside in @STM@  
 type StmDb = Db STM.TVar
 
@@ -51,6 +58,19 @@ instantiateStmDb Db { _dbUserProfiles = seedProfiles, _dbTodos = seedTodos } =
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
+
+-- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
+readFullStmDbInHask
+  :: forall runtime m
+   . (MonadIO m, RuntimeHasStmDb runtime)
+  => runtime
+  -> m (HaskDb runtime)
+readFullStmDbInHask runtime =
+  let stmDb = stmDbFromRuntime runtime
+  in  liftIO . STM.atomically $ do
+        _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+        _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
+        pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the @runtime@) to contain, in some form or another, a value
 of the `StmDb`, which can be accessed from the @runtime@.
@@ -94,7 +114,24 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
       , S.DBStorage m U.UserProfile
       , S.DBStorage m Todo.TodoList
       )
-  type StateVisualisationC (StmDb runtime) m = (MonadIO m)
+  type StateVisualisationC (StmDb runtime) m = IS.StateModificationC
+    (StmDb runtime)
+    m
   
   data StateModificationOutput (StmDb runtime) = UsersModified [U.UserProfile]
-                                     | TodoListsModified [Todo.TodoList]
+                                               | TodoListsModified [Todo.TodoList]
+  
+  data StateVisualisationOutput (StmDb runtime) = UsersVisualised [U.UserProfile]
+                                                | TodoListsVisualised [Todo.TodoList]
+                                                | FullStmDbVisualised (HaskDb runtime)
+                                                deriving Show
+
+  execVisualisation = \case
+    VisualiseUser userSelect -> S.dbSelect userSelect <&> UsersVisualised
+    VisualiseTodo todoSelect -> S.dbSelect todoSelect <&> TodoListsVisualised
+    VisualiseFullStmDb -> ask >>= readFullStmDbInHask <&> FullStmDbVisualised
+
+  execModification = \case
+    ModifyUser userUpdate -> S.dbUpdate userUpdate >>= undefined
+    ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= undefined
+
