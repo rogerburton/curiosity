@@ -57,6 +57,7 @@ data AnyStateInput state =
   -- | Operation to _modify_ the state: this is when we execute operations to modify the state. 
   | AnyStateModification (StateModification state)
 
+
 -- | A sum-type that encodes any operation on an interactive state. 
 data AnyStateOutput state =
   AnyStateVisualisationOutput (StateVisualisationOutput state)
@@ -110,10 +111,10 @@ class InteractiveState state where
   data InteractiveStateErr state :: Type
 
   -- | Constraints needed to be satisfied in which state modifications can take place. 
-  type StateModificationC state :: (Type -> Type) -> Constraint
+  type StateModificationC state (m :: Type -> Type) :: Constraint
 
   -- | Constraints needed to be satisfied in which state visualisations can take place. 
-  type StateVisualisationC state :: (Type -> Type) -> Constraint
+  type StateVisualisationC state (m :: Type -> Type) :: Constraint
 
   -- | Execute a modification.
   execModification
