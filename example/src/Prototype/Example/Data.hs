@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies   #-}
@@ -103,6 +104,8 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
     ModifyUser (S.DBUpdate U.UserProfile)
     | ModifyTodo (S.DBUpdate Todo.TodoList)
   
+  data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr 
+                           
   data StateVisualisation (StmDb runtime) =
     VisualiseUser (S.DBSelect U.UserProfile)
     | VisualiseTodo (S.DBSelect Todo.TodoList)
@@ -156,12 +159,22 @@ instance RuntimeHasStmDb runtime => IS.InteractiveStateOnDisp (StmDb runtime) 'I
 
   type StateParseInputC (StmDb runtime) 'IS.Repl m = (MonadError Errs.RuntimeErr m)
 
+  parseModificationInput 
+    :: forall m . (IS.StateParseInputC (StmDb runtime) 'IS.Repl m)
+    => IS.DispInput 'IS.Repl -- ^ Raw input 
+    -> m ( Either (IS.InteractiveStateErr (StmDb runtime))
+                  (IS.StateModification (StmDb runtime))
+         ) -- ^ We eventually return a successfully parsed modification.
   parseModificationInput (IS.ReplInputStrict text) =
     let 
-      userMod = P.try $ P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
+      userMod = P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
       todoMod = P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo 
-    in P.parseInputCtx (P.withTrailSpaces "mod" *> userMod <|> todoMod) text & either undefined undefined 
+    in pure $ P.parseInputCtx (P.withTrailSpaces "mod" *> P.try userMod <|> todoMod) text & first ParseFailed  
 
-  parseVisualisationInput (IS.ReplInputStrict text) = undefined 
+  parseVisualisationInput (IS.ReplInputStrict text) =
+    let userViz = P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
+        todoViz = P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
+        fullViz = P.withTrailSpaces "all" $> VisualiseFullStmDb
+    in pure $ P.parseInputCtx (P.withTrailSpaces "viz" *> P.try userViz <|> P.try todoViz <|> fullViz) text & first ParseFailed 
 
 
