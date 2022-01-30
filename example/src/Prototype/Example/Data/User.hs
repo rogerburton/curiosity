@@ -17,6 +17,7 @@ module Prototype.Example.Data.User
   , dbSelectParser
   ) where
 
+import qualified Data.Text                     as T
 import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
@@ -53,7 +54,38 @@ instance Storage.DBStorageOps UserProfile where
     | SelectUserById UserId
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
-dbUpdateParser = undefined
+dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]
+ where
+  userCreate =
+    P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
+  userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
+  userUpdate =
+    P.withTrailSpaces "UserUpdate" *> fmap UserUpdate userProfileParser
 
+-- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
-dbSelectParser = undefined
+dbSelectParser = P.tryAlts [userLogin, selectUserById]
+ where
+  userLogin =
+    P.withTrailSpaces "UserLogin"
+      *> (UserLogin <$> (userIdParser <* P.space1) <*> userPasswordParser)
+  selectUserById =
+    P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
+
+-- | The UserId has to be non-empty alphaNumChar. 
+userIdParser :: P.ParserText UserId
+userIdParser = UserId . T.pack <$> P.many P.alphaNumChar
+
+userNameParser :: P.ParserText UserName
+userNameParser = UserName . T.pack <$> P.many P.alphaNumChar
+
+-- | For the password, we just take the rest of the input.
+userPasswordParser :: P.ParserText UserPassword
+userPasswordParser = UserPassword . Secret <$> P.takeRest
+
+userProfileParser :: P.ParserText UserProfile
+userProfileParser =
+  UserProfile
+    <$> (userIdParser <* P.space1)
+    <*> (userNameParser <* P.space1)
+    <*> userPasswordParser

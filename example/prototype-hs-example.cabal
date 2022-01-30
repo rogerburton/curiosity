@@ -42,14 +42,17 @@ common common-dependencies
 
     -- Our dependencies 
     , start-servant 
-    , pretty-simple 
     , prototype-hs-lib 
 
     , stm
-    , data-default-class
 
     , megaparsec 
+
+    -- data 
     , text 
+    , containers 
+    , pretty-simple 
+    , data-default-class
     
   mixins:
     start-servant hiding (Prelude)
