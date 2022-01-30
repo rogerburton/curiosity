@@ -20,13 +20,10 @@ import qualified Prototype.Example.Repl.Parse as P
 import qualified Control.Concurrent.STM        as STM
 import qualified Prototype.Backend.InteractiveState
                                                as IS
-import qualified Prototype.Backend.InteractiveState.Disp.Helpers
-                                               as Disp
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
-import qualified Text.Pretty.Simple            as Pretty
 
 {- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
 dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be
@@ -140,8 +137,11 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
     VisualiseFullStmDb -> ask >>= readFullStmDbInHask <&> FullStmDbVisualised
 
   execModification = \case
-    ModifyUser userUpdate -> S.dbUpdate userUpdate >>= undefined
-    ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= undefined
+    ModifyUser userUpdate -> S.dbUpdate userUpdate >>= getAffectedUsers
+      where getAffectedUsers = fmap UsersModified . concatMapM (S.dbSelect . U.SelectUserById) 
+
+    ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= getAffectedTodos
+      where getAffectedTodos = fmap TodoListsModified . concatMapM (S.dbSelect . Todo.SelectTodoListById)
 
 {- | This instance defines parsing for incoming inputs that visualise or modify the `Db` state.. 
 

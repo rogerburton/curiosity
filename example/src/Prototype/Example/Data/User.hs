@@ -50,6 +50,7 @@ instance Storage.DBStorageOps UserProfile where
   
   data DBSelect UserProfile =
     UserLogin UserId UserPassword
+    | SelectUserById UserId
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
 dbUpdateParser = undefined
