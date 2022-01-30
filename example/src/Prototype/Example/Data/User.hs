@@ -15,6 +15,9 @@ module Prototype.Example.Data.User
   -- ** Parsers 
   , dbUpdateParser
   , dbSelectParser
+  , userIdParser
+  , userNameParser
+  , userPasswordParser
   ) where
 
 import qualified Data.Text                     as T
@@ -68,24 +71,25 @@ dbSelectParser = P.tryAlts [userLogin, selectUserById]
  where
   userLogin =
     P.withTrailSpaces "UserLogin"
-      *> (UserLogin <$> (userIdParser <* P.space1) <*> userPasswordParser)
+      *> (UserLogin <$> (userIdParser <* P.space) <*> userPasswordParser)
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
 
--- | The UserId has to be non-empty alphaNumChar. 
+-- | The UserId has to be non-empty ascii character 
 userIdParser :: P.ParserText UserId
-userIdParser = UserId . T.pack <$> P.many P.alphaNumChar
+userIdParser = UserId <$> P.punctuated P.alphaNumText
 
 userNameParser :: P.ParserText UserName
-userNameParser = UserName . T.pack <$> P.many P.alphaNumChar
+userNameParser =
+  UserName . T.unwords <$> P.punctuated (P.alphaNumText `P.sepBy` P.space1)
 
 -- | For the password, we just take the rest of the input.
 userPasswordParser :: P.ParserText UserPassword
-userPasswordParser = UserPassword . Secret <$> P.takeRest
+userPasswordParser = UserPassword . Secret <$> P.punctuated P.asciiText
 
 userProfileParser :: P.ParserText UserProfile
 userProfileParser =
   UserProfile
-    <$> (userIdParser <* P.space1)
-    <*> (userNameParser <* P.space1)
+    <$> (userIdParser <* P.space)
+    <*> (userNameParser <* P.space)
     <*> userPasswordParser

@@ -11,10 +11,15 @@ module Prototype.Example.Repl.Parse
   , tryAlts
   -- * Common parser combinators
   , withTrailSpaces
+  , punctuated
+  , manyText
+  , alphaNumText
+  , asciiText
   ) where
 
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
+import           GHC.Base                       ( String )
 import qualified Prototype.Runtime.Errors      as Errs
 import           Text.Megaparsec               as MP
 import           Text.Megaparsec.Char          as MP.Char
@@ -46,3 +51,21 @@ tryAlts = foldl' untilSuccess $ MP.fancyFailure noParsers
  where
   untilSuccess tried parser = tried <|> MP.try parser
   noParsers = Set.singleton $ MP.ErrorFail "No parsers!"
+
+punctuated :: ParserText a -> ParserText a
+punctuated p = do
+  punc <- MP.Char.punctuationChar
+  res  <- p
+  MP.Char.char punc
+  pure res
+
+-- | Alpha numeric text.
+alphaNumText :: ParserText Text
+alphaNumText = manyText $ MP.many MP.Char.alphaNumChar
+
+asciiText :: ParserText Text
+asciiText = manyText $ MP.many MP.Char.asciiChar
+
+-- | Pack a parser's output where the output is `String` as `Text`
+manyText :: ParserText String -> ParserText Text
+manyText = fmap T.pack
