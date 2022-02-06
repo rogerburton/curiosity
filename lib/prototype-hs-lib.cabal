@@ -50,6 +50,9 @@ common common-dependencies
     , text 
     , pretty-simple 
 
+    , readline
+    , data-default-class 
+
 library 
   import: common-dependencies, lang-settings, common-extensions
   build-depends: start-servant
@@ -57,4 +60,5 @@ library
   exposed-modules:
     Prelude
     Prototype.Backend.InteractiveState.Class
+    Prototype.Backend.InteractiveState.Repl
     Prototype.Backend.InteractiveState.Disp.Helpers

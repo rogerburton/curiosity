@@ -27,6 +27,7 @@ module Prototype.Backend.InteractiveState.Class
 
 import qualified Data.String                   as String
 import "this"    Prelude
+import qualified Prototype.Runtime.Errors      as Errs
 import qualified Text.Pretty.Simple            as Pretty
 
 -- | The "Repl" output medium for the live state. 
@@ -51,7 +52,7 @@ instance InteractiveDisp 'Repl where
   
   data DispOutput 'Repl = ReplOutputStrict Text
                         | ReplOutputLazy LText
-                        deriving Show
+                        | ReplRuntimeErr Errs.RuntimeErr
 
 instance IsString (DispOutput 'Repl) where
   fromString = ReplOutputStrict . String.fromString
