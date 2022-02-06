@@ -53,6 +53,8 @@ common common-dependencies
     , containers 
     , pretty-simple 
     , data-default-class
+
+    , http-types
     
   mixins:
     start-servant hiding (Prelude)

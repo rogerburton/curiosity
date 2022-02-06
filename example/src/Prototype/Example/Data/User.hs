@@ -23,6 +23,7 @@ module Prototype.Example.Data.User
   ) where
 
 import qualified Data.Text                     as T
+import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
@@ -103,3 +104,18 @@ data UserErr = UserExists Text
              deriving Show
 
 instance Errs.IsRuntimeErr UserErr where
+  errCode = errCode' . \case
+    UserExists{}        -> "USER_EXISTS"
+    UserNotFound{}      -> "USER_NOT_FOUND"
+    IncorrectPassword{} -> "INCORRECT_PASSWORD"
+    where errCode' = mappend "ERR.USER."
+
+  httpStatus = \case
+    UserExists{}        -> HTTP.conflict409
+    UserNotFound{}      -> HTTP.notFound404
+    IncorrectPassword{} -> HTTP.unauthorized401
+
+  userMessage = Just . \case
+    UserExists        msg -> msg
+    UserNotFound      msg -> msg
+    IncorrectPassword msg -> msg

@@ -58,10 +58,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       id = S.dbId updatedProfile
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
       replaceOlder users =
-        [ if userId == id then updatedProfile else u
-        | u <- users
-        , let userId = S.dbId u
-        ]
+        [ if S.dbId u == id then updatedProfile else u | u <- users ]
 
    where
     modifyUserProfiles id f userProfiles =
