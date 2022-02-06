@@ -18,10 +18,13 @@ module Prototype.Example.Data.User
   , userIdParser
   , userNameParser
   , userPasswordParser
+  -- * Errors
+  , UserErr(..)
   ) where
 
 import qualified Data.Text                     as T
 import qualified Prototype.Example.Repl.Parse  as P
+import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
 
@@ -93,3 +96,10 @@ userProfileParser =
     <$> (userIdParser <* P.space)
     <*> (userNameParser <* P.space)
     <*> userPasswordParser
+
+data UserErr = UserExists Text
+             | UserNotFound Text
+             | IncorrectPassword Text
+             deriving Show
+
+instance Errs.IsRuntimeErr UserErr where
