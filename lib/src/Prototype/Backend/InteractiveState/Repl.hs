@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 module Prototype.Backend.InteractiveState.Repl
   ( ReplConf(..)
+  , ReplLoopResult(..)
   , startReadEvalPrintLoop
   ) where
 
@@ -18,9 +19,9 @@ import qualified Prototype.Runtime.Errors      as Errs
 import qualified System.Console.Readline       as RL
 
 data ReplConf = ReplConf
-  { _replPrompt   :: Text
-  , _replHistory  :: Bool
-  , _replExitCmds :: [Text]
+  { _replPrompt       :: Text
+  , _replHistory      :: Bool
+  , _replReplExitCmds :: [Text]
   }
   deriving Show
 
@@ -28,8 +29,11 @@ instance Default ReplConf where
   def = ReplConf "% " True ["exit"]
 
 data ReplLoopResult where
-  ExitOnGeneralException ::Exception e => e -> ReplLoopResult
-  ExitOnUserCmd ::ReplLoopResult
+  -- | Some fatal exception that caused the repl exit; more like a catch-all. 
+  ReplExitOnGeneralException ::Exception e => e -> ReplLoopResult
+  -- | The user explicitly indicated they'd like to exit the repl.
+  ReplExitOnUserCmd ::Text -> ReplLoopResult
+  -- | Continue the repl loop.
   ReplContinue ::ReplLoopResult
 
 deriving instance Show ReplLoopResult
@@ -43,18 +47,13 @@ startReadEvalPrintLoop
   -> (forall a . m a -> IO a) -- ^ Instructions on how to run some @m@ into @IO@
   -> m ReplLoopResult -- ^ The reason for user-exit. 
 startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
-  liftIO . mapSomeEx $ loop
+  liftIO . mapSomeEx $ loopRepl ReplContinue
  where
-  mapSomeEx op =
-    try @SomeException op <&> either ExitOnGeneralException identity
-
-  prompt = T.unpack _replPrompt
-
-  loop   = RL.readline prompt >>= \case
-    Nothing -> loop
+  loopRepl ReplContinue = RL.readline prompt >>= \case
+    Nothing -> loopRepl ReplContinue
     Just cmdString
-      | isExit
-      -> pure ExitOnUserCmd
+      | isReplExit
+      -> pure $ ReplExitOnUserCmd cmd
       | otherwise
       -> let replInput = IS.ReplInputStrict cmd
          in  do
@@ -68,7 +67,17 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
                  IS.ReplRuntimeErr   err  -> output' $ Errs.displayErr err
                pure ReplContinue
      where
-      isExit = cmd `elem` _replExitCmds || (T.strip cmd) `elem` _replExitCmds
-      cmd    = T.pack cmdString
+      isReplExit =
+        cmd `elem` _replReplExitCmds || (T.strip cmd) `elem` _replReplExitCmds
+      cmd = T.pack cmdString
+
+  loopRepl exit@ReplExitOnUserCmd{}          = pure exit
+  loopRepl exit@ReplExitOnGeneralException{} = pure exit
 
   output' txt = RL.getOutStream >>= (`T.IO.hPutStrLn` txt)
+
+  mapSomeEx op =
+    try @SomeException op <&> either ReplExitOnGeneralException identity
+
+  prompt = T.unpack _replPrompt
+
