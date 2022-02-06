@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 module Prototype.Backend.InteractiveState.Repl
   ( ReplConf(..)
+  , ExitCmd(..)
   , ReplLoopResult(..)
   , startReadEvalPrintLoop
   ) where
@@ -16,12 +17,17 @@ import           Prelude
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Runtime.Errors      as Errs
+import           Prototype.Types.NonEmptyText
 import qualified System.Console.Readline       as RL
 
+-- | Newtype over exit commands for type-safety.
+newtype ExitCmd = ExitCmd NonEmptyText
+                deriving (Eq, Show, IsString) via NonEmptyText
+
 data ReplConf = ReplConf
-  { _replPrompt       :: Text
-  , _replHistory      :: Bool
-  , _replReplExitCmds :: [Text]
+  { _replPrompt       :: Text -- ^ A prompt for the REPL, must not include trailing spaces. 
+  , _replHistory      :: Bool  -- ^ Do we want to have repl-history? 
+  , _replReplExitCmds :: [ExitCmd] -- ^ The list of exit commands we want to exit with
   }
   deriving Show
 
@@ -56,20 +62,26 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
       -> pure $ ReplExitOnUserCmd cmd
       | otherwise
       -> let replInput = IS.ReplInputStrict cmd
-         in  do
+         in 
+          -- Add the input to the history, process it, and write the output to the output stream.
+             do
 
-               RL.addHistory cmdString
+               when _replHistory $ RL.addHistory cmdString
+
+               -- Process input.
                output <- runMInIO $ processInput replInput
 
                case output of
                  IS.ReplOutputStrict txt  -> output' txt
                  IS.ReplOutputLazy   txtL -> output' $ TL.toStrict txtL
                  IS.ReplRuntimeErr   err  -> output' $ Errs.displayErr err
+
                pure ReplContinue
      where
-      isReplExit =
-        cmd `elem` _replReplExitCmds || (T.strip cmd) `elem` _replReplExitCmds
-      cmd = T.pack cmdString
+      isReplExit = case nonEmptyText cmd of
+        Nothing    -> False
+        Just neCmd -> ExitCmd neCmd `elem` _replReplExitCmds
+      cmd = T.strip . T.pack $ cmdString
 
   loopRepl exit@ReplExitOnUserCmd{}          = pure exit
   loopRepl exit@ReplExitOnGeneralException{} = pure exit
