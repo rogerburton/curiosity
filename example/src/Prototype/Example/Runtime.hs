@@ -7,13 +7,17 @@ module Prototype.Example.Runtime
   ) where
 
 import qualified Control.Concurrent.STM        as STM
+import qualified Prototype.Backend.InteractiveState.Repl
+                                               as Repl
 import qualified Prototype.Example.Data        as Data
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
+import           Prototype.Types.Secret         ( (=:=) )
 
-data Conf
+newtype Conf = Conf { _confRepl :: Repl.ReplConf }
+             deriving Show
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
