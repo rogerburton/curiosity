@@ -7,7 +7,7 @@
 Module: Prototype.Backend.InteractiveState
 Description: Live state server
 -}
-module Prototype.Backend.InteractiveState
+module Prototype.Backend.InteractiveState.Class
   (
     -- * Main typeclasses 
     InteractiveDisp(..)

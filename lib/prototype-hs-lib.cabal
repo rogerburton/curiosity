@@ -56,5 +56,5 @@ library
   hs-source-dirs: src
   exposed-modules:
     Prelude
-    Prototype.Backend.InteractiveState 
+    Prototype.Backend.InteractiveState.Class
     Prototype.Backend.InteractiveState.Disp.Helpers
