@@ -18,7 +18,7 @@ module Prototype.Example.Data
 
 import qualified Prototype.Example.Repl.Parse as P 
 import qualified Control.Concurrent.STM        as STM
-import qualified Prototype.Backend.InteractiveState
+import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
