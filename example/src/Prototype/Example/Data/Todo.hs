@@ -52,8 +52,8 @@ data TodoListItem = TodoListItem
   deriving Show
 
 data TodoListItemState = TodoListItemPending
-                   | TodoListItemComplete
-                   deriving Show
+                       | TodoListItemComplete
+                       deriving (Eq, Show)
 
 instance Default TodoListItemState where
   def = TodoListItemPending

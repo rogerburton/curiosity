@@ -48,12 +48,14 @@ instance S.DBStorage ExampleAppM User.UserProfile where
         withUserStorage $ modifyUserProfiles newProfileId (newProfile :)
       existsErr = Errs.throwError' . User.UserExists . show
 
-    User.UserDelete id -> onUserExists id (notFound id) deleteUser
+    User.UserDelete id -> onUserExists id (userNotFound id) deleteUser
      where
       deleteUser _ =
         withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
 
-    User.UserUpdate updatedProfile -> onUserExists id (notFound id) updateUser
+    User.UserUpdate updatedProfile -> onUserExists id
+                                                   (userNotFound id)
+                                                   updateUser
      where
       id = S.dbId updatedProfile
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
@@ -67,7 +69,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
   dbSelect = \case
     User.UserLogin id (User.UserPassword passInput) -> onUserExists
       id
-      (notFound id)
+      (userNotFound id)
       comparePass
      where
       comparePass foundUser@User.UserProfile { _userProfilePassword = User.UserPassword passStored }
@@ -82,5 +84,32 @@ instance S.DBStorage ExampleAppM User.UserProfile where
 
 onUserExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
-notFound = Errs.throwError' . User.UserNotFound . show
+userNotFound = Errs.throwError' . User.UserNotFound . show
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
+
+instance S.DBStorage ExampleAppM Todo.TodoList where
+
+  dbUpdate = \case
+    Todo.AddItem id item -> onTodoListExists id undefined undefined
+
+   where
+    modifyTodoListProfiles id f todoLists =
+      liftIO $ STM.atomically (STM.modifyTVar todoLists f) $> [id]
+
+  dbSelect = \case
+    Todo.SelectTodoListById id -> filtStoredTodos $ (== id) . S.dbId
+    Todo.SelectTodoListsByPendingItems ->
+      filtStoredTodos
+        $ any ((== Todo.TodoListItemPending) . Todo._todoItemState)
+        . Todo._todoListItems
+    Todo.SelectTodoListsByUser userId ->
+      filtStoredTodos $ elem userId . Todo._todoListUsers
+
+withTodoStorage f = asks (Data._dbTodos . _rDb) >>= f
+filtStoredTodos f =
+  withTodoStorage $ liftIO . STM.readTVarIO >=> pure . filter f
+
+onTodoListExists id onNone onExisting =
+  S.dbSelect (Todo.SelectTodoListById id)
+    <&> headMay
+    >>= maybe onNone onExisting
