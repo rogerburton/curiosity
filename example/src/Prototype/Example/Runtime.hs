@@ -16,8 +16,13 @@ import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
 
-newtype Conf = Conf { _confRepl :: Repl.ReplConf }
-             deriving Show
+newtype ServerConf = ServerConf { _serverPort :: Int }
+                   deriving Show
+data Conf = Conf
+  { _confRepl   :: Repl.ReplConf
+  , _confServer :: ServerConf
+  }
+  deriving Show
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
@@ -90,11 +95,44 @@ withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 instance S.DBStorage ExampleAppM Todo.TodoList where
 
   dbUpdate = \case
-    Todo.AddItem id item -> onTodoListExists id undefined undefined
+    Todo.AddItem id item -> onTodoListExists id
+                                             (todoListNotFound id)
+                                             modifyList
 
-   where
-    modifyTodoListProfiles id f todoLists =
-      liftIO $ STM.atomically (STM.modifyTVar todoLists f) $> [id]
+     where
+      modifyList list' =
+        let newList =
+              list' { Todo._todoListItems = item : Todo._todoListItems list' }
+        in  replaceTodoList newList $> [id]
+
+    Todo.DeleteItem id itemName -> onTodoListExists id
+                                                    (todoListNotFound id)
+                                                    modifyList
+     where
+      modifyList list' =
+        let newList = list'
+              { Todo._todoListItems = filter
+                                        ((/= itemName) . Todo._todoItemName)
+                                        (Todo._todoListItems list')
+              }
+        in  replaceTodoList newList $> [id]
+
+    Todo.MarkItem id itemName itemState -> onTodoListExists
+      id
+      (todoListNotFound id)
+      modifyList
+     where
+      modifyList list' =
+        let
+          newList = list'
+            { Todo._todoListItems = fmap replaceItem (Todo._todoListItems list')
+            }
+          replaceItem item@Todo.TodoListItem {..}
+            | _todoItemName == itemName = item { Todo._todoItemState = itemState
+                                               }
+            | otherwise = item
+        in
+          replaceTodoList newList $> [id]
 
   dbSelect = \case
     Todo.SelectTodoListById id -> filtStoredTodos $ (== id) . S.dbId
@@ -113,3 +151,12 @@ onTodoListExists id onNone onExisting =
   S.dbSelect (Todo.SelectTodoListById id)
     <&> headMay
     >>= maybe onNone onExisting
+
+todoListNotFound = Errs.throwError' . Todo.TodoListNotFound . show
+
+replaceTodoList newList =
+  let replaceList list' | S.dbId list' == S.dbId newList = newList
+                        | otherwise                      = list'
+  in  withTodoStorage $ \stmLists ->
+        liftIO . STM.atomically $ STM.modifyTVar' stmLists $ fmap replaceList
+

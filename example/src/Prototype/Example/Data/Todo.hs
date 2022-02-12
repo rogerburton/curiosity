@@ -17,11 +17,15 @@ module Prototype.Example.Data.Todo
   -- ** Parsers
   , dbUpdateParser
   , dbSelectParser
+  -- * Errors
+  , TodoListErr(..)
   ) where
 
 import           Data.Default.Class
+import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Data.User   as U
 import qualified Prototype.Example.Repl.Parse  as P
+import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 
 -- | The name of a `TodoList`.
@@ -85,3 +89,18 @@ dbUpdateParser = undefined
 
 dbSelectParser :: P.ParserText (Storage.DBSelect TodoList)
 dbSelectParser = undefined
+
+newtype TodoListErr = TodoListNotFound Text
+                    deriving Show
+
+instance Errs.IsRuntimeErr TodoListErr where
+  errCode = errCode' . \case
+    TodoListNotFound{} -> "NOT_FOUND"
+    where errCode' = mappend "ERR.TODO_LIST."
+
+  userMessage = Just . \case
+    TodoListNotFound msg -> msg
+
+  httpStatus = \case
+    TodoListNotFound{} -> HTTP.notFound404
+
