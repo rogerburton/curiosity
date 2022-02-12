@@ -61,7 +61,6 @@ common common-dependencies
 
 library 
   import: common-dependencies, lang-settings, common-extensions
-  build-depends: start-servant
   hs-source-dirs: src
   exposed-modules:
     Prototype.Example.Data 
@@ -69,3 +68,13 @@ library
     Prototype.Example.Runtime  
     Prototype.Example.Data.Todo
     Prototype.Example.Data.User 
+
+executable prototype-hs-example-exe
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: ExampleMain.hs
+  build-depends:
+    optparse-applicative
+  hs-source-dirs: executable
+  other-modules:
+  
+   
