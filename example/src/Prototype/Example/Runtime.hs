@@ -5,6 +5,7 @@ module Prototype.Example.Runtime
   , ServerConf(..)
   , Runtime(..)
   , ExampleAppM(..)
+  , boot
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -161,3 +162,12 @@ replaceTodoList newList =
   in  withTodoStorage $ \stmLists ->
         liftIO . STM.atomically $ STM.modifyTVar' stmLists $ fmap replaceList
 
+-- | Boot up a runtime.
+boot
+  :: MonadIO m
+  => Conf
+  -> Maybe (Data.HaskDb Runtime)
+  -> m (Either Errs.RuntimeErr Runtime)
+boot _rConf mInitDb = do
+  _rDb <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+  pure $ Right Runtime { .. }
