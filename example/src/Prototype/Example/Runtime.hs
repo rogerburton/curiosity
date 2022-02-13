@@ -11,6 +11,7 @@ module Prototype.Example.Runtime
   , rDb
   , ExampleAppM(..)
   , boot
+  , runExampleAppMSafe
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -53,6 +54,20 @@ newtype ExampleAppM a = ExampleAppM { runExampleAppM :: ReaderT Runtime (ExceptT
            , MonadReader Runtime
            , MonadError Errs.RuntimeErr
            )
+
+-- | Run the `ExampleAppM` computation catching all possible exceptions. 
+runExampleAppMSafe
+  :: forall a m
+   . MonadIO m
+  => Runtime
+  -> ExampleAppM a
+  -> m (Either Errs.RuntimeErr a)
+runExampleAppMSafe rt (ExampleAppM op') =
+  liftIO
+    . fmap (join . first Errs.RuntimeException)
+    . try @SomeException
+    . runExceptT
+    $ runReaderT op' rt
 
 -- | Definition of all operations for the UserProfiles (selects and updates)
 instance S.DBStorage ExampleAppM User.UserProfile where

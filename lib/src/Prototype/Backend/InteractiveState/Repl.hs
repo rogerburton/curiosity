@@ -50,7 +50,7 @@ startReadEvalPrintLoop
    . MonadIO m
   => ReplConf -- ^ The configuration to run with.
   -> (IS.DispInput 'IS.Repl -> m (IS.DispOutput 'IS.Repl)) -- ^ Function mapping the repl input to output.
-  -> (forall a . m a -> IO a) -- ^ Instructions on how to run some @m@ into @IO@
+  -> (forall a . m a -> IO (Either Errs.RuntimeErr a)) -- ^ Instructions on how to run some @m@ into @IO@
   -> m ReplLoopResult -- ^ The reason for user-exit. 
 startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
   liftIO . mapSomeEx $ loopRepl ReplContinue
@@ -62,21 +62,23 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
       -> pure $ ReplExitOnUserCmd cmd
       | otherwise
       -> let replInput = IS.ReplInputStrict cmd
-         in 
+         in
           -- Add the input to the history, process it, and write the output to the output stream.
-             do
+           do
 
-               when _replHistory $ RL.addHistory cmdString
+             when _replHistory $ RL.addHistory cmdString
 
-               -- Process input.
-               output <- runMInIO $ processInput replInput
+             -- Process input.
+             output <- runMInIO $ processInput replInput
 
-               case output of
-                 IS.ReplOutputStrict txt  -> output' txt
-                 IS.ReplOutputLazy   txtL -> output' $ TL.toStrict txtL
-                 IS.ReplRuntimeErr   err  -> output' $ Errs.displayErr err
+             case output of
+               Right (IS.ReplOutputStrict txt ) -> output' txt
+               Right (IS.ReplOutputLazy   txtL) -> output' $ TL.toStrict txtL
+               Right (IS.ReplRuntimeErr   err ) -> output' $ Errs.displayErr err
+               Left rtErr ->
+                 output' $ "Unhandled runtime error: " <> Errs.displayErr rtErr
 
-               pure ReplContinue
+             pure ReplContinue
      where
       isReplExit = case nonEmptyText cmd of
         Nothing    -> False

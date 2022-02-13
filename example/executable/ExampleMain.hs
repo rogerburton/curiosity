@@ -44,20 +44,19 @@ runWithConf conf = do
     putStrLn @Text . mappend "Server exited with: " . Errs.displayErr
 
 startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
-startRepl rt = undefined $ Repl.startReadEvalPrintLoop
+startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
   (rt ^. Rt.rConf . Rt.confRepl)
-  (handleReplInputs :: (  IS.DispInput 'IS.Repl
-    -> Rt.ExampleAppM (IS.DispOutput 'IS.Repl)
-    )
-  )
-  (undefined :: (Rt.ExampleAppM a -> IO a))
+  handleReplInputs
+  (Rt.runExampleAppMSafe rt)
  where
   handleReplInputs =
+    -- TypeApplications not needed below, but left for clarity.
     IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.ExampleAppM
-      >=> either displayErr displayOutput
-  displayErr    = undefined
-  displayOutput = undefined
-
+      >=> either displayErr pure
+  runSafeMapErrs = fmap (either Repl.ReplExitOnGeneralException identity)
+    . Rt.runExampleAppMSafe rt
+  displayErr = pure . IS.ReplOutputStrict . show -- fixme: better show.
+  -- displayOutput = show
 
 -- FIXME: Implement the server part; currently its just a forever running loop.
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
