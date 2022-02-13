@@ -76,6 +76,7 @@ executable prototype-hs-example-exe
   build-depends:
       optparse-applicative
     , prototype-hs-example 
+    , async
   hs-source-dirs: executable
   other-modules:
     Prototype.Example.Exe.Parse

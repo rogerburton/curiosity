@@ -1,14 +1,20 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 module Prototype.Example.Runtime
   ( Conf(..)
+  , confRepl
+  , confServer
   , ServerConf(..)
   , Runtime(..)
+  , rConf
+  , rDb
   , ExampleAppM(..)
   , boot
   ) where
 
 import qualified Control.Concurrent.STM        as STM
+import           Control.Lens
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Example.Data        as Data
@@ -26,11 +32,15 @@ data Conf = Conf
   }
   deriving Show
 
+makeLenses ''Conf
+
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
   { _rConf :: Conf -- ^ The application configuration.
   , _rDb   :: Data.StmDb Runtime -- ^ The Storage. 
   }
+
+makeLenses ''Runtime
 
 instance Data.RuntimeHasStmDb Runtime where
   stmDbFromRuntime = _rDb
