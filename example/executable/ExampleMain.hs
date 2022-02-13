@@ -1,4 +1,4 @@
-module ExampleMain
+module Prototype.Example.Exe.ExampleMain
   ( main
   ) where
 

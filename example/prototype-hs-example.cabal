@@ -45,6 +45,7 @@ common common-dependencies
     , prototype-hs-lib 
 
     , stm
+    , lens 
 
     , megaparsec 
 
@@ -73,8 +74,10 @@ executable prototype-hs-example-exe
   import: common-dependencies, lang-settings, common-extensions
   main-is: ExampleMain.hs
   build-depends:
-    optparse-applicative
+      optparse-applicative
+    , prototype-hs-example 
   hs-source-dirs: executable
   other-modules:
+    Prototype.Example.Exe.Parse
   
    

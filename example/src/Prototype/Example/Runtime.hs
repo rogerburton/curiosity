@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 module Prototype.Example.Runtime
   ( Conf(..)
+  , ServerConf(..)
   , Runtime(..)
   , ExampleAppM(..)
   ) where
