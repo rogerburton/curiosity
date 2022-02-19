@@ -55,10 +55,12 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserDelete UserId
     | UserUpdate UserProfile
+    deriving Show
   
   data DBSelect UserProfile =
     UserLogin UserId UserPassword
     | SelectUserById UserId
+    deriving Show
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
 dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]

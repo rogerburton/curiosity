@@ -56,7 +56,6 @@ startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
   runSafeMapErrs = fmap (either Repl.ReplExitOnGeneralException identity)
     . Rt.runExampleAppMSafe rt
   displayErr = pure . IS.ReplOutputStrict . show -- fixme: better show.
-  -- displayOutput = show
 
 -- FIXME: Implement the server part; currently its just a forever running loop.
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
