@@ -22,7 +22,7 @@ module Prototype.Example.Data.User
   , UserErr(..)
   ) where
 
-import qualified Data.Text                     as T
+import qualified Data.Char                     as Char
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
@@ -40,7 +40,8 @@ newtype UserName = UserName Text
                  deriving (Eq, Show, IsString) via Text
 
 newtype UserPassword = UserPassword (Secret.Secret '[] Text)
-                 deriving (Eq, Show, IsString) via Text
+                 deriving (Eq, IsString) via Text
+                 deriving stock Show
 
 newtype UserId = UserId Text
                deriving (Eq, Show)
@@ -73,7 +74,7 @@ dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]
 
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
-dbSelectParser = P.tryAlts [userLogin, selectUserById]
+dbSelectParser = userLogin <|> selectUserById
  where
   userLogin =
     P.withTrailSpaces "UserLogin"
@@ -86,12 +87,12 @@ userIdParser :: P.ParserText UserId
 userIdParser = UserId <$> P.punctuated P.alphaNumText
 
 userNameParser :: P.ParserText UserName
-userNameParser =
-  UserName . T.unwords <$> P.punctuated (P.alphaNumText `P.sepBy` P.space1)
+userNameParser = UserName <$> P.punctuated P.takeRest
 
--- | For the password, we just take the rest of the input.
+-- | For the password, we want to consume everything within the punctuations. 
 userPasswordParser :: P.ParserText UserPassword
-userPasswordParser = UserPassword . Secret <$> P.punctuated P.asciiText
+userPasswordParser = UserPassword . Secret <$> P.punctuated
+  (P.takeWhile1P (Just "UserPassword") (not . Char.isPunctuation))
 
 userProfileParser :: P.ParserText UserProfile
 userProfileParser =
