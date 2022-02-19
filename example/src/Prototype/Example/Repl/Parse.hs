@@ -43,8 +43,8 @@ parseInputCtx parser text =
   first (ParseErr . show) $ MP.parse parser (T.unpack text) text
 
 -- | Expect a string with at least 1 whitespace character. 
-withTrailSpaces :: MP.Tokens Text -> ParserText ()
-withTrailSpaces txt = MP.Char.string' txt *> MP.Char.space1
+withTrailSpaces :: MP.Tokens Text -> ParserText Text
+withTrailSpaces txt = MP.Char.string' txt <* MP.Char.space1
 
 tryAlts :: Foldable f => f (ParserText a) -> ParserText a
 tryAlts = foldl' untilSuccess $ MP.fancyFailure noParsers
