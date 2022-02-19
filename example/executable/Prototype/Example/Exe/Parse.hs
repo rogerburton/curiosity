@@ -16,11 +16,13 @@ confParser = do
   _confRepl    <- replParser
   _confLogging <- ML.parseLoggingConf
   pure Conf { .. }
+
 serverParser = ServerConf <$> A.option
   A.auto
   (A.long "server-port" <> A.metavar "PORT" <> A.help
     "Port to run the HTTP server on."
   )
+
 replParser = do
   _replPrompt <-
     A.strOption
@@ -29,6 +31,7 @@ replParser = do
     <> A.showDefault
     <> A.metavar "PROMPT"
     <> A.help "Prompt to use for the repl"
+
   _replHistory <- A.switch $ A.long "repl-history-on" <> A.help
     "Flag to enable history."
   _replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
