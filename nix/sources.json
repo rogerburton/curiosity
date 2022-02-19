@@ -48,7 +48,7 @@
     "start-servant": {
         "branch": "protolude-rebased",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "37a65b74fa5b658c0f9e7a220da6b0d4dc1dfe6b",
+        "rev": "146ca2b9e716367d74059080eb21ecc6beb47065",
         "type": "git"
     }
 }
