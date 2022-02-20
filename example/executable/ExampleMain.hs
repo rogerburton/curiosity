@@ -31,17 +31,17 @@ mainParserInfo =
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   -- The first step is to boot up a runtime. 
-  runtime                    <- Rt.boot conf Nothing >>= either throwIO pure
-  (replResult, serverResult) <- startRepl runtime
-    `concurrently` startServer runtime
-  replExitedWith replResult
-  serverExitedWith serverResult
+  runtime <- Rt.boot conf Nothing >>= either throwIO pure
+  -- (replResult, serverResult) <- startRepl runtime
+  --   `concurrently` startServer runtime
+  startRepl runtime
+  -- replExitedWith replResult
+  -- serverExitedWith serverResult
   -- FIXME: correct exit codes based on exit reason.
   exitSuccess
- where
-  replExitedWith = putStrLn @Text . mappend "Repl exited with: " . show
-  serverExitedWith =
-    putStrLn @Text . mappend "Server exited with: " . Errs.displayErr
+  -- where replExitedWith = putStrLn @Text . mappend "Repl exited with: " . show
+  -- serverExitedWith =
+  --   putStrLn @Text . mappend "Server exited with: " . Errs.displayErr
 
 startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
 startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop

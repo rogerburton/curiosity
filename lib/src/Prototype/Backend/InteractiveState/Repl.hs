@@ -58,10 +58,10 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
     loopRepl ReplContinue
  where
   loopRepl ReplContinue = RL.readline prompt >>= \case
-    Nothing -> pure $ ReplExitOnUserCmd "eof"
+    Nothing -> exitWith' $ ReplExitOnUserCmd "eof"
     Just cmdString
       | isReplExit
-      -> pure $ ReplExitOnUserCmd cmd
+      -> exitWith' $ ReplExitOnUserCmd cmd
       | otherwise
       -> let replInput = IS.ReplInputStrict cmd
          in
@@ -94,6 +94,8 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
 
   mapSomeEx op =
     try @SomeException op <&> either ReplExitOnGeneralException identity
+
+  exitWith' result = output' ("REPL exit with: " <> show result) $> result
 
   prompt = T.unpack _replPrompt
 
