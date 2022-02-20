@@ -1,6 +1,11 @@
 {-# OPTIONS_GHC -Wno-orphans  #-}
 module Prototype.Example.Data.UserSpec
   ( spec
+  , showUserUpdate
+  , showUserDelete
+  , showUserCreate
+  , showSelectUserById
+  , showUserLogin
   ) where
 
 import           Control.Lens
@@ -36,36 +41,45 @@ instance Q.Arbitrary UserName where
 
 userLoginParseProp :: UserId -> UserPassword -> Bool
 userLoginParseProp userId userPass =
-  let input = T.intercalate " " ["UserLogin", quote userId, quote userPass]
+  let input = showUserLogin userId userPass
   in  tryParser (UserLogin userId userPass) dbSelectParser input
+
+showUserLogin userId userPass =
+  T.intercalate " " ["UserLogin", quote userId, quote userPass]
 
 selectUserByIdProp :: UserId -> Bool
 selectUserByIdProp userId =
-  let input = T.intercalate " " ["SelectUserById", quote userId]
+  let input = showSelectUserById userId
   in  tryParser (SelectUserById userId) dbSelectParser input
+
+showSelectUserById userId = T.intercalate " " ["SelectUserById", quote userId]
 
 userCreateParseProp :: UserId -> UserName -> UserPassword -> Bool
 userCreateParseProp userId userName userPass =
-  let input = T.intercalate
-        " "
-        ["UserCreate", quote userId, quote userName, quote userPass]
+  let input = showUserCreate userId userName userPass
   in  tryParser (UserCreate $ UserProfile userId userName userPass)
                 dbUpdateParser
                 input
 
+showUserCreate userId userName userPass =
+  T.intercalate " " ["UserCreate", quote userId, quote userName, quote userPass]
+
 userUpdateParseProp :: UserId -> UserName -> UserPassword -> Bool
 userUpdateParseProp userId userName userPass =
-  let input = T.intercalate
-        " "
-        ["UserUpdate", quote userId, quote userName, quote userPass]
+  let input = showUserUpdate userId userName userPass
   in  tryParser (UserUpdate $ UserProfile userId userName userPass)
                 dbUpdateParser
                 input
 
+showUserUpdate userId userName userPass =
+  T.intercalate " " ["UserUpdate", quote userId, quote userName, quote userPass]
+
 userDeleteParseProp :: UserId -> Bool
 userDeleteParseProp userId =
-  let input = T.intercalate " " ["UserDelete", quote userId]
+  let input = showUserDelete userId
   in  tryParser (UserDelete userId) dbUpdateParser input
+
+showUserDelete userId = T.intercalate " " ["UserDelete", quote userId]
 
 quote textWrapper = "'" <> textWrapper ^. coerced <> "'"
 

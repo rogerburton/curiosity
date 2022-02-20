@@ -15,14 +15,17 @@ module Prototype.Example.Data
   -- * Reading values from the database.
   , readFullStmDbInHask
   , IS.InteractiveStateErr(..)
+  -- * typeclass-free parsers
+  , parseViz
+  , parseMod
   ) where
 
-import qualified Prototype.Example.Repl.Parse as P 
 import qualified Control.Concurrent.STM        as STM
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Example.Data.Todo   as Todo
 import qualified Prototype.Example.Data.User   as U
+import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 
@@ -96,14 +99,14 @@ Some notes:
 lift `IO` ops. to some arbitrary `m`
 
 -}
-instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
+instance IS.InteractiveState (StmDb runtime) where
   
   data StateModification (StmDb runtime) =
     ModifyUser (S.DBUpdate U.UserProfile)
     | ModifyTodo (S.DBUpdate Todo.TodoList)
   
-  data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr 
-                           
+  data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr
+  
   data StateVisualisation (StmDb runtime) =
     VisualiseUser (S.DBSelect U.UserProfile)
     | VisualiseTodo (S.DBSelect Todo.TodoList)
@@ -140,10 +143,14 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
 
   execModification = \case
     ModifyUser userUpdate -> S.dbUpdate userUpdate >>= getAffectedUsers
-      where getAffectedUsers = fmap UsersModified . concatMapM (S.dbSelect . U.SelectUserById) 
+     where
+      getAffectedUsers =
+        fmap UsersModified . concatMapM (S.dbSelect . U.SelectUserById)
 
     ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= getAffectedTodos
-      where getAffectedTodos = fmap TodoListsModified . concatMapM (S.dbSelect . Todo.SelectTodoListById)
+     where
+      getAffectedTodos = fmap TodoListsModified
+        . concatMapM (S.dbSelect . Todo.SelectTodoListById)
 
 {- | This instance defines parsing for incoming inputs that visualise or modify the `Db` state.. 
 
@@ -157,26 +164,44 @@ mod user <UserSubcommand>
 
 etc.
 -}
-instance RuntimeHasStmDb runtime => IS.InteractiveStateOnDisp (StmDb runtime) 'IS.Repl where
+instance IS.InteractiveStateOnDisp (StmDb runtime) 'IS.Repl where
 
-  type StateParseInputC (StmDb runtime) 'IS.Repl m = (MonadError Errs.RuntimeErr m)
+  type StateParseInputC (StmDb runtime) 'IS.Repl m = (Applicative m)
 
-  parseModificationInput 
-    :: forall m . (IS.StateParseInputC (StmDb runtime) 'IS.Repl m)
+  parseModificationInput
+    :: forall m
+     . (IS.StateParseInputC (StmDb runtime) 'IS.Repl m)
     => IS.DispInput 'IS.Repl -- ^ Raw input 
-    -> m ( Either (IS.InteractiveStateErr (StmDb runtime))
-                  (IS.StateModification (StmDb runtime))
+    -> m
+         ( Either
+             (IS.InteractiveStateErr (StmDb runtime))
+             (IS.StateModification (StmDb runtime))
          ) -- ^ We eventually return a successfully parsed modification.
-  parseModificationInput (IS.ReplInputStrict text) =
-    let 
-      userMod = P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
-      todoMod = P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo 
-    in pure $ P.parseInputCtx (P.withTrailSpaces "mod" *> P.try userMod <|> todoMod) text & first ParseFailed  
+  parseModificationInput (IS.ReplInputStrict input) =
+    pure $ parseMod input & first ParseFailed
 
-  parseVisualisationInput (IS.ReplInputStrict text) =
-    let userViz = P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
-        todoViz = P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
-        fullViz = P.withTrailSpaces "all" $> VisualiseFullStmDb
-    in pure $ P.parseInputCtx (P.withTrailSpaces "viz" *> P.try userViz <|> P.try todoViz <|> fullViz) text & first ParseFailed 
+  parseVisualisationInput (IS.ReplInputStrict input) =
+    pure $ parseViz input & first ParseFailed
 
+parseViz
+  :: forall runtime
+   . Text
+  -> Either P.ParseErr (IS.StateVisualisation (StmDb runtime))
+parseViz input =
+  let userViz = P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
+      todoViz =
+        P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
+      fullViz = P.withTrailSpaces "all" $> VisualiseFullStmDb
+  in  P.parseInputCtx
+        (P.withTrailSpaces "viz" *> P.try userViz <|> P.try todoViz <|> fullViz)
+        input
 
+parseMod
+  :: forall runtime
+   . Text
+  -> Either P.ParseErr (IS.StateModification (StmDb runtime))
+parseMod input =
+  let userMod = P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
+      todoMod = P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
+  in  P.parseInputCtx (P.withTrailSpaces "mod" *> P.try userMod <|> todoMod)
+                      input
