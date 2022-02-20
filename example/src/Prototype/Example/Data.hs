@@ -14,6 +14,7 @@ module Prototype.Example.Data
   , instantiateEmptyStmDb
   -- * Reading values from the database.
   , readFullStmDbInHask
+  , IS.InteractiveStateErr(..)
   ) where
 
 import qualified Prototype.Example.Repl.Parse as P 
@@ -102,7 +103,6 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
     | ModifyTodo (S.DBUpdate Todo.TodoList)
   
   data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr 
-                                           deriving Show 
                            
   data StateVisualisation (StmDb runtime) =
     VisualiseUser (S.DBSelect U.UserProfile)

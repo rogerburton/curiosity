@@ -61,6 +61,8 @@ module Prototype.Example.Repl.Parse
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import           GHC.Base                       ( String )
+import qualified GHC.Show
+import           Network.HTTP.Types.Status      ( unprocessableEntity422 )
 import qualified Prototype.Runtime.Errors      as Errs
 import           Text.Megaparsec               as MP
 import           Text.Megaparsec.Char          as MP.Char
@@ -70,7 +72,10 @@ data CustomErrInfo = CustomErrInfo
 
 data ParseErr = ParseErr Text
               | ParseErrBundle (MP.ParseErrorBundle Text ParseErr)
-              deriving (Show, Eq)
+              deriving Eq
+
+instance Show ParseErr where
+  show = MP.showErrorComponent
 
 -- | A rather arbitrary Ord instance, needed just to satisfy the head of `MP.ShowErrorComponent`, which is pretty poorly designed.
 instance Ord ParseErr where
@@ -87,14 +92,15 @@ instance MP.ShowErrorComponent ParseErr where
 -- | FIXME: The current implementation is pretty rudimentary, more informative errors to be added pretty soon.
 instance Errs.IsRuntimeErr ParseErr where
   errCode _ = "ERR.INVALID_PARSE"
-  httpStatus _ = undefined
+  httpStatus _ = unprocessableEntity422
   userMessage = Just . T.pack . MP.showErrorComponent
+  displayErr  = T.pack . MP.showErrorComponent
 
 type ParserText = MP.Parsec ParseErr Text
 
 parseInputCtx :: ParserText a -> Text -> Either ParseErr a
 parseInputCtx parser text =
-  first (ParseErr . show) $ MP.parse parser (T.unpack text) text
+  first ParseErrBundle $ MP.parse parser (T.unpack text) text
 
 -- | Expect a string with at least 1 whitespace character. 
 withTrailSpaces :: MP.Tokens Text -> ParserText Text
