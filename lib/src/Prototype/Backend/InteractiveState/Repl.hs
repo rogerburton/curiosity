@@ -53,10 +53,12 @@ startReadEvalPrintLoop
   -> (forall a . m a -> IO (Either Errs.RuntimeErr a)) -- ^ Instructions on how to run some @m@ into @IO@
   -> m ReplLoopResult -- ^ The reason for user-exit. 
 startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
-  liftIO . mapSomeEx $ loopRepl ReplContinue
+  liftIO . mapSomeEx $ do
+    RL.initialize
+    loopRepl ReplContinue
  where
   loopRepl ReplContinue = RL.readline prompt >>= \case
-    Nothing -> loopRepl ReplContinue
+    Nothing -> pure $ ReplExitOnUserCmd "eof"
     Just cmdString
       | isReplExit
       -> pure $ ReplExitOnUserCmd cmd
@@ -83,7 +85,7 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
       isReplExit = case nonEmptyText cmd of
         Nothing    -> False
         Just neCmd -> ExitCmd neCmd `elem` _replReplExitCmds
-      cmd = T.strip . T.pack $ cmdString
+      cmd = T.pack $ cmdString
 
   loopRepl exit@ReplExitOnUserCmd{}          = pure exit
   loopRepl exit@ReplExitOnGeneralException{} = pure exit
