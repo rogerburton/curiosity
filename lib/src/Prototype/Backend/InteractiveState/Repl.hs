@@ -78,7 +78,7 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
                Left rtErr ->
                  output' $ "Unhandled runtime error: " <> Errs.displayErr rtErr
 
-             pure ReplContinue
+             loopRepl ReplContinue
      where
       isReplExit = case nonEmptyText cmd of
         Nothing    -> False
