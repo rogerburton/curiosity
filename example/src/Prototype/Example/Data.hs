@@ -108,6 +108,7 @@ instance RuntimeHasStmDb runtime => IS.InteractiveState (StmDb runtime) where
     VisualiseUser (S.DBSelect U.UserProfile)
     | VisualiseTodo (S.DBSelect Todo.TodoList)
     | VisualiseFullStmDb
+      deriving Show
 
   type StateModificationC (StmDb runtime) m
     = ( MonadIO m

@@ -34,7 +34,7 @@ data UserProfile = UserProfile
   , _userProfileName     :: UserName -- ^ User's human friendly name.
   , _userProfilePassword :: UserPassword -- ^ User's password. 
   }
-  deriving Show
+  deriving (Show, Eq)
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString) via Text
@@ -56,12 +56,12 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserDelete UserId
     | UserUpdate UserProfile
-    deriving Show
+    deriving (Show, Eq)
   
   data DBSelect UserProfile =
     UserLogin UserId UserPassword
     | SelectUserById UserId
-    deriving Show
+    deriving (Show, Eq)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
 dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]
