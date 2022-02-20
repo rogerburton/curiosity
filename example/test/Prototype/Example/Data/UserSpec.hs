@@ -17,6 +17,10 @@ spec = do
   describe "Parsing user-visualisations" $ do
     it "should parse UserLogin inputs." $ Q.property userLoginParseProp
     it "should parse SelectUserById inputs." $ Q.property selectUserByIdProp
+  describe "Parsing user-mods" $ do
+    it "should parse UserCreate inputs." $ Q.property userCreateParseProp
+    it "should parse UserUpdate inputs." $ Q.property userUpdateParseProp
+    it "should parse UserDelete inputs." $ Q.property userDeleteParseProp
 
 nonEmptyAlphaNum chars = not (null chars) && all C.isAlphaNum chars
 
@@ -26,6 +30,9 @@ instance Q.Arbitrary UserId where
 instance Q.Arbitrary UserPassword where
   arbitrary =
     UserPassword . Secret . T.pack <$> Q.arbitrary `Q.suchThat` nonEmptyAlphaNum
+
+instance Q.Arbitrary UserName where
+  arbitrary = UserName . T.pack <$> Q.arbitrary `Q.suchThat` nonEmptyAlphaNum
 
 userLoginParseProp :: UserId -> UserPassword -> Bool
 userLoginParseProp userId userPass =
@@ -37,9 +44,33 @@ selectUserByIdProp userId =
   let input = T.intercalate " " ["SelectUserById", quote userId]
   in  tryParser (SelectUserById userId) dbSelectParser input
 
+userCreateParseProp :: UserId -> UserName -> UserPassword -> Bool
+userCreateParseProp userId userName userPass =
+  let input = T.intercalate
+        " "
+        ["UserCreate", quote userId, quote userName, quote userPass]
+  in  tryParser (UserCreate $ UserProfile userId userName userPass)
+                dbUpdateParser
+                input
+
+userUpdateParseProp :: UserId -> UserName -> UserPassword -> Bool
+userUpdateParseProp userId userName userPass =
+  let input = T.intercalate
+        " "
+        ["UserUpdate", quote userId, quote userName, quote userPass]
+  in  tryParser (UserUpdate $ UserProfile userId userName userPass)
+                dbUpdateParser
+                input
+
+userDeleteParseProp :: UserId -> Bool
+userDeleteParseProp userId =
+  let input = T.intercalate " " ["UserDelete", quote userId]
+  in  tryParser (UserDelete userId) dbUpdateParser input
+
 quote textWrapper = "'" <> textWrapper ^. coerced <> "'"
 
 tryParser :: Eq a => a -> P.ParserText a -> Text -> Bool
 tryParser expected parser input = Right expected == first
   (T.pack . P.errorBundlePretty)
   (P.parse parser (T.unpack input) input)
+
