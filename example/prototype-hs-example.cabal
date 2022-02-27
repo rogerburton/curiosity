@@ -98,7 +98,9 @@ test-suite prototype-hs-example-test
 
   other-modules: 
      Prototype.Example.Data.UserSpec
+     Prototype.Example.Data.TodoSpec
      Prototype.Example.DataSpec
+     Prototype.Example.Data.Shared
 
   type: exitcode-stdio-1.0
   main-is: Spec.hs 

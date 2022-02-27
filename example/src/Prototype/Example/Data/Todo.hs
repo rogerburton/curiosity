@@ -45,7 +45,7 @@ data TodoList = TodoList
   , _todoListItems :: [TodoListItem] -- ^ Current list of items. 
   , _todoListUsers :: [U.UserId] -- ^ Users this todo-list is accessible to.
   }
-  deriving Show
+  deriving (Eq, Show)
 
 newtype TodoListItemName = TodoListItemName Text
                      deriving (Eq, Show, IsString) via Text
@@ -59,7 +59,7 @@ data TodoListItem = TodoListItem
   , _todoItemDesc  :: Maybe TodoListItemDesc -- ^ Item description, optional. 
   , _todoItemState :: TodoListItemState -- ^ Item state. 
   }
-  deriving Show
+  deriving (Eq, Show)
 
 data TodoListItemState = TodoListItemPending
                        | TodoListItemComplete
@@ -82,13 +82,13 @@ instance Storage.DBStorageOps TodoList where
     | SelectTodoListsByPendingItems
     -- | Select the lists that are accessible to a given `U.UserId`.
     | SelectTodoListsByUser U.UserId
-    deriving Show
+    deriving (Eq, Show)
   
   data DBUpdate TodoList =
     AddItem (Storage.DBId TodoList) TodoListItem
     | DeleteItem (Storage.DBId TodoList) TodoListItemName
     | MarkItem (Storage.DBId TodoList) TodoListItemName TodoListItemState
-    deriving Show
+    deriving (Eq, Show)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate TodoList)
 dbUpdateParser = P.tryAlts [addItem, deleteItem, markItem]
