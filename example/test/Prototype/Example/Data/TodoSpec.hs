@@ -3,6 +3,7 @@ module Prototype.Example.Data.TodoSpec
   ( spec
   ) where
 
+import qualified Data.Text                     as T
 import qualified Prototype.Example.Data.Shared as S
 import           Prototype.Example.Data.Todo
 import qualified Prototype.Example.Data.User   as U
@@ -12,19 +13,31 @@ import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 
 spec :: Spec
-spec = describe "Parsing todo-visualisations" $ do
-  it "should parse SelectTodoListById inputs."
-    $ Q.property selectTodoListByIdProp
-  it "should parse SelectTodoListsByPendingItems inputs."
-    $ Q.property selectTodoListsByPendingItemsProp
-  it "should parse SelectTodoListsByUser inputs."
-    $ Q.property selectTodoListsByUserProp
+spec = do
+  describe "Parsing todo-visualisations" $ do
+    it "should parse SelectTodoListById inputs."
+      $ Q.property selectTodoListByIdProp
+    it "should parse SelectTodoListsByPendingItems inputs."
+      $ Q.property selectTodoListsByPendingItemsProp
+    it "should parse SelectTodoListsByUser inputs."
+      $ Q.property selectTodoListsByUserProp
+
+  describe "Parsing todo-modificications" $ do
+    it "should parse AddItem inputs." $ Q.property addItemProp
+    it "should parse DeleteItem inputs." $ Q.property deleteItemProp
+    it "should parse MarkItem inputs." $ Q.property markItemProp
 
 instance Q.Arbitrary TodoListName where
   arbitrary = S.nonEmptyAlphaNumGen
 
 instance Q.Arbitrary TodoListItemDesc where
   arbitrary = S.nonEmptyAlphaNumGen
+
+instance Q.Arbitrary TodoListItemName where
+  arbitrary = S.nonEmptyAlphaNumGen
+
+instance Q.Arbitrary TodoListItemState where
+  arbitrary = Q.elements $ enumFromTo minBound maxBound
 
 selectTodoListByIdProp :: TodoListName -> Bool
 selectTodoListByIdProp name =
@@ -41,10 +54,41 @@ selectTodoListsByUserProp userId =
   let input = "SelectTodoListsByUser " <> S.quote userId
   in  S.tryParser (SelectTodoListsByUser userId) dbSelectParser input
 
--- instance Q.Arbitrary UserPassword where
---   arbitrary =
---     UserPassword . Secret . T.pack <$> Q.arbitrary `Q.suchThat` nonEmptyAlphaNum
+addItemProp
+  :: TodoListName
+  -> TodoListItemName
+  -> Maybe TodoListItemDesc
+  -> TodoListItemState
+  -> Bool
+addItemProp listName itemName mDesc status =
+  let input = T.unwords
+        [ "AddItem"
+        , S.quote listName
+        , S.quote itemName
+        , maybe "''" S.quote mDesc
+        , S.quote statusT
+        ]
+      statusT :: Text = showStatus status
+  in  S.tryParser (AddItem listName $ TodoListItem itemName mDesc status)
+                  dbUpdateParser
+                  input
+deleteItemProp :: TodoListName -> TodoListItemName -> Bool
+deleteItemProp listName itemName =
+  let input = T.unwords ["DeleteItem", S.quote listName, S.quote itemName]
+  in  S.tryParser (DeleteItem listName itemName) dbUpdateParser input
 
--- instance Q.Arbitrary UserName where
---   arbitrary = UserName . T.pack <$> Q.arbitrary `Q.suchThat` nonEmptyAlphaNum
+markItemProp :: TodoListName -> TodoListItemName -> TodoListItemState -> Bool
+markItemProp listName itemName itemState =
+  let input = T.unwords
+        [ "MarkItem"
+        , S.quote listName
+        , S.quote itemName
+        , S.quote (showStatus itemState)
+        ]
+  in  S.tryParser (MarkItem listName itemName itemState) dbUpdateParser input
+
+showStatus :: TodoListItemState -> Text
+showStatus = \case
+  TodoListItemComplete -> "complete"
+  TodoListItemPending  -> "pending"
 

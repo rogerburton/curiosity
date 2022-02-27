@@ -63,7 +63,7 @@ data TodoListItem = TodoListItem
 
 data TodoListItemState = TodoListItemPending
                        | TodoListItemComplete
-                       deriving (Eq, Show)
+                       deriving (Eq, Show, Enum, Bounded, Ord)
 
 instance Default TodoListItemState where
   def = TodoListItemPending
@@ -95,15 +95,21 @@ dbUpdateParser = P.tryAlts [addItem, deleteItem, markItem]
  where
   addItem =
     P.withTrailSpaces "AddItem"
-      *> (AddItem <$> todoListNameParser <*> todoListItemParser)
+      *> (AddItem <$> todoListNameParser <* P.space <*> todoListItemParser)
   deleteItem =
     P.withTrailSpaces "DeleteItem"
-      *> (DeleteItem <$> todoListNameParser <*> todoListItemNameParser)
+      *> (   DeleteItem
+         <$> todoListNameParser
+         <*  P.space
+         <*> todoListItemNameParser
+         )
   markItem =
     P.withTrailSpaces "MarkItem"
       *> (   MarkItem
          <$> todoListNameParser
+         <*  P.space
          <*> todoListItemNameParser
+         <*  P.space
          <*> todoListItemStateParser
          )
 
@@ -125,8 +131,8 @@ todoListItemNameParser = TodoListItemName <$> P.punctuated P.alphaNumText
 todoListItemStateParser :: P.ParserText TodoListItemState
 todoListItemStateParser = P.try pending <|> complete
  where
-  pending  = P.string' "pending" $> TodoListItemPending
-  complete = P.string' "complete" $> TodoListItemComplete
+  pending  = P.punctuated (P.string' "pending") $> TodoListItemPending
+  complete = P.punctuated (P.string' "complete") $> TodoListItemComplete
 
 todoListItemDescParserMaybe :: P.ParserText (Maybe TodoListItemDesc)
 todoListItemDescParserMaybe = do
@@ -139,7 +145,9 @@ todoListItemParser :: P.ParserText TodoListItem
 todoListItemParser =
   TodoListItem
     <$> todoListItemNameParser
+    <*  P.space
     <*> todoListItemDescParserMaybe
+    <*  P.space
     <*> todoListItemStateParser
 
 newtype TodoListErr = TodoListNotFound Text
