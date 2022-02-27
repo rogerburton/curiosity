@@ -114,8 +114,7 @@ dbSelectParser = selectById <|> selectByPendingItems <|> selectTodoListsByUser
     P.withTrailSpaces "SelectTodoListById"
       *> (SelectTodoListById <$> todoListNameParser)
   selectByPendingItems =
-    P.withTrailSpaces "SelectTodoListsByPendingItems"
-      $> SelectTodoListsByPendingItems
+    P.string' "SelectTodoListsByPendingItems" $> SelectTodoListsByPendingItems
   selectTodoListsByUser =
     P.withTrailSpaces "SelectTodoListsByUser"
       *> (SelectTodoListsByUser <$> U.userIdParser)

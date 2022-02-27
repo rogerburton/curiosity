@@ -5,6 +5,9 @@ module Prototype.Example.Data.TodoSpec
 
 import qualified Prototype.Example.Data.Shared as S
 import           Prototype.Example.Data.Todo
+import qualified Prototype.Example.Data.User   as U
+import           Prototype.Example.Data.UserSpec
+                                                ( ) -- Q.Arbitrary instance for U.UserId
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 
@@ -14,6 +17,8 @@ spec = describe "Parsing todo-visualisations" $ do
     $ Q.property selectTodoListByIdProp
   it "should parse SelectTodoListsByPendingItems inputs."
     $ Q.property selectTodoListsByPendingItemsProp
+  it "should parse SelectTodoListsByUser inputs."
+    $ Q.property selectTodoListsByUserProp
 
 instance Q.Arbitrary TodoListName where
   arbitrary = S.nonEmptyAlphaNumGen
@@ -26,10 +31,15 @@ selectTodoListByIdProp name =
   let input = "SelectTodoListById " <> S.quote name
   in  S.tryParser (SelectTodoListById name) dbSelectParser input
 
-selectTodoListsByPendingItemsProp :: TodoListName -> Bool
-selectTodoListsByPendingItemsProp name =
-  let input = "SelectTodoListsByPendingItems "
+selectTodoListsByPendingItemsProp :: Bool
+selectTodoListsByPendingItemsProp =
+  let input = "SelectTodoListsByPendingItems"
   in  S.tryParser SelectTodoListsByPendingItems dbSelectParser input
+
+selectTodoListsByUserProp :: U.UserId -> Bool
+selectTodoListsByUserProp userId =
+  let input = "SelectTodoListsByUser " <> S.quote userId
+  in  S.tryParser (SelectTodoListsByUser userId) dbSelectParser input
 
 -- instance Q.Arbitrary UserPassword where
 --   arbitrary =
