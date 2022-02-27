@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {- |
@@ -23,10 +24,15 @@ module Prototype.Example.Data.Todo
   , todoListItemStateParser
   , todoListItemDescParserMaybe
   , todoListItemParser
+  -- * Lenses 
+  , todoListName
+  , todoListItems
+  , todoListUsers
   -- * Errors
   , TodoListErr(..)
   ) where
 
+import           Control.Lens
 import           Data.Default.Class
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
@@ -205,4 +211,6 @@ instance Errs.IsRuntimeErr TodoListErr where
   httpStatus = \case
     TodoListNotFound{} -> HTTP.notFound404
     TodoListExists{}   -> HTTP.conflict409
+
+makeLenses ''TodoList
 

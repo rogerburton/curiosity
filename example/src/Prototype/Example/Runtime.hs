@@ -16,6 +16,7 @@ module Prototype.Example.Runtime
 
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
+import qualified Data.List                     as L
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Example.Data        as Data
@@ -172,7 +173,15 @@ instance S.DBStorage ExampleAppM Todo.TodoList where
               $ STM.modifyTVar' todoStm (filter $ (/= id) . S.dbId)
               )
             $> [id]
-    Todo.AddUsersToList      id users -> undefined
+    Todo.AddUsersToList id users -> onTodoListExists id
+                                                     (todoListNotFound id)
+                                                     modifyList
+     where
+      modifyList list' =
+        let newList =
+              list' & Todo.todoListUsers %~ L.nub . mappend (toList users)
+        in  replaceTodoList newList $> [id]
+
     Todo.RemoveUsersFromList id users -> undefined
     Todo.CreateList newList           -> withTodoStorage $ \todoStm -> do
       todos <- liftIO . STM.readTVarIO $ todoStm
