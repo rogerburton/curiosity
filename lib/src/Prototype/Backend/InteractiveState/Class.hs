@@ -60,9 +60,9 @@ instance IsString (DispOutput 'Repl) where
 -- | A sum-type that encodes any operation on an interactive state. 
 data AnyStateInput state =
   -- | Operation to visualise the state: this is usually querying the state for some data, but not modifying it. 
-  AnyStateVisualisation (StateVisualisation state)
+  AnyStateVisualisationInput (StateVisualisation state)
   -- | Operation to _modify_ the state: this is when we execute operations to modify the state. 
-  | AnyStateModification (StateModification state)
+  | AnyStateModificationInput (StateModification state)
 
 
 -- | A sum-type that encodes any operation on an interactive state. 
@@ -143,8 +143,8 @@ class InteractiveState state where
     => AnyStateInput state
     -> m (AnyStateOutput state)
   execAny = \case
-    AnyStateVisualisation vis -> AnyStateVisualisationOutput <$> execVisualisation vis
-    AnyStateModification mod' -> AnyStateModificationOutput <$> execModification mod'
+    AnyStateVisualisationInput vis -> AnyStateVisualisationOutput <$> execVisualisation vis
+    AnyStateModificationInput mod' -> AnyStateModificationOutput <$> execModification mod'
 
 {- ** 
 Tying up the `InteractiveState` instance with `InteractiveDisp` 
@@ -177,8 +177,8 @@ class ( InteractiveDisp dispType
          )
   parseAnyStateInput input = (<>) <$> parseModInput <*> parseVisInput
     where
-      parseModInput = second AnyStateModification <$> parseModificationInput input
-      parseVisInput = second AnyStateVisualisation <$> parseVisualisationInput input
+      parseModInput = second AnyStateModificationInput <$> parseModificationInput input
+      parseVisInput = second AnyStateVisualisationInput <$> parseVisualisationInput input
 
   -- | Parse the state modification input in an environment @m@ such that all parsing constraints are satsified. 
   parseModificationInput
