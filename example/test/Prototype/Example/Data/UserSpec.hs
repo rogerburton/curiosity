@@ -8,11 +8,9 @@ module Prototype.Example.Data.UserSpec
   , showUserLogin
   ) where
 
-import qualified Data.Char                     as C
 import qualified Data.Text                     as T
 import qualified Prototype.Example.Data.Shared as S
 import           Prototype.Example.Data.User
-import qualified Prototype.Example.Repl.Parse  as P
 import           Prototype.Types.Secret
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
