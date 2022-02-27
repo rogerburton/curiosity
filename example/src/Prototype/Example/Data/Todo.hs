@@ -188,17 +188,21 @@ todoListItemParser =
     <*  P.space
     <*> todoListItemStateParser
 
-newtype TodoListErr = TodoListNotFound Text
+data TodoListErr = TodoListNotFound Text
+                    | TodoListExists TodoListName
                     deriving Show
 
 instance Errs.IsRuntimeErr TodoListErr where
   errCode = errCode' . \case
     TodoListNotFound{} -> "NOT_FOUND"
+    TodoListExists{}   -> "EXISTS"
     where errCode' = mappend "ERR.TODO_LIST."
 
   userMessage = Just . \case
     TodoListNotFound msg -> msg
+    TodoListExists   id  -> show id
 
   httpStatus = \case
     TodoListNotFound{} -> HTTP.notFound404
+    TodoListExists{}   -> HTTP.conflict409
 

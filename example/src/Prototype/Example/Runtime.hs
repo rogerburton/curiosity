@@ -161,6 +161,20 @@ instance S.DBStorage ExampleAppM Todo.TodoList where
         in
           replaceTodoList newList $> [id]
 
+    Todo.DeleteList id                -> undefined
+    Todo.AddUsersToList      id users -> undefined
+    Todo.RemoveUsersFromList id users -> undefined
+    Todo.CreateList newList           -> withTodoStorage $ \todoStm -> do
+      todos <- liftIO . STM.readTVarIO $ todoStm
+      let existing = find ((== newId) . S.dbId) todos
+          newId    = S.dbId newList
+      if isJust existing
+        then existsErr newId
+        else
+          liftIO (STM.atomically $ STM.modifyTVar' todoStm (newList :))
+            $> [newId]
+      where existsErr = Errs.throwError' . Todo.TodoListExists
+
   dbSelect = \case
     Todo.SelectTodoListById id -> filtStoredTodos $ (== id) . S.dbId
     Todo.SelectTodoListsByPendingItems ->
