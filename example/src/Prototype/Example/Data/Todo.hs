@@ -17,11 +17,17 @@ module Prototype.Example.Data.Todo
   -- ** Parsers
   , dbUpdateParser
   , dbSelectParser
+  , todoListNameParser
+  , todoListItemNameParser
+  , todoListItemStateParser
+  , todoListItemDescParserMaybe
+  , todoListItemParser
   -- * Errors
   , TodoListErr(..)
   ) where
 
 import           Data.Default.Class
+import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Data.User   as U
 import qualified Prototype.Example.Repl.Parse  as P
@@ -85,10 +91,57 @@ instance Storage.DBStorageOps TodoList where
     deriving Show
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate TodoList)
-dbUpdateParser = undefined
+dbUpdateParser = P.tryAlts [addItem, deleteItem, markItem]
+ where
+  addItem =
+    P.withTrailSpaces "AddItem"
+      *> (AddItem <$> todoListNameParser <*> todoListItemParser)
+  deleteItem =
+    P.withTrailSpaces "DeleteItem"
+      *> (DeleteItem <$> todoListNameParser <*> todoListItemNameParser)
+  markItem =
+    P.withTrailSpaces "MarkItem"
+      *> (   MarkItem
+         <$> todoListNameParser
+         <*> todoListItemNameParser
+         <*> todoListItemStateParser
+         )
 
 dbSelectParser :: P.ParserText (Storage.DBSelect TodoList)
-dbSelectParser = undefined
+dbSelectParser = selectById <|> selectByPendingItems <|> selectTodoListsByUser
+ where
+  selectById =
+    P.withTrailSpaces "SelectTodoListById"
+      *> (SelectTodoListById <$> todoListNameParser)
+  selectByPendingItems =
+    P.withTrailSpaces "SelectTodoListsByPendingItems"
+      $> SelectTodoListsByPendingItems
+  selectTodoListsByUser =
+    P.withTrailSpaces "SelectTodoListsByUser"
+      *> (SelectTodoListsByUser <$> U.userIdParser)
+
+todoListNameParser = TodoListName <$> P.punctuated P.alphaNumText
+todoListItemNameParser = TodoListItemName <$> P.punctuated P.alphaNumText
+
+todoListItemStateParser :: P.ParserText TodoListItemState
+todoListItemStateParser = P.try pending <|> complete
+ where
+  pending  = P.string' "pending" $> TodoListItemPending
+  complete = P.string' "complete" $> TodoListItemComplete
+
+todoListItemDescParserMaybe :: P.ParserText (Maybe TodoListItemDesc)
+todoListItemDescParserMaybe = do
+  -- Read text; stripping whitespaces within the punctuated part. 
+  txt <- T.strip <$> P.punctuated P.alphaNumText
+  -- If the supplied text is not empty; we return a Just otherwise, we ignore the provided /blank/ description.
+  pure $ if T.null txt then Nothing else Just (TodoListItemDesc txt)
+
+todoListItemParser :: P.ParserText TodoListItem
+todoListItemParser =
+  TodoListItem
+    <$> todoListItemNameParser
+    <*> todoListItemDescParserMaybe
+    <*> todoListItemStateParser
 
 newtype TodoListErr = TodoListNotFound Text
                     deriving Show
