@@ -181,9 +181,16 @@ instance S.DBStorage ExampleAppM Todo.TodoList where
         let newList =
               list' & Todo.todoListUsers %~ L.nub . mappend (toList users)
         in  replaceTodoList newList $> [id]
+    Todo.RemoveUsersFromList id users -> onTodoListExists
+      id
+      (todoListNotFound id)
+      modifyList
+     where
+      modifyList list' =
+        let newList = list' & Todo.todoListUsers %~ (L.\\ (toList users))
+        in  replaceTodoList newList $> [id]
 
-    Todo.RemoveUsersFromList id users -> undefined
-    Todo.CreateList newList           -> withTodoStorage $ \todoStm -> do
+    Todo.CreateList newList -> withTodoStorage $ \todoStm -> do
       todos <- liftIO . STM.readTVarIO $ todoStm
       let existing = find ((== newId) . S.dbId) todos
           newId    = S.dbId newList
