@@ -15,10 +15,6 @@ let
         selfh.callCabal2nix "${name}" (gitignoreSource dir) { };
 
     in mapAttrs callCabalOn contents.pkgList;
-       # // { type-list = selfh.callHackage "type-list" "0.5.0.0" {};
-       #      singletons = selfh.callHackage "singletons" "2.2" {};
-       #      th-desugar = selfh.callHackage "th-desugar" "1.6" {};
-       #    };
 
 in {
   haskellPackages = super.haskellPackages.override (old: {

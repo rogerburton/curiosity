@@ -1,8 +1,11 @@
 cabal-version:      2.2
-name:               prototype-hs-exe
+name:               prototype-hs-lib
 version:            0.1.0.0
 category:           web
 
+-- PackageImports + NoImplicitPrelude are required to disambiguate the Prelude modules from upstream dependencies.
+-- At the time of writing, cabal's mixins "feature" causes more problems than solving (as is with most things in cabal). 
+-- Mixins can be used to hide modules from dependencies, but introducing a mixin also introduces complexity, and doesn't seem to work correctly.
 common common-extensions
   default-language: Haskell2010
   default-extensions:
@@ -21,6 +24,8 @@ common common-extensions
     ScopedTypeVariables
     GADTs
     OverloadedStrings
+    PackageImports 
+    NoImplicitPrelude 
 
 -- Common language settings
 common lang-settings
@@ -36,27 +41,24 @@ common lang-settings
 -- So far, I've omitted most version bounds, they can be generated using `nix-shell --run 'cabal freeze'`
 common common-dependencies
   build-depends:
-    -- Prelude comes from prototype-hs-lib, so we don't need the Prelude from Base
       base-noprelude >=4.7 && <5
     , protolude 
 
-    -- custom packages
-    , prototype-hs-lib 
+    -- Our dependencies 
     , start-servant 
-    , design-hs-lib
 
-  mixins:
-    -- We want Prelude to come from prototype-hs-lib and not these pkgs. 
-      design-hs-lib hiding (Prelude)
-    , start-servant hiding (Prelude)
+    , text 
+    , pretty-simple 
 
-executable prototype-hs-exe
+    , readline
+    , data-default-class 
+
+library 
   import: common-dependencies, lang-settings, common-extensions
-  main-is: Main.hs
-  
-  build-depends:
-     -- Parse cli arguments.
-     optparse-applicative
-
+  build-depends: start-servant
   hs-source-dirs: src
-  other-modules:
+  exposed-modules:
+    Prelude
+    Prototype.Backend.InteractiveState.Class
+    Prototype.Backend.InteractiveState.Repl
+    Prototype.Backend.InteractiveState.Disp.Helpers

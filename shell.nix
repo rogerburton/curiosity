@@ -17,10 +17,10 @@ let
   # made available via direnv to avoid unnecessary diff pollution across upgrades.
 
   # Niv is great at pinning dependencies in sources.json and computing SHA's etc.
-  nix-tooling = with hp; [ niv ];
+  nix-tooling = with hp; [ (callCabal2nix "niv" sources.niv { }) ];
 
   # Haskell tools
-  haskell-tooling = with hp; [ cabal-install ghcid hlint ];
+  haskell-tooling = with hp; [ cabal-install ghcid hlint hasktags ];
 
   # Add more as we need them.
   formatters =
