@@ -28,6 +28,9 @@ spec = do
 instance Q.Arbitrary UserId where
   arbitrary = S.nonEmptyAlphaNumGen
 
+instance Q.Arbitrary (NonEmpty UserId) where
+  arbitrary = Q.arbitrary `Q.suchThatMap` nonEmpty
+
 instance Q.Arbitrary UserPassword where
   arbitrary = S.nonEmptyAlphaNumGen
 

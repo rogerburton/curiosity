@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {- |
 Module: Prototype.Example.Data.Todo
@@ -27,6 +28,7 @@ module Prototype.Example.Data.Todo
   ) where
 
 import           Data.Default.Class
+import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Data.User   as U
@@ -85,14 +87,28 @@ instance Storage.DBStorageOps TodoList where
     deriving (Eq, Show)
   
   data DBUpdate TodoList =
-    AddItem (Storage.DBId TodoList) TodoListItem
+    -- | Create a new todo-list
+    CreateList TodoList
+    -- | Add an item to an existing todo-list
+    | AddItem (Storage.DBId TodoList) TodoListItem
+    -- | Delete an item from a todo-list
     | DeleteItem (Storage.DBId TodoList) TodoListItemName
+    -- | Mark an item in a todo-list
     | MarkItem (Storage.DBId TodoList) TodoListItemName TodoListItemState
+    -- | Add a user to a todo-list (the todo-list becomes accessible to this user)
+    | AddUsersToList (Storage.DBId TodoList) (NonEmpty U.UserId)
+    -- | Delete a todo-list
+    | DeleteList (Storage.DBId TodoList)
+    -- | Remove users from a list
+    | RemoveUsersFromList (Storage.DBId TodoList) (NonEmpty U.UserId)
     deriving (Eq, Show)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate TodoList)
-dbUpdateParser = P.tryAlts [addItem, deleteItem, markItem]
+dbUpdateParser = P.tryAlts
+  [createList, addItem, deleteItem, markItem, addUsers, deleteList, removeUsers]
  where
+  createList =
+    P.withTrailSpaces "CreateList" *> (CreateList <$> todoListParser)
   addItem =
     P.withTrailSpaces "AddItem"
       *> (AddItem <$> todoListNameParser <* P.space <*> todoListItemParser)
@@ -112,6 +128,19 @@ dbUpdateParser = P.tryAlts [addItem, deleteItem, markItem]
          <*  P.space
          <*> todoListItemStateParser
          )
+  addUsers = uncurry AddUsersToList <$> listNameAndUserIds "AddUsersToList"
+  removeUsers =
+    uncurry RemoveUsersFromList <$> listNameAndUserIds "RemoveUsersFromList"
+  deleteList =
+    P.withTrailSpaces "DeleteList" *> (DeleteList <$> todoListNameParser)
+
+  listNameAndUserIds name = P.withTrailSpaces name *> do
+    listName <- todoListNameParser
+    P.space
+    mUserIds <- nonEmpty <$> P.parseListOf U.userIdParser
+    maybe noUsers (pure . (listName, )) mUserIds
+   where
+    noUsers = P.fancyFailure . Set.singleton . P.ErrorFail $ "No user-ids!"
 
 dbSelectParser :: P.ParserText (Storage.DBSelect TodoList)
 dbSelectParser = selectById <|> selectByPendingItems <|> selectTodoListsByUser
@@ -124,6 +153,15 @@ dbSelectParser = selectById <|> selectByPendingItems <|> selectTodoListsByUser
   selectTodoListsByUser =
     P.withTrailSpaces "SelectTodoListsByUser"
       *> (SelectTodoListsByUser <$> U.userIdParser)
+
+todoListParser :: P.ParserText TodoList
+todoListParser =
+  TodoList
+    <$> todoListNameParser
+    <*  P.space
+    <*> P.parseListOf todoListItemParser
+    <*  P.space
+    <*> P.parseListOf U.userIdParser
 
 todoListNameParser = TodoListName <$> P.punctuated P.alphaNumText
 todoListItemNameParser = TodoListItemName <$> P.punctuated P.alphaNumText

@@ -5,6 +5,8 @@ module Prototype.Example.Data.Shared
   , nonEmptyAlphaNumGen
   -- * Parser based properties 
   , tryParser
+  -- * Showing parsable lists
+  , showListWith
   ) where
 
 import           Control.Lens
@@ -36,3 +38,5 @@ tryParser expected parser input = Right expected == first
   (T.pack . P.errorBundlePretty)
   (P.parse parser (T.unpack input) input)
 
+showListWith :: Foldable f => (a -> Text) -> f a -> Text
+showListWith show' as = "[" <> T.intercalate ", " (show' <$> toList as) <> "]"

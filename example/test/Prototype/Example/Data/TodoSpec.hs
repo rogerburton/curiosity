@@ -9,6 +9,7 @@ import           Prototype.Example.Data.Todo
 import qualified Prototype.Example.Data.User   as U
 import           Prototype.Example.Data.UserSpec
                                                 ( ) -- Q.Arbitrary instance for U.UserId
+import qualified Prototype.Runtime.Storage     as Storage
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 
@@ -26,6 +27,9 @@ spec = do
     it "should parse AddItem inputs." $ Q.property addItemProp
     it "should parse DeleteItem inputs." $ Q.property deleteItemProp
     it "should parse MarkItem inputs." $ Q.property markItemProp
+    it "should parse DeleteListinputs." $ Q.property deleteListProp
+    it "should parse AddUsersToList." $ Q.property addUsersToListProp
+    it "should parse RemoveUsersFromList." $ Q.property removeUsersFromListProp
 
 instance Q.Arbitrary TodoListName where
   arbitrary = S.nonEmptyAlphaNumGen
@@ -92,3 +96,25 @@ showStatus = \case
   TodoListItemComplete -> "complete"
   TodoListItemPending  -> "pending"
 
+deleteListProp :: TodoListName -> Bool
+deleteListProp listName =
+  let input = T.unwords ["DeleteList", S.quote listName]
+  in  S.tryParser (DeleteList listName) dbUpdateParser input
+
+addUsersToListProp :: TodoListName -> NonEmpty U.UserId -> Bool
+addUsersToListProp = userOnListProp "AddUsersToList" AddUsersToList
+
+removeUsersFromListProp :: TodoListName -> NonEmpty U.UserId -> Bool
+removeUsersFromListProp =
+  userOnListProp "RemoveUsersFromList" RemoveUsersFromList
+
+userOnListProp
+  :: Text
+  -> (TodoListName -> NonEmpty U.UserId -> Storage.DBUpdate TodoList)
+  -> TodoListName
+  -> NonEmpty U.UserId
+  -> Bool
+userOnListProp constructorName constructor listName users =
+  let input = T.unwords
+        [constructorName, S.quote listName, S.showListWith S.quote users]
+  in  S.tryParser (constructor listName users) dbUpdateParser input
