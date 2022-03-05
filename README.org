@@ -13,3 +13,61 @@ This repository contains a prototype for the
   [[https://github.com/noteed/start-servant][start-servant]]
 - Ensure prototyping any real-life aspect of the Smart system is easy
   and quick.
+
+** Running
+
+It is possible to load the code in GHCi (but this exposes the Parse module,
+instead of Main):
+
+```
+$ nix-shell
+$ cabal repl prototype-hs-example-exe
+```
+
+Instead it's possible to use `script/run-example.sh`. We expect some part of
+that script will need maintenance as we update the Cabal project. I guess we
+also need to create the `dis-newstyle/` directory first, with a normal call to
+`cabal repl`.
+
+We use Cabal to run the example too:
+
+```
+$ nix-shell
+$ cabal run -- prototype-hs-example-exe --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
+```
+
+And finally, we can build a binary with Nix:
+
+```
+$ nix-build -A prototype-hs-example
+$ ./result/bin/prototype-hs-example-exe \
+    --server-port 9000 \
+    --repl-prompt "> " \
+    --repl-history-on \
+    --repl-exit-cmd exit
+```
+
+** Example REPL commands
+
+The repl can be quit with `exit` (this is configurable) or `Ctrl-d`.
+
+```
+> all
+> viz user UserLogin "1" "pass"
+```
+
+```
+> mod user UserCreate "1" "alice" "pass"
+UsersModified
+    [ UserProfile
+        { _userProfileId = UserId "1"
+        , _userProfileName = "name"
+        , _userProfilePassword = UserPassword Secret :: Text
+        }
+    ]
+```
+
+```
+> viz user SelectUserById "1"
+UsersVisualised []
+```
