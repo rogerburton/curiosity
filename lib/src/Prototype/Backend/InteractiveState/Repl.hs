@@ -55,6 +55,8 @@ startReadEvalPrintLoop
 startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
   liftIO . mapSomeEx $ do
     RL.initialize
+    RL.addHistory "viz user UserLogin \"1\" \"pass\""
+    RL.addHistory "mod user UserCreate \"1\" \"alice\" \"pass\""
     loopRepl ReplContinue
  where
   loopRepl ReplContinue = RL.readline prompt >>= \case
