@@ -191,7 +191,7 @@ parseViz input =
   let userViz = P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
       todoViz =
         P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
-      fullViz = P.withTrailSpaces "all" $> VisualiseFullStmDb
+      fullViz = P.str "all" $> VisualiseFullStmDb
   in  P.parseInputCtx
         (P.withTrailSpaces "viz" *> P.try userViz <|> P.try todoViz <|> fullViz)
         input

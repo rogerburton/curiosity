@@ -51,6 +51,7 @@ module Prototype.Example.Repl.Parse
   , parseInputCtx
   , tryAlts
   -- * Common parser combinators
+  , str
   , withTrailSpaces
   , punctuated
   , manyText
@@ -102,6 +103,9 @@ type ParserText = MP.Parsec ParseErr Text
 parseInputCtx :: ParserText a -> Text -> Either ParseErr a
 parseInputCtx parser text =
   first ParseErrBundle $ MP.parse parser (T.unpack text) text
+
+str :: MP.Tokens Text -> ParserText Text
+str = MP.Char.string'
 
 -- | Expect a string with at least 1 whitespace character. 
 withTrailSpaces :: MP.Tokens Text -> ParserText Text
