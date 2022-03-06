@@ -56,9 +56,8 @@ common common-dependencies
     , data-default-class
 
     , http-types
+    , monad-log 
     
-  mixins:
-    start-servant hiding (Prelude)
 
 library 
   import: common-dependencies, lang-settings, common-extensions

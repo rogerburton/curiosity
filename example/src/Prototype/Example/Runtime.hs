@@ -5,10 +5,12 @@ module Prototype.Example.Runtime
   ( Conf(..)
   , confRepl
   , confServer
+  , confLogging
   , ServerConf(..)
   , Runtime(..)
   , rConf
   , rDb
+  , rLoggers
   , ExampleAppM(..)
   , boot
   , runExampleAppMSafe
@@ -17,6 +19,7 @@ module Prototype.Example.Runtime
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
 import qualified Data.List                     as L
+import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Example.Data        as Data
@@ -29,17 +32,18 @@ import           Prototype.Types.Secret         ( (=:=) )
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
 data Conf = Conf
-  { _confRepl   :: Repl.ReplConf
-  , _confServer :: ServerConf
+  { _confRepl    :: Repl.ReplConf
+  , _confServer  :: ServerConf
+  , _confLogging :: ML.LoggingConf -- ^ Logging configuration 
   }
-  deriving Show
 
 makeLenses ''Conf
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
-  { _rConf :: Conf -- ^ The application configuration.
-  , _rDb   :: Data.StmDb Runtime -- ^ The Storage. 
+  { _rConf    :: Conf -- ^ The application configuration.
+  , _rDb      :: Data.StmDb Runtime -- ^ The Storage. 
+  , _rLoggers :: ML.AppNameLoggers
   }
 
 makeLenses ''Runtime
@@ -114,6 +118,12 @@ instance S.DBStorage ExampleAppM User.UserProfile where
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
+
+-- | Support for logging for the example application 
+instance ML.MonadAppNameLogMulti ExampleAppM where
+  askLoggers = asks _rLoggers
+  localLoggers modLogger =
+    local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
 
 onUserExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
@@ -234,5 +244,6 @@ boot
   -> Maybe (Data.HaskDb Runtime)
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf mInitDb = do
-  _rDb <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+  _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+  _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
   pure $ Right Runtime { .. }
