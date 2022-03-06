@@ -7,6 +7,7 @@ module Main
 import "base"    Control.Concurrent             ( threadDelay )
 import           Control.Concurrent.Async       ( concurrently )
 import           Control.Lens
+import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
@@ -15,6 +16,7 @@ import qualified Prototype.Backend.InteractiveState.Repl
 import qualified Prototype.Example.Data        as Data
 import qualified Prototype.Example.Exe.Parse   as P
 import qualified Prototype.Example.Runtime     as Rt
+import qualified Prototype.Example.Server      as Srv
 import qualified Prototype.Runtime.Errors      as Errs
 
 main :: IO ExitCode
@@ -34,7 +36,7 @@ runWithConf conf = do
   runtime <- Rt.boot conf Nothing >>= either throwIO pure
   -- (replResult, serverResult) <- startRepl runtime
   --   `concurrently` startServer runtime
-  startRepl runtime
+  startRepl runtime `concurrently` startServer runtime
   -- replExitedWith replResult
   -- serverExitedWith serverResult
   -- FIXME: correct exit codes based on exit reason.
@@ -60,9 +62,9 @@ startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
 
 -- FIXME: Implement the server part; currently its just a forever running loop.
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer rt = (`catch` handleRuntime) $ do
-  threadDelay secs10
-  startServer rt
+startServer rt = try @SomeException (Srv.runExampleServer rt) >>= pure . either
+  Errs.RuntimeException
+  (const $ Errs.RuntimeException UserInterrupt) -- FIXME: improve this, incorrect error reporting here. 
  where
-  handleRuntime = pure
-  secs10        = 10 * 10 ^ (6 :: Int)
+
+
