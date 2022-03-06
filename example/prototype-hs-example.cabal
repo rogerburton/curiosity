@@ -57,7 +57,10 @@ common common-dependencies
 
     , http-types
     , monad-log 
-    
+
+    -- Servant
+    , servant
+    , servant-server
 
 library 
   import: common-dependencies, lang-settings, common-extensions

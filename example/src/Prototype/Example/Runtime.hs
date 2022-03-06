@@ -14,6 +14,8 @@ module Prototype.Example.Runtime
   , ExampleAppM(..)
   , boot
   , runExampleAppMSafe
+  -- * Servant compat
+  , exampleAppMHandlerNatTrans
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -28,6 +30,7 @@ import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
+import qualified Servant
 
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
@@ -247,3 +250,18 @@ boot _rConf mInitDb = do
   _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
   pure $ Right Runtime { .. }
+
+-- | Natural transformation from some `ExampleAppM` in any given mode, to a servant Handler. 
+exampleAppMHandlerNatTrans
+  :: forall a . Runtime -> ExampleAppM a -> Servant.Handler a
+exampleAppMHandlerNatTrans rt appM =
+  let
+    -- We peel off the ExampleAppM + ReaderT layers, exposing our ExceptT RuntimeErr IO a
+    -- This is very similar to Servant's Handler: https://hackage.haskell.org/package/servant-server-0.17/docs/Servant-Server-Internal-Handler.html#t:Handler
+      unwrapReaderT          = (`runReaderT` rt) . runExampleAppM $ appM
+      -- Map our errors to `ServantError` 
+      runtimeErrToServantErr = withExceptT Errs.asServantError
+  in 
+    -- re-wrap as servant `Handler`
+      Servant.Handler $ runtimeErrToServantErr unwrapReaderT
+
