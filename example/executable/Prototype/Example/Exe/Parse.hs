@@ -17,7 +17,7 @@ confParser = do
   _confLogging <- ML.parseLoggingConf
   pure Conf { .. }
 
-serverParser = ServerConf <$> A.option
+serverParser = ServerConf . abs <$> A.option
   A.auto
   (A.long "server-port" <> A.metavar "PORT" <> A.help
     "Port to run the HTTP server on."
