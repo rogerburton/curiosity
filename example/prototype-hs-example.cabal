@@ -61,6 +61,8 @@ common common-dependencies
     -- Servant
     , servant
     , servant-server
+    , servant-blaze
+    , blaze 
 
 library 
   import: common-dependencies, lang-settings, common-extensions
@@ -71,6 +73,8 @@ library
     Prototype.Example.Runtime  
     Prototype.Example.Data.Todo
     Prototype.Example.Data.User 
+    Prototype.Example.Server
+    Prototype.Example.Server.Public 
 
 executable prototype-hs-example-exe
   import: common-dependencies, lang-settings, common-extensions
