@@ -13,11 +13,11 @@ import           Data.Default.Class
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T.IO
 import qualified Data.Text.Lazy                as TL
-import           Prelude
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Runtime.Errors      as Errs
 import           Prototype.Types.NonEmptyText
+import           PrototypeHsLibPrelude
 import qualified System.Console.Readline       as RL
 
 -- | Newtype over exit commands for type-safety.

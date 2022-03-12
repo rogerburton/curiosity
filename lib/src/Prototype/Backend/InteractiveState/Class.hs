@@ -51,8 +51,8 @@ module Prototype.Backend.InteractiveState.Class
   ) where
 
 import qualified Data.String                   as String
-import "this"    Prelude
 import qualified Prototype.Runtime.Errors      as Errs
+import "this"    PrototypeHsLibPrelude
 import qualified Text.Pretty.Simple            as Pretty
 
 -- | The "Repl" output medium for the live state. 
