@@ -46,9 +46,9 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "start-servant": {
-        "branch": "asheshambasta/feature/logger-helpers",
+        "branch": "asheshambasta/feature/use-design-hs-components",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "12695bae402a6394937a84b74e8f89e63fed2e0f",
+        "rev": "42c8f026bd4dc4bd87984df8b1be95f8874ab19e",
         "type": "git"
     }
 }

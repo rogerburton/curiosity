@@ -18,8 +18,10 @@ module Prototype.Example.Server.Public
   ) where
 
 import qualified Network.Wai                   as Wai
+import qualified Prototype.Example.Server.Public.Pages
+                                               as Pages
 import qualified "start-servant" Prototype.Server.New.Page
-                                               as P
+                                               as SS.P
 import           Servant
 import qualified Servant.HTML.Blaze            as B
 
@@ -27,12 +29,13 @@ import qualified Servant.HTML.Blaze            as B
 type PublicServerC m = (Applicative m)
 
 -- | A publicly available login page. 
-type Public = "login" :> Get '[B.HTML] (P.Page 'P.Public P.LoginPage) -- fixme: use the login page from start-servant for now. 
+type Public = "login" :> Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPage) -- fixme: use the login page from start-servant for now. 
 
 publicT :: forall m . Applicative m => ServerT Public m
 publicT = showLoginPage
  where
-  showLoginPage = pure . P.PublicPage $ P.LoginPage "public/login/authenticate"
+  showLoginPage =
+    pure . SS.P.PublicPage $ Pages.LoginPage "public/login/authenticate"
 
 -- | Run as a Wai Application 
 publicApplication

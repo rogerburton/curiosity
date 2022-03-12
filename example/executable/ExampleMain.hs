@@ -4,10 +4,8 @@ module Main
   ( main
   ) where
 
-import "base"    Control.Concurrent             ( threadDelay )
-import           Control.Concurrent.Async       ( concurrently )
+import           Control.Concurrent.Async       ( concurrently_ )
 import           Control.Lens
-import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
@@ -36,7 +34,7 @@ runWithConf conf = do
   runtime <- Rt.boot conf Nothing >>= either throwIO pure
   -- (replResult, serverResult) <- startRepl runtime
   --   `concurrently` startServer runtime
-  startRepl runtime `concurrently` startServer runtime
+  startRepl runtime `concurrently_` startServer runtime
   -- replExitedWith replResult
   -- serverExitedWith serverResult
   -- FIXME: correct exit codes based on exit reason.

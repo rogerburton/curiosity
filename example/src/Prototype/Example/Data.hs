@@ -187,21 +187,29 @@ parseViz
   :: forall runtime
    . Text
   -> Either P.ParseErr (IS.StateVisualisation (StmDb runtime))
-parseViz input =
-  let userViz = P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
-      todoViz =
-        P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
-      fullViz = P.str "all" $> VisualiseFullStmDb
-  in  P.parseInputCtx
-        (P.withTrailSpaces "viz" *> P.try userViz <|> P.try todoViz <|> fullViz)
-        input
+parseViz =
+  P.parseInputCtx
+    $  P.withTrailSpaces "viz"
+    *> (let
+          userViz =
+            P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
+          todoViz =
+            P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
+          fullViz = P.string' "all" $> VisualiseFullStmDb
+        in
+          P.tryAlts [userViz, todoViz, fullViz]
+       )
 
 parseMod
   :: forall runtime
    . Text
   -> Either P.ParseErr (IS.StateModification (StmDb runtime))
-parseMod input =
-  let userMod = P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser -- P.try rewinds the head on failure. 
-      todoMod = P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
-  in  P.parseInputCtx (P.withTrailSpaces "mod" *> P.try userMod <|> todoMod)
-                      input
+parseMod =
+  P.parseInputCtx
+    $  P.withTrailSpaces "mod"
+    *> (let userMod =
+              P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser
+            todoMod =
+              P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
+        in  P.tryAlts [todoMod, userMod]
+       )
