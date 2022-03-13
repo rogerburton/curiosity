@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
@@ -7,7 +8,11 @@ Description: User related datatypes
 -}
 module Prototype.Example.Data.User
   ( UserCreds(..)
+  , userCredsId
+  , userCredsPassword
   , UserProfile(..)
+  , userCreds
+  , userProfileName
   , UserId(..)
   , UserName(..)
   , UserPassword(..)
@@ -24,12 +29,15 @@ module Prototype.Example.Data.User
   , UserErr(..)
   ) where
 
+import           Control.Lens
+import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
+import qualified Servant.Auth.Server           as SAuth
 import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
@@ -39,25 +47,26 @@ data UserCreds = UserCreds
   , _userCredsPassword :: UserPassword
   }
   deriving (Eq, Show, Generic)
-  deriving anyclass FromForm
+  deriving anyclass (ToJSON, FromJSON, FromForm)
 
 data UserProfile = UserProfile
   { _userCreds       :: UserCreds -- ^ Users credentials 
   , _userProfileName :: UserName -- ^ User's human friendly name.
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 newtype UserName = UserName Text
-                 deriving (Eq, Show, IsString) via Text
+                 deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
 
-newtype UserPassword = UserPassword (Secret.Secret '[] Text)
+newtype UserPassword = UserPassword (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text
-                 deriving FromHttpApiData via (Secret.Secret '[] Text)
+                 deriving (FromHttpApiData, FromJSON, ToJSON) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving stock Show
 
 newtype UserId = UserId Text
-               deriving (Eq, Show)
-               deriving (IsString, FromHttpApiData) via Text
+               deriving (Eq, Show, SAuth.ToJWT)
+               deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
@@ -132,3 +141,6 @@ instance Errs.IsRuntimeErr UserErr where
     UserExists        msg -> msg
     UserNotFound      msg -> msg
     IncorrectPassword msg -> msg
+
+makeLenses ''UserCreds
+makeLenses ''UserProfile

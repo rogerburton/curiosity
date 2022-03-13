@@ -33,11 +33,11 @@ newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
 -- | For the `LoginPage` markup, we now rely on our DSL to render the login page to our liking
 instance H.ToMarkup LoginPage where
   toMarkup (LoginPage submitUrl) =
-    H.toMarkup
-      $ (Form.TextareaGroup [username, password]
-        Dsl.::~ (Btn.ButtonPrimary "Login" HTypes.Enabled)
+    H.toMarkup @Dsl.HtmlCanvas
+      $ (       Form.TextareaGroup [username, password]
+        Dsl.::~ Btn.ButtonPrimary "Login" HTypes.Enabled
         Dsl.::~ Dsl.SingletonCanvas
-                  (Form.CheckboxGroupInline "Remember me" [rememberMe]) :: Dsl.HtmlCanvas
+                  (Form.CheckboxGroupInline "Remember me" [rememberMe])
         )
    where
     username   = ("Username", TA.Textarea 1 "id-username")

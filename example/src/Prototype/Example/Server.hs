@@ -6,10 +6,14 @@ Description: Server root module, split up into public and private sub-modules.
 
 -}
 module Prototype.Example.Server
-  ( Example
+  (
+    -- * Top level server types. 
+    Example
   , exampleT
   , exampleApplication
   , runExampleServer
+  -- * Type-aliases for convenience 
+  , ServerSettings
   ) where
 
 import           Control.Lens
@@ -19,6 +23,9 @@ import qualified Prototype.Example.Runtime     as Rt
 import           Prototype.Example.Server.Public
                                                as Pub
 import           Servant
+import qualified Servant.Auth.Server           as Srv
+
+type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
 type Example = "public" :> Pub.Public
 
@@ -31,10 +38,11 @@ exampleApplication
    . Pub.PublicServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
   -> Wai.Application
-exampleApplication handlerNatTrans = Servant.serve
-  pubPxy
-  (hoistServer pubPxy handlerNatTrans publicT {- ServerT -> Server -}
-                                             )
+exampleApplication handlerNatTrans =
+  Servant.serve pubPxy $ hoistServerWithContext pubPxy
+                                                (Proxy @ServerSettings)
+                                                handlerNatTrans
+                                                publicT {- ServerT -> Server -}
   where pubPxy = Proxy @Example
 
 runExampleServer
@@ -44,6 +52,6 @@ runExampleServer
   -> m ()
 runExampleServer runtime =
   let waiApp = exampleApplication @Rt.ExampleAppM
-        (Rt.exampleAppMHandlerNatTrans runtime)
+        $ Rt.exampleAppMHandlerNatTrans runtime
       port = runtime ^. Rt.rConf . Rt.confServer . coerced
   in  liftIO $ Warp.run port waiApp
