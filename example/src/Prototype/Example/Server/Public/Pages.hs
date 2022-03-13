@@ -13,12 +13,16 @@ import qualified "start-servant" Prototype.Server.New.Page
                                                as P
 import "design-hs-lib" Smart.Html.Render        ( renderCanvasWithHeadText )
 
+import qualified "design-hs-lib" Smart.Html.Button
+                                               as Btn
 import qualified "design-hs-lib" Smart.Html.Checkbox
                                                as C
 import qualified "design-hs-lib" Smart.Html.Dsl
                                                as Dsl
 import qualified "design-hs-lib" Smart.Html.Form
                                                as Form
+import qualified "design-hs-lib" Smart.Html.Shared.Types
+                                               as HTypes
 import qualified "design-hs-lib" Smart.Html.Textarea
                                                as TA
 import qualified Text.Blaze.Html5              as H
@@ -30,8 +34,10 @@ newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
 instance H.ToMarkup LoginPage where
   toMarkup (LoginPage submitUrl) =
     H.toMarkup
-      $ (Form.TextareaGroup [username, password] Dsl.::~ Dsl.SingletonCanvas
-          (Form.CheckboxGroupInline "Remember me" [rememberMe]) :: Dsl.HtmlCanvas
+      $ (Form.TextareaGroup [username, password]
+        Dsl.::~ (Btn.ButtonPrimary "Login" HTypes.Enabled)
+        Dsl.::~ Dsl.SingletonCanvas
+                  (Form.CheckboxGroupInline "Remember me" [rememberMe]) :: Dsl.HtmlCanvas
         )
    where
     username   = ("Username", TA.Textarea 1 "id-username")
