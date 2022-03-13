@@ -6,11 +6,14 @@ module Prototype.Example.Runtime
   , confRepl
   , confServer
   , confLogging
+  , confCookie
+  , confMkJwtSettings
   , ServerConf(..)
   , Runtime(..)
   , rConf
   , rDb
   , rLoggers
+  , rJwtSettings
   , ExampleAppM(..)
   , boot
   , runExampleAppMSafe
@@ -20,6 +23,7 @@ module Prototype.Example.Runtime
 
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
+import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
@@ -31,22 +35,26 @@ import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
 import qualified Servant
+import qualified Servant.Auth.Server           as Srv
 
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
 data Conf = Conf
-  { _confRepl    :: Repl.ReplConf
-  , _confServer  :: ServerConf
-  , _confLogging :: ML.LoggingConf -- ^ Logging configuration 
+  { _confRepl          :: Repl.ReplConf
+  , _confServer        :: ServerConf
+  , _confLogging       :: ML.LoggingConf -- ^ Logging configuration 
+  , _confCookie        :: Srv.CookieSettings -- ^ Settings for setting cookies as a server (for authentication etc.)
+  , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings -- ^ JWK settings to use.
   }
 
 makeLenses ''Conf
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
-  { _rConf    :: Conf -- ^ The application configuration.
-  , _rDb      :: Data.StmDb Runtime -- ^ The Storage. 
-  , _rLoggers :: ML.AppNameLoggers
+  { _rConf        :: Conf -- ^ The application configuration.
+  , _rDb          :: Data.StmDb Runtime -- ^ The Storage. 
+  , _rLoggers     :: ML.AppNameLoggers -- ^ Multiple loggers to log over. 
+  , _rJwtSettings :: Srv.JWTSettings -- ^ JWT settings to use.
   }
 
 makeLenses ''Runtime
@@ -245,11 +253,13 @@ boot
   :: MonadIO m
   => Conf
   -> Maybe (Data.HaskDb Runtime)
+  -> JWK.JWK
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf mInitDb = do
+boot _rConf mInitDb jwk = do
   _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
-  pure $ Right Runtime { .. }
+
+  pure $ Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
 
 -- | Natural transformation from some `ExampleAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans

@@ -15,6 +15,7 @@ import qualified Prototype.Example.Exe.Parse   as P
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server      as Srv
 import qualified Prototype.Runtime.Errors      as Errs
+import qualified Servant.Auth.Server           as Srv
 
 main :: IO ExitCode
 main =
@@ -32,7 +33,8 @@ runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   -- The first step is to boot up a runtime. 
   putStrLn @Text "boot runtime."
-  runtime <- Rt.boot conf Nothing >>= either throwIO pure
+  jwk     <- Srv.generateKey
+  runtime <- Rt.boot conf Nothing jwk >>= either throwIO pure
   putStrLn @Text "booted runtime."
   replProcess runtime `concurrently` serverProcess runtime
   -- FIXME: correct exit codes based on exit reason.
