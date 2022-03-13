@@ -87,6 +87,9 @@ library
     Prototype.Example.Server
     Prototype.Example.Server.Public 
     Prototype.Example.Server.Public.Pages
+  -- More dependencies only specific to the library 
+  build-depends:
+    http-api-data
 
 executable prototype-hs-example-exe
   import: common-dependencies, lang-settings, common-extensions

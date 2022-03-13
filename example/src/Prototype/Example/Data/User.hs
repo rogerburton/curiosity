@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {- |
@@ -5,7 +6,8 @@ Module: Prototype.Example.Data.User
 Description: User related datatypes
 -}
 module Prototype.Example.Data.User
-  ( UserProfile(..)
+  ( UserCreds(..)
+  , UserProfile(..)
   , UserId(..)
   , UserName(..)
   , UserPassword(..)
@@ -28,11 +30,20 @@ import qualified Prototype.Example.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
+import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.HttpApiData                ( FromHttpApiData(..) )
+
+-- | User's credentials. 
+data UserCreds = UserCreds
+  { _userCredsId       :: UserId
+  , _userCredsPassword :: UserPassword
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass FromForm
 
 data UserProfile = UserProfile
-  { _userProfileId       :: UserId -- ^ Unique ID of the user, used for logging a user in.
-  , _userProfileName     :: UserName -- ^ User's human friendly name.
-  , _userProfilePassword :: UserPassword -- ^ User's password. 
+  { _userCreds       :: UserCreds -- ^ Users credentials 
+  , _userProfileName :: UserName -- ^ User's human friendly name.
   }
   deriving (Show, Eq)
 
@@ -41,15 +52,16 @@ newtype UserName = UserName Text
 
 newtype UserPassword = UserPassword (Secret.Secret '[] Text)
                  deriving (Eq, IsString) via Text
+                 deriving FromHttpApiData via (Secret.Secret '[] Text)
                  deriving stock Show
 
 newtype UserId = UserId Text
                deriving (Eq, Show)
-               deriving IsString via Text
+               deriving (IsString, FromHttpApiData) via Text
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
-  dbId = _userProfileId
+  dbId = _userCredsId . _userCreds
 
 instance Storage.DBStorageOps UserProfile where
   data DBUpdate UserProfile =
@@ -59,7 +71,7 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
-    UserLogin UserId UserPassword
+    UserLogin UserCreds
     | SelectUserById UserId
     deriving (Show, Eq)
 
@@ -76,9 +88,7 @@ dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
 dbSelectParser = userLogin <|> selectUserById
  where
-  userLogin =
-    P.withTrailSpaces "UserLogin"
-      *> (UserLogin <$> (userIdParser <* P.space) <*> userPasswordParser)
+  userLogin = P.withTrailSpaces "UserLogin" *> (UserLogin <$> userCredsParser)
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
 
@@ -96,10 +106,10 @@ userPasswordParser = UserPassword . Secret <$> P.punctuated
 
 userProfileParser :: P.ParserText UserProfile
 userProfileParser =
-  UserProfile
-    <$> (userIdParser <* P.space)
-    <*> (userNameParser <* P.space)
-    <*> userPasswordParser
+  UserProfile <$> (userCredsParser <* P.space) <*> (userNameParser <* P.space)
+
+userCredsParser =
+  UserCreds <$> (userIdParser <* P.space) <*> userPasswordParser
 
 data UserErr = UserExists Text
              | UserNotFound Text

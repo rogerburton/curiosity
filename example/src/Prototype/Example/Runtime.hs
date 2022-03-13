@@ -115,13 +115,11 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
 
   dbSelect = \case
-    User.UserLogin id (User.UserPassword passInput) -> onUserExists
-      id
-      (userNotFound id)
-      comparePass
+    User.UserLogin (User.UserCreds id (User.UserPassword passInput)) ->
+      onUserExists id (userNotFound id) comparePass
      where
-      comparePass foundUser@User.UserProfile { _userProfilePassword = User.UserPassword passStored }
-        | passStored =:= passInput
+      comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.UserPassword passStored)) }
+        | passStored =:= passInput && userId == id
         = pure [foundUser]
         | otherwise
         = Errs.throwError' . User.IncorrectPassword $ "Passwords don't match!"
