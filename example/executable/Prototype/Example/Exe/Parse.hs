@@ -3,6 +3,7 @@ module Prototype.Example.Exe.Parse
   ( confParser
   ) where
 
+import           Control.Monad.Log             as L
 import           Data.Default.Class
 import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
@@ -12,10 +13,13 @@ import           Prototype.Example.Runtime
 
 confParser :: A.Parser Conf
 confParser = do
-  _confServer  <- serverParser
-  _confRepl    <- replParser
-  _confLogging <- ML.parseLoggingConf
-  pure Conf { .. }
+  _confServer <- serverParser
+  _confRepl   <- replParser
+  pure Conf {
+      -- FIXME: ML.parseLoggingConf never terminates, should be fixed. 
+              _confLogging = ML.LoggingConf [] "PrototypeExample" L.levelInfo-- ML.parseLoggingConf
+            , ..
+            }
 
 serverParser = ServerConf . abs <$> A.option
   A.auto
