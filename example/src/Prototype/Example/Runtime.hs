@@ -119,7 +119,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       onUserExists id (userNotFound id) comparePass
      where
       comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.UserPassword passStored)) }
-        | passStored =:= passInput && userId == id
+        | passStored =:= passInput && userId == id {- comparing user-id is redundant, but we do it to be explicit. -}
         = pure [foundUser]
         | otherwise
         = Errs.throwError' . User.IncorrectPassword $ "Passwords don't match!"
