@@ -39,7 +39,7 @@ exampleApplication handlerNatTrans = Servant.serve
 
 runExampleServer
   :: forall m
-   . (Pub.PublicServerC m, MonadIO m)
+   . MonadIO m
   => Rt.Runtime -- ^ Runtime to use for running the server. 
   -> m ()
 runExampleServer runtime =
