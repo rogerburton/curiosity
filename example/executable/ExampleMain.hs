@@ -5,6 +5,7 @@ module Main
   ) where
 
 import           Control.Lens
+import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
@@ -15,6 +16,7 @@ import qualified Prototype.Example.Exe.Parse   as P
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server      as Srv
 import qualified Prototype.Runtime.Errors      as Errs
+import           Servant
 import qualified Servant.Auth.Server           as Srv
 
 main :: IO ExitCode
@@ -32,16 +34,20 @@ mainParserInfo =
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   -- The first step is to boot up a runtime. 
-  putStrLn @Text "boot runtime."
+  putStrLn @Text "Booting runtime."
   jwk     <- Srv.generateKey
   runtime <- Rt.boot conf Nothing jwk >>= either throwIO pure
-  putStrLn @Text "booted runtime."
+  putStrLn @Text "Booted runtime, now starting the repl and server."
   replProcess runtime `concurrently` serverProcess runtime
   -- FIXME: correct exit codes based on exit reason.
   exitSuccess
  where
-  replProcess =
-    startRepl >=> putStrLn @Text . mappend "REPL process ended: " . show
+  replProcess = startRepl >=> replEndMsg
+   where
+    replEndMsg res = putStrLn @Text $ T.unlines
+      [ "REPL process ended: " <> show res
+      , "You may want to kill the server with Ctrl+C to exit completely."
+      ]
   serverProcess =
     startServer
       >=> putStrLn @Text
@@ -65,9 +71,13 @@ startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
 
 -- FIXME: Implement the server part; currently its just a forever running loop.
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer rt = try @SomeException (Srv.runExampleServer rt) >>= pure . either
-  Errs.RuntimeException
-  (const $ Errs.RuntimeException UserInterrupt) -- FIXME: improve this, incorrect error reporting here. 
+startServer rt =
+  putStrLn @Text "Starting up server."
+    >> try @SomeException (Srv.runExampleServer rt)
+    >>= pure
+    . either Errs.RuntimeException (const $ Errs.RuntimeException UserInterrupt) -- FIXME: improve this, incorrect error reporting here. 
  where
+  settings =
+    rt ^. Rt.rConf . Rt.confCookie :. rt ^. Rt.rJwtSettings :. EmptyContext
 
 

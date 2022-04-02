@@ -20,7 +20,7 @@ import           Control.Lens
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Prototype.Example.Runtime     as Rt
-import           Prototype.Example.Server.Public
+import qualified Prototype.Example.Server.Public
                                                as Pub
 import           Servant
 import qualified Servant.Auth.Server           as Srv
@@ -42,7 +42,7 @@ exampleApplication handlerNatTrans =
   Servant.serve pubPxy $ hoistServerWithContext pubPxy
                                                 (Proxy @ServerSettings)
                                                 handlerNatTrans
-                                                publicT {- ServerT -> Server -}
+                                                Pub.publicT {- ServerT -> Server -}
   where pubPxy = Proxy @Example
 
 runExampleServer

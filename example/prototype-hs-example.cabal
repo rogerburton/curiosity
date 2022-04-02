@@ -43,8 +43,10 @@ common common-dependencies
     , start-servant 
     , prototype-hs-lib 
 
+    -- control 
     , stm
     , lens 
+    , exceptions 
 
     , megaparsec 
 

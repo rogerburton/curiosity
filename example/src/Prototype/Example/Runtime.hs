@@ -23,6 +23,10 @@ module Prototype.Example.Runtime
 
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
+import "exceptions" Control.Monad.Catch         ( MonadCatch
+                                                , MonadMask
+                                                , MonadThrow
+                                                )
 import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
@@ -69,6 +73,9 @@ newtype ExampleAppM a = ExampleAppM { runExampleAppM :: ReaderT Runtime (ExceptT
            , MonadIO
            , MonadReader Runtime
            , MonadError Errs.RuntimeErr
+           , MonadThrow
+           , MonadCatch
+           , MonadMask
            )
 
 -- | Run the `ExampleAppM` computation catching all possible exceptions. 
