@@ -7,8 +7,10 @@ The goal is to exemplify the use of our DSL for some simple pages and to have so
 -}
 module Prototype.Example.Server.Public.Pages
   ( LoginPage(..)
+  , SignupPage(..)
   ) where
 
+import qualified Data.Text                     as T
 import qualified "start-servant" Prototype.Server.New.Page
                                                as P
 import "design-hs-lib" Smart.Html.Render        ( renderCanvasWithHeadText )
@@ -26,24 +28,51 @@ import qualified "design-hs-lib" Smart.Html.Shared.Types
 import qualified "design-hs-lib" Smart.Html.Textarea
                                                as TA
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5.Attributes
 
 -- | A simple login page. 
 newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
 
 -- | For the `LoginPage` markup, we now rely on our DSL to render the login page to our liking
 instance H.ToMarkup LoginPage where
-  toMarkup (LoginPage submitUrl) =
-    H.toMarkup @Dsl.HtmlCanvas
+  toMarkup (LoginPage submitUrl) = do
+    H.form
+      . H.toMarkup @Dsl.HtmlCanvas
       $ (       Form.TextareaGroup [username, password]
-        Dsl.::~ Btn.ButtonPrimary "Login" HTypes.Enabled
+        Dsl.::~ loginButton
         Dsl.::~ Dsl.SingletonCanvas
                   (Form.CheckboxGroupInline "Remember me" [rememberMe])
         )
    where
-    username   = ("Username", TA.Textarea 1 "id-username")
-    password   = ("Password", TA.Textarea 1 "id-password")
-    rememberMe = C.CheckboxEnabled
-      (Just "id-remember-me")
-      C.Unchecked
-      "Check this to ensure your login is remembered on this browser."
+    username = ("Username", TA.Textarea 1 "id-username")
+    password = ("Password", TA.Textarea 1 "id-password")
+    rememberMe =
+      C.CheckboxEnabled (Just "id-remember-me") C.Unchecked "Remember me."
+    loginButton =
+      H.toMarkup (Btn.ButtonPrimary "Login" HTypes.Enabled)
+        ! formaction submitUrl
+        ! formmethod "POST"
+
+newtype SignupPage = SignupPage { _signupPageSubmitURL :: H.AttributeValue }
+
+instance H.ToMarkup SignupPage where
+  toMarkup (SignupPage submitUrl) = do
+    H.form
+      . H.toMarkup @Dsl.HtmlCanvas
+      $ (       Form.TextareaGroup
+            [username, password "Password", password "Confirm Password"]
+        Dsl.::~ loginButton
+        Dsl.::~ Dsl.EmptyCanvas
+        )
+   where
+    username = ("Username", TA.Textarea 1 "id-username")
+    password fieldName =
+      ( HTypes.Title fieldName
+      , TA.Textarea 1 . HTypes.Id $ "id-" <> T.toLower fieldName
+      )
+    loginButton =
+      H.toMarkup (Btn.ButtonPrimary "Register" HTypes.Enabled)
+        ! formaction submitUrl
+        ! formmethod "POST"
 
