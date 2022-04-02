@@ -46,9 +46,9 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "start-servant": {
-        "branch": "asheshambasta/feature/use-design-hs-components",
+        "branch": "asheshambasta/feature/wrapped",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "42c8f026bd4dc4bd87984df8b1be95f8874ab19e",
+        "rev": "814b786a4f26181fe7a9477dac3018575a52410b",
         "type": "git"
     }
 }

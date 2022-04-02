@@ -25,6 +25,8 @@ import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server.Public.Pages
                                                as Pages
+import qualified "start-servant" Prototype.Lib.Wrapped
+                                               as W
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import qualified Prototype.Server.New.Auth     as Auth
@@ -33,6 +35,7 @@ import qualified "start-servant" Prototype.Server.New.Page
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
+import qualified Web.FormUrlEncoded            as Form
 
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server. 
 type PublicServerC m
@@ -51,10 +54,15 @@ type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPag
                                                        NoContent
                                                      )
                          )
-            :<|> "signup" :> Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage)
+            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page. 
+                           :<|> "create" :> ReqBody '[FormUrlEncoded] User.UserPassword
+                                         :> ReqBody '[FormUrlEncoded] (W.Wrapped "password_confirmation" User.UserPassword)
+                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user. 
+                             )
 
 publicT :: forall m . PublicServerC m => ServerT Public m
-publicT = (showLoginPage :<|> authenticateUser) :<|> showSignupPage
+publicT =
+  (showLoginPage :<|> authenticateUser) :<|> (showSignupPage :<|> processSignup)
  where
   showLoginPage = pure . SS.P.PublicPage $ Pages.LoginPage "./authenticate"
   authenticateUser creds =
@@ -76,6 +84,7 @@ publicT = (showLoginPage :<|> authenticateUser) :<|> showSignupPage
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found 
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./create"
+  processSignup  = undefined
   unauthdErr     = Errs.throwError' . User.IncorrectPassword . show
 
 -- | Run as a Wai Application 

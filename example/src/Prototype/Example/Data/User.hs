@@ -38,7 +38,9 @@ import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 import           Prototype.Types.Secret        as Secret
 import qualified Servant.Auth.Server           as SAuth
-import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.FormUrlEncoded             ( Form(..)
+                                                , FromForm(..)
+                                                )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 -- | User's credentials. 
@@ -63,6 +65,15 @@ newtype UserPassword = UserPassword (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text
                  deriving (FromHttpApiData, FromJSON, ToJSON) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving stock Show
+
+instance FromForm UserPassword where
+  fromForm (Form hm) = case hm ^? ix "password" of
+    Nothing    -> noneFound
+    Just [pwd] -> Right $ pwd ^. coerced
+    Just []    -> noneFound
+    Just _     -> Left
+      "Ambiguous list of passwords (too many passwords submitted in a form)."
+    where noneFound = Left "No password found."
 
 newtype UserId = UserId Text
                deriving (Eq, Show, SAuth.ToJWT)

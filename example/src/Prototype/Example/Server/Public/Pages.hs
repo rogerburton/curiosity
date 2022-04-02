@@ -8,6 +8,7 @@ The goal is to exemplify the use of our DSL for some simple pages and to have so
 module Prototype.Example.Server.Public.Pages
   ( LoginPage(..)
   , SignupPage(..)
+  , SignupResultPage(..)
   ) where
 
 import qualified Data.Text                     as T
@@ -62,7 +63,7 @@ instance H.ToMarkup SignupPage where
       . H.toMarkup @Dsl.HtmlCanvas
       $ (       Form.TextareaGroup
             [username, password "Password", password "Confirm Password"]
-        Dsl.::~ loginButton
+        Dsl.::~ submitButton
         Dsl.::~ Dsl.EmptyCanvas
         )
    where
@@ -71,8 +72,13 @@ instance H.ToMarkup SignupPage where
       ( HTypes.Title fieldName
       , TA.Textarea 1 . HTypes.Id $ "id-" <> T.toLower fieldName
       )
-    loginButton =
+    submitButton =
       H.toMarkup (Btn.ButtonPrimary "Register" HTypes.Enabled)
         ! formaction submitUrl
         ! formmethod "POST"
 
+data SignupResultPage = SignupSuccess
+                      | SignupFailed Text
+
+instance H.ToMarkup SignupResultPage where
+  toMarkup = undefined
