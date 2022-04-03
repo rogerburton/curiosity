@@ -15,7 +15,7 @@ module Prototype.Example.Data.User
   , userProfileName
   , UserId(..)
   , UserName(..)
-  , UserPassword(..)
+  , Password(..)
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -34,19 +34,19 @@ import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Repl.Parse  as P
+import qualified "start-servant" Prototype.Lib.Wrapped
+                                               as W
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
-import           Prototype.Types.Secret        as Secret
+import qualified Prototype.Types.Secret        as Secret
 import qualified Servant.Auth.Server           as SAuth
-import           Web.FormUrlEncoded             ( Form(..)
-                                                , FromForm(..)
-                                                )
+import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 -- | User's credentials. 
 data UserCreds = UserCreds
   { _userCredsId       :: UserId
-  , _userCredsPassword :: UserPassword
+  , _userCredsPassword :: Password
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON, FromForm)
@@ -60,24 +60,18 @@ data UserProfile = UserProfile
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
+                 deriving FromForm via W.Wrapped "user_name" Text
 
-newtype UserPassword = UserPassword (Secret.Secret '[ 'Secret.ToJSONExp] Text)
+newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text
                  deriving (FromHttpApiData, FromJSON, ToJSON) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving stock Show
-
-instance FromForm UserPassword where
-  fromForm (Form hm) = case hm ^? ix "password" of
-    Nothing    -> noneFound
-    Just [pwd] -> Right $ pwd ^. coerced
-    Just []    -> noneFound
-    Just _     -> Left
-      "Ambiguous list of passwords (too many passwords submitted in a form)."
-    where noneFound = Left "No password found."
+                 deriving FromForm via W.Wrapped "password" Text
 
 newtype UserId = UserId Text
                deriving (Eq, Show, SAuth.ToJWT)
                deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
+               deriving FromForm via W.Wrapped "user_id" Text
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
@@ -120,9 +114,9 @@ userNameParser :: P.ParserText UserName
 userNameParser = UserName <$> P.punctuated P.takeRest
 
 -- | For the password, we want to consume everything within the punctuations. 
-userPasswordParser :: P.ParserText UserPassword
-userPasswordParser = UserPassword . Secret <$> P.punctuated
-  (P.takeWhile1P (Just "UserPassword") (not . Char.isPunctuation))
+userPasswordParser :: P.ParserText Password
+userPasswordParser = Password . Secret.Secret <$> P.punctuated
+  (P.takeWhile1P (Just "Password") (not . Char.isPunctuation))
 
 userProfileParser :: P.ParserText UserProfile
 userProfileParser =
