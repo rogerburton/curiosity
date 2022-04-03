@@ -103,6 +103,13 @@ instance S.DBStorage ExampleAppM User.UserProfile where
         withUserStorage $ modifyUserProfiles newProfileId (newProfile :)
       existsErr = Errs.throwError' . User.UserExists . show
 
+    User.UserCreateGeneratingUserId userName password -> do
+      -- generate a new and random user-id
+      newId <- User.genRandomUserId 10
+      let newProfile =
+            User.UserProfile (User.UserCreds newId password) userName
+      S.dbUpdate $ User.UserCreate newProfile
+
     User.UserDelete id -> onUserExists id (userNotFound id) deleteUser
      where
       deleteUser _ =

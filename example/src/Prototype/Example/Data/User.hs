@@ -93,6 +93,7 @@ instance Storage.DBIdentity UserProfile where
 instance Storage.DBStorageOps UserProfile where
   data DBUpdate UserProfile =
     UserCreate UserProfile
+    | UserCreateGeneratingUserId UserName Password
     | UserDelete UserId
     | UserUpdate UserProfile
     deriving (Show, Eq)
@@ -103,10 +104,14 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
-dbUpdateParser = P.tryAlts [userCreate, userDelete, userUpdate]
+dbUpdateParser = P.tryAlts
+  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate]
  where
   userCreate =
     P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
+  userCreateGeneratingUserId =
+    P.withTrailSpaces "UserCreateGeneratingUserId"
+      *> (UserCreateGeneratingUserId <$> userNameParser <*> userPasswordParser)
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
     P.withTrailSpaces "UserUpdate" *> fmap UserUpdate userProfileParser

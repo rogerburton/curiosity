@@ -11,11 +11,9 @@ module Prototype.Example.Server.Public.Pages
   , SignupResultPage(..)
   ) where
 
+import           Control.Lens
 import qualified Data.Text                     as T
-import qualified "start-servant" Prototype.Server.New.Page
-                                               as P
-import "design-hs-lib" Smart.Html.Render        ( renderCanvasWithHeadText )
-
+import qualified Prototype.Example.Data.User   as User
 import qualified "design-hs-lib" Smart.Html.Button
                                                as Btn
 import qualified "design-hs-lib" Smart.Html.Checkbox
@@ -77,8 +75,14 @@ instance H.ToMarkup SignupPage where
         ! formaction submitUrl
         ! formmethod "POST"
 
-data SignupResultPage = SignupSuccess
+data SignupResultPage = SignupSuccess User.UserId
                       | SignupFailed Text
 
 instance H.ToMarkup SignupResultPage where
-  toMarkup = undefined
+  toMarkup = \case
+    SignupSuccess userId -> withText $ "Signed up as: " <> userId ^. coerced
+    SignupFailed  msg    -> withText msg
+   where
+    withText msg =
+      H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
+

@@ -58,6 +58,7 @@ type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPag
             :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page. 
                            :<|> "create" :> ReqBody '[FormUrlEncoded] User.Password
                                          :> ReqBody '[FormUrlEncoded] PasswordConfirmation
+                                         :> ReqBody '[FormUrlEncoded] User.UserName
                                          :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user. 
                              )
 
@@ -85,8 +86,17 @@ publicT =
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found 
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./create"
-  processSignup  = undefined
-  unauthdErr     = Errs.throwError' . User.IncorrectPassword . show
+  processSignup password (W.Wrapped passwordConf) userName
+    | password == passwordConf = do
+      ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
+      ML.info $ "Users created: " <> show ids
+      pure . SS.P.PublicPage $ case headMay ids of
+        Just uid -> Pages.SignupSuccess uid
+        Nothing  -> Pages.SignupFailed "Failed to create users."
+    | otherwise = pure . SS.P.PublicPage $ Pages.SignupFailed
+      "Passwords mismatch."
+
+  unauthdErr = Errs.throwError' . User.IncorrectPassword . show
 
 -- | Run as a Wai Application 
 publicApplication
