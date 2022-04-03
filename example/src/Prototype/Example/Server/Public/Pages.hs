@@ -22,6 +22,8 @@ import qualified "design-hs-lib" Smart.Html.Dsl
                                                as Dsl
 import qualified "design-hs-lib" Smart.Html.Form
                                                as Form
+import qualified "design-hs-lib" Smart.Html.Input
+                                               as Inp
 import qualified "design-hs-lib" Smart.Html.Shared.Types
                                                as HTypes
 import qualified "design-hs-lib" Smart.Html.Textarea
@@ -48,10 +50,12 @@ instance H.ToMarkup LoginPage where
     password = ("Password", TA.Textarea 1 "id-password")
     rememberMe =
       C.CheckboxEnabled (Just "id-remember-me") C.Unchecked "Remember me."
-    loginButton =
-      H.toMarkup (Btn.ButtonPrimary "Login" HTypes.Enabled)
-        ! formaction submitUrl
-        ! formmethod "POST"
+    loginButton = mkButton "Login" submitUrl "POST"
+
+mkButton text submitUrl method' =
+  H.toMarkup (Btn.ButtonPrimary text HTypes.Enabled)
+    ! formaction submitUrl
+    ! formmethod method'
 
 newtype SignupPage = SignupPage { _signupPageSubmitURL :: H.AttributeValue }
 
@@ -59,21 +63,21 @@ instance H.ToMarkup SignupPage where
   toMarkup (SignupPage submitUrl) = do
     H.form
       . H.toMarkup @Dsl.HtmlCanvas
-      $ (       Form.TextareaGroup
+      $ (       Form.InputGroup
             [username, password "Password", password "Confirm Password"]
         Dsl.::~ submitButton
         Dsl.::~ Dsl.EmptyCanvas
         )
    where
-    username = ("Username", TA.Textarea 1 "id-username")
+    username =
+      ("Username", Inp.PlainTextInput HTypes.Enabled "id-username" Nothing)
     password fieldName =
       ( HTypes.Title fieldName
-      , TA.Textarea 1 . HTypes.Id $ "id-" <> T.toLower fieldName
+      , Inp.PasswordInput HTypes.Enabled
+                          (HTypes.Id $ "id-" <> T.toLower fieldName)
+                          Nothing
       )
-    submitButton =
-      H.toMarkup (Btn.ButtonPrimary "Register" HTypes.Enabled)
-        ! formaction submitUrl
-        ! formmethod "POST"
+    submitButton = mkButton "Register" submitUrl "POST"
 
 data SignupResultPage = SignupSuccess User.UserId
                       | SignupFailed Text
