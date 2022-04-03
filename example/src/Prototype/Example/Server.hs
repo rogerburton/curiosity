@@ -1,5 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DataKinds, TypeOperators #-} -- Language extensions needed for servant. 
+{-# LANGUAGE DataKinds
+           , TypeOperators
+#-} -- Language extensions needed for servant. 
 {- |
 Module: Prototype.Example.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -50,8 +52,8 @@ runExampleServer
    . MonadIO m
   => Rt.Runtime -- ^ Runtime to use for running the server. 
   -> m ()
-runExampleServer runtime =
-  let waiApp = exampleApplication @Rt.ExampleAppM
-        $ Rt.exampleAppMHandlerNatTrans runtime
-      port = runtime ^. Rt.rConf . Rt.confServer . coerced
-  in  liftIO $ Warp.run port waiApp
+runExampleServer runtime = liftIO $ Warp.run port waiApp
+ where
+  Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
+  waiApp =
+    exampleApplication @Rt.ExampleAppM $ Rt.exampleAppMHandlerNatTrans runtime
