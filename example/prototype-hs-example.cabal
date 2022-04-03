@@ -47,6 +47,7 @@ common common-dependencies
     , stm
     , lens 
     , exceptions 
+    , random
 
     , megaparsec 
 

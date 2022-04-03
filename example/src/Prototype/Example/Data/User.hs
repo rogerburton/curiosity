@@ -14,6 +14,7 @@ module Prototype.Example.Data.User
   , userCreds
   , userProfileName
   , UserId(..)
+  , genRandomUserId
   , UserName(..)
   , Password(..)
   -- * Export all DB ops.
@@ -32,6 +33,7 @@ module Prototype.Example.Data.User
 import           Control.Lens
 import           Data.Aeson
 import qualified Data.Char                     as Char
+import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Example.Repl.Parse  as P
 import qualified "start-servant" Prototype.Lib.Wrapped
@@ -40,6 +42,7 @@ import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 import qualified Prototype.Types.Secret        as Secret
 import qualified Servant.Auth.Server           as SAuth
+import qualified System.Random                 as Rand
 import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
@@ -72,6 +75,16 @@ newtype UserId = UserId Text
                deriving (Eq, Show, SAuth.ToJWT)
                deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
                deriving FromForm via W.Wrapped "user_id" Text
+
+-- | Randomly generated and character based user-id.
+genRandomUserId :: forall m . MonadIO m => Int -> m UserId
+genRandomUserId len =
+  liftIO
+    $   UserId
+    .   T.pack
+    .   take (abs len)
+    .   Rand.randomRs ('a', 'z')
+    <$> Rand.getStdGen
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
