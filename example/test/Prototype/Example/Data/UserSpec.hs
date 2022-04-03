@@ -31,13 +31,13 @@ instance Q.Arbitrary UserId where
 instance Q.Arbitrary (NonEmpty UserId) where
   arbitrary = Q.arbitrary `Q.suchThatMap` nonEmpty
 
-instance Q.Arbitrary UserPassword where
+instance Q.Arbitrary Password where
   arbitrary = S.nonEmptyAlphaNumGen
 
 instance Q.Arbitrary UserName where
   arbitrary = S.nonEmptyAlphaNumGen
 
-userLoginParseProp :: UserId -> UserPassword -> Bool
+userLoginParseProp :: UserId -> Password -> Bool
 userLoginParseProp userId userPass =
   let input = showUserLogin userId userPass
   in  S.tryParser (UserLogin userId userPass) dbSelectParser input
@@ -53,7 +53,7 @@ selectUserByIdProp userId =
 showSelectUserById userId =
   T.intercalate " " ["SelectUserById", S.quote userId]
 
-userCreateParseProp :: UserId -> UserName -> UserPassword -> Bool
+userCreateParseProp :: UserId -> UserName -> Password -> Bool
 userCreateParseProp userId userName userPass =
   let input = showUserCreate userId userName userPass
   in  S.tryParser (UserCreate $ UserProfile userId userName userPass)
@@ -64,7 +64,7 @@ showUserCreate userId userName userPass = T.intercalate
   " "
   ["UserCreate", S.quote userId, S.quote userName, S.quote userPass]
 
-userUpdateParseProp :: UserId -> UserName -> UserPassword -> Bool
+userUpdateParseProp :: UserId -> UserName -> Password -> Bool
 userUpdateParseProp userId userName userPass =
   let input = showUserUpdate userId userName userPass
   in  S.tryParser (UserUpdate $ UserProfile userId userName userPass)

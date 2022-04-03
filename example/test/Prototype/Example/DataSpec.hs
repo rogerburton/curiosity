@@ -25,7 +25,7 @@ spec = do
     it "Should parse UserDelete-modifications."
       $ Q.property deleteUserModParseProp
 
-userVizParseProp :: UserId -> UserPassword -> Bool
+userVizParseProp :: UserId -> Password -> Bool
 userVizParseProp userId userPass =
   let input = "viz user " <> US.showUserLogin userId userPass
   in  isRight $ parseViz input
@@ -35,7 +35,7 @@ selectUserByIdVizParseProp userId =
   let input = "viz user " <> US.showSelectUserById userId
   in  isRight $ parseViz input
 
-createUserModParseProp :: UserId -> UserName -> UserPassword -> Bool
+createUserModParseProp :: UserId -> UserName -> Password -> Bool
 createUserModParseProp userId userName userPass =
   let input = "mod user " <> US.showUserCreate userId userName userPass
   in  isRight $ parseMod input

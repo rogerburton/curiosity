@@ -35,7 +35,6 @@ import qualified "start-servant" Prototype.Server.New.Page
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
-import qualified Web.FormUrlEncoded            as Form
 
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server. 
 type PublicServerC m
@@ -46,6 +45,8 @@ type PublicServerC m
     , MonadIO m
     )
 
+type PasswordConfirmation = W.Wrapped "password_confirmation" User.Password
+
 -- brittany-disable-next-binding 
 -- | A publicly available login page. 
 type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPage)
@@ -55,8 +56,8 @@ type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPag
                                                      )
                          )
             :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page. 
-                           :<|> "create" :> ReqBody '[FormUrlEncoded] User.UserPassword
-                                         :> ReqBody '[FormUrlEncoded] (W.Wrapped "password_confirmation" User.UserPassword)
+                           :<|> "create" :> ReqBody '[FormUrlEncoded] User.Password
+                                         :> ReqBody '[FormUrlEncoded] PasswordConfirmation
                                          :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user. 
                              )
 

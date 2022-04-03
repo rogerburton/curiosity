@@ -122,10 +122,10 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
 
   dbSelect = \case
-    User.UserLogin (User.UserCreds id (User.UserPassword passInput)) ->
+    User.UserLogin (User.UserCreds id (User.Password passInput)) ->
       onUserExists id (userNotFound id) comparePass
      where
-      comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.UserPassword passStored)) }
+      comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.Password passStored)) }
         | passStored =:= passInput && userId == id {- comparing user-id is redundant, but we do it to be explicit. -}
         = pure [foundUser]
         | otherwise
