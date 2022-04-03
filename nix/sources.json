@@ -8,7 +8,7 @@
     "design-hs": {
         "branch": "asheshambasta/feature/form-inputs",
         "repo": "git@github.com:smartcoop/design-hs.git",
-        "rev": "3cc58d5708e30e54410f26941e70af71297e5113",
+        "rev": "1c7fbb131cf8b657ff60f1a9bc023fb83b5bf299",
         "type": "git"
     },
     "gitignore": {
