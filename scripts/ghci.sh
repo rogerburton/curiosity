@@ -8,15 +8,19 @@
 # everything is necessary. I think we need at least the explicit language
 # extensions and the no-prelude bits. This in turn requires us to add packages
 # explicitely ?
+#
+#   $ rm -r dist-newstyle/
+#   $ nix-shell --run 'cabal build --only-dependencies prototype-hs-example'
+#   $ scripts/ghci.sh
 
 ghc --interactive \
   -iexample/executable/ \
+  -iexample/src/ \
+  -ilib/src/ \
   -hide-all-packages \
   -Wmissing-home-modules \
   -no-user-package-db \
-  -package-db /home/thu/.cabal/store/ghc-8.6.5/package.db \
-  -package-db /home/thu/work/smart/prototype-hs/dist-newstyle/packagedb/ghc-8.6.5 \
-  -package-db /home/thu/work/smart/prototype-hs/dist-newstyle/build/x86_64-linux/ghc-8.6.5/prototype-hs-example-0.1.0.0/x/prototype-hs-example-exe/package.conf.inplace \
+  -package-db ./dist-newstyle/packagedb/ghc-8.6.5 \
   -package start-servant \
   -package async \
   -package base-noprelude \
@@ -28,8 +32,7 @@ ghc --interactive \
   -package optparse-applicative \
   -package pretty-simple \
   -package protolude \
-  -package prototype-hs-example \
-  -package prototype-hs-lib \
+  -package readline \
   -package stm \
   -package text \
   -XHaskell2010 \
