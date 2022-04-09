@@ -4,6 +4,7 @@ module Prototype.Example.Exe.Parse
   ) where
 
 import           Data.Default.Class
+import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
@@ -11,8 +12,9 @@ import           Prototype.Example.Runtime
 
 confParser :: A.Parser Conf
 confParser = do
-  _confServer <- serverParser
-  _confRepl   <- replParser
+  _confServer  <- serverParser
+  _confRepl    <- replParser
+  _confLogging <- ML.parseLoggingConf
   pure Conf { .. }
 serverParser = ServerConf <$> A.option
   A.auto
@@ -29,6 +31,6 @@ replParser = do
     <> A.help "Prompt to use for the repl"
   _replHistory <- A.switch $ A.long "repl-history-on" <> A.help
     "Flag to enable history."
-
   _replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
   pure Repl.ReplConf { .. }
+

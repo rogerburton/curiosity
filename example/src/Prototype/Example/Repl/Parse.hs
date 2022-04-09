@@ -56,6 +56,7 @@ module Prototype.Example.Repl.Parse
   , manyText
   , alphaNumText
   , asciiText
+  , parseListOf
   ) where
 
 import qualified Data.Set                      as Set
@@ -140,3 +141,10 @@ asciiText = manyText $ MP.many MP.Char.asciiChar
 manyText :: ParserText String -> ParserText Text
 manyText = fmap T.pack
 
+-- | Parse a list of elements using a given parser. The list needs to be in the usual list syntax.:w
+parseListOf :: ParserText a -> ParserText [a]
+parseListOf p =
+  (MP.Char.string' "[" *> MP.Char.space)
+    *> (p `MP.sepBy` MP.try comma)
+    <* (MP.Char.space *> MP.Char.string' "]")
+  where comma = MP.Char.space *> MP.Char.string' "," *> MP.Char.space

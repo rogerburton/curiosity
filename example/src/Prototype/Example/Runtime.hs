@@ -5,10 +5,12 @@ module Prototype.Example.Runtime
   ( Conf(..)
   , confRepl
   , confServer
+  , confLogging
   , ServerConf(..)
   , Runtime(..)
   , rConf
   , rDb
+  , rLoggers
   , ExampleAppM(..)
   , boot
   , runExampleAppMSafe
@@ -16,6 +18,8 @@ module Prototype.Example.Runtime
 
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
+import qualified Data.List                     as L
+import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Example.Data        as Data
@@ -28,17 +32,18 @@ import           Prototype.Types.Secret         ( (=:=) )
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
 data Conf = Conf
-  { _confRepl   :: Repl.ReplConf
-  , _confServer :: ServerConf
+  { _confRepl    :: Repl.ReplConf
+  , _confServer  :: ServerConf
+  , _confLogging :: ML.LoggingConf -- ^ Logging configuration 
   }
-  deriving Show
 
 makeLenses ''Conf
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
-  { _rConf :: Conf -- ^ The application configuration.
-  , _rDb   :: Data.StmDb Runtime -- ^ The Storage. 
+  { _rConf    :: Conf -- ^ The application configuration.
+  , _rDb      :: Data.StmDb Runtime -- ^ The Storage. 
+  , _rLoggers :: ML.AppNameLoggers
   }
 
 makeLenses ''Runtime
@@ -114,6 +119,12 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
 
+-- | Support for logging for the example application 
+instance ML.MonadAppNameLogMulti ExampleAppM where
+  askLoggers = asks _rLoggers
+  localLoggers modLogger =
+    local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
+
 onUserExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
 userNotFound = Errs.throwError' . User.UserNotFound . show
@@ -161,6 +172,45 @@ instance S.DBStorage ExampleAppM Todo.TodoList where
         in
           replaceTodoList newList $> [id]
 
+    Todo.DeleteList id -> withTodoStorage $ \todoStm -> do
+      todos <- liftIO . STM.readTVarIO $ todoStm
+      let existing = find ((== id) . S.dbId) todos
+      if isNothing existing
+        then todoListNotFound id
+        else
+          liftIO
+              ( STM.atomically
+              $ STM.modifyTVar' todoStm (filter $ (/= id) . S.dbId)
+              )
+            $> [id]
+    Todo.AddUsersToList id users -> onTodoListExists id
+                                                     (todoListNotFound id)
+                                                     modifyList
+     where
+      modifyList list' =
+        let newList =
+              list' & Todo.todoListUsers %~ L.nub . mappend (toList users)
+        in  replaceTodoList newList $> [id]
+    Todo.RemoveUsersFromList id users -> onTodoListExists
+      id
+      (todoListNotFound id)
+      modifyList
+     where
+      modifyList list' =
+        let newList = list' & Todo.todoListUsers %~ (L.\\ (toList users))
+        in  replaceTodoList newList $> [id]
+
+    Todo.CreateList newList -> withTodoStorage $ \todoStm -> do
+      todos <- liftIO . STM.readTVarIO $ todoStm
+      let existing = find ((== newId) . S.dbId) todos
+          newId    = S.dbId newList
+      if isJust existing
+        then existsErr newId
+        else
+          liftIO (STM.atomically $ STM.modifyTVar' todoStm (newList :))
+            $> [newId]
+      where existsErr = Errs.throwError' . Todo.TodoListExists
+
   dbSelect = \case
     Todo.SelectTodoListById id -> filtStoredTodos $ (== id) . S.dbId
     Todo.SelectTodoListsByPendingItems ->
@@ -194,5 +244,6 @@ boot
   -> Maybe (Data.HaskDb Runtime)
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf mInitDb = do
-  _rDb <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+  _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+  _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
   pure $ Right Runtime { .. }

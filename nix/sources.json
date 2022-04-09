@@ -46,9 +46,9 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "start-servant": {
-        "branch": "protolude-rebased",
+        "branch": "asheshambasta/feature/logger-helpers",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "146ca2b9e716367d74059080eb21ecc6beb47065",
+        "rev": "12695bae402a6394937a84b74e8f89e63fed2e0f",
         "type": "git"
     }
 }
