@@ -6,7 +6,6 @@ import           Prototype.Example.Data
 import           Prototype.Example.Data.User
 import qualified Prototype.Example.Data.UserSpec
                                                as US
-import           Prototype.Types.Secret
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 
@@ -25,19 +24,18 @@ spec = do
     it "Should parse UserDelete-modifications."
       $ Q.property deleteUserModParseProp
 
-userVizParseProp :: UserId -> Password -> Bool
-userVizParseProp userId userPass =
-  let input = "viz user " <> US.showUserLogin userId userPass
-  in  isRight $ parseViz input
+userVizParseProp :: UserCreds -> Bool
+userVizParseProp creds =
+  let input = "viz user " <> US.showUserLogin creds in isRight $ parseViz input
 
 selectUserByIdVizParseProp :: UserId -> Bool
 selectUserByIdVizParseProp userId =
   let input = "viz user " <> US.showSelectUserById userId
   in  isRight $ parseViz input
 
-createUserModParseProp :: UserId -> UserName -> Password -> Bool
-createUserModParseProp userId userName userPass =
-  let input = "mod user " <> US.showUserCreate userId userName userPass
+createUserModParseProp :: UserCreds -> UserName -> Bool
+createUserModParseProp creds userName =
+  let input = "mod user " <> US.showUserCreate creds userName
   in  isRight $ parseMod input
 
 deleteUserModParseProp :: UserId -> Bool
