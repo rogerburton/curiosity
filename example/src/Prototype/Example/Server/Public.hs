@@ -45,7 +45,7 @@ type PublicServerC m
     , MonadIO m
     )
 
-type PasswordConfirmation = W.Wrapped "password_confirmation" User.Password
+type PasswordConfirmation = W.Wrapped "passwordConfirmation" User.Password
 
 -- brittany-disable-next-binding 
 -- | A publicly available login page. 
@@ -66,28 +66,33 @@ publicT :: forall m . PublicServerC m => ServerT Public m
 publicT =
   (showLoginPage :<|> authenticateUser) :<|> (showSignupPage :<|> processSignup)
  where
-  showLoginPage = pure . SS.P.PublicPage $ Pages.LoginPage "./authenticate"
+  showLoginPage =
+    pure . SS.P.PublicPage $ Pages.LoginPage "./login/authenticate"
   authenticateUser creds =
     S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
       Just u -> do
         -- get the config. to get the cookie and JWT settings. 
-        Rt.Conf {..}  <- asks Rt._rConf
-        jwtSettings   <- asks Rt._rJwtSettings
+        Rt.Conf {..} <- asks Rt._rConf
+        jwtSettings  <- asks Rt._rJwtSettings
+        ML.info "Found user, generating authentication cookies for the user."
         mApplyCookies <- liftIO $ SAuth.acceptLogin
           _confCookie
           jwtSettings
           (u ^. User.userCreds . User.userCredsId)
         case mApplyCookies of
-          Nothing -> unauthdErr $ u ^. User.userCreds . User.userCredsId
+          Nothing -> do
+            ML.warning "Auth failed."
+            unauthdErr $ u ^. User.userCreds . User.userCredsId
           Just applyCookies -> do
             ML.info "User logged in"
             pure . addHeader @"Location" "/private/welcome" $ applyCookies
               NoContent
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found 
-  showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./create"
+  showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup password (W.Wrapped passwordConf) userName
     | password == passwordConf = do
+      traceM "signing up"
       ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
       ML.info $ "Users created: " <> show ids
       pure . SS.P.PublicPage $ case headMay ids of

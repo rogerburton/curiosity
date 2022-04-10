@@ -63,18 +63,21 @@ data UserProfile = UserProfile
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
-                 deriving FromForm via W.Wrapped "user_name" Text
+                 deriving FromForm via W.Wrapped "username" Text
 
 newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text
-                 deriving (FromHttpApiData, FromJSON, ToJSON) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
+                 deriving ( FromHttpApiData
+                          , FromJSON
+                          , ToJSON
+                          ) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving stock Show
-                 deriving FromForm via W.Wrapped "password" Text
+                 deriving FromForm via W.Wrapped "userPassword" Text
 
 newtype UserId = UserId Text
                deriving (Eq, Show, SAuth.ToJWT)
                deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
-               deriving FromForm via W.Wrapped "user_id" Text
+               deriving FromForm via W.Wrapped "userId" Text
 
 -- | Randomly generated and character based user-id.
 genRandomUserId :: forall m . MonadIO m => Int -> m UserId

@@ -12,7 +12,6 @@ module Prototype.Example.Server.Public.Pages
   ) where
 
 import           Control.Lens
-import qualified Data.Text                     as T
 import qualified Prototype.Example.Data.User   as User
 import qualified "design-hs-lib" Smart.Html.Button
                                                as Btn
@@ -26,8 +25,6 @@ import qualified "design-hs-lib" Smart.Html.Input
                                                as Inp
 import qualified "design-hs-lib" Smart.Html.Shared.Types
                                                as HTypes
-import qualified "design-hs-lib" Smart.Html.Textarea
-                                               as TA
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import           Text.Blaze.Html5.Attributes
@@ -40,14 +37,23 @@ instance H.ToMarkup LoginPage where
   toMarkup (LoginPage submitUrl) = do
     H.form
       . H.toMarkup @Dsl.HtmlCanvas
-      $ (       Form.TextareaGroup [username, password]
+      $ (       Form.InputGroup [username, password]
         Dsl.::~ loginButton
         Dsl.::~ Dsl.SingletonCanvas
                   (Form.CheckboxGroupInline "Remember me" [rememberMe])
         )
    where
-    username = ("Username", TA.Textarea 1 "id-username")
-    password = ("Password", TA.Textarea 1 "id-password")
+    username =
+      ( "Username"
+      , Inp.PlainTextInput HTypes.Enabled "_userCredsId" "_userCredsId" Nothing
+      )
+    password =
+      ( "Password"
+      , Inp.PasswordInput HTypes.Enabled
+                          "_userCredsPassword"
+                          "_userCredsPassword"
+                          Nothing
+      )
     rememberMe =
       C.CheckboxEnabled (Just "id-remember-me") C.Unchecked "Remember me."
     loginButton = mkButton "Login" submitUrl "POST"
@@ -64,17 +70,23 @@ instance H.ToMarkup SignupPage where
     H.form
       . H.toMarkup @Dsl.HtmlCanvas
       $ (       Form.InputGroup
-            [username, password "Password", password "Confirm Password"]
+            [ username
+            , password "Password"         "userPassword"
+            , password "Confirm Password" "passwordConfirmation"
+            ]
         Dsl.::~ submitButton
         Dsl.::~ Dsl.EmptyCanvas
         )
    where
     username =
-      ("Username", Inp.PlainTextInput HTypes.Enabled "id-username" Nothing)
-    password fieldName =
+      ( "Username"
+      , Inp.PlainTextInput HTypes.Enabled "username" "username" Nothing
+      )
+    password fieldName inputName =
       ( HTypes.Title fieldName
       , Inp.PasswordInput HTypes.Enabled
-                          (HTypes.Id $ "id-" <> T.toLower fieldName)
+                          (HTypes.Id inputName)
+                          (HTypes.Name inputName)
                           Nothing
       )
     submitButton = mkButton "Register" submitUrl "POST"
