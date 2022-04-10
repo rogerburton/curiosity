@@ -63,7 +63,7 @@ data UserProfile = UserProfile
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
-                 deriving FromForm via W.Wrapped "username" Text
+                 deriving (FromHttpApiData, FromForm) via W.Wrapped "username" Text
 
 newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text

@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds, TypeOperators #-}
 {- |
@@ -35,6 +36,8 @@ import qualified "start-servant" Prototype.Server.New.Page
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
+import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.HttpApiData
 
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server. 
 type PublicServerC m
@@ -47,6 +50,13 @@ type PublicServerC m
 
 type PasswordConfirmation = W.Wrapped "passwordConfirmation" User.Password
 
+data CreateData = CreateData
+  { username             :: User.UserName
+  , password             :: User.Password
+  , passwordConfirmation :: User.Password
+  }
+  deriving (Generic, Eq, Show, FromForm)
+
 -- brittany-disable-next-binding 
 -- | A publicly available login page. 
 type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPage)
@@ -56,9 +66,7 @@ type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPag
                                                      )
                          )
             :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page. 
-                           :<|> "create" :> ReqBody '[FormUrlEncoded] User.Password
-                                         :> ReqBody '[FormUrlEncoded] PasswordConfirmation
-                                         :> ReqBody '[FormUrlEncoded] User.UserName
+                           :<|> "create" :> ReqBody '[FormUrlEncoded] CreateData
                                          :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user. 
                              )
 
@@ -90,7 +98,7 @@ publicT =
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found 
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
-  processSignup password (W.Wrapped passwordConf) userName
+  processSignup (CreateData userName password passwordConf)
     | password == passwordConf = do
       traceM "signing up"
       ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password

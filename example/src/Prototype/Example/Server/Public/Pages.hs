@@ -71,7 +71,7 @@ instance H.ToMarkup SignupPage where
       . H.toMarkup @Dsl.HtmlCanvas
       $ (       Form.InputGroup
             [ username
-            , password "Password"         "userPassword"
+            , password "Password"         "password"
             , password "Confirm Password" "passwordConfirmation"
             ]
         Dsl.::~ submitButton
