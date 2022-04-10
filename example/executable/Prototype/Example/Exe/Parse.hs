@@ -11,6 +11,7 @@ import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import           Prototype.Example.Runtime
 import qualified Servant.Auth.Server           as Srv
+import qualified System.Log.FastLogger         as FL
 
 confParser :: A.Parser Conf
 confParser = do
@@ -19,7 +20,9 @@ confParser = do
   pure Conf
     {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed. 
-      _confLogging       = ML.LoggingConf [] "PrototypeExample" L.levelInfo-- ML.parseLoggingConf
+      _confLogging       = ML.LoggingConf [FL.LogStdout 1024]
+                                          "PrototypeExample"
+                                          L.levelInfo-- ML.parseLoggingConf
       -- FIXME: Add support for cookie-settings parsing.
     , _confCookie        = Srv.defaultCookieSettings
                              { Srv.cookieIsSecure    = Srv.NotSecure -- Use temporarily NotSecure for easier local testing with cURL.

@@ -102,6 +102,7 @@ executable prototype-hs-example-exe
       optparse-applicative
     , prototype-hs-example 
     , async
+    , fast-logger
   hs-source-dirs: executable
   other-modules:
     Prototype.Example.Exe.Parse
