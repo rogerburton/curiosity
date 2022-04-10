@@ -25,7 +25,7 @@ main =
 
 mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
-  A.info P.confParser
+  A.info (P.confParser <**> A.helper)
     $  A.fullDesc
     <> A.header "Prototype-hs Example program"
     <> A.progDesc
