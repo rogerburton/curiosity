@@ -6,6 +6,31 @@
 {- |
 Module: Prototype.Backend.InteractiveState
 Description: Live state server
+
+We introduce three type classes: InteractiveState, InteractiveDisp, and
+InteractiveStateOnDisp.
+
+The first one describes the operations supported by our "database", the second
+one describes how those operations can be communicated to the system and how to
+render their results (e.g. in a REPL), and the third one simply glues them
+together (this corresponds to the REP part of the REPL).
+
+TODO: I think this file should start with InteractiveState, instead of
+InteractiveDisp.
+
+TODO: It seems InteractiveState should be named something like
+InteractiveOperations or similar.
+
+Discussion: I'm wondering if the structure here with the notions of DispInput,
+DispInput and parsing will work outside of the textual REPL case. I think it's
+right to have layers, with the state at the bottom, then a notion of operations
+that can interact with the state, but for me, the UI, be it a REPL, a web
+server, or a TUI, is more of a concrete thing that is responsible of
+constructing the appropriate operations (and handling the results). The way it
+constructs such an operation is too specific to be abstracted (even more by a
+notion of parsing). Imagine an OpenGL application where you can use a mouse, a
+keayboard, shortcuts, but that has also a text console embedded within the GUI.
+
 -}
 module Prototype.Backend.InteractiveState.Class
   (
@@ -90,11 +115,11 @@ In the future, we'd also like to support additional modes like a @Brick@ etc., i
 
 = Goals:
 
-A InteractiveState should enable the user to perform the following operations on the state.
+An InteractiveState should enable the user to perform the following operations on the state.
 
-1. Query the state.
+1. Query (i.e. visualise) the state.
 
-2. Modify the state, without having to restart the application
+2. Modify the state, without having to restart the application.
 
 3. Generate state snapshots, optionally saving them. 
 
@@ -151,7 +176,7 @@ Tying up the `InteractiveState` instance with `InteractiveDisp`
 -}
 
 -- | Given we have an instance of `InteractiveState` and a @dispType@, which is a known instance of `InteractiveDisp`,
--- this typeclass encodes how operations are parsed outputs are displayed on the given `DispType`
+-- this typeclass encodes how operations are parsed and outputs are displayed on the given `DispType`.
 class ( InteractiveDisp dispType
       , InteractiveState state
       )

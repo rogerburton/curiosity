@@ -55,10 +55,16 @@ startReadEvalPrintLoop
 startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
   liftIO . mapSomeEx $ do
     RL.initialize
+    RL.addHistory "viz user UserLogin \"1\" \"pass\""
+    RL.addHistory "mod user UserCreate \"1\" \"alice\" \"pass\""
     loopRepl ReplContinue
  where
   loopRepl ReplContinue = RL.readline prompt >>= \case
     Nothing -> exitWith' $ ReplExitOnUserCmd "eof"
+    -- TODO Probably processInput below
+    -- (within parseAnyStateInput) should have other possible results (beside mod and
+    -- viz): comments and blanks (no-op), instead of this special empty case.
+    Just "" -> loopRepl ReplContinue
     Just cmdString
       | isReplExit
       -> exitWith' $ ReplExitOnUserCmd cmd
