@@ -19,9 +19,13 @@ import qualified Prototype.Runtime.Errors      as Errs
 import           Servant
 import qualified Servant.Auth.Server           as Srv
 
+
+--------------------------------------------------------------------------------
 main :: IO ExitCode
 main =
-  putStrLn @Text "Parsing opts." >> A.execParser mainParserInfo >>= runWithConf
+  putStrLn @Text "Parsing command-line options..."
+    >>  A.execParser mainParserInfo
+    >>= runWithConf
 
 mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
@@ -29,31 +33,27 @@ mainParserInfo =
     $  A.fullDesc
     <> A.header "Prototype-hs Example program"
     <> A.progDesc
-         "Interactive state demo: modify states via multiple sources of input: HTTP and a REPL."
+         "Interactive state demo: modify states via multiple sources of input: \
+         \HTTP and a REPL."
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  -- The first step is to boot up a runtime. 
-  putStrLn @Text "Booting runtime."
+  putStrLn @Text "Booting runtime..."
   jwk     <- Srv.generateKey
   runtime <- Rt.boot conf Nothing jwk >>= either throwIO pure
-  putStrLn @Text "Booted runtime, now starting the repl and server."
-  replProcess runtime `concurrently` serverProcess runtime
+
+  let Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
+  putStrLn @Text ("Starting up server on port " <> show port <> "...")
+  forkIO $ (startServer >=> endServer) runtime
+
+  putStrLn @Text "Starting up REPL..."
+  (startRepl >=> endRepl) runtime
+
   -- FIXME: correct exit codes based on exit reason.
   exitSuccess
- where
-  replProcess = startRepl >=> replEndMsg
-   where
-    replEndMsg res = putStrLn @Text $ T.unlines
-      [ "REPL process ended: " <> show res
-      , "You may want to kill the server with Ctrl+C to exit completely."
-      ]
-  serverProcess =
-    startServer
-      >=> putStrLn @Text
-      .   mappend "Server process ended: "
-      .   Errs.displayErr
 
+
+--------------------------------------------------------------------------------
 startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
 startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
   (rt ^. Rt.rConf . Rt.confRepl)
@@ -69,15 +69,16 @@ startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
   displayErr (Data.ParseFailed err) =
     pure . IS.ReplOutputStrict . Errs.displayErr $ err
 
--- FIXME: Implement the server part; currently its just a forever running loop.
+endRepl :: Repl.ReplLoopResult -> IO ()
+endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
+
+
+--------------------------------------------------------------------------------
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer rt =
-  putStrLn @Text "Starting up server."
-    >> try @SomeException (Srv.runExampleServer rt)
-    >>= pure
-    . either Errs.RuntimeException (const $ Errs.RuntimeException UserInterrupt) -- FIXME: improve this, incorrect error reporting here. 
- where
-  settings =
-    rt ^. Rt.rConf . Rt.confCookie :. rt ^. Rt.rJwtSettings :. EmptyContext
+startServer rt = try @SomeException (Srv.runExampleServer rt) >>= pure . either
+  Errs.RuntimeException
+  (const $ Errs.RuntimeException UserInterrupt)
+  -- FIXME: improve this, incorrect error reporting here.
 
-
+endServer :: Errs.RuntimeErr -> IO ()
+endServer = putStrLn @Text . mappend "Server process ended: " . Errs.displayErr
