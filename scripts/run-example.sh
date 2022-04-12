@@ -4,25 +4,12 @@
 # See ghci.sh for comments.
 
 ghc --interactive \
+  -i../design-hs/lib/src/ \
   -iexample/executable/ \
   -iexample/src/ \
   -ilib/src/ \
-  -hide-all-packages \
-  -Wmissing-home-modules \
-  -package start-servant \
-  -package async \
-  -package base-noprelude \
-  -package containers \
-  -package data-default-class \
-  -package http-types \
-  -package lens \
-  -package megaparsec \
-  -package optparse-applicative \
-  -package pretty-simple \
-  -package protolude \
-  -package readline \
-  -package stm \
-  -package text \
+  -hide-package base \
+  -XNoImplicitPrelude \
   -XHaskell2010 \
   -XStrictData \
   -XMultiParamTypeClasses \
@@ -40,5 +27,4 @@ ghc --interactive \
   -XGADTs \
   -XOverloadedStrings \
   -XPackageImports \
-  example/executable/ExampleMain.hs \
-  -e ":main --server-port 9000 --repl-prompt \"> \" --repl-history-on --repl-exit-cmd exit"
+  -ghci-script scripts/ghci-run.conf
