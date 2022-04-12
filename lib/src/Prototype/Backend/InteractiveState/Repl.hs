@@ -60,14 +60,14 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
     loopRepl ReplContinue
  where
   loopRepl ReplContinue = RL.readline prompt >>= \case
-    Nothing -> exitWith' $ ReplExitOnUserCmd "eof"
+    Nothing -> output' "" $> ReplExitOnUserCmd "eof"
     -- TODO Probably processInput below
     -- (within parseAnyStateInput) should have other possible results (beside mod and
     -- viz): comments and blanks (no-op), instead of this special empty case.
     Just "" -> loopRepl ReplContinue
     Just cmdString
       | isReplExit
-      -> exitWith' $ ReplExitOnUserCmd cmd
+      -> pure $ ReplExitOnUserCmd cmd
       | otherwise
       -> let replInput = IS.ReplInputStrict cmd
          in
@@ -100,8 +100,6 @@ startReadEvalPrintLoop ReplConf {..} processInput runMInIO =
 
   mapSomeEx op =
     try @SomeException op <&> either ReplExitOnGeneralException identity
-
-  exitWith' result = output' ("REPL exit with: " <> show result) $> result
 
   prompt = T.unpack _replPrompt
 
