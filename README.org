@@ -24,12 +24,13 @@ $ nix-shell
 $ cabal repl prototype-hs-example-exe
 ```
 
-Instead it's possible to use `script/run-example.sh`. We expect some part of
-that script will need maintenance as we update the Cabal project. I guess we
-also need to create the `dis-newstyle/` directory first, with a normal call to
-`cabal repl`.
+Instead it's possible to use a helper script to call `:main` with GHCi.
 
-We use Cabal to run the example too:
+```
+$ script/run-example.sh
+```
+
+We can also use Cabal to run the example:
 
 ```
 $ nix-shell
