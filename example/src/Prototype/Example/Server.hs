@@ -27,18 +27,18 @@ import qualified Prototype.Example.Server.Public
                                                as Pub
 import qualified Prototype.Example.Server.Public.Pages
                                                as Pages
-import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           Servant
 import qualified Servant.Auth.Server           as Srv
+import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 
 type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
 type Example = "public" :> Pub.Public
              :<|> Raw -- catchall for custom 404
 
-exampleT :: forall m . Pub.PublicServerC m => ServerT Pub.Public m
-exampleT = Pub.publicT
+exampleT :: forall m . Pub.PublicServerC m => ServerT Example m
+exampleT = Pub.publicT :<|> pure custom404
 
 -- | Run as a Wai Application
 exampleApplication
@@ -47,11 +47,13 @@ exampleApplication
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
   -> Wai.Application
 exampleApplication handlerNatTrans =
-  Servant.serve pubPxy $ hoistServerWithContext pubPxy
-                                                (Proxy @ServerSettings)
-                                                handlerNatTrans
-                                                (Pub.publicT :<|> pure custom404)
-  where pubPxy = Proxy @Example
+  Servant.serve exampleProxy $ hoistServerWithContext exampleProxy
+                                                      settingsProxy
+                                                      handlerNatTrans
+                                                      exampleT
+ where
+  exampleProxy  = Proxy @Example
+  settingsProxy = Proxy @ServerSettings
 
 runExampleServer
   :: forall m
@@ -65,9 +67,7 @@ runExampleServer runtime = liftIO $ Warp.run port waiApp
     exampleApplication @Rt.ExampleAppM $ Rt.exampleAppMHandlerNatTrans runtime
 
 custom404 :: Application
-custom404 _request sendResponse =
-  sendResponse $
-    Wai.responseLBS
-      HTTP.status404
-      [("Content-Type", "text/html; charset=UTF-8")]
-      (renderMarkup $ H.toMarkup Pages.NotFoundPage)
+custom404 _request sendResponse = sendResponse $ Wai.responseLBS
+  HTTP.status404
+  [("Content-Type", "text/html; charset=UTF-8")]
+  (renderMarkup $ H.toMarkup Pages.NotFoundPage)
