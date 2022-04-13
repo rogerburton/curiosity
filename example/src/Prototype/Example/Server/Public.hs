@@ -8,7 +8,7 @@ Description: Public endpoints
 
 Contains the public endpoints for the example server.
 We're using PackageImports here on purpose: this includes imports from @start-servant@ and those imports are tagged for readability
-and predictability on where these modules come from. 
+and predictability on where these modules come from.
 
 -}
 module Prototype.Example.Server.Public
@@ -39,7 +39,7 @@ import qualified Servant.HTML.Blaze            as B
 import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData
 
--- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server. 
+-- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server.
 type PublicServerC m
   = ( MonadMask m
     , ML.MonadAppNameLogMulti m
@@ -57,17 +57,17 @@ data CreateData = CreateData
   }
   deriving (Generic, Eq, Show, FromForm)
 
--- brittany-disable-next-binding 
--- | A publicly available login page. 
+-- brittany-disable-next-binding
+-- | A publicly available login page.
 type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPage)
                        :<|> "authenticate" :> ReqBody '[FormUrlEncoded] User.UserCreds
                            :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
                                                        NoContent
                                                      )
                          )
-            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page. 
+            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page.
                            :<|> "create" :> ReqBody '[FormUrlEncoded] CreateData
-                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user. 
+                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user.
                              )
 
 publicT :: forall m . PublicServerC m => ServerT Public m
@@ -79,7 +79,7 @@ publicT =
   authenticateUser creds =
     S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
       Just u -> do
-        -- get the config. to get the cookie and JWT settings. 
+        -- get the config. to get the cookie and JWT settings.
         Rt.Conf {..} <- asks Rt._rConf
         jwtSettings  <- asks Rt._rJwtSettings
         ML.info "Found user, generating authentication cookies for the user."
@@ -96,7 +96,7 @@ publicT =
             pure . addHeader @"Location" "/private/welcome" $ applyCookies
               NoContent
 
-      Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found 
+      Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup (CreateData userName password passwordConf)
     | password == passwordConf = do
@@ -111,7 +111,7 @@ publicT =
 
   unauthdErr = Errs.throwError' . User.IncorrectPassword . show
 
--- | Run as a Wai Application 
+-- | Run as a Wai Application
 publicApplication
   :: forall m
    . PublicServerC m

@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds
            , TypeOperators
-#-} -- Language extensions needed for servant. 
+#-} -- Language extensions needed for servant.
 {- |
 Module: Prototype.Example.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -9,12 +9,12 @@ Description: Server root module, split up into public and private sub-modules.
 -}
 module Prototype.Example.Server
   (
-    -- * Top level server types. 
+    -- * Top level server types.
     Example
   , exampleT
   , exampleApplication
   , runExampleServer
-  -- * Type-aliases for convenience 
+  -- * Type-aliases for convenience
   , ServerSettings
   ) where
 
@@ -34,7 +34,7 @@ type Example = "public" :> Pub.Public
 exampleT :: forall m . Pub.PublicServerC m => ServerT Pub.Public m
 exampleT = Pub.publicT
 
--- | Run as a Wai Application 
+-- | Run as a Wai Application
 exampleApplication
   :: forall m
    . Pub.PublicServerC m
@@ -44,13 +44,13 @@ exampleApplication handlerNatTrans =
   Servant.serve pubPxy $ hoistServerWithContext pubPxy
                                                 (Proxy @ServerSettings)
                                                 handlerNatTrans
-                                                Pub.publicT {- ServerT -> Server -}
+                                                Pub.publicT
   where pubPxy = Proxy @Example
 
 runExampleServer
   :: forall m
    . MonadIO m
-  => Rt.Runtime -- ^ Runtime to use for running the server. 
+  => Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
 runExampleServer runtime = liftIO $ Warp.run port waiApp
  where
