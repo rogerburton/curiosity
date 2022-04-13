@@ -37,7 +37,6 @@ import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import           Web.FormUrlEncoded             ( FromForm(..) )
-import           Web.HttpApiData
 
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server.
 type PublicServerC m
