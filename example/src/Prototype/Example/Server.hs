@@ -19,17 +19,22 @@ module Prototype.Example.Server
   ) where
 
 import           Control.Lens
+import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server.Public
                                                as Pub
+import qualified Prototype.Example.Server.Public.Pages
+                                               as Pages
+import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           Servant
 import qualified Servant.Auth.Server           as Srv
 
 type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
 type Example = "public" :> Pub.Public
+             :<|> Raw -- catchall for custom 404
 
 exampleT :: forall m . Pub.PublicServerC m => ServerT Pub.Public m
 exampleT = Pub.publicT
@@ -44,7 +49,7 @@ exampleApplication handlerNatTrans =
   Servant.serve pubPxy $ hoistServerWithContext pubPxy
                                                 (Proxy @ServerSettings)
                                                 handlerNatTrans
-                                                Pub.publicT
+                                                (Pub.publicT :<|> pure custom404)
   where pubPxy = Proxy @Example
 
 runExampleServer
@@ -57,3 +62,11 @@ runExampleServer runtime = liftIO $ Warp.run port waiApp
   Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
   waiApp =
     exampleApplication @Rt.ExampleAppM $ Rt.exampleAppMHandlerNatTrans runtime
+
+custom404 :: Application
+custom404 _request sendResponse =
+  sendResponse $
+    Wai.responseLBS
+      HTTP.status404
+      [("Content-Type", "text/html; charset=UTF-8")]
+      (renderMarkup Pages.notFound)
