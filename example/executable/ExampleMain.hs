@@ -16,7 +16,6 @@ import qualified Prototype.Example.Exe.Parse   as P
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server      as Srv
 import qualified Prototype.Runtime.Errors      as Errs
-import           Servant
 import qualified Servant.Auth.Server           as Srv
 
 
