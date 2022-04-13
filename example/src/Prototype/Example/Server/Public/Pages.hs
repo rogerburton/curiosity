@@ -9,7 +9,7 @@ module Prototype.Example.Server.Public.Pages
   ( LoginPage(..)
   , SignupPage(..)
   , SignupResultPage(..)
-  , notFound
+  , NotFoundPage(..)
   ) where
 
 import           Control.Lens
@@ -103,5 +103,8 @@ instance H.ToMarkup SignupResultPage where
     withText msg =
       H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
 
--- TODO Use an instance H.ToMarkup, and remove blaze-markup dependency.
-notFound = H.docTypeHtml $ H.body $ H.code "404 Not found."
+data NotFoundPage  = NotFoundPage
+
+instance H.ToMarkup NotFoundPage where
+  toMarkup NotFoundPage = do
+    H.code "404 Not found."

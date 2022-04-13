@@ -27,6 +27,7 @@ import qualified Prototype.Example.Server.Public
                                                as Pub
 import qualified Prototype.Example.Server.Public.Pages
                                                as Pages
+import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           Servant
 import qualified Servant.Auth.Server           as Srv
@@ -69,4 +70,4 @@ custom404 _request sendResponse =
     Wai.responseLBS
       HTTP.status404
       [("Content-Type", "text/html; charset=UTF-8")]
-      (renderMarkup Pages.notFound)
+      (renderMarkup $ H.toMarkup Pages.NotFoundPage)
