@@ -9,6 +9,7 @@ module Prototype.Example.Server.Public.Pages
   ( LoginPage(..)
   , SignupPage(..)
   , SignupResultPage(..)
+  , LandingPage(..)
   , NotFoundPage(..)
   ) where
 
@@ -102,6 +103,12 @@ instance H.ToMarkup SignupResultPage where
    where
     withText msg =
       H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
+
+data LandingPage  = LandingPage
+
+instance H.ToMarkup LandingPage where
+  toMarkup LandingPage = do
+    H.code "Welcome."
 
 data NotFoundPage  = NotFoundPage
 
