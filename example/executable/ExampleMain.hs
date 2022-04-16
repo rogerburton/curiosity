@@ -39,13 +39,14 @@ mainParserInfo =
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  putStrLn @Text "Booting runtime..."
+  putStrLn @Text
+    "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
   jwk                     <- Srv.generateKey
   runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
   forkIO $ startServer runtime >>= endServer _rLoggers
 
-  putStrLn @Text "Starting up REPL..."
+  startupLogInfo _rLoggers "Starting up REPL..."
   startRepl runtime >>= endRepl
 
   -- Close all loggers. 

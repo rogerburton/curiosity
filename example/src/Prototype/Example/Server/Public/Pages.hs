@@ -41,8 +41,7 @@ instance H.ToMarkup LoginPage where
       . H.toMarkup @Dsl.HtmlCanvas
       $ (       Form.InputGroup [username, password]
         Dsl.::~ loginButton
-        Dsl.::~ Dsl.SingletonCanvas
-                  (Form.CheckboxGroupInline "Remember me" [rememberMe])
+        Dsl.::~ Dsl.EmptyCanvas
         )
    where
     username =
@@ -56,8 +55,6 @@ instance H.ToMarkup LoginPage where
                           "_userCredsPassword"
                           Nothing
       )
-    rememberMe =
-      C.CheckboxEnabled (Just "id-remember-me") C.Unchecked "Remember me."
     loginButton = mkButton "Login" submitUrl "POST"
 
 mkButton text submitUrl method' =
@@ -104,13 +101,13 @@ instance H.ToMarkup SignupResultPage where
     withText msg =
       H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
 
-data LandingPage  = LandingPage
+data LandingPage = LandingPage
 
 instance H.ToMarkup LandingPage where
   toMarkup LandingPage = do
     H.code "Welcome."
 
-data NotFoundPage  = NotFoundPage
+data NotFoundPage = NotFoundPage
 
 instance H.ToMarkup NotFoundPage where
   toMarkup NotFoundPage = do

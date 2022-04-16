@@ -48,7 +48,7 @@
     "start-servant": {
         "branch": "asheshambasta/feature/localEnv",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "444b0d8d32a0cc6fd8c22c5c02190d699ea78ec8",
+        "rev": "019c8e2f8b93304eb21b796b382fa21de4e6fa5a",
         "type": "git"
     }
 }

@@ -71,17 +71,18 @@ publicT =
  where
   showLoginPage =
     pure . SS.P.PublicPage $ Pages.LoginPage "./login/authenticate"
-  authenticateUser creds =
+  authenticateUser creds@User.UserCreds {..} =
     env $ S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
       Just u -> do
         -- get the config. to get the cookie and JWT settings.
-        Rt.Conf {..} <- asks Rt._rConf
         jwtSettings  <- asks Rt._rJwtSettings
+        Rt.Conf {..} <- asks Rt._rConf
         ML.info "Found user, generating authentication cookies for the user."
         mApplyCookies <- liftIO $ SAuth.acceptLogin
           _confCookie
           jwtSettings
           (u ^. User.userCreds . User.userCredsId)
+        ML.info "Applying cookies."
         case mApplyCookies of
           Nothing -> do
             ML.warning "Auth failed."
@@ -92,7 +93,7 @@ publicT =
               NoContent
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found
-    where env = ML.localEnv (<> "Login")
+    where env = ML.localEnv (<> "Login" <> show _userCredsId)
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup (CreateData userName password passwordConf)
     | password == passwordConf = env $ do
