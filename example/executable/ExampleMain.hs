@@ -41,8 +41,6 @@ runWithConf conf = do
   jwk     <- Srv.generateKey
   runtime <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
-  let Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
-  putStrLn @Text ("Starting up server on port " <> show port <> "...")
   forkIO $ (startServer >=> endServer) runtime
 
   putStrLn @Text "Starting up REPL..."
@@ -71,12 +69,14 @@ startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
 endRepl :: Repl.ReplLoopResult -> IO ()
 endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
 
-
 --------------------------------------------------------------------------------
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer rt = try @SomeException (Srv.runExampleServer rt) >>= pure . either
-  Errs.RuntimeException
-  (const $ Errs.RuntimeException UserInterrupt)
+startServer runtime = do
+  let Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
+  putStrLn @Text ("Starting up server on port " <> show port <> "...")
+  try @SomeException (Srv.runExampleServer runtime) >>= pure . either
+    Errs.RuntimeException
+    (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.
 
 endServer :: Errs.RuntimeErr -> IO ()
