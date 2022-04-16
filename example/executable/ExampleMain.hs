@@ -5,7 +5,9 @@ module Main
   ) where
 
 import           Control.Lens
+import qualified Control.Monad.Log             as L
 import qualified Data.Text                     as T
+import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
@@ -38,13 +40,16 @@ mainParserInfo =
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   putStrLn @Text "Booting runtime..."
-  jwk     <- Srv.generateKey
-  runtime <- Rt.boot conf Nothing jwk >>= either throwIO pure
+  jwk                     <- Srv.generateKey
+  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
-  forkIO $ (startServer >=> endServer) runtime
+  forkIO $ startServer runtime >>= endServer _rLoggers
 
   putStrLn @Text "Starting up REPL..."
-  (startRepl >=> endRepl) runtime
+  startRepl runtime >>= endRepl
+
+  -- Close all loggers. 
+  ML.flushAndCloseLoggers _rLoggers
 
   -- FIXME: correct exit codes based on exit reason.
   exitSuccess
@@ -71,13 +76,25 @@ endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
 
 --------------------------------------------------------------------------------
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer runtime = do
+startServer runtime@Rt.Runtime {..} = do
   let Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
-  putStrLn @Text ("Starting up server on port " <> show port <> "...")
+  startupLogInfo _rLoggers $ "Starting up server on port " <> show port <> "..."
   try @SomeException (Srv.runExampleServer runtime) >>= pure . either
     Errs.RuntimeException
     (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.
 
-endServer :: Errs.RuntimeErr -> IO ()
-endServer = putStrLn @Text . mappend "Server process ended: " . Errs.displayErr
+endServer :: ML.AppNameLoggers -> Errs.RuntimeErr -> IO ()
+endServer loggers =
+  startupLogInfo loggers . mappend "Server process ended: " . Errs.displayErr
+
+{- | Startup logging using standard loggers instead of using the putStrLn blindly.
+`putStrLn` may cause issues with the REPL since both rely on STDOUT. 
+
+The implementation is simple: if there are no loggers, we don't output anything. However, if there is one, we log on the first logger.
+
+FIXME: check if the logger is not using STDOUT, or, find the first non-STDOUT logger and log on that. 
+-}
+startupLogInfo :: MonadIO m => ML.AppNameLoggers -> Text -> m ()
+startupLogInfo (ML.AppNameLoggers loggers) msg = mapM_ logOver loggers
+  where logOver l = L.runLogT' l . L.localEnv (<> "Boot") $ L.info msg

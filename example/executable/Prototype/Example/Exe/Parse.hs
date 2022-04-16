@@ -20,7 +20,7 @@ confParser = do
   pure Conf
     {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed. 
-      _confLogging       = ML.LoggingConf [FL.LogStdout 1024]
+      _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
                                           "PrototypeExample"
                                           L.levelInfo-- ML.parseLoggingConf
       -- FIXME: Add support for cookie-settings parsing.
@@ -33,6 +33,7 @@ confParser = do
     , _confMkJwtSettings = Srv.defaultJWTSettings
     , ..
     }
+  where flspec = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
 
 serverParser = ServerConf . abs <$> A.option
   A.auto
