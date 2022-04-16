@@ -43,12 +43,14 @@ import qualified Servant.Auth.Server           as Srv
 
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
+
+-- | Application config.
 data Conf = Conf
-  { _confRepl          :: Repl.ReplConf
-  , _confServer        :: ServerConf
-  , _confLogging       :: ML.LoggingConf -- ^ Logging configuration 
-  , _confCookie        :: Srv.CookieSettings -- ^ Settings for setting cookies as a server (for authentication etc.)
-  , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings -- ^ JWK settings to use.
+  { _confRepl          :: Repl.ReplConf -- ^ Config. for the REPL.
+  , _confServer        :: ServerConf -- ^ Config. for the HTTP server.
+  , _confLogging       :: ML.LoggingConf -- ^ Logging configuration.
+  , _confCookie        :: Srv.CookieSettings -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings -- ^ JWK settings to use, depending on the key employed.
   }
 
 makeLenses ''Conf
@@ -263,9 +265,9 @@ replaceTodoList newList =
 -- | Boot up a runtime.
 boot
   :: MonadIO m
-  => Conf
-  -> Maybe (Data.HaskDb Runtime)
-  -> JWK.JWK
+  => Conf -- ^ configuration to boot with.
+  -> Maybe (Data.HaskDb Runtime) -- ^ Initial state, if any.
+  -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies). 
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf mInitDb jwk = do
   _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
