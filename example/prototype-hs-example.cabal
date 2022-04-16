@@ -72,6 +72,7 @@ common common-dependencies
     , servant-blaze
     , blaze 
     , blaze-html
+    , blaze-markup
     , design-hs-lib
     , aeson
   -- mixins: design-hs-lib hiding (Prelude)
@@ -132,4 +133,4 @@ test-suite prototype-hs-example-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs 
   hs-source-dirs: 
-      test  
+      test

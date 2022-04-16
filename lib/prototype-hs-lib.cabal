@@ -50,7 +50,7 @@ common common-dependencies
     , text 
     , pretty-simple 
 
-    , readline
+    , haskeline
     , data-default-class 
 
 library 

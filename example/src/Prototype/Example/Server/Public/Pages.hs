@@ -9,6 +9,8 @@ module Prototype.Example.Server.Public.Pages
   ( LoginPage(..)
   , SignupPage(..)
   , SignupResultPage(..)
+  , LandingPage(..)
+  , NotFoundPage(..)
   ) where
 
 import           Control.Lens
@@ -102,3 +104,14 @@ instance H.ToMarkup SignupResultPage where
     withText msg =
       H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
 
+data LandingPage  = LandingPage
+
+instance H.ToMarkup LandingPage where
+  toMarkup LandingPage = do
+    H.code "Welcome."
+
+data NotFoundPage  = NotFoundPage
+
+instance H.ToMarkup NotFoundPage where
+  toMarkup NotFoundPage = do
+    H.code "404 Not found."
