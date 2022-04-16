@@ -26,8 +26,6 @@ import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server.Public.Pages
                                                as Pages
-import qualified "start-servant" Prototype.Lib.Wrapped
-                                               as W
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import qualified Prototype.Server.New.Auth     as Auth
@@ -46,8 +44,6 @@ type PublicServerC m
     , MonadReader Rt.Runtime m
     , MonadIO m
     )
-
-type PasswordConfirmation = W.Wrapped "passwordConfirmation" User.Password
 
 data CreateData = CreateData
   { username             :: User.UserName
@@ -76,7 +72,7 @@ publicT =
   showLoginPage =
     pure . SS.P.PublicPage $ Pages.LoginPage "./login/authenticate"
   authenticateUser creds =
-    S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
+    env $ S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
       Just u -> do
         -- get the config. to get the cookie and JWT settings.
         Rt.Conf {..} <- asks Rt._rConf
@@ -96,10 +92,10 @@ publicT =
               NoContent
 
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found
+    where env = ML.localEnv (<> "Login")
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup (CreateData userName password passwordConf)
-    | password == passwordConf = do
-      traceM "signing up"
+    | password == passwordConf = env $ do
       ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
       ML.info $ "Users created: " <> show ids
       pure . SS.P.PublicPage $ case headMay ids of
@@ -107,6 +103,7 @@ publicT =
         Nothing  -> Pages.SignupFailed "Failed to create users."
     | otherwise = pure . SS.P.PublicPage $ Pages.SignupFailed
       "Passwords mismatch."
+    where env = ML.localEnv (<> "Signup")
 
   unauthdErr = Errs.throwError' . User.IncorrectPassword . show
 

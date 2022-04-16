@@ -46,9 +46,9 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "start-servant": {
-        "branch": "asheshambasta/feature/wrapped",
+        "branch": "asheshambasta/feature/localEnv",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "e9655b9b422b58c9353489c9849c2e20409832a9",
+        "rev": "444b0d8d32a0cc6fd8c22c5c02190d699ea78ec8",
         "type": "git"
     }
 }
