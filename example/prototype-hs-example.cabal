@@ -92,6 +92,9 @@ library
     Prototype.Example.Server
     Prototype.Example.Server.Public 
     Prototype.Example.Server.Public.Pages
+    Prototype.Example.Server.Private 
+    Prototype.Example.Server.Private.Auth
+    Prototype.Example.Server.Private.Pages
   -- More dependencies only specific to the library 
   build-depends:
     http-api-data

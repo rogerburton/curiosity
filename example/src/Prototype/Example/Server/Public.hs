@@ -106,7 +106,11 @@ publicT =
       "Passwords mismatch."
     where env = ML.localEnv (<> "Signup")
 
-  unauthdErr = Errs.throwError' . User.IncorrectPassword . show
+  unauthdErr =
+    Errs.throwError'
+      . User.IncorrectPassword
+      . mappend "User login failed: "
+      . show
 
 -- | Run as a Wai Application
 publicApplication

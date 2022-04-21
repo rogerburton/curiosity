@@ -17,8 +17,6 @@ import           Control.Lens
 import qualified Prototype.Example.Data.User   as User
 import qualified "design-hs-lib" Smart.Html.Button
                                                as Btn
-import qualified "design-hs-lib" Smart.Html.Checkbox
-                                               as C
 import qualified "design-hs-lib" Smart.Html.Dsl
                                                as Dsl
 import qualified "design-hs-lib" Smart.Html.Form
