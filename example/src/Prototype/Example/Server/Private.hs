@@ -24,14 +24,16 @@ import qualified "start-servant" MultiLogging  as ML
 import qualified Network.Wai                   as Wai
 import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Example.Runtime     as Rt
+import qualified Prototype.Example.Server.Private.Auth
+                                               as Auth
 import qualified Prototype.Example.Server.Private.Pages
                                                as Pages
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
-import qualified Prototype.Server.New.Auth     as Auth
 import qualified "start-servant" Prototype.Server.New.Page
                                                as SS.P
 import           Servant
+import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import           Web.FormUrlEncoded             ( FromForm(..) )
@@ -45,8 +47,18 @@ type PrivateServerC m
     )
 
 -- | The private API with authentication.
-type Private
+type Private = Auth.UserAuthentication :> UserPages
+type UserPages
   = "welcome" :> Get '[B.HTML] (SS.P.Page 'SS.P.Authd Pages.WelcomePage)
 
-privateT = undefined
+privateT :: forall m . PrivateServerC m => ServerT Private m
+privateT authResult = showWelcomePage
+ where
+  showWelcomePage =
+    withUser $ \user -> (pure $ SS.P.AuthdPage user Pages.WelcomePage)
+  -- extract the user from the authentication result or throw an error.
+  withUser f = case authResult of
+    SAuth.Authenticated profile -> f profile
+  -- (SAuth.Authenticated User.UserProfile {..})
+
 privateApplication = undefined

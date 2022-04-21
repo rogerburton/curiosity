@@ -7,7 +7,7 @@ The goal is to exemplify the use of our DSL for some simple pages and to have so
 -}
 module Prototype.Example.Server.Private.Pages
   ( WelcomePage(..)
-) where
+  ) where
 
 import           Control.Lens
 import qualified Prototype.Example.Data.User   as User
@@ -26,5 +26,5 @@ import           Text.Blaze.Html5               ( (!) )
 import           Text.Blaze.Html5.Attributes
 
 -- | A simple welcome page. 
-data WelcomePage 
+data WelcomePage = WelcomePage
 
