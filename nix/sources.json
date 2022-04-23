@@ -46,9 +46,9 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "start-servant": {
-        "branch": "asheshambasta/feature/localEnv",
+        "branch": "asheshambasta/feature/user-polymorphism-pages",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "21f1b71663d1d902d15d92feedc293e73b087dca",
+        "rev": "eedbc89fd2eda9b3d59aee1ec33fbe08315255b2",
         "type": "git"
     }
 }

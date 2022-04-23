@@ -54,15 +54,15 @@ data CreateData = CreateData
 
 -- brittany-disable-next-binding
 -- | A publicly available login page.
-type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.LoginPage)
+type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.LoginPage)
                        :<|> "authenticate" :> ReqBody '[FormUrlEncoded] User.UserCreds
                            :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
                                                        NoContent
                                                      )
                          )
-            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupPage) -- display the signup page.
+            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupPage) -- display the signup page.
                            :<|> "create" :> ReqBody '[FormUrlEncoded] CreateData
-                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Pages.SignupResultPage) -- create the user.
+                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage) -- create the user.
                              )
 
 publicT :: forall m . PublicServerC m => ServerT Public m

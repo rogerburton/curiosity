@@ -49,13 +49,13 @@ type PrivateServerC m
 -- | The private API with authentication.
 type Private = Auth.UserAuthentication :> UserPages
 type UserPages
-  = "welcome" :> Get '[B.HTML] (SS.P.Page 'SS.P.Authd Pages.WelcomePage)
+  = "welcome" :> Get '[B.HTML] (SS.P.Page 'SS.P.Authd User.UserProfile Pages.WelcomePage)
 
 privateT :: forall m . PrivateServerC m => ServerT Private m
 privateT authResult = showWelcomePage
  where
   showWelcomePage =
-    withUser $ \user -> (pure $ SS.P.AuthdPage user Pages.WelcomePage)
+    withUser $ \user -> (pure $ SS.P.AuthdPage user (Pages.WelcomePage user))
   -- extract the user from the authentication result or throw an error.
   withUser f = case authResult of
     SAuth.Authenticated profile -> f profile
