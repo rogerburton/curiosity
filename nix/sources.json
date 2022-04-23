@@ -48,7 +48,7 @@
     "start-servant": {
         "branch": "asheshambasta/feature/user-polymorphism-pages",
         "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "eedbc89fd2eda9b3d59aee1ec33fbe08315255b2",
+        "rev": "3a98d72d8f73cf86937a59e2667ed4c808a9845e",
         "type": "git"
     }
 }

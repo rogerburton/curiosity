@@ -19,8 +19,6 @@ module Prototype.Example.Server
   ) where
 
 import Prototype.Example.Data.User () 
-import qualified Prototype.Example.Server.Private.Auth
-                                               as Auth
 import           Control.Lens
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -55,8 +53,9 @@ exampleApplication
   :: forall m
    . Pub.PublicServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
+  -> Server.Context ServerSettings 
   -> Wai.Application
-exampleApplication handlerNatTrans =
+exampleApplication handlerNatTrans ctx =
   Servant.serveWithContext exampleProxy ctx $ hoistServerWithContext exampleProxy
                                                       settingsProxy
                                                       handlerNatTrans
@@ -64,18 +63,18 @@ exampleApplication handlerNatTrans =
  where
   exampleProxy  = Proxy @Example
   settingsProxy = Proxy @ServerSettings
-  ctx = undefined  :: Server.Context ServerSettings 
 
 runExampleServer
   :: forall m
    . MonadIO m
   => Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-runExampleServer runtime = liftIO $ Warp.run port waiApp
+runExampleServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
   Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
   waiApp =
-    exampleApplication @Rt.ExampleAppM $ Rt.exampleAppMHandlerNatTrans runtime
+    exampleApplication @Rt.ExampleAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx
+  ctx = _rConf ^. Rt.confCookie Server.:. _rJwtSettings Server.:. Server.EmptyContext 
 
 showLandingPage :: Pub.PublicServerC m => m Pages.LandingPage
 showLandingPage = pure Pages.LandingPage

@@ -1,5 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds, TypeOperators #-}
 {- |
@@ -14,14 +13,11 @@ and predictability on where these modules come from.
 module Prototype.Example.Server.Private
   ( Private
   , privateT
-  , privateApplication
   , PrivateServerC
   ) where
 
-import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified "start-servant" MultiLogging  as ML
-import qualified Network.Wai                   as Wai
 import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server.Private.Auth
@@ -35,7 +31,6 @@ import qualified "start-servant" Prototype.Server.New.Page
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
-import           Web.FormUrlEncoded             ( FromForm(..) )
 
 type PrivateServerC m
   = ( MonadMask m
@@ -59,8 +54,9 @@ privateT authResult = showWelcomePage
   withUser f = case authResult of
     SAuth.Authenticated userId ->
       S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-        Nothing          -> undefined
+        Nothing -> authFailedErr $ "No user found by ID = " <> show userId
         Just userProfile -> f userProfile
+    authFailed -> authFailedErr $ show authFailed
+    where authFailedErr = Errs.throwError' . User.UserNotFound
   -- (SAuth.Authenticated User.UserProfile {..})
 
-privateApplication = undefined

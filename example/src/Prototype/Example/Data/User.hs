@@ -40,9 +40,12 @@ import qualified "start-servant" Prototype.Lib.Wrapped
                                                as W
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
+import qualified "start-servant" Prototype.Server.New.Page.Navbar
+                                               as Nav
 import qualified Prototype.Types.Secret        as Secret
 import qualified Servant.Auth.Server           as SAuth
 import qualified System.Random                 as Rand
+import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
@@ -89,6 +92,16 @@ genRandomUserId len =
     .   Rand.randomRs ('a', 'z')
     <$> Rand.getStdGen
 
+-- TODO
+instance Nav.IsNavbarContent UserProfile where
+  navbarMarkup UserProfile {..} = do
+    greeting
+    H.hr
+
+   where
+    greeting = H.div . H.text $ T.unwords
+      ["Hi", _userProfileName ^. coerced, "this is your navbar."]
+
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
   dbId = _userCredsId . _userCreds
@@ -99,7 +112,6 @@ instance Storage.DBStorageOps UserProfile where
     | UserCreateGeneratingUserId UserName Password
     | UserDelete UserId
     | UserUpdate UserProfile
-    | UserGetById UserId
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
@@ -109,7 +121,7 @@ instance Storage.DBStorageOps UserProfile where
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
 dbUpdateParser = P.tryAlts
-  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate, userGetById]
+  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate]
  where
   userCreate =
     P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
@@ -119,8 +131,6 @@ dbUpdateParser = P.tryAlts
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
     P.withTrailSpaces "UserUpdate" *> fmap UserUpdate userProfileParser
-  userGetById =
-    P.withTrailSpaces "UserGetById" *> fmap UserGetById userIdParser
 
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
