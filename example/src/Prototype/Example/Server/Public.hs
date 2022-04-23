@@ -14,14 +14,12 @@ and predictability on where these modules come from.
 module Prototype.Example.Server.Public
   ( Public
   , publicT
-  , publicApplication
   , PublicServerC
   ) where
 
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified "start-servant" MultiLogging  as ML
-import qualified Network.Wai                   as Wai
 import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Example.Runtime     as Rt
 import qualified Prototype.Example.Server.Public.Pages
@@ -112,14 +110,3 @@ publicT =
       . mappend "User login failed: "
       . show
 
--- | Run as a Wai Application
-publicApplication
-  :: forall m
-   . PublicServerC m
-  => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
-  -> Wai.Application
-publicApplication handlerNatTrans = Servant.serve
-  pubPxy
-  (hoistServer pubPxy handlerNatTrans publicT {- ServerT -> Server -}
-                                             )
-  where pubPxy = Proxy @Public
