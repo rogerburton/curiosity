@@ -12,4 +12,4 @@ import qualified Servant.Auth.Server           as SAuth
 
 -- brittany-disable-next-binding
 -- | Simple user authentication.
-type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User.UserProfile
+type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User.UserId

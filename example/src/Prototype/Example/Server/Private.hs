@@ -57,7 +57,10 @@ privateT authResult = showWelcomePage
     withUser $ \profile -> pure $ SS.P.AuthdPage profile Pages.WelcomePage
   -- extract the user from the authentication result or throw an error.
   withUser f = case authResult of
-    SAuth.Authenticated profile -> f profile
+    SAuth.Authenticated userId ->
+      S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+        Nothing          -> undefined
+        Just userProfile -> f userProfile
   -- (SAuth.Authenticated User.UserProfile {..})
 
 privateApplication = undefined

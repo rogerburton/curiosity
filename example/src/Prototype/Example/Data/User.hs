@@ -75,7 +75,7 @@ newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving FromForm via W.Wrapped "userPassword" Text
 
 newtype UserId = UserId Text
-               deriving (Eq, Show, SAuth.ToJWT)
+               deriving (Eq, Show, SAuth.ToJWT, SAuth.FromJWT)
                deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
                deriving FromForm via W.Wrapped "userId" Text
 
@@ -99,6 +99,7 @@ instance Storage.DBStorageOps UserProfile where
     | UserCreateGeneratingUserId UserName Password
     | UserDelete UserId
     | UserUpdate UserProfile
+    | UserGetById UserId
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
@@ -108,7 +109,7 @@ instance Storage.DBStorageOps UserProfile where
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
 dbUpdateParser = P.tryAlts
-  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate]
+  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate, userGetById]
  where
   userCreate =
     P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
@@ -118,6 +119,8 @@ dbUpdateParser = P.tryAlts
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
     P.withTrailSpaces "UserUpdate" *> fmap UserUpdate userProfileParser
+  userGetById =
+    P.withTrailSpaces "UserGetById" *> fmap UserGetById userIdParser
 
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)

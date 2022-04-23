@@ -33,6 +33,7 @@ import qualified Prototype.Example.Server.Private
 import qualified Prototype.Example.Server.Public.Pages
                                                as Pages
 import           Servant
+import qualified           Servant.Server as Server
 import qualified Servant.Auth.Server           as Srv
 import qualified Servant.HTML.Blaze            as B
 import qualified Text.Blaze.Html5              as H
@@ -63,7 +64,7 @@ exampleApplication handlerNatTrans =
  where
   exampleProxy  = Proxy @Example
   settingsProxy = Proxy @ServerSettings
-  ctx = undefined 
+  ctx = undefined  :: Server.Context ServerSettings 
 
 runExampleServer
   :: forall m

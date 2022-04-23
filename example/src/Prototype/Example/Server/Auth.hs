@@ -22,7 +22,7 @@ import qualified Servant.Server                as Server
 
 -- brittany-disable-next-binding
 -- | Simple user authentication.
-type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User.UserProfile
+type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User.UserId
 
 -- | Headers that will be returned post a successful authentication.
 type PostAuthHeaders

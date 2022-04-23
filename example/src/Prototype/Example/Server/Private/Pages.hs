@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {- |
 Module: Prototype.Example.Server.Private.Pages
 Description: Private pages for the application
@@ -11,6 +12,8 @@ module Prototype.Example.Server.Private.Pages
 
 import           Control.Lens
 import qualified Prototype.Example.Data.User   as User
+import qualified "start-servant" Prototype.Server.New.Page
+                                               as SS.P
 import qualified "design-hs-lib" Smart.Html.Button
                                                as Btn
 import qualified "design-hs-lib" Smart.Html.Dsl
@@ -30,3 +33,7 @@ data WelcomePage = WelcomePage
 
 instance H.ToMarkup WelcomePage where
   toMarkup = undefined
+
+-- FIXME: orphan instance.
+-- Ideally, we'd like to render the navbar using the user-data. For this, we'd like a new typeclass in start-servant to render the navbar. 
+instance H.ToMarkup page => H.ToMarkup (SS.P.Page 'SS.P.Authd User.UserProfile page) where
