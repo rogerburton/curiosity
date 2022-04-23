@@ -12,15 +12,17 @@ Description: Authentication and authorization module.
 module Prototype.Example.Server.Auth
   ( UserAuthentication
   , PostAuthHeaders
+  , Context
   ) where
 
-import           Prototype.Types
+import qualified Prototype.Example.Data.User   as User
 import           Servant.API
 import qualified Servant.Auth.Server           as SAuth
+import qualified Servant.Server                as Server
 
 -- brittany-disable-next-binding
 -- | Simple user authentication.
-type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User
+type UserAuthentication = SAuth.Auth '[SAuth.Cookie] User.UserProfile
 
 -- | Headers that will be returned post a successful authentication.
 type PostAuthHeaders
@@ -28,6 +30,8 @@ type PostAuthHeaders
      , Header "Set-Cookie" SAuth.SetCookie
      , Header "Set-Cookie" SAuth.SetCookie
      ]
+
+type Context = Server.Context
 
 -- {- | The data that is the outcome of successful authorization over a particular resource.
 

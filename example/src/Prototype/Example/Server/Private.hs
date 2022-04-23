@@ -34,7 +34,6 @@ import qualified "start-servant" Prototype.Server.New.Page
                                                as SS.P
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
-import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
@@ -55,7 +54,7 @@ privateT :: forall m . PrivateServerC m => ServerT Private m
 privateT authResult = showWelcomePage
  where
   showWelcomePage =
-    withUser $ \user -> (pure $ SS.P.AuthdPage user (Pages.WelcomePage user))
+    withUser $ \profile -> pure $ SS.P.AuthdPage profile Pages.WelcomePage
   -- extract the user from the authentication result or throw an error.
   withUser f = case authResult of
     SAuth.Authenticated profile -> f profile

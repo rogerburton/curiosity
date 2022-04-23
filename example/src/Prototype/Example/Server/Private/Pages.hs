@@ -26,7 +26,7 @@ import           Text.Blaze.Html5               ( (!) )
 import           Text.Blaze.Html5.Attributes
 
 -- | A simple welcome page. 
-data WelcomePage = WelcomePage User.UserProfile
+data WelcomePage = WelcomePage
 
 instance H.ToMarkup WelcomePage where
   toMarkup = undefined
