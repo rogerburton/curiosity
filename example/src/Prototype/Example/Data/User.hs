@@ -46,6 +46,8 @@ import qualified Prototype.Types.Secret        as Secret
 import qualified Servant.Auth.Server           as SAuth
 import qualified System.Random                 as Rand
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Html5               ( (!) )
+import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..) )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
@@ -96,11 +98,11 @@ genRandomUserId len =
 instance Nav.IsNavbarContent UserProfile where
   navbarMarkup UserProfile {..} = do
     greeting
+    editProfileLink
     H.hr
-
    where
-    greeting = H.div . H.text $ T.unwords
-      ["Hi", _userProfileName ^. coerced, "this is your navbar."]
+    greeting = H.div . H.text $ T.unwords ["Hi", _userProfileName ^. coerced]
+    editProfileLink = H.a ! A.href "/private/user/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
