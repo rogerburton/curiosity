@@ -14,9 +14,10 @@ module Prototype.Example.Server.Public.Pages
   ) where
 
 import           Control.Lens
+import           Network.HTTP.Types.Method
 import qualified Prototype.Example.Data.User   as User
-import qualified "design-hs-lib" Smart.Html.Button
-                                               as Btn
+import           Prototype.Example.Server.Shared.Html.Helpers.Form
+                                                ( mkButton )
 import qualified "design-hs-lib" Smart.Html.Dsl
                                                as Dsl
 import qualified "design-hs-lib" Smart.Html.Form
@@ -26,8 +27,6 @@ import qualified "design-hs-lib" Smart.Html.Input
 import qualified "design-hs-lib" Smart.Html.Shared.Types
                                                as HTypes
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
-import           Text.Blaze.Html5.Attributes
 
 -- | A simple login page. 
 newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
@@ -43,7 +42,7 @@ instance H.ToMarkup LoginPage where
         )
    where
     username =
-      ( "Username"
+      ( "User ID"
       , Inp.PlainTextInput HTypes.Enabled "_userCredsId" "_userCredsId" Nothing
       )
     password =
@@ -53,12 +52,7 @@ instance H.ToMarkup LoginPage where
                           "_userCredsPassword"
                           Nothing
       )
-    loginButton = mkButton "Login" submitUrl "POST"
-
-mkButton text submitUrl method' =
-  H.toMarkup (Btn.ButtonPrimary text HTypes.Enabled)
-    ! formaction submitUrl
-    ! formmethod method'
+    loginButton = mkButton "Login" submitUrl POST
 
 newtype SignupPage = SignupPage { _signupPageSubmitURL :: H.AttributeValue }
 
@@ -86,7 +80,7 @@ instance H.ToMarkup SignupPage where
                           (HTypes.Name inputName)
                           Nothing
       )
-    submitButton = mkButton "Register" submitUrl "POST"
+    submitButton = mkButton "Register" submitUrl POST
 
 data SignupResultPage = SignupSuccess User.UserId
                       | SignupFailed Text

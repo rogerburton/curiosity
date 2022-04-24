@@ -90,6 +90,7 @@ library
     Prototype.Example.Data.Todo
     Prototype.Example.Data.User 
     Prototype.Example.Server
+    Prototype.Example.Server.Shared.Html.Helpers.Form
     Prototype.Example.Server.Public 
     Prototype.Example.Server.Public.Pages
     Prototype.Example.Server.Private 
