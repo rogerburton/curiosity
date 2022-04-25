@@ -11,5 +11,6 @@
 
   imports = [
     ../modules/app.nix
+    ../modules/nginx.nix
   ];
 }
