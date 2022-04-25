@@ -10,5 +10,6 @@
   services.mingetty.autologinUser = lib.mkDefault "root";
 
   imports = [
+    ../modules/app.nix
   ];
 }
