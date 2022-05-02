@@ -117,8 +117,14 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
+    -- | Attempt a user-login with user credentials: `UserId` and `Password`. 
     UserLogin UserCreds
+    -- | Attempt a user-login using the more ambiguous but more friendly `UserName` and `Password.
+    | UserLoginWithUserName UserName Password
+    -- | Select a user with a known `UserId`. 
     | SelectUserById UserId
+    -- | Select 0 or more users with `UserName` (note: `UserName` isn't unique).
+    | SelectUsersByUserName UserName
     deriving (Show, Eq)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
@@ -136,11 +142,19 @@ dbUpdateParser = P.tryAlts
 
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
-dbSelectParser = userLogin <|> selectUserById
+dbSelectParser = P.tryAlts
+  [userLogin, userLoginWithUserName, selectUserById, selectUsersByUserName]
  where
   userLogin = P.withTrailSpaces "UserLogin" *> (UserLogin <$> userCredsParser)
+  userLoginWithUserName =
+    P.withTrailSpaces "UserLoginWithUserName"
+      *> (UserLoginWithUserName <$> userNameParser <*> userPasswordParser)
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
+  selectUsersByUserName =
+    P.withTrailSpaces "SelectUserByUserName"
+      *>  userNameParser
+      <&> SelectUsersByUserName
 
 -- | The UserId has to be non-empty ascii character 
 userIdParser :: P.ParserText UserId

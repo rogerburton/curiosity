@@ -70,7 +70,7 @@ publicT =
   showLoginPage =
     pure . SS.P.PublicPage $ Pages.LoginPage "./login/authenticate"
   authenticateUser creds@User.UserCreds {..} =
-    env $ S.dbSelect (User.UserLogin creds) <&> headMay >>= \case
+    env $ findMatchingUsers <&> headMay >>= \case
       Just u -> do
         -- get the config. to get the cookie and JWT settings.
         jwtSettings  <- asks Rt._rJwtSettings
@@ -89,9 +89,19 @@ publicT =
             ML.info "User logged in"
             pure . addHeader @"Location" "/private/welcome" $ applyCookies
               NoContent
-
       Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found
-    where env = ML.localEnv (<> "Login" <> show _userCredsId)
+   where
+    env               = ML.localEnv (<> "Login" <> show _userCredsId)
+    findMatchingUsers =
+      -- First try to login treating the submitted "id" as a UserId (system generated)
+      -- If that fails, we try to attempt logging in the user using the more human friendly "name".
+                        S.dbSelect (User.UserLogin creds) >>= \case
+      [] -> do
+        ML.info "Login with UserId failed, falling back to UserName based auth."
+        S.dbSelect $ User.UserLoginWithUserName (_userCredsId ^. coerced) -- UserId -> UserName 
+                                                _userCredsPassword
+      us -> pure us
+
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup (CreateData userName password passwordConf)
     | password == passwordConf = env $ do

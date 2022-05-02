@@ -42,7 +42,7 @@ instance H.ToMarkup LoginPage where
         )
    where
     username =
-      ( "User ID"
+      ( "UserID or UserName"
       , Inp.PlainTextInput HTypes.Enabled "_userCredsId" "_userCredsId" Nothing
       )
     password =

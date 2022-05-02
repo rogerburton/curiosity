@@ -112,13 +112,13 @@ instance S.DBStorage ExampleAppM User.UserProfile where
             User.UserProfile (User.UserCreds newId password) userName
       S.dbUpdate $ User.UserCreate newProfile
 
-    User.UserDelete id -> onUserExists id (userNotFound id) deleteUser
+    User.UserDelete id -> onUserExists id (userNotFound $ show id) deleteUser
      where
       deleteUser _ =
         withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
 
     User.UserUpdate updatedProfile -> onUserExists id
-                                                   (userNotFound id)
+                                                   (userNotFound $ show id)
                                                    updateUser
      where
       id = S.dbId updatedProfile
@@ -132,7 +132,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
 
   dbSelect = \case
     User.UserLogin (User.UserCreds id (User.Password passInput)) ->
-      onUserExists id (userNotFound id) comparePass
+      onUserExists id (pure mempty) comparePass
      where
       comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.Password passStored)) }
         | passStored =:= passInput && userId == id {- comparing user-id is redundant, but we do it to be explicit. -}
@@ -140,9 +140,23 @@ instance S.DBStorage ExampleAppM User.UserProfile where
         | otherwise
         = Errs.throwError' . User.IncorrectPassword $ "Passwords don't match!"
 
+    User.UserLoginWithUserName userName passInput ->
+      -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
+      S.dbSelect (User.SelectUsersByUserName userName) >>= \case
+        [User.UserProfile {..}] -> S.dbSelect . User.UserLogin $ _userCreds
+          { User._userCredsPassword = passInput
+          }
+        -- For all other cases, we don't want to expose too much information to the user: we don't want to
+        -- state if there are > 1 users with the same UserName or that there are none. 
+        _ -> userNotFound (show userName)
+
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
+
+    User.SelectUsersByUserName userName ->
+      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
+        ((== userName) . User._userProfileName)
 
 -- | Support for logging for the example application 
 instance ML.MonadAppNameLogMulti ExampleAppM where
@@ -152,7 +166,8 @@ instance ML.MonadAppNameLogMulti ExampleAppM where
 
 onUserExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
-userNotFound = Errs.throwError' . User.UserNotFound . show
+userNotFound =
+  Errs.throwError' . User.UserNotFound . mappend "User not found: "
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
 instance S.DBStorage ExampleAppM Todo.TodoList where
