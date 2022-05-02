@@ -4,6 +4,7 @@ module Main
   ( main
   ) where
 
+import qualified Control.Concurrent.Async      as Async
 import           Control.Lens
 import qualified Control.Monad.Log             as L
 import qualified Data.Text                     as T
@@ -44,24 +45,29 @@ runWithConf conf = do
   jwk                     <- Srv.generateKey
   runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
-  forkIO $ startServer runtime >>= endServer _rLoggers
+  let handleExceptions = (`catch` shutdown runtime . Just)
 
-  startupLogInfo _rLoggers "Starting up REPL..."
-  startRepl runtime >>= endRepl
+  handleExceptions $ do
+    (startServer runtime >>= endServer _rLoggers)
+      `Async.concurrently_` (startRepl runtime >>= endRepl)
+    shutdown runtime Nothing
 
-  -- Close all loggers. 
+shutdown :: Rt.Runtime -> Maybe SomeException -> IO ExitCode
+shutdown Rt.Runtime {..} mException = do
+  startupLogInfo _rLoggers
+    $  "Shutting down: "
+    <> maybe "graceful exit" show mException
+    <> "."
   ML.flushAndCloseLoggers _rLoggers
-
-  -- FIXME: correct exit codes based on exit reason.
-  exitSuccess
-
+  if isJust mException then exitFailure else exitSuccess
 
 --------------------------------------------------------------------------------
 startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
-startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
-  (rt ^. Rt.rConf . Rt.confRepl)
-  handleReplInputs
-  (Rt.runExampleAppMSafe rt)
+startRepl rt@Rt.Runtime {..} = runSafeMapErrs $ do
+  startupLogInfo _rLoggers "Starting up REPL..."
+  Repl.startReadEvalPrintLoop (rt ^. Rt.rConf . Rt.confRepl)
+                              handleReplInputs
+                              (Rt.runExampleAppMSafe rt)
  where
   handleReplInputs =
     -- TypeApplications not needed below, but left for clarity.
