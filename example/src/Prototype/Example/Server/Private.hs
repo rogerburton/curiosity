@@ -90,7 +90,9 @@ privateT authResult = showWelcomePage :<|> showProfilePage :<|> editUser
         Nothing -> authFailedErr $ "No user found by ID = " <> show userId
         Just userProfile -> f userProfile
     authFailed -> authFailedErr $ show authFailed
-    where authFailedErr = Errs.throwError' . User.UserNotFound
+   where
+    authFailedErr = Errs.throwError' . User.UserNotFound . mappend
+      "Authentication failed, please login again. Error: "
 
 -- brittany-disable-next-binding
 type EditUser = "user"
