@@ -58,7 +58,7 @@ privateT authResult = showWelcomePage :<|> showProfilePage :<|> editUser
   showWelcomePage =
     withUser $ \profile -> pure $ SS.P.AuthdPage profile Pages.WelcomePage
   showProfilePage = withUser $ \profile ->
-    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./user/profile/save"
+    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
     let updatedProfile =
           profile
