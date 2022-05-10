@@ -4,7 +4,6 @@ module Main
   ( main
   ) where
 
-import qualified Control.Concurrent.Async      as Async
 import           Control.Lens
 import qualified Control.Monad.Log             as L
 import qualified Data.Text                     as T
@@ -25,30 +24,26 @@ import qualified Servant.Auth.Server           as Srv
 
 --------------------------------------------------------------------------------
 main :: IO ExitCode
-main =
-  putStrLn @Text "Parsing command-line options..."
-    >>  A.execParser mainParserInfo
-    >>= runWithConf
+main = A.execParser mainParserInfo >>= runWithConf
 
 mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
   A.info (P.confParser <**> A.helper)
     $  A.fullDesc
-    <> A.header "Prototype-hs Example program"
+    <> A.header "Curiosity"
     <> A.progDesc
-         "Interactive state demo: modify states via multiple sources of input: \
-         \HTTP and a REPL."
+         "Curiosity is a prototype application to explore the design space \
+         \of a web application for Smart."
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  putStrLn @Text
-    "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
   jwk                     <- Srv.generateKey
   runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
-  let handleExceptions = (`catch` P.shutdown runtime . Just)
+  P.startServer runtime >>= P.endServer _rLoggers
 
-  handleExceptions $ do
-    (P.startServer runtime >>= P.endServer _rLoggers)
-      `Async.concurrently_` (P.startRepl runtime >>= P.endRepl)
-    P.shutdown runtime Nothing
+  -- Close all loggers.
+  ML.flushAndCloseLoggers _rLoggers
+
+  -- FIXME: correct exit codes based on exit reason.
+  exitSuccess
