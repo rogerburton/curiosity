@@ -104,8 +104,10 @@ instance IS.InteractiveState (StmDb runtime) where
   data StateModification (StmDb runtime) =
     ModifyUser (S.DBUpdate U.UserProfile)
     | ModifyTodo (S.DBUpdate Todo.TodoList)
+      deriving Show
   
   data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr
+      deriving Show
   
   data StateVisualisation (StmDb runtime) =
     VisualiseUser (S.DBSelect U.UserProfile)
