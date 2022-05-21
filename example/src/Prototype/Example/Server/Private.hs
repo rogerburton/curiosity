@@ -33,7 +33,6 @@ import qualified "start-servant" Prototype.Server.New.Page
                                                as SS.P
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
-import qualified Servant.HTML.Blaze            as B
 
 type PrivateServerC m
   = ( MonadMask m
