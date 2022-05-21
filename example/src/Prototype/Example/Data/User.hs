@@ -124,8 +124,8 @@ instance Storage.DBStorageOps UserProfile where
     UserLoginWithUserName UserName Password
     -- | Select a user with a known `UserId`. 
     | SelectUserById UserId
-    -- | Select 0 or more users with `UserName` (note: `UserName` isn't unique).
-    | SelectUsersByUserName UserName
+    -- | Select a user with `UserName`.
+    | SelectUserByUserName UserName
     deriving (Show, Eq)
 
 dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
@@ -161,7 +161,7 @@ dbSelectParser = P.tryAlts
   selectUsersByUserName =
     P.withTrailSpaces "SelectUserByUserName"
       *>  userNameParser
-      <&> SelectUsersByUserName
+      <&> SelectUserByUserName
 
 -- | The UserId has to be non-empty ascii character 
 userIdParser :: P.ParserText UserId

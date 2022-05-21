@@ -98,11 +98,15 @@ runExampleAppMSafe rt (ExampleAppM op') =
 instance S.DBStorage ExampleAppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate newProfile -> onUserExists newProfileId createNew existsErr
+    User.UserCreate newProfile -> onUserIdExists newProfileId
+                                                 createNew
+                                                 existsErr
      where
       newProfileId = S.dbId newProfile
-      createNew =
-        withUserStorage $ modifyUserProfiles newProfileId (newProfile :)
+      createNew    = onUserNameExists
+        (newProfile ^. User.userProfileName)
+        (withUserStorage $ modifyUserProfiles newProfileId (newProfile :))
+        existsErr
       existsErr = Errs.throwError' . User.UserExists . show
 
     User.UserCreateGeneratingUserId userName password -> do
@@ -112,12 +116,12 @@ instance S.DBStorage ExampleAppM User.UserProfile where
             User.UserProfile (User.UserCreds newId password) userName
       S.dbUpdate $ User.UserCreate newProfile
 
-    User.UserDelete id -> onUserExists id (userNotFound $ show id) deleteUser
+    User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
      where
       deleteUser _ =
         withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
 
-    User.UserPasswordUpdate id newPass -> onUserExists
+    User.UserPasswordUpdate id newPass -> onUserIdExists
       id
       (userNotFound $ show id)
       updateUser
@@ -135,7 +139,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
 
     User.UserLoginWithUserName userName (User.Password passInput) ->
       -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
-      S.dbSelect (User.SelectUsersByUserName userName) >>= \case
+      S.dbSelect (User.SelectUserByUserName userName) >>= \case
         [u] | passwordsMatch -> pure [u]
          where
           passwordsMatch = storedPass =:= passInput
@@ -147,7 +151,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
 
-    User.SelectUsersByUserName userName ->
+    User.SelectUserByUserName userName ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== userName) . User._userProfileName)
 
@@ -157,8 +161,12 @@ instance ML.MonadAppNameLogMulti ExampleAppM where
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
 
-onUserExists id onNone onExisting =
+onUserIdExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
+onUserNameExists userName onNone onExisting =
+  S.dbSelect (User.SelectUserByUserName userName)
+    <&> headMay
+    >>= maybe onNone onExisting
 userNotFound =
   Errs.throwError' . User.UserNotFound . mappend "User not found: "
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
