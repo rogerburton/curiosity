@@ -59,28 +59,24 @@ privateT authResult = showWelcomePage :<|> showProfilePage :<|> editUser
   showProfilePage = withUser $ \profile ->
     pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
-    let updatedProfile =
-          profile
-            &  User.userProfileName
-            %~ (`fromMaybe` _editUserName)
-            &  User.userCreds
-            .  User.userCredsPassword
-            %~ (`fromMaybe` _editPassword)
+    case _editPassword of
+      Just newPass ->
+        let updatedProfile =
+              profile
+                &  User.userCreds
+                .  User.userCredsPassword
+                %~ (`fromMaybe` _editPassword)
+        in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
+              <&> headMay
+              <&> SS.P.AuthdPage updatedProfile
+              .   \case
+                    Nothing -> Pages.ProfileSaveFailure
+                      $ Just "Empty list of affected User IDs on update."
+                    Just{} -> Pages.ProfileSaveSuccess
+      Nothing ->
+        pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
+          "Nothing to update."
 
-        updateUser =
-          S.dbUpdate (User.UserUpdate updatedProfile)
-            <&> headMay
-            <&> SS.P.AuthdPage updatedProfile
-            .   \case
-                  Nothing -> Pages.ProfileSaveFailure
-                    $ Just "Empty list of affected User IDs on update."
-                  Just{} -> Pages.ProfileSaveSuccess
-    in 
-      -- update the user only if the new information is any different from the old.
-        if profile /= updatedProfile
-          then updateUser
-          else pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
-            "Nothing to update."
   -- extract the user from the authentication result or throw an error.
   withUser :: forall a . (User.UserProfile -> m a) -> m a
   withUser f = case authResult of

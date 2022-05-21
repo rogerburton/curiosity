@@ -60,9 +60,8 @@ instance H.ToMarkup ProfilePage where
       , Inp.PasswordInput HTypes.Enabled "_editPassword" "_editPassword" Nothing
       )
 
-data EditProfileForm = EditProfileForm
+newtype EditProfileForm = EditProfileForm
   { _editPassword :: Maybe User.Password
-  , _editUserName :: Maybe User.UserName
   }
   deriving (Eq, Show, Generic)
   deriving anyclass FromForm

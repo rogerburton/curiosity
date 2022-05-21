@@ -116,7 +116,7 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserCreateGeneratingUserId UserName Password
     | UserDelete UserId
-    | UserUpdate UserProfile
+    | UserPasswordUpdate UserId Password
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
@@ -139,7 +139,11 @@ dbUpdateParser = P.tryAlts
       *> (UserCreateGeneratingUserId <$> userNameParser <*> userPasswordParser)
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
-    P.withTrailSpaces "UserUpdate" *> fmap UserUpdate userProfileParser
+    P.withTrailSpaces "UserPasswordUpdate"
+      *> (   UserPasswordUpdate
+         <$> (userIdParser <* P.space)
+         <*> userPasswordParser
+         )
 
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
@@ -148,7 +152,10 @@ dbSelectParser = P.tryAlts
  where
   userLoginWithUserName =
     P.withTrailSpaces "UserLoginWithUserName"
-      *> (UserLoginWithUserName <$> userNameParser <*> userPasswordParser)
+      *> (   UserLoginWithUserName
+         <$> (userNameParser <* P.space)
+         <*> userPasswordParser
+         )
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
   selectUsersByUserName =

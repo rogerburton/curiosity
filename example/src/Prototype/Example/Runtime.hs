@@ -117,14 +117,15 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       deleteUser _ =
         withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
 
-    User.UserUpdate updatedProfile -> onUserExists id
-                                                   (userNotFound $ show id)
-                                                   updateUser
+    User.UserPasswordUpdate id newPass -> onUserExists
+      id
+      (userNotFound $ show id)
+      updateUser
      where
-      id = S.dbId updatedProfile
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
+      setPassword = set (User.userCreds . User.userCredsPassword) newPass
       replaceOlder users =
-        [ if S.dbId u == id then updatedProfile else u | u <- users ]
+        [ if S.dbId u == id then setPassword u else u | u <- users ]
 
    where
     modifyUserProfiles id f userProfiles =
