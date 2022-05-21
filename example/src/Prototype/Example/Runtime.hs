@@ -22,7 +22,7 @@ module Prototype.Example.Runtime
   ) where
 
 import qualified Control.Concurrent.STM        as STM
-import           Control.Lens
+import           Control.Lens                  as Lens
 import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
@@ -131,24 +131,16 @@ instance S.DBStorage ExampleAppM User.UserProfile where
       liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
 
   dbSelect = \case
-    User.UserLogin (User.UserCreds id (User.Password passInput)) ->
-      onUserExists id (pure mempty) comparePass
-     where
-      comparePass foundUser@User.UserProfile { _userCreds = (User.UserCreds userId (User.Password passStored)) }
-        | passStored =:= passInput && userId == id {- comparing user-id is redundant, but we do it to be explicit. -}
-        = pure [foundUser]
-        | otherwise
-        = Errs.throwError' . User.IncorrectPassword $ "Passwords don't match!"
 
-    User.UserLoginWithUserName userName passInput ->
+    User.UserLoginWithUserName userName (User.Password passInput) ->
       -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
       S.dbSelect (User.SelectUsersByUserName userName) >>= \case
-        [User.UserProfile {..}] -> S.dbSelect . User.UserLogin $ _userCreds
-          { User._userCredsPassword = passInput
-          }
-        -- For all other cases, we don't want to expose too much information to the user: we don't want to
-        -- state if there are > 1 users with the same UserName or that there are none. 
-        _ -> userNotFound (show userName)
+        [u] | passwordsMatch -> pure [u]
+         where
+          passwordsMatch = storedPass =:= passInput
+          User.Password storedPass =
+            u ^. User.userCreds . User.userCredsPassword
+        _ -> userNotFound $ "No user with userName = " <> userName ^. coerced
 
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter

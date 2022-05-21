@@ -10,7 +10,8 @@ module Prototype.Example.Data.User
   ( UserCreds(..)
   , userCredsId
   , userCredsPassword
-  , UserProfile(..)
+  , UserProfile'(..)
+  , UserProfile
   , userCreds
   , userProfileName
   , UserId(..)
@@ -59,12 +60,14 @@ data UserCreds = UserCreds
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON, FromForm)
 
-data UserProfile = UserProfile
-  { _userCreds       :: UserCreds -- ^ Users credentials 
-  , _userProfileName :: UserName -- ^ User's human friendly name.
+data UserProfile' creds userName = UserProfile
+  { _userCreds       :: creds -- ^ Users credentials 
+  , _userProfileName :: userName -- ^ User's human friendly name.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
+
+type UserProfile = UserProfile' UserCreds UserName
 
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
@@ -117,10 +120,8 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
-    -- | Attempt a user-login with user credentials: `UserId` and `Password`. 
-    UserLogin UserCreds
     -- | Attempt a user-login using the more ambiguous but more friendly `UserName` and `Password.
-    | UserLoginWithUserName UserName Password
+    UserLoginWithUserName UserName Password
     -- | Select a user with a known `UserId`. 
     | SelectUserById UserId
     -- | Select 0 or more users with `UserName` (note: `UserName` isn't unique).
@@ -143,9 +144,8 @@ dbUpdateParser = P.tryAlts
 -- | For simplicity, we keep the parsers close to the actual data-constructors. 
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
 dbSelectParser = P.tryAlts
-  [userLogin, userLoginWithUserName, selectUserById, selectUsersByUserName]
+  [userLoginWithUserName, selectUserById, selectUsersByUserName]
  where
-  userLogin = P.withTrailSpaces "UserLogin" *> (UserLogin <$> userCredsParser)
   userLoginWithUserName =
     P.withTrailSpaces "UserLoginWithUserName"
       *> (UserLoginWithUserName <$> userNameParser <*> userPasswordParser)
@@ -198,4 +198,4 @@ instance Errs.IsRuntimeErr UserErr where
     IncorrectPassword msg -> msg
 
 makeLenses ''UserCreds
-makeLenses ''UserProfile
+makeLenses ''UserProfile'
