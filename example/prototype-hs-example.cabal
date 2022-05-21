@@ -129,6 +129,7 @@ executable prototype-hs-example-exe
   hs-source-dirs: executable
   other-modules:
     Prototype.Example.Exe.Parse
+    Prototype.Example.Exe.Process
   ghc-options:
     -threaded
 
