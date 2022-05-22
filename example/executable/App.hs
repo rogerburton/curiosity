@@ -1,24 +1,13 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 module Main
   ( main
   ) where
 
-import           Control.Lens
-import qualified Control.Monad.Log             as L
-import qualified Data.Text                     as T
 import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
-import qualified Prototype.Backend.InteractiveState.Class
-                                               as IS
-import qualified Prototype.Backend.InteractiveState.Repl
-                                               as Repl
-import qualified Prototype.Example.Data        as Data
 import qualified Prototype.Example.Exe.Parse   as P
 import qualified Prototype.Example.Exe.Process as P
 import qualified Prototype.Example.Runtime     as Rt
-import qualified Prototype.Example.Server      as Srv
-import qualified Prototype.Runtime.Errors      as Errs
 import qualified Servant.Auth.Server           as Srv
 
 
