@@ -6,18 +6,28 @@ module Prototype.Example.Runtime
   , confRepl
   , confServer
   , confLogging
+  , confCookie
+  , confMkJwtSettings
   , ServerConf(..)
   , Runtime(..)
   , rConf
   , rDb
   , rLoggers
+  , rJwtSettings
   , ExampleAppM(..)
   , boot
   , runExampleAppMSafe
+  -- * Servant compat
+  , exampleAppMHandlerNatTrans
   ) where
 
 import qualified Control.Concurrent.STM        as STM
-import           Control.Lens
+import           Control.Lens                  as Lens
+import "exceptions" Control.Monad.Catch         ( MonadCatch
+                                                , MonadMask
+                                                , MonadThrow
+                                                )
+import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
@@ -28,22 +38,29 @@ import qualified Prototype.Example.Data.User   as User
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
+import qualified Servant
+import qualified Servant.Auth.Server           as Srv
 
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
+
+-- | Application config.
 data Conf = Conf
-  { _confRepl    :: Repl.ReplConf
-  , _confServer  :: ServerConf
-  , _confLogging :: ML.LoggingConf -- ^ Logging configuration 
+  { _confRepl          :: Repl.ReplConf -- ^ Config. for the REPL.
+  , _confServer        :: ServerConf -- ^ Config. for the HTTP server.
+  , _confLogging       :: ML.LoggingConf -- ^ Logging configuration.
+  , _confCookie        :: Srv.CookieSettings -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings -- ^ JWK settings to use, depending on the key employed.
   }
 
 makeLenses ''Conf
 
 -- | The runtime, a central product type that should contain all our runtime supporting values. 
 data Runtime = Runtime
-  { _rConf    :: Conf -- ^ The application configuration.
-  , _rDb      :: Data.StmDb Runtime -- ^ The Storage. 
-  , _rLoggers :: ML.AppNameLoggers
+  { _rConf        :: Conf -- ^ The application configuration.
+  , _rDb          :: Data.StmDb Runtime -- ^ The Storage. 
+  , _rLoggers     :: ML.AppNameLoggers -- ^ Multiple loggers to log over. 
+  , _rJwtSettings :: Srv.JWTSettings -- ^ JWT settings to use.
   }
 
 makeLenses ''Runtime
@@ -58,6 +75,9 @@ newtype ExampleAppM a = ExampleAppM { runExampleAppM :: ReaderT Runtime (ExceptT
            , MonadIO
            , MonadReader Runtime
            , MonadError Errs.RuntimeErr
+           , MonadThrow
+           , MonadCatch
+           , MonadMask
            )
 
 -- | Run the `ExampleAppM` computation catching all possible exceptions. 
@@ -78,46 +98,62 @@ runExampleAppMSafe rt (ExampleAppM op') =
 instance S.DBStorage ExampleAppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate newProfile -> onUserExists newProfileId createNew existsErr
+    User.UserCreate newProfile -> onUserIdExists newProfileId
+                                                 createNew
+                                                 existsErr
      where
       newProfileId = S.dbId newProfile
-      createNew =
-        withUserStorage $ modifyUserProfiles newProfileId (newProfile :)
+      createNew    = onUserNameExists
+        (newProfile ^. User.userProfileName)
+        (withUserStorage $ modifyUserProfiles newProfileId (newProfile :))
+        existsErr
       existsErr = Errs.throwError' . User.UserExists . show
 
-    User.UserDelete id -> onUserExists id (userNotFound id) deleteUser
+    User.UserCreateGeneratingUserId userName password -> do
+      -- generate a new and random user-id
+      newId <- User.genRandomUserId 10
+      let newProfile =
+            User.UserProfile (User.UserCreds newId password) userName
+      S.dbUpdate $ User.UserCreate newProfile
+
+    User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
      where
       deleteUser _ =
         withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
 
-    User.UserUpdate updatedProfile -> onUserExists id
-                                                   (userNotFound id)
-                                                   updateUser
+    User.UserPasswordUpdate id newPass -> onUserIdExists
+      id
+      (userNotFound $ show id)
+      updateUser
      where
-      id = S.dbId updatedProfile
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
+      setPassword = set (User.userCreds . User.userCredsPassword) newPass
       replaceOlder users =
-        [ if S.dbId u == id then updatedProfile else u | u <- users ]
+        [ if S.dbId u == id then setPassword u else u | u <- users ]
 
    where
     modifyUserProfiles id f userProfiles =
       liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
 
   dbSelect = \case
-    User.UserLogin id (User.UserPassword passInput) -> onUserExists
-      id
-      (userNotFound id)
-      comparePass
-     where
-      comparePass foundUser@User.UserProfile { _userProfilePassword = User.UserPassword passStored }
-        | passStored =:= passInput
-        = pure [foundUser]
-        | otherwise
-        = Errs.throwError' . User.IncorrectPassword $ "Passwords don't match!"
+
+    User.UserLoginWithUserName userName (User.Password passInput) ->
+      -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
+      S.dbSelect (User.SelectUserByUserName userName) >>= \case
+        [u] | passwordsMatch -> pure [u]
+         where
+          passwordsMatch = storedPass =:= passInput
+          User.Password storedPass =
+            u ^. User.userCreds . User.userCredsPassword
+        _ -> userNotFound $ "No user with userName = " <> userName ^. coerced
 
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
+
+    User.SelectUserByUserName userName ->
+      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
+        ((== userName) . User._userProfileName)
 
 -- | Support for logging for the example application 
 instance ML.MonadAppNameLogMulti ExampleAppM where
@@ -125,9 +161,14 @@ instance ML.MonadAppNameLogMulti ExampleAppM where
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
 
-onUserExists id onNone onExisting =
+onUserIdExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
-userNotFound = Errs.throwError' . User.UserNotFound . show
+onUserNameExists userName onNone onExisting =
+  S.dbSelect (User.SelectUserByUserName userName)
+    <&> headMay
+    >>= maybe onNone onExisting
+userNotFound =
+  Errs.throwError' . User.UserNotFound . mappend "User not found: "
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
 instance S.DBStorage ExampleAppM Todo.TodoList where
@@ -240,10 +281,27 @@ replaceTodoList newList =
 -- | Boot up a runtime.
 boot
   :: MonadIO m
-  => Conf
-  -> Maybe (Data.HaskDb Runtime)
+  => Conf -- ^ configuration to boot with.
+  -> Maybe (Data.HaskDb Runtime) -- ^ Initial state, if any.
+  -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies). 
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf mInitDb = do
+boot _rConf mInitDb jwk = do
   _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
-  pure $ Right Runtime { .. }
+
+  pure $ Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
+
+-- | Natural transformation from some `ExampleAppM` in any given mode, to a servant Handler. 
+exampleAppMHandlerNatTrans
+  :: forall a . Runtime -> ExampleAppM a -> Servant.Handler a
+exampleAppMHandlerNatTrans rt appM =
+  let
+    -- We peel off the ExampleAppM + ReaderT layers, exposing our ExceptT RuntimeErr IO a
+    -- This is very similar to Servant's Handler: https://hackage.haskell.org/package/servant-server-0.17/docs/Servant-Server-Internal-Handler.html#t:Handler
+      unwrapReaderT          = (`runReaderT` rt) . runExampleAppM $ appM
+      -- Map our errors to `ServantError` 
+      runtimeErrToServantErr = withExceptT Errs.asServantError
+  in 
+    -- re-wrap as servant `Handler`
+      Servant.Handler $ runtimeErrToServantErr unwrapReaderT
+

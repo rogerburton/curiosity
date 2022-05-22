@@ -50,7 +50,7 @@ common common-dependencies
     , text 
     , pretty-simple 
 
-    , readline
+    , haskeline
     , data-default-class 
 
 library 
@@ -58,7 +58,7 @@ library
   build-depends: start-servant
   hs-source-dirs: src
   exposed-modules:
-    Prelude
+    PrototypeHsLibPrelude
     Prototype.Backend.InteractiveState.Class
     Prototype.Backend.InteractiveState.Repl
     Prototype.Backend.InteractiveState.Disp.Helpers

@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-orphans  #-}
 module Prototype.Example.Data.UserSpec
   ( spec
-  , showUserUpdate
+  , showUserPasswordUpdate
   , showUserDelete
   , showUserCreate
   , showSelectUserById
@@ -11,7 +11,7 @@ module Prototype.Example.Data.UserSpec
 import qualified Data.Text                     as T
 import qualified Prototype.Example.Data.Shared as S
 import           Prototype.Example.Data.User
-import           Prototype.Types.Secret
+import           Prototype.Types.Secret  hiding ( Password )
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 
@@ -22,28 +22,30 @@ spec = do
     it "should parse SelectUserById inputs." $ Q.property selectUserByIdProp
   describe "Parsing user-mods" $ do
     it "should parse UserCreate inputs." $ Q.property userCreateParseProp
-    it "should parse UserUpdate inputs." $ Q.property userUpdateParseProp
+    it "should parse UserPasswordUpdate inputs."
+      $ Q.property userUpdateParseProp
     it "should parse UserDelete inputs." $ Q.property userDeleteParseProp
 
 instance Q.Arbitrary UserId where
   arbitrary = S.nonEmptyAlphaNumGen
 
-instance Q.Arbitrary (NonEmpty UserId) where
-  arbitrary = Q.arbitrary `Q.suchThatMap` nonEmpty
-
-instance Q.Arbitrary UserPassword where
+instance Q.Arbitrary Password where
   arbitrary = S.nonEmptyAlphaNumGen
 
 instance Q.Arbitrary UserName where
   arbitrary = S.nonEmptyAlphaNumGen
 
-userLoginParseProp :: UserId -> UserPassword -> Bool
-userLoginParseProp userId userPass =
-  let input = showUserLogin userId userPass
-  in  S.tryParser (UserLogin userId userPass) dbSelectParser input
+instance Q.Arbitrary UserCreds where
+  arbitrary = UserCreds <$> Q.arbitrary <*> Q.arbitrary
 
-showUserLogin userId userPass =
-  T.intercalate " " ["UserLogin", S.quote userId, S.quote userPass]
+userLoginParseProp :: UserName -> Password -> Bool
+userLoginParseProp userName pwd =
+  let input = showUserLogin userName pwd
+  in  S.tryParser (UserLoginWithUserName userName pwd) dbSelectParser input
+
+showUserLogin :: UserName -> Password -> Text
+showUserLogin userName pwd =
+  T.intercalate " " ["UserLoginWithUserName", S.quote userName, S.quote pwd]
 
 selectUserByIdProp :: UserId -> Bool
 selectUserByIdProp userId =
@@ -53,27 +55,24 @@ selectUserByIdProp userId =
 showSelectUserById userId =
   T.intercalate " " ["SelectUserById", S.quote userId]
 
-userCreateParseProp :: UserId -> UserName -> UserPassword -> Bool
-userCreateParseProp userId userName userPass =
-  let input = showUserCreate userId userName userPass
-  in  S.tryParser (UserCreate $ UserProfile userId userName userPass)
-                  dbUpdateParser
-                  input
+userCreateParseProp :: UserCreds -> UserName -> Bool
+userCreateParseProp creds userName =
+  let input = showUserCreate creds userName
+  in  S.tryParser (UserCreate $ UserProfile creds userName) dbUpdateParser input
 
-showUserCreate userId userName userPass = T.intercalate
-  " "
-  ["UserCreate", S.quote userId, S.quote userName, S.quote userPass]
+showUserCreate creds userName =
+  T.intercalate " " ["UserCreate", showUserCreds creds, S.quote userName]
 
-userUpdateParseProp :: UserId -> UserName -> UserPassword -> Bool
-userUpdateParseProp userId userName userPass =
-  let input = showUserUpdate userId userName userPass
-  in  S.tryParser (UserUpdate $ UserProfile userId userName userPass)
-                  dbUpdateParser
-                  input
+showUserCreds (UserCreds id pass') =
+  T.intercalate " " [S.quote id, S.quote pass']
 
-showUserUpdate userId userName userPass = T.intercalate
-  " "
-  ["UserUpdate", S.quote userId, S.quote userName, S.quote userPass]
+userUpdateParseProp :: UserId -> Password -> Bool
+userUpdateParseProp userId pwd =
+  let input = showUserPasswordUpdate userId pwd
+  in  S.tryParser (UserPasswordUpdate userId pwd) dbUpdateParser input
+
+showUserPasswordUpdate userId userPass =
+  T.intercalate " " ["UserPasswordUpdate", S.quote userId, S.quote userPass]
 
 userDeleteParseProp :: UserId -> Bool
 userDeleteParseProp userId =

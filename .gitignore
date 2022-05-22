@@ -5,3 +5,5 @@
 /result
 /.envrc
 /.direnv/
+/dist-prototype-hs-example-exe-run/
+*build-exe*

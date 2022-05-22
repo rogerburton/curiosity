@@ -79,3 +79,22 @@ UsersModified
 > viz user SelectUserById "1"
 UsersVisualised []
 ```
+
+** Virtual machine image
+
+A virtual machine image that can be run with QEMU can be built and run with:
+
+```
+$ nix-build -A runvm
+$ result/bin/run-nixos-vm
+```
+
+Use `ctrl-a x` to quit QEMU.
+
+An image suitable for Digital Ocean can also be built:
+
+```
+$ nix-build -A image
+$ ls result/
+nixos.qcow2.gz
+```
