@@ -6,6 +6,7 @@ module Prototype.Example.Exe.Process
   , startServer
   , endServer
   , shutdown
+  , startupLogInfo
   ) where
 
 import           Control.Lens
@@ -53,6 +54,7 @@ startServer runtime@Rt.Runtime {..} = do
     (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.
 
+-- | Start cleanly shut down the server thread on an error, and re-report the error.
 endServer :: ML.AppNameLoggers -> Errs.RuntimeErr -> IO ()
 endServer loggers =
   startupLogInfo loggers . mappend "Server process ended: " . Errs.displayErr
