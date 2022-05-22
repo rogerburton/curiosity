@@ -14,6 +14,7 @@ module Prototype.Exe.Data
   , instantiateEmptyStmDb
   -- * Reading values from the database.
   , readFullStmDbInHask
+  , IS.StateModification(..)
   , IS.InteractiveStateErr(..)
   -- * typeclass-free parsers
   , parseViz
