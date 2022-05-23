@@ -39,9 +39,10 @@ import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 
 type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
+-- brittany-disable-next-binding 
 type Exe = Get '[B.HTML] Pages.LandingPage
              :<|> "public" :> Pub.Public
-             :<|> "private" :> Priv.Private 
+             :<|> "private" :> Priv.Private
              :<|> Raw -- catchall for custom 404
 
 exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
