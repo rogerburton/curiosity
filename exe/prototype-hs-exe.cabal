@@ -120,7 +120,7 @@ executable app
 -- HTTP server + REPL
 executable prototype-hs-exe-exe
   import: common-dependencies, lang-settings, common-extensions
-  main-is: ExampleMain.hs
+  main-is: Main.hs
   build-depends:
       optparse-applicative
     , prototype-hs-exe

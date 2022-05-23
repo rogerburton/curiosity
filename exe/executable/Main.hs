@@ -4,69 +4,65 @@ module Main
   ( main
   ) where
 
-import "base"    Control.Concurrent             ( threadDelay )
--- FIXME: uncomment when server implemented.
--- import           Control.Concurrent.Async       ( concurrently )
-import           Control.Lens
+import qualified Control.Concurrent.Async      as Async
+import           MultiLogging                   ( flushAndCloseLoggers )
 import qualified Options.Applicative           as A
-import qualified Prototype.Backend.InteractiveState.Class
-                                               as IS
-import qualified Prototype.Backend.InteractiveState.Repl
-                                               as Repl
-import qualified Prototype.Example.Data        as Data
 import qualified Prototype.Example.Exe.Parse   as P
+import qualified Prototype.Example.Exe.Process as P
 import qualified Prototype.Example.Runtime     as Rt
-import qualified Prototype.Runtime.Errors      as Errs
+import qualified Servant.Auth.Server           as Srv
 
+--------------------------------------------------------------------------------
 main :: IO ExitCode
-main = A.execParser mainParserInfo >>= runWithConf
+main =
+  putStrLn @Text "Parsing command-line options..."
+    >>  A.execParser mainParserInfo
+    >>= runWithConf
 
 mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
-  A.info P.confParser
+  A.info (P.confParser <**> A.helper)
     $  A.fullDesc
     <> A.header "Prototype-hs Example program"
     <> A.progDesc
-         "Interactive state demo: modify states via multiple sources of input: HTTP and a REPL."
+         "Interactive state demo: modify states via multiple sources of input: \
+         \HTTP and a REPL."
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  -- The first step is to boot up a runtime. 
-  runtime    <- Rt.boot conf Nothing >>= either throwIO pure
+  putStrLn @Text
+    "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
+  jwk                     <- Srv.generateKey
+  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
 
-  -- FIXME: uncomment when a long-running server process has been implemented. 
-  -- (replResult, serverResult) <- startRepl runtime
-  --   `concurrently` startServer runtime
-  -- serverExitedWith serverResult
+  let handleExceptions = (`catch` P.shutdown runtime . Just)
+      reportServerEnd  = P.startupLogInfo
+        _rLoggers
+        "Shutting down repl since server process exited."
+      reportReplEnd = P.startupLogInfo _rLoggers "Shutting down the repl."
 
-  replResult <- startRepl runtime
+  handleExceptions
+    -- the server and repl processes are different: for the server, we are conserving the exception with which the the server process exited.
+    -- this exception is also used to end the repl process.
+    $ let serverProcess = do
+            err <- P.startServer runtime
+            P.endServer _rLoggers err
+            -- re-report the error. 
+            pure err
 
-  replExitedWith replResult
-  -- FIXME: correct exit codes based on exit reason.
-  exitSuccess
-  where replExitedWith = putStrLn @Text . mappend "Repl exited with: " . show
-  -- serverExitedWith =
-  --   putStrLn @Text . mappend "Server exited with: " . Errs.displayErr
+          replProcess = P.startRepl runtime >>= P.endRepl
+      in  Async.withAsync serverProcess $ \serverRef -> do
+            Async.withAsync replProcess $ \replRef -> do
+              -- wait for the server process to exit. 
+              serverErr <- Async.wait serverRef
+              reportServerEnd
+              -- Since the server exited with an exception, we'll also want to shut down the repl. 
+              Async.cancelWith replRef serverErr
+              -- wait for the repl process to exit.
+              Async.wait replRef
+              reportReplEnd
+              -- Close loggers. 
+              flushAndCloseLoggers _rLoggers
+              exitFailure
 
-startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
-startRepl rt = runSafeMapErrs $ Repl.startReadEvalPrintLoop
-  (rt ^. Rt.rConf . Rt.confRepl)
-  handleReplInputs
-  (Rt.runExampleAppMSafe rt)
- where
-  handleReplInputs =
-    -- TypeApplications not needed below, but left for clarity.
-    IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.ExampleAppM
-      >=> either displayErr pure
-  runSafeMapErrs = fmap (either Repl.ReplExitOnGeneralException identity)
-    . Rt.runExampleAppMSafe rt
-  displayErr = pure . IS.ReplOutputStrict . show -- fixme: better show.
 
--- FIXME: Implement the server part; currently its just a forever running loop.
-startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer rt = (`catch` handleRuntime) $ do
-  threadDelay secs10
-  startServer rt
- where
-  handleRuntime = pure
-  secs10        = 10 * 10 ^ (6 :: Int)
