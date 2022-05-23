@@ -23,9 +23,9 @@ module Prototype.Exe.Data
 import qualified Control.Concurrent.STM        as STM
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
-import qualified Prototype.Exe.Data.Todo   as Todo
-import qualified Prototype.Exe.Data.User   as U
-import qualified Prototype.Exe.Repl.Parse  as P
+import qualified Prototype.Exe.Data.Todo       as Todo
+import qualified Prototype.Exe.Data.User       as U
+import qualified Prototype.Exe.Repl.Parse      as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 

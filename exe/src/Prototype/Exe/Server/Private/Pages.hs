@@ -15,7 +15,7 @@ module Prototype.Exe.Server.Private.Pages
   ) where
 
 import           Network.HTTP.Types.Method
-import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Data.User       as User
 import           Prototype.Exe.Server.Shared.Html.Helpers.Form
                                                 ( mkButton )
 import qualified "design-hs-lib" Smart.Html.Dsl

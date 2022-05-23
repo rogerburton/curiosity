@@ -36,7 +36,7 @@ import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Exe.Repl.Parse  as P
+import qualified Prototype.Exe.Repl.Parse      as P
 import qualified "start-servant" Prototype.Lib.Wrapped
                                                as W
 import qualified Prototype.Runtime.Errors      as Errs

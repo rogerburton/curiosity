@@ -15,7 +15,7 @@ module Prototype.Exe.Server.Auth
   , Context
   ) where
 
-import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Data.User       as User
 import           Servant.API
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.Server                as Server

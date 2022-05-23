@@ -18,22 +18,20 @@ module Prototype.Exe.Server
   , ServerSettings
   ) where
 
-import Prototype.Exe.Data.User () 
 import           Control.Lens
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import qualified Prototype.Exe.Runtime     as Rt
-import qualified Prototype.Exe.Server.Public
-                                               as Pub
-import qualified Prototype.Exe.Server.Private
-                                               as Priv
+import           Prototype.Exe.Data.User        ( )
+import qualified Prototype.Exe.Runtime         as Rt
+import qualified Prototype.Exe.Server.Private  as Priv
+import qualified Prototype.Exe.Server.Public   as Pub
 import qualified Prototype.Exe.Server.Public.Pages
                                                as Pages
 import           Servant
-import qualified           Servant.Server as Server
 import qualified Servant.Auth.Server           as Srv
 import qualified Servant.HTML.Blaze            as B
+import qualified Servant.Server                as Server
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 
@@ -46,21 +44,19 @@ type Exe = Get '[B.HTML] Pages.LandingPage
              :<|> Raw -- catchall for custom 404
 
 exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
-exampleT = showLandingPage :<|> Pub.publicT :<|> Priv.privateT
-  :<|> pure custom404
+exampleT =
+  showLandingPage :<|> Pub.publicT :<|> Priv.privateT :<|> pure custom404
 
 -- | Run as a Wai Application
 exampleApplication
   :: forall m
    . Pub.PublicServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
-  -> Server.Context ServerSettings 
+  -> Server.Context ServerSettings
   -> Wai.Application
 exampleApplication handlerNatTrans ctx =
-  Servant.serveWithContext exampleProxy ctx $ hoistServerWithContext exampleProxy
-                                                      settingsProxy
-                                                      handlerNatTrans
-                                                      exampleT
+  Servant.serveWithContext exampleProxy ctx
+    $ hoistServerWithContext exampleProxy settingsProxy handlerNatTrans exampleT
  where
   exampleProxy  = Proxy @Exe
   settingsProxy = Proxy @ServerSettings
@@ -75,7 +71,11 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
   Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
   waiApp =
     exampleApplication @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx
-  ctx = _rConf ^. Rt.confCookie Server.:. _rJwtSettings Server.:. Server.EmptyContext 
+  ctx =
+    _rConf
+      ^.        Rt.confCookie
+      Server.:. _rJwtSettings
+      Server.:. Server.EmptyContext
 
 showLandingPage :: Pub.PublicServerC m => m Pages.LandingPage
 showLandingPage = pure Pages.LandingPage

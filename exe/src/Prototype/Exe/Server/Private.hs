@@ -19,8 +19,8 @@ module Prototype.Exe.Server.Private
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified "start-servant" MultiLogging  as ML
-import qualified Prototype.Exe.Data.User   as User
-import qualified Prototype.Exe.Runtime     as Rt
+import qualified Prototype.Exe.Data.User       as User
+import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server.Private.Auth
                                                as Auth
 import qualified Prototype.Exe.Server.Private.Helpers

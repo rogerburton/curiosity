@@ -7,7 +7,7 @@ module Prototype.Exe.Server.Private.Helpers
   , UserPage
   ) where
 
-import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Data.User       as User
 import qualified "start-servant" Prototype.Server.New.Page
                                                as SS.P
 import           Servant.API

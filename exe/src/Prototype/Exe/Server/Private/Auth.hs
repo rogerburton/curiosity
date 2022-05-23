@@ -6,7 +6,7 @@ module Prototype.Exe.Server.Private.Auth
   , PostAuthHeaders
   ) where
 
-import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Data.User       as User
 import           Prototype.Server.New.Auth      ( PostAuthHeaders )
 import qualified Servant.Auth.Server           as SAuth
 

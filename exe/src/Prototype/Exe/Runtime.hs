@@ -32,9 +32,9 @@ import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
-import qualified Prototype.Exe.Data        as Data
-import qualified Prototype.Exe.Data.Todo   as Todo
-import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Data            as Data
+import qualified Prototype.Exe.Data.Todo       as Todo
+import qualified Prototype.Exe.Data.User       as User
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )

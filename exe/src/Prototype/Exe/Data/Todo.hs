@@ -37,8 +37,8 @@ import           Data.Default.Class
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Exe.Data.User   as U
-import qualified Prototype.Exe.Repl.Parse  as P
+import qualified Prototype.Exe.Data.User       as U
+import qualified Prototype.Exe.Repl.Parse      as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 
