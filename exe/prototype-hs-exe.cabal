@@ -1,5 +1,5 @@
 cabal-version:      2.2
-name:               prototype-hs-example
+name:               prototype-hs-exe
 version:            0.1.0.0
 category:           web
 
@@ -107,7 +107,7 @@ executable app
   main-is: App.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-example
+    , prototype-hs-exe
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -118,12 +118,12 @@ executable app
     -threaded
 
 -- HTTP server + REPL
-executable prototype-hs-example-exe
+executable prototype-hs-exe-exe
   import: common-dependencies, lang-settings, common-extensions
   main-is: ExampleMain.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-example
+    , prototype-hs-exe
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -133,7 +133,7 @@ executable prototype-hs-example-exe
   ghc-options:
     -threaded
 
-test-suite prototype-hs-example-test
+test-suite prototype-hs-exe-test
 
   import:
        common-dependencies
@@ -145,7 +145,7 @@ test-suite prototype-hs-example-test
   build-depends:
       QuickCheck
     , hspec
-    , prototype-hs-example
+    , prototype-hs-exe
 
   other-modules:
      Prototype.Example.Data.UserSpec

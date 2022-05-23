@@ -21,7 +21,7 @@ let
 in  with nixpkgs.haskellPackages;
   { inherit
       prototype-hs-lib
-      prototype-hs-example;
+      prototype-hs-exe;
 
     # Build with nix-build -A <attr>
     image = os.config.system.build.digitalOceanImage;
