@@ -3,7 +3,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds, TypeOperators #-}
 {- |
-Module: Prototype.Example.Server.Public
+Module: Prototype.Exe.Server.Public
 Description: Public endpoints
 
 Contains the public endpoints for the example server.
@@ -11,7 +11,7 @@ We're using PackageImports here on purpose: this includes imports from @start-se
 and predictability on where these modules come from.
 
 -}
-module Prototype.Example.Server.Public
+module Prototype.Exe.Server.Public
   ( Public
   , publicT
   , PublicServerC
@@ -20,9 +20,9 @@ module Prototype.Example.Server.Public
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified "start-servant" MultiLogging  as ML
-import qualified Prototype.Example.Data.User   as User
-import qualified Prototype.Example.Runtime     as Rt
-import qualified Prototype.Example.Server.Public.Pages
+import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Runtime     as Rt
+import qualified Prototype.Exe.Server.Public.Pages
                                                as Pages
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S

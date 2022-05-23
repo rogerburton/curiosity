@@ -5,9 +5,9 @@ module Main
 
 import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
-import qualified Prototype.Example.Exe.Parse   as P
-import qualified Prototype.Example.Exe.Process as P
-import qualified Prototype.Example.Runtime     as Rt
+import qualified Prototype.Exe.Exe.Parse   as P
+import qualified Prototype.Exe.Exe.Process as P
+import qualified Prototype.Exe.Runtime     as Rt
 import qualified Servant.Auth.Server           as Srv
 
 

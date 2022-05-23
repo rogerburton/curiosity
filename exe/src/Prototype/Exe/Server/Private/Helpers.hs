@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-module Prototype.Example.Server.Private.Helpers
+module Prototype.Exe.Server.Private.Helpers
   ( GetUserPage
   , PutUserPage
   , DeleteUserPage
@@ -7,7 +7,7 @@ module Prototype.Example.Server.Private.Helpers
   , UserPage
   ) where
 
-import qualified Prototype.Example.Data.User   as User
+import qualified Prototype.Exe.Data.User   as User
 import qualified "start-servant" Prototype.Server.New.Page
                                                as SS.P
 import           Servant.API

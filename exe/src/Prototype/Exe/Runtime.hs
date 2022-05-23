@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-module Prototype.Example.Runtime
+module Prototype.Exe.Runtime
   ( Conf(..)
   , confRepl
   , confServer
@@ -14,9 +14,9 @@ module Prototype.Example.Runtime
   , rDb
   , rLoggers
   , rJwtSettings
-  , ExampleAppM(..)
+  , ExeAppM(..)
   , boot
-  , runExampleAppMSafe
+  , runExeAppMSafe
   -- * Servant compat
   , exampleAppMHandlerNatTrans
   ) where
@@ -32,9 +32,9 @@ import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
-import qualified Prototype.Example.Data        as Data
-import qualified Prototype.Example.Data.Todo   as Todo
-import qualified Prototype.Example.Data.User   as User
+import qualified Prototype.Exe.Data        as Data
+import qualified Prototype.Exe.Data.Todo   as Todo
+import qualified Prototype.Exe.Data.User   as User
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
@@ -68,7 +68,7 @@ makeLenses ''Runtime
 instance Data.RuntimeHasStmDb Runtime where
   stmDbFromRuntime = _rDb
 
-newtype ExampleAppM a = ExampleAppM { runExampleAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
+newtype ExeAppM a = ExeAppM { runExeAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
   deriving ( Functor
            , Applicative
            , Monad
@@ -80,14 +80,14 @@ newtype ExampleAppM a = ExampleAppM { runExampleAppM :: ReaderT Runtime (ExceptT
            , MonadMask
            )
 
--- | Run the `ExampleAppM` computation catching all possible exceptions. 
-runExampleAppMSafe
+-- | Run the `ExeAppM` computation catching all possible exceptions. 
+runExeAppMSafe
   :: forall a m
    . MonadIO m
   => Runtime
-  -> ExampleAppM a
+  -> ExeAppM a
   -> m (Either Errs.RuntimeErr a)
-runExampleAppMSafe rt (ExampleAppM op') =
+runExeAppMSafe rt (ExeAppM op') =
   liftIO
     . fmap (join . first Errs.RuntimeException)
     . try @SomeException
@@ -95,7 +95,7 @@ runExampleAppMSafe rt (ExampleAppM op') =
     $ runReaderT op' rt
 
 -- | Definition of all operations for the UserProfiles (selects and updates)
-instance S.DBStorage ExampleAppM User.UserProfile where
+instance S.DBStorage ExeAppM User.UserProfile where
   dbUpdate = \case
 
     User.UserCreate newProfile -> onUserIdExists newProfileId
@@ -156,7 +156,7 @@ instance S.DBStorage ExampleAppM User.UserProfile where
         ((== userName) . User._userProfileName)
 
 -- | Support for logging for the example application 
-instance ML.MonadAppNameLogMulti ExampleAppM where
+instance ML.MonadAppNameLogMulti ExeAppM where
   askLoggers = asks _rLoggers
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
@@ -171,7 +171,7 @@ userNotFound =
   Errs.throwError' . User.UserNotFound . mappend "User not found: "
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
-instance S.DBStorage ExampleAppM Todo.TodoList where
+instance S.DBStorage ExeAppM Todo.TodoList where
 
   dbUpdate = \case
     Todo.AddItem id item -> onTodoListExists id
@@ -291,14 +291,14 @@ boot _rConf mInitDb jwk = do
 
   pure $ Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
 
--- | Natural transformation from some `ExampleAppM` in any given mode, to a servant Handler. 
+-- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans
-  :: forall a . Runtime -> ExampleAppM a -> Servant.Handler a
+  :: forall a . Runtime -> ExeAppM a -> Servant.Handler a
 exampleAppMHandlerNatTrans rt appM =
   let
-    -- We peel off the ExampleAppM + ReaderT layers, exposing our ExceptT RuntimeErr IO a
+    -- We peel off the ExeAppM + ReaderT layers, exposing our ExceptT RuntimeErr IO a
     -- This is very similar to Servant's Handler: https://hackage.haskell.org/package/servant-server-0.17/docs/Servant-Server-Internal-Handler.html#t:Handler
-      unwrapReaderT          = (`runReaderT` rt) . runExampleAppM $ appM
+      unwrapReaderT          = (`runReaderT` rt) . runExeAppM $ appM
       -- Map our errors to `ServantError` 
       runtimeErrToServantErr = withExceptT Errs.asServantError
   in 

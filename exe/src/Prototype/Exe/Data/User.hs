@@ -3,10 +3,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {- |
-Module: Prototype.Example.Data.User
+Module: Prototype.Exe.Data.User
 Description: User related datatypes
 -}
-module Prototype.Example.Data.User
+module Prototype.Exe.Data.User
   ( UserCreds(..)
   , userCredsId
   , userCredsPassword
@@ -36,7 +36,7 @@ import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Example.Repl.Parse  as P
+import qualified Prototype.Exe.Repl.Parse  as P
 import qualified "start-servant" Prototype.Lib.Wrapped
                                                as W
 import qualified Prototype.Runtime.Errors      as Errs

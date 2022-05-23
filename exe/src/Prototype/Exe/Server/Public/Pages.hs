@@ -1,11 +1,11 @@
 {- |
-Module: Prototype.Example.Server.Public.Pages
+Module: Prototype.Exe.Server.Public.Pages
 Description: Public pages for the application
 
 The goal is to exemplify the use of our DSL for some simple pages and to have something more tangible to show.
 
 -}
-module Prototype.Example.Server.Public.Pages
+module Prototype.Exe.Server.Public.Pages
   ( LoginPage(..)
   , SignupPage(..)
   , SignupResultPage(..)
@@ -15,8 +15,8 @@ module Prototype.Example.Server.Public.Pages
 
 import           Control.Lens
 import           Network.HTTP.Types.Method
-import qualified Prototype.Example.Data.User   as User
-import           Prototype.Example.Server.Shared.Html.Helpers.Form
+import qualified Prototype.Exe.Data.User   as User
+import           Prototype.Exe.Server.Shared.Html.Helpers.Form
                                                 ( mkButton )
 import qualified "design-hs-lib" Smart.Html.Dsl
                                                as Dsl

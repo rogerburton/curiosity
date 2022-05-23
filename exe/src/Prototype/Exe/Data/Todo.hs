@@ -2,10 +2,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {- |
-Module: Prototype.Example.Data.Todo
+Module: Prototype.Exe.Data.Todo
 Description: All datatypes related to Todos
 -}
-module Prototype.Example.Data.Todo
+module Prototype.Exe.Data.Todo
   ( TodoList(..)
   , TodoListItem(..)
   , TodoListItemState(..)
@@ -37,8 +37,8 @@ import           Data.Default.Class
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Example.Data.User   as U
-import qualified Prototype.Example.Repl.Parse  as P
+import qualified Prototype.Exe.Data.User   as U
+import qualified Prototype.Exe.Repl.Parse  as P
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as Storage
 

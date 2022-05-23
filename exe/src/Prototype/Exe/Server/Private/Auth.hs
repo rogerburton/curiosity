@@ -1,12 +1,12 @@
 {-# LANGUAGE
     DataKinds
 #-}
-module Prototype.Example.Server.Private.Auth
+module Prototype.Exe.Server.Private.Auth
   ( UserAuthentication
   , PostAuthHeaders
   ) where
 
-import qualified Prototype.Example.Data.User   as User
+import qualified Prototype.Exe.Data.User   as User
 import           Prototype.Server.New.Auth      ( PostAuthHeaders )
 import qualified Servant.Auth.Server           as SAuth
 

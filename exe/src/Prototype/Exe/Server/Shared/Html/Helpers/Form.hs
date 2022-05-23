@@ -1,4 +1,4 @@
-module Prototype.Example.Server.Shared.Html.Helpers.Form
+module Prototype.Exe.Server.Shared.Html.Helpers.Form
   ( mkButton
   ) where
 

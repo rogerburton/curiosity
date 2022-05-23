@@ -9,13 +9,13 @@ Description: Authentication and authorization module.
 
 -}
 
-module Prototype.Example.Server.Auth
+module Prototype.Exe.Server.Auth
   ( UserAuthentication
   , PostAuthHeaders
   , Context
   ) where
 
-import qualified Prototype.Example.Data.User   as User
+import qualified Prototype.Exe.Data.User   as User
 import           Servant.API
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.Server                as Server

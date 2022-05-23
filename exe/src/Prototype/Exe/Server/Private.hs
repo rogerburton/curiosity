@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds, TypeOperators #-}
 {- |
-Module: Prototype.Example.Server.Private
+Module: Prototype.Exe.Server.Private
 Description: Private endpoints
 
 Contains the public endpoints for the example server.
@@ -10,7 +10,7 @@ We're using PackageImports here on purpose: this includes imports from @start-se
 and predictability on where these modules come from.
 
 -}
-module Prototype.Example.Server.Private
+module Prototype.Exe.Server.Private
   ( Private
   , privateT
   , PrivateServerC
@@ -19,13 +19,13 @@ module Prototype.Example.Server.Private
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified "start-servant" MultiLogging  as ML
-import qualified Prototype.Example.Data.User   as User
-import qualified Prototype.Example.Runtime     as Rt
-import qualified Prototype.Example.Server.Private.Auth
+import qualified Prototype.Exe.Data.User   as User
+import qualified Prototype.Exe.Runtime     as Rt
+import qualified Prototype.Exe.Server.Private.Auth
                                                as Auth
-import qualified Prototype.Example.Server.Private.Helpers
+import qualified Prototype.Exe.Server.Private.Helpers
                                                as H
-import qualified Prototype.Example.Server.Private.Pages
+import qualified Prototype.Exe.Server.Private.Pages
                                                as Pages
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
