@@ -7,6 +7,7 @@ let
     modules = [
       ./machine/configuration.nix
       "${toString sources.nixpkgs}/nixos/modules/virtualisation/digital-ocean-image.nix"
+      ./machine/disk-size.nix
     ];
   };
 
