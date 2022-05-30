@@ -1,4 +1,3 @@
 packages:
     ./exe
     ./lib
-    ./example
