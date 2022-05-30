@@ -5,12 +5,12 @@
 #   - -XNoImplicitPrelude is set here on the command-line
 #   - The ghci.conf file will load design-hs's Prelude
 #   - Then set again -XImplicitPrelude
-#   - Then load what we want: ExampleMain.hs
+#   - Then load what we want: cty-interactive.hs
 
 ghc --interactive \
   -i../design-hs/lib/src/ \
-  -iexample/executable/ \
-  -iexample/src/ \
+  -iexe/executable/ \
+  -iexe/src/ \
   -ilib/src/ \
   -hide-package base \
   -XNoImplicitPrelude \
