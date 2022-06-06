@@ -17,18 +17,24 @@ module Prototype.Exe.Data
   , readFullStmDbInHask
   , IS.StateModification(..)
   , IS.InteractiveStateErr(..)
-  -- * typeclass-free parsers
+  -- * typeclass-free parsers.
   , parseViz
   , parseMod
+  -- * Serialising and deseralising DB to bytes.
+  , serialiseDb
+  , deserialiseDb
   ) where
 
 import qualified Control.Concurrent.STM        as STM
 import           Data.Aeson
+import qualified Data.Text                     as T
+import qualified Network.HTTP.Types.Status     as S
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Exe.Data.Todo       as Todo
 import qualified Prototype.Exe.Data.User       as U
 import qualified Prototype.Exe.Repl.Parse      as P
+import qualified Prototype.Runtime.Errors      as E
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 
@@ -222,3 +228,25 @@ parseMod =
               P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
         in  P.tryAlts [todoMod, userMod]
        )
+
+newtype DbErr = DbDecodeFailed Text
+              deriving Show
+
+instance E.IsRuntimeErr DbErr where
+  errCode = errCode' . \case
+    DbDecodeFailed{} -> "DECODE_FAILED"
+    where errCode' = mappend "ERR.DB."
+  httpStatus = \case
+    DbDecodeFailed{} -> S.internalServerError500
+  userMessage = Just . \case
+    DbDecodeFailed msg -> msg
+
+-- | Write an entire db state to bytes. 
+serialiseDb :: forall runtime . HaskDb runtime -> LByteString
+serialiseDb = encode
+{-# INLINE serialiseDb #-}
+
+-- | Read an entire db state from bytes. 
+deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
+deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
+{-# INLINE deserialiseDb #-}
