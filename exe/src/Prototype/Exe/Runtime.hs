@@ -18,6 +18,9 @@ module Prototype.Exe.Runtime
   , ExeAppM(..)
   , boot
   , powerdown
+  , readDb
+  , saveDb
+  , saveDbAs
   , runExeAppMSafe
   -- * Servant compat
   , exampleAppMHandlerNatTrans
@@ -303,19 +306,22 @@ boot _rConf jwk = do
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-powerdown Runtime {..} = do
-  mDbSaveErr <- saveDb
+powerdown runtime@Runtime {..} = do
+  mDbSaveErr <- saveDb runtime
   -- finally, close loggers.
   ML.flushAndCloseLoggers _rLoggers
   pure mDbSaveErr
- where
-  saveDb = case _rConf ^. confDbFile of
-    Nothing    -> pure Nothing
-    Just fpath -> do
-      haskDb <- Data.readFullStmDbInHask _rDb
-      let bs = Data.serialiseDb haskDb
-      liftIO (try @SomeException (BS.writeFile fpath bs))
-        <&> either (Just . Errs.RuntimeException) (const Nothing)
+
+saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
+saveDb runtime =
+  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. confDbFile
+
+saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
+saveDbAs runtime fpath = do
+  haskDb <- Data.readFullStmDbInHask $ _rDb runtime
+  let bs = Data.serialiseDb haskDb
+  liftIO (try @SomeException (BS.writeFile fpath bs))
+    <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 {- | Instantiate the db.
 
@@ -328,25 +334,29 @@ instantiateDb
    . MonadIO m
   => Conf
   -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
-instantiateDb Conf {..} = attemptFile
+instantiateDb Conf {..} = readDb _confDbFile
+
+readDb
+  :: forall m
+   . MonadIO m
+  => Maybe FilePath
+  -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
+readDb mpath = case mpath of
+  Just fpath -> do
+    -- We may want to read the file only when the file exists.
+    exists <- liftIO $ doesFileExist fpath
+    if (exists) then fromFile fpath else useEmpty
+  Nothing -> useEmpty
  where
-  attemptFile = case _confDbFile of
-    Just fpath -> do
-      -- We may want to read the file only when the file exists. 
-      exists <- liftIO $ doesFileExist fpath
-      if (exists) then fromFile else useEmpty
-     where
-      fromFile = do
-        fdata <- liftIO (BS.readFile fpath)
-        -- We may want to deserialise the data only when the data is non-empty.
-        if BS.null fdata
-          then useEmpty
-          else
-            Data.deserialiseDb fdata
-              & either (pure . Left . Errs.knownErr) useState
-    Nothing -> useEmpty
-  useState = fmap Right . Data.instantiateStmDb
+  fromFile fpath = do
+    fdata <- liftIO (BS.readFile fpath)
+    -- We may want to deserialise the data only when the data is non-empty.
+    if BS.null fdata
+      then useEmpty
+      else
+        Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
   useEmpty = Right <$> Data.instantiateEmptyStmDb
+  useState = fmap Right . Data.instantiateStmDb
 
 -- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans
