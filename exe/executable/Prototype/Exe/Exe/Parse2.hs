@@ -33,18 +33,21 @@ data Command =
 parser :: A.Parser Command
 parser =
   A.subparser
-      (  A.command
-          "create-user"
-          ( A.info (parserCreateUser <**> A.helper)
-          $ A.progDesc "Create a new user"
-          )
-      <> A.command
-           "delete-user"
-           ( A.info (parserDeleteUser <**> A.helper)
-           $ A.progDesc "Delete a user"
-           )
+      (A.command
+        "user"
+        (A.info (parserUser <**> A.helper) $ A.progDesc "User-related commands")
       )
     <|> parserShowId
+
+parserUser :: A.Parser Command
+parserUser = A.subparser
+  (  A.command
+      "create"
+      (A.info (parserCreateUser <**> A.helper) $ A.progDesc "Create a new user")
+  <> A.command
+       "delete"
+       (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
+  )
 
 parserCreateUser :: A.Parser Command
 parserCreateUser =
