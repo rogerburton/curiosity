@@ -71,7 +71,7 @@ repl runtime conn = do
       case result of
         A.Success           x   -> print x >> sendAll conn (show x <> "\n")
         A.Failure           err -> print err
-        A.CompletionInvoked _   -> print "Shouldn't happen"
+        A.CompletionInvoked _   -> print @IO @Text "Shouldn't happen"
 
       output <- Rt.runExeAppMSafe runtime $ IS.execModification
         (Data.ModifyUser
