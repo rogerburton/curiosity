@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Prototype.Exe.Exe.Parse
   ( confParser
+  , defaultConf
   ) where
 
 import           Control.Monad.Log             as L
@@ -37,6 +38,25 @@ confParser = do
     , ..
     }
   where flspec = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
+
+defaultConf :: Conf
+defaultConf =
+  let _confServer = ServerConf 9000
+      _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
+      _confDbFile = Nothing
+      flspec      = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
+  in  Conf
+        { _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
+                                              "PrototypeExe"
+                                              L.levelInfo
+        , _confCookie        = Srv.defaultCookieSettings
+                                 { Srv.cookieIsSecure    = Srv.NotSecure
+                                 , Srv.cookieXsrfSetting = Nothing
+                                 , Srv.cookieSameSite    = Srv.SameSiteStrict
+                                 }
+        , _confMkJwtSettings = Srv.defaultJWTSettings
+        , ..
+        }
 
 serverParser :: A.Parser ServerConf
 serverParser = ServerConf . abs <$> A.option

@@ -30,7 +30,8 @@ demonstrate and explore the features of the application.
   interfaces run against the same live state.
 - `cty-sock` offers a text interface similar to `cty-repl` but through a
   UNIX-domain socket, and accepts multiple clients.
-- `cty` is meant as a client for the `cty-sock` server.
+- `cty` is meant as a client for the `cty-sock` server. It can also be run
+  against a local state file.
 - `cty-parse` is a helper program to play with the command parser used in
   `cty-repl`.
 
@@ -104,6 +105,22 @@ UsersModified
 ```
 > viz user SelectUserById "1"
 UsersVisualised []
+```
+
+# `cty`
+
+```
+$ rm state.json
+
+$ cty -s state.json user get alice
+Right (UsersVisualised [])
+
+$ cty -s state.json user create alice pass alice@example.com
+Right (UsersModified [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
+
+$ cty -s state.json user get alice
+Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
+
 ```
 
 # Virtual machine image

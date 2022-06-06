@@ -17,6 +17,7 @@ module Prototype.Exe.Data
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
   , IS.StateModification(..)
+  , IS.StateVisualisation(..)
   , IS.InteractiveStateErr(..)
   -- * typeclass-free parsers.
   , parseViz

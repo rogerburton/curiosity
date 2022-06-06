@@ -179,6 +179,7 @@ executable cty
   hs-source-dirs: executable
   other-modules:
     Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Parse2
     Prototype.Exe.Exe.Process
   ghc-options:
     -threaded
@@ -197,6 +198,7 @@ executable cty-sock
   hs-source-dirs: executable
   other-modules:
     Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Parse2
     Prototype.Exe.Exe.Process
   ghc-options:
     -threaded
