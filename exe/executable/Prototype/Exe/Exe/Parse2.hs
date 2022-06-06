@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 module Prototype.Exe.Exe.Parse2
   ( parserInfo
   , Command(..)
@@ -33,38 +32,31 @@ data Command =
 
 parser :: A.Parser Command
 parser =
-  (A.subparser $
-       A.command "create-user" (A.info (parserCreateUser <**> A.helper)
-         $ A.progDesc "Create a new user")
-    <> A.command "delete-user" (A.info (parserDeleteUser <**> A.helper)
-         $ A.progDesc "Delete a user")
-  )
-  <|> parserShowId
+  A.subparser
+      (  A.command
+          "create-user"
+          ( A.info (parserCreateUser <**> A.helper)
+          $ A.progDesc "Create a new user"
+          )
+      <> A.command
+           "delete-user"
+           ( A.info (parserDeleteUser <**> A.helper)
+           $ A.progDesc "Delete a user"
+           )
+      )
+    <|> parserShowId
 
 parserCreateUser :: A.Parser Command
-parserCreateUser = CreateUser
-  <$> A.argument A.str
-    (A.metavar "USERNAME" <> A.help
-      "A username"
-    )
-  <*> A.argument A.str
-    (A.metavar "EMAIL" <> A.help
-      "An email address"
-    )
-  <*> A.argument A.str
-    (A.metavar "PASSWORD" <> A.help
-      "A password"
-    )
+parserCreateUser =
+  CreateUser
+    <$> A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
+    <*> A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
+    <*> A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
 
 parserDeleteUser :: A.Parser Command
-parserDeleteUser = DeleteUser
-  <$> A.argument A.str
-    (A.metavar "USER-ID" <> A.help
-      "A user ID"
-    )
+parserDeleteUser =
+  DeleteUser <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserShowId :: A.Parser Command
-parserShowId = ShowId <$> A.argument A.str
-  (A.metavar "ID" <> A.help
-    "An object ID"
-  )
+parserShowId =
+  ShowId <$> A.argument A.str (A.metavar "ID" <> A.help "An object ID")
