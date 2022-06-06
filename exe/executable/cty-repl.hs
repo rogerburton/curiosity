@@ -3,9 +3,9 @@ module Main
   ) where
 
 import qualified Options.Applicative           as A
-import qualified Prototype.Exe.Exe.Parse   as P
-import qualified Prototype.Exe.Exe.Process as P
-import qualified Prototype.Exe.Runtime     as Rt
+import qualified Prototype.Exe.Exe.Parse       as P
+import qualified Prototype.Exe.Exe.Process     as P
+import qualified Prototype.Exe.Runtime         as Rt
 import qualified Servant.Auth.Server           as Srv
 
 
@@ -30,5 +30,5 @@ runWithConf conf = do
   let handleExceptions = (`catch` P.shutdown runtime . Just)
 
   handleExceptions $ do
-    (P.startRepl runtime >>= P.endRepl)
+    P.startRepl runtime >>= P.endRepl
     P.shutdown runtime Nothing

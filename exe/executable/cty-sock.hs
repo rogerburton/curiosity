@@ -6,24 +6,24 @@
 --   nc -U curiosity.sock
 
 import qualified Data.ByteString.Char8         as B
-import Network.Socket hiding (recv)
-import Network.Socket.ByteString (recv, sendAll)
+import           Network.Socket          hiding ( recv )
+import           Network.Socket.ByteString      ( recv
+                                                , sendAll
+                                                )
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
-import qualified Prototype.Exe.Data        as Data
-import qualified Prototype.Exe.Data.User   as User
-import qualified Prototype.Exe.Exe.Parse   as P
-import qualified Prototype.Exe.Exe.Parse2  as P
-import qualified Prototype.Exe.Runtime     as Rt
+import qualified Prototype.Exe.Data            as Data
+import qualified Prototype.Exe.Data.User       as User
+import qualified Prototype.Exe.Exe.Parse       as P
+import qualified Prototype.Exe.Exe.Parse2      as P
+import qualified Prototype.Exe.Runtime         as Rt
 import qualified Servant.Auth.Server           as Srv
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
-main = do
-  A.execParser mainParserInfo
-  >>= runWithConf
+main = A.execParser mainParserInfo >>= runWithConf
 
 mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
@@ -64,18 +64,22 @@ repl runtime conn = do
   let command = map B.unpack $ B.words msg -- TODO decodeUtf8
   case command of
     _ | B.null msg -> return () -- Connection lost.
-    ["quit"] -> return ()
-    [] -> repl runtime conn
-    _ -> do
+    ["quit"]       -> return ()
+    []             -> repl runtime conn
+    _              -> do
       let result = A.execParserPure A.defaultPrefs P.parserInfo command
       case result of
-        A.Success x -> print x >> sendAll conn (show x <> "\n")
-        A.Failure err -> print err
-        A.CompletionInvoked _ -> print "Shouldn't happen"
+        A.Success           x   -> print x >> sendAll conn (show x <> "\n")
+        A.Failure           err -> print err
+        A.CompletionInvoked _   -> print "Shouldn't happen"
 
-      output <- Rt.runExeAppMSafe runtime $
-        IS.execModification (Data.ModifyUser (User.UserCreate $ User.UserProfile (User.UserCreds "alice" "pass") "Alice"))
+      output <- Rt.runExeAppMSafe runtime $ IS.execModification
+        (Data.ModifyUser
+          ( User.UserCreate
+          $ User.UserProfile (User.UserCreds "alice" "pass") "Alice"
+          )
+        )
 
       print output
-        
+
       repl runtime conn

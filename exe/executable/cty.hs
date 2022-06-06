@@ -1,13 +1,12 @@
 -- | This is the main server-side program to interact with the server.
 
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 module Main
   ( main
   ) where
 
 import qualified Options.Applicative           as A
-import qualified Prototype.Exe.Exe.Parse2  as P
+import qualified Prototype.Exe.Exe.Parse2      as P
 
 
 --------------------------------------------------------------------------------
