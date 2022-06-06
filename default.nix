@@ -18,12 +18,13 @@ let
       ./machine/no-gui.nix
     ];
   };
-in  with nixpkgs.haskellPackages;
+in with nixpkgs.haskellPackages;
   { inherit
       prototype-hs-lib
       prototype-hs-exe;
 
     # Build with nix-build -A <attr>
+    binaries = prototype-hs-exe;
     image = os.config.system.build.digitalOceanImage;
     runvm = qemu.config.system.build.vm;
   }

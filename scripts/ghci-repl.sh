@@ -5,7 +5,7 @@
 #   - -XNoImplicitPrelude is set here on the command-line
 #   - The ghci.conf file will load design-hs's Prelude
 #   - Then set again -XImplicitPrelude
-#   - Then load what we want: cty-interactive.hs
+#   - Then load what we want: cty-repl.hs
 
 ghc --interactive \
   -i../design-hs/lib/src/ \
@@ -31,4 +31,4 @@ ghc --interactive \
   -XGADTs \
   -XOverloadedStrings \
   -XPackageImports \
-  -ghci-script scripts/ghci.conf
+  -ghci-script scripts/ghci-repl.conf

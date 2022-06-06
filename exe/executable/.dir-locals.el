@@ -1,7 +1,7 @@
 (
  (nil . (
          (haskell-mode-stylish-haskell-path . "brittany")
-         (dante-target . "prototype-hs-example-exe")
+         (dante-target . "cty-serve")
          (dante-methods . (new-impure-nix)))
       )
 )

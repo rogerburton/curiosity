@@ -102,9 +102,9 @@ library
     http-api-data
 
 -- HTTP server only
-executable app
+executable cty-serve
   import: common-dependencies, lang-settings, common-extensions
-  main-is: App.hs
+  main-is: cty-serve.hs
   build-depends:
       optparse-applicative
     , prototype-hs-exe
@@ -118,14 +118,80 @@ executable app
     -threaded
 
 -- HTTP server + REPL
-executable prototype-hs-exe-exe
+executable cty-interactive
   import: common-dependencies, lang-settings, common-extensions
-  main-is: Main.hs
+  main-is: cty-interactive.hs
   build-depends:
       optparse-applicative
     , prototype-hs-exe
     , async
     , fast-logger
+  hs-source-dirs: executable
+  other-modules:
+    Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Process
+  ghc-options:
+    -threaded
+
+-- Command parser
+executable cty-parse
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: cty-parse.hs
+  build-depends:
+      optparse-applicative
+    , prototype-hs-exe
+    , async
+    , fast-logger
+  hs-source-dirs: executable
+  other-modules:
+    Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Process
+  ghc-options:
+    -threaded
+
+-- REPL only
+executable cty-repl
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: cty-repl.hs
+  build-depends:
+      optparse-applicative
+    , prototype-hs-exe
+    , async
+    , fast-logger
+  hs-source-dirs: executable
+  other-modules:
+    Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Process
+  ghc-options:
+    -threaded
+
+-- Server-side program to interact with the server.
+executable cty
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: cty.hs
+  build-depends:
+      optparse-applicative
+    , prototype-hs-exe
+    , async
+    , fast-logger
+  hs-source-dirs: executable
+  other-modules:
+    Prototype.Exe.Exe.Parse
+    Prototype.Exe.Exe.Process
+  ghc-options:
+    -threaded
+
+-- A multi-client REPL, exposed through a UNIX-domain socker
+executable cty-sock
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: cty-sock.hs
+  build-depends:
+      optparse-applicative
+    , prototype-hs-exe
+    , async
+    , bytestring
+    , fast-logger
+    , network
   hs-source-dirs: executable
   other-modules:
     Prototype.Exe.Exe.Parse

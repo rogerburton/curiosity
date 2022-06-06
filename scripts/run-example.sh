@@ -5,8 +5,8 @@
 
 ghc --interactive \
   -i../design-hs/lib/src/ \
-  -iexample/executable/ \
-  -iexample/src/ \
+  -iexe/executable/ \
+  -iexe/src/ \
   -ilib/src/ \
   -hide-package base \
   -XNoImplicitPrelude \
