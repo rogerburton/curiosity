@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -13,20 +14,28 @@ module Prototype.Exe.Data
   , instantiateStmDb
   , instantiateEmptyStmDb
   -- * Reading values from the database.
+  , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
   , IS.StateModification(..)
   , IS.InteractiveStateErr(..)
-  -- * typeclass-free parsers
+  -- * typeclass-free parsers.
   , parseViz
   , parseMod
+  -- * Serialising and deseralising DB to bytes.
+  , serialiseDb
+  , deserialiseDb
   ) where
 
 import qualified Control.Concurrent.STM        as STM
+import           Data.Aeson
+import qualified Data.Text                     as T
+import qualified Network.HTTP.Types.Status     as S
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Exe.Data.Todo       as Todo
 import qualified Prototype.Exe.Data.User       as U
 import qualified Prototype.Exe.Repl.Parse      as P
+import qualified Prototype.Runtime.Errors      as E
 import qualified Prototype.Runtime.Errors      as Errs
 import qualified Prototype.Runtime.Storage     as S
 
@@ -42,12 +51,15 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@ (thus `Identity`)
-type HaskDb = Db Identity
+type HaskDb runtime = Db Identity runtime
 
 deriving instance Show (HaskDb runtime)
+deriving instance Generic (HaskDb runtime)
+deriving anyclass instance ToJSON (HaskDb runtime)
+deriving anyclass instance FromJSON (HaskDb runtime)
 
 -- | Stm database type, used for live example applications, values reside in @STM@  
-type StmDb = Db STM.TVar
+type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
@@ -55,29 +67,35 @@ emptyHask = Db (pure mempty) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbUserProfiles = seedProfiles, _dbTodos = seedTodos } =
+instantiateStmDb Db { _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos }
+  =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole instantiation under a single STM transaction (@atomically@)
-  liftIO . STM.atomically $ do
+    liftIO . STM.atomically $ do
   -- @runIdentity@ below is necessary to unwrap the values under the @Identity@ newtype.
-    _dbUserProfiles <- STM.newTVar $ runIdentity seedProfiles
-    _dbTodos        <- STM.newTVar $ runIdentity seedTodos
+    _dbUserProfiles <- STM.newTVar seedProfiles
+    _dbTodos        <- STM.newTVar seedTodos
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask
+readFullStmDbInHaskFromRuntime
   :: forall runtime m
    . (MonadIO m, RuntimeHasStmDb runtime)
   => runtime
   -> m (HaskDb runtime)
-readFullStmDbInHask runtime =
-  let stmDb = stmDbFromRuntime runtime
-  in  liftIO . STM.atomically $ do
-        _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-        _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
-        pure Db { .. }
+readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
+{-# INLINE readFullStmDbInHaskFromRuntime #-}
+
+-- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
+readFullStmDbInHask
+  :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
+readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
+  _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
+  pure Db { .. }
+
 
 {- | Provides us with the ability to constrain on a larger product-type (the @runtime@) to contain, in some form or another, a value
 of the `StmDb`, which can be accessed from the @runtime@.
@@ -142,7 +160,8 @@ instance IS.InteractiveState (StmDb runtime) where
   execVisualisation = \case
     VisualiseUser userSelect -> S.dbSelect userSelect <&> UsersVisualised
     VisualiseTodo todoSelect -> S.dbSelect todoSelect <&> TodoListsVisualised
-    VisualiseFullStmDb -> ask >>= readFullStmDbInHask <&> FullStmDbVisualised
+    VisualiseFullStmDb ->
+      ask >>= readFullStmDbInHaskFromRuntime <&> FullStmDbVisualised
 
   execModification = \case
     ModifyUser userUpdate -> S.dbUpdate userUpdate >>= getAffectedUsers
@@ -216,3 +235,25 @@ parseMod =
               P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
         in  P.tryAlts [todoMod, userMod]
        )
+
+newtype DbErr = DbDecodeFailed Text
+              deriving Show
+
+instance E.IsRuntimeErr DbErr where
+  errCode = errCode' . \case
+    DbDecodeFailed{} -> "DECODE_FAILED"
+    where errCode' = mappend "ERR.DB."
+  httpStatus = \case
+    DbDecodeFailed{} -> S.internalServerError500
+  userMessage = Just . \case
+    DbDecodeFailed msg -> msg
+
+-- | Write an entire db state to bytes. 
+serialiseDb :: forall runtime . HaskDb runtime -> LByteString
+serialiseDb = encode
+{-# INLINE serialiseDb #-}
+
+-- | Read an entire db state from bytes. 
+deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
+deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
+{-# INLINE deserialiseDb #-}

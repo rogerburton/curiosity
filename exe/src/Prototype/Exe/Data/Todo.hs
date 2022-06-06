@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -33,6 +34,7 @@ module Prototype.Exe.Data.Todo
   ) where
 
 import           Control.Lens
+import           Data.Aeson
 import           Data.Default.Class
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
@@ -44,7 +46,7 @@ import qualified Prototype.Runtime.Storage     as Storage
 
 -- | The name of a `TodoList`.
 newtype TodoListName = TodoListName Text
-                     deriving (Eq, Show, IsString) via Text
+                     deriving (Eq, Show, IsString, ToJSON, FromJSON) via Text
 
 -- | A simple todo-list
 data TodoList = TodoList
@@ -53,25 +55,27 @@ data TodoList = TodoList
   , _todoListItems :: [TodoListItem] -- ^ Current list of items. 
   , _todoListUsers :: [U.UserId] -- ^ Users this todo-list is accessible to.
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 newtype TodoListItemName = TodoListItemName Text
-                     deriving (Eq, Show, IsString) via Text
+                     deriving (Eq, Show, IsString, ToJSON, FromJSON) via Text
 
 newtype TodoListItemDesc = TodoListItemDesc Text
-                     deriving (Eq, Show, IsString) via Text
-
+                     deriving (Eq, Show, IsString, ToJSON, FromJSON) via Text
 
 data TodoListItem = TodoListItem
   { _todoItemName  :: TodoListItemName -- ^ Name of an item, mandatory. 
   , _todoItemDesc  :: Maybe TodoListItemDesc -- ^ Item description, optional. 
   , _todoItemState :: TodoListItemState -- ^ Item state. 
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 data TodoListItemState = TodoListItemPending
                        | TodoListItemComplete
-                       deriving (Eq, Show, Enum, Bounded, Ord)
+                       deriving (Eq, Show, Enum, Bounded, Ord, Generic)
+                       deriving anyclass (ToJSON, FromJSON)
 
 instance Default TodoListItemState where
   def = TodoListItemPending
