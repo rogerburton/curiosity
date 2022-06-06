@@ -5,6 +5,8 @@ module Prototype.Exe.Exe.Parse2
   ) where
 
 import qualified Options.Applicative           as A
+import qualified Prototype.Exe.Data.User       as U
+import qualified Prototype.Runtime.Storage     as S
 
 
 --------------------------------------------------------------------------------
@@ -26,6 +28,7 @@ data Command =
     -- ^ Username, email address, and password
   | DeleteUser Text
     -- ^ User ID.
+  | SelectUser (S.DBSelect U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
@@ -47,6 +50,9 @@ parserUser = A.subparser
   <> A.command
        "delete"
        (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
+  <> A.command
+       "get"
+       (A.info (parserGetUser <**> A.helper) $ A.progDesc "Select a user")
   )
 
 parserCreateUser :: A.Parser Command
@@ -59,6 +65,11 @@ parserCreateUser =
 parserDeleteUser :: A.Parser Command
 parserDeleteUser =
   DeleteUser <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+
+parserGetUser :: A.Parser Command
+parserGetUser = SelectUser . U.SelectUserById . U.UserId <$> A.argument
+  A.str
+  (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserShowId :: A.Parser Command
 parserShowId =
