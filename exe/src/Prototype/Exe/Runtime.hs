@@ -289,14 +289,13 @@ replaceTodoList newList =
 boot
   :: MonadIO m
   => Conf -- ^ configuration to boot with.
-  -> Maybe (Data.HaskDb Runtime) -- ^ Initial state, if any.
   -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies). 
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf mInitDb jwk = do
+boot _rConf jwk = do
 
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
 
-  eDb       <- instantiateDb _rConf mInitDb
+  eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left err -> Left err
     Right _rDb ->
@@ -320,7 +319,7 @@ powerdown Runtime {..} = do
 
 {- | Instantiate the db.
 
-1. If the user supplies an initial state, that initial state is used without reading any optional file specified in the configuration.
+1. The state is either the empty db, or if a _confDbFile file is specified, is read from the file.
 
 2. Whenever the application exits, the state is written to disk, if a _confDbFile is specified. 
 -}
@@ -328,9 +327,8 @@ instantiateDb
   :: forall m
    . MonadIO m
   => Conf
-  -> Maybe (Data.HaskDb Runtime)
   -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
-instantiateDb Conf {..} mInitDb = maybe attemptFile useState mInitDb
+instantiateDb Conf {..} = attemptFile
  where
   attemptFile = case _confDbFile of
     Just fpath -> do

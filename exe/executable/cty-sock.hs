@@ -35,7 +35,7 @@ mainParserInfo =
 runWithConf conf = do
   putStrLn @Text "Creating runtime..."
   jwt                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwt >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf jwt >>= either throwIO pure
   -- TODO jwt should'nt be in the runtime, but in the HTTP layer
 
   putStrLn @Text "Creating curiosity.sock..."

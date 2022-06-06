@@ -33,7 +33,7 @@ runWithConf conf = do
   putStrLn @Text
     "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
   jwk                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf jwk >>= either throwIO pure
 
   let handleExceptions = (`catch` P.shutdown runtime . Just)
       reportServerEnd  = P.startupLogInfo

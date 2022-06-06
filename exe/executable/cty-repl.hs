@@ -25,7 +25,7 @@ mainParserInfo =
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   jwk                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf jwk >>= either throwIO pure
 
   let handleExceptions = (`catch` P.shutdown runtime . Just)
 
