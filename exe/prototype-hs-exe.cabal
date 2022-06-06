@@ -99,7 +99,9 @@ library
     Prototype.Exe.Server.Private.Pages
   -- More dependencies only specific to the library
   build-depends:
-    http-api-data
+      http-api-data
+    , bytestring 
+    , directory 
 
 -- HTTP server only
 executable cty-serve

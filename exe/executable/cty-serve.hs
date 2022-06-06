@@ -3,7 +3,6 @@ module Main
   ( main
   ) where
 
-import qualified MultiLogging                  as ML
 import qualified Options.Applicative           as A
 import qualified Prototype.Exe.Exe.Parse       as P
 import qualified Prototype.Exe.Exe.Process     as P
@@ -31,8 +30,6 @@ runWithConf conf = do
 
   P.startServer runtime >>= P.endServer _rLoggers
 
-  -- Close all loggers.
-  ML.flushAndCloseLoggers _rLoggers
+  mPowerdownErrs <- Rt.powerdown runtime
 
-  -- FIXME: correct exit codes based on exit reason.
-  exitSuccess
+  maybe exitSuccess throwIO mPowerdownErrs

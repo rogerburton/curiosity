@@ -8,6 +8,7 @@ module Prototype.Exe.Runtime
   , confLogging
   , confCookie
   , confMkJwtSettings
+  , confDbFile
   , ServerConf(..)
   , Runtime(..)
   , rConf
@@ -16,6 +17,7 @@ module Prototype.Exe.Runtime
   , rJwtSettings
   , ExeAppM(..)
   , boot
+  , powerdown
   , runExeAppMSafe
   -- * Servant compat
   , exampleAppMHandlerNatTrans
@@ -28,6 +30,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadThrow
                                                 )
 import qualified Crypto.JOSE.JWK               as JWK
+import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified MultiLogging                  as ML
 import qualified Prototype.Backend.InteractiveState.Repl
@@ -40,6 +43,7 @@ import qualified Prototype.Runtime.Storage     as S
 import           Prototype.Types.Secret         ( (=:=) )
 import qualified Servant
 import qualified Servant.Auth.Server           as Srv
+import           System.Directory               ( doesFileExist )
 
 newtype ServerConf = ServerConf { _serverPort :: Int }
                    deriving Show
@@ -51,6 +55,9 @@ data Conf = Conf
   , _confLogging       :: ML.LoggingConf -- ^ Logging configuration.
   , _confCookie        :: Srv.CookieSettings -- ^ Settings for setting cookies as a server (for authentication etc.).
   , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings -- ^ JWK settings to use, depending on the key employed.
+  , _confDbFile        :: Maybe FilePath
+  -- ^ An optional filepath to write the DB to, or read it from.
+  -- If the file is absent, it will be created on server exit, with the latest DB state written to it.
   }
 
 makeLenses ''Conf
@@ -286,10 +293,62 @@ boot
   -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies). 
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf mInitDb jwk = do
-  _rDb      <- maybe Data.instantiateEmptyStmDb Data.instantiateStmDb mInitDb
+
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
 
-  pure $ Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
+  eDb       <- instantiateDb _rConf mInitDb
+  pure $ case eDb of
+    Left err -> Left err
+    Right _rDb ->
+      Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
+
+-- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
+powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
+powerdown Runtime {..} = do
+  mDbSaveErr <- saveDb
+  -- finally, close loggers.
+  ML.flushAndCloseLoggers _rLoggers
+  pure mDbSaveErr
+ where
+  saveDb = case _rConf ^. confDbFile of
+    Nothing    -> pure Nothing
+    Just fpath -> do
+      haskDb <- Data.readFullStmDbInHask _rDb
+      let bs = Data.serialiseDb haskDb
+      liftIO (try @SomeException (BS.writeFile fpath bs))
+        <&> either (Just . Errs.RuntimeException) (const Nothing)
+
+{- | Instantiate the db.
+
+1. If the user supplies an initial state, that initial state is used without reading any optional file specified in the configuration.
+
+2. Whenever the application exits, the state is written to disk, if a _confDbFile is specified. 
+-}
+instantiateDb
+  :: forall m
+   . MonadIO m
+  => Conf
+  -> Maybe (Data.HaskDb Runtime)
+  -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
+instantiateDb Conf {..} mInitDb = maybe attemptFile useState mInitDb
+ where
+  attemptFile = case _confDbFile of
+    Just fpath -> do
+      -- We may want to read the file only when the file exists. 
+      exists <- liftIO $ doesFileExist fpath
+      if (exists) then fromFile else useEmpty
+     where
+      fromFile = do
+        fdata <- liftIO (BS.readFile fpath)
+        -- We may want to deserialise the data only when the data is non-empty.
+        if BS.null fdata
+          then useEmpty
+          else
+            Data.deserialiseDb fdata
+              & either (pure . Left . Errs.knownErr) useState
+    Nothing -> useEmpty
+  useState = fmap Right . Data.instantiateStmDb
+  useEmpty = Right <$> Data.instantiateEmptyStmDb
 
 -- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans

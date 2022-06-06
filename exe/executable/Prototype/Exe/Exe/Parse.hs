@@ -19,6 +19,7 @@ confParser :: A.Parser Conf
 confParser = do
   _confServer <- serverParser
   _confRepl   <- replParser
+  _confDbFile <- dbFileParser
   pure Conf
     {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
@@ -60,3 +61,12 @@ replParser = do
   _replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
 
   pure Repl.ReplConf { .. }
+
+dbFileParser :: A.Parser (Maybe FilePath)
+dbFileParser =
+  A.optional $ A.strOption $ A.long "db-file" <> A.help helpTxt <> A.metavar
+    "FILEPATH"
+ where
+  helpTxt
+    = "DB file to read initial DB state from. The file may be empty or may not exist, in which case(s), the file will be \
+                  \created on application exit."

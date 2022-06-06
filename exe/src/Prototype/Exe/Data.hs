@@ -14,6 +14,7 @@ module Prototype.Exe.Data
   , instantiateStmDb
   , instantiateEmptyStmDb
   -- * Reading values from the database.
+  , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
   , IS.StateModification(..)
   , IS.InteractiveStateErr(..)
@@ -79,17 +80,22 @@ instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask
+readFullStmDbInHaskFromRuntime
   :: forall runtime m
    . (MonadIO m, RuntimeHasStmDb runtime)
   => runtime
   -> m (HaskDb runtime)
-readFullStmDbInHask runtime =
-  let stmDb = stmDbFromRuntime runtime
-  in  liftIO . STM.atomically $ do
-        _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-        _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
-        pure Db { .. }
+readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
+{-# INLINE readFullStmDbInHaskFromRuntime #-}
+
+-- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
+readFullStmDbInHask
+  :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
+readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
+  _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
+  pure Db { .. }
+
 
 {- | Provides us with the ability to constrain on a larger product-type (the @runtime@) to contain, in some form or another, a value
 of the `StmDb`, which can be accessed from the @runtime@.
@@ -154,7 +160,8 @@ instance IS.InteractiveState (StmDb runtime) where
   execVisualisation = \case
     VisualiseUser userSelect -> S.dbSelect userSelect <&> UsersVisualised
     VisualiseTodo todoSelect -> S.dbSelect todoSelect <&> TodoListsVisualised
-    VisualiseFullStmDb -> ask >>= readFullStmDbInHask <&> FullStmDbVisualised
+    VisualiseFullStmDb ->
+      ask >>= readFullStmDbInHaskFromRuntime <&> FullStmDbVisualised
 
   execModification = \case
     ModifyUser userUpdate -> S.dbUpdate userUpdate >>= getAffectedUsers
