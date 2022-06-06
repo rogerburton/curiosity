@@ -11,7 +11,6 @@ module Prototype.Backend.InteractiveState.Repl
 
 import           Data.Default.Class
 import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as T.IO
 import qualified Data.Text.Lazy                as TL
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
