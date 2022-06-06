@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -22,6 +23,7 @@ module Prototype.Exe.Data
   ) where
 
 import qualified Control.Concurrent.STM        as STM
+import           Data.Aeson
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
 import qualified Prototype.Exe.Data.Todo       as Todo
@@ -42,12 +44,15 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@ (thus `Identity`)
-type HaskDb = Db Identity
+type HaskDb runtime = Db Identity runtime
 
 deriving instance Show (HaskDb runtime)
+deriving instance Generic (HaskDb runtime)
+deriving anyclass instance ToJSON (HaskDb runtime)
+deriving anyclass instance FromJSON (HaskDb runtime)
 
 -- | Stm database type, used for live example applications, values reside in @STM@  
-type StmDb = Db STM.TVar
+type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
