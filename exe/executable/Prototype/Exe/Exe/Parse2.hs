@@ -24,11 +24,8 @@ parserInfo =
 
 --------------------------------------------------------------------------------
 data Command =
-    CreateUser Text Text Text
-    -- ^ Username, email address, and password
-  | DeleteUser Text
-    -- ^ User ID.
-  | SelectUser (S.DBSelect U.UserProfile)
+    SelectUser (S.DBSelect U.UserProfile)
+  | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
@@ -57,14 +54,22 @@ parserUser = A.subparser
 
 parserCreateUser :: A.Parser Command
 parserCreateUser =
-  CreateUser
-    <$> A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
-    <*> A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
-    <*> A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
+  UpdateUser
+    .   U.UserCreate
+    <$> (   U.UserProfile
+        <$> (   U.UserCreds
+            <$> A.argument A.str
+                           (A.metavar "USERNAME" <> A.help "A username")
+            <*> A.argument A.str
+                           (A.metavar "PASSWORD" <> A.help "A password")
+            )
+        <*> A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
+        )
 
 parserDeleteUser :: A.Parser Command
-parserDeleteUser =
-  DeleteUser <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
+  A.str
+  (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserGetUser :: A.Parser Command
 parserGetUser = SelectUser . U.SelectUserById . U.UserId <$> A.argument
