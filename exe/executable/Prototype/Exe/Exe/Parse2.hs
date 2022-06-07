@@ -62,6 +62,8 @@ parserInfoWithTarget =
 data Command =
     Init
     -- ^ Initialise a new, empty state file.
+  | State
+    -- ^ Show the full state.
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
@@ -89,6 +91,12 @@ parser =
           )
 
       <> A.command
+          "state"
+          ( A.info (parserState <**> A.helper)
+          $ A.progDesc "Show the full state"
+          )
+
+      <> A.command
            "user"
            ( A.info (parserUser <**> A.helper)
            $ A.progDesc "User-related commands"
@@ -98,6 +106,9 @@ parser =
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserState :: A.Parser Command
+parserState = pure State
 
 parserUser :: A.Parser Command
 parserUser = A.subparser

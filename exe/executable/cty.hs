@@ -52,6 +52,12 @@ run (P.CommandWithTarget command target) = do
       -- TODO jwt should'nt be in the runtime, but in the HTTP layer
 
       case command of
+        P.State -> do
+          output <-
+            Rt.runExeAppMSafe runtime
+            . IS.execVisualisation
+            $ Data.VisualiseFullStmDb
+          print output
         P.SelectUser select -> do
           output <-
             Rt.runExeAppMSafe runtime

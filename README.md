@@ -121,6 +121,9 @@ instead interact against a running server.
 $ cty init
 State file 'state.json' created.
 
+$ cty state
+Right (FullStmDbVisualised (Db {_dbUserProfiles = Identity [], _dbTodos = Identity []}))
+
 $ cty user get alice
 Right (UsersVisualised [])
 
