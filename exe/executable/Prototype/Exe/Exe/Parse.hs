@@ -25,7 +25,7 @@ confParser = do
     {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
       _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
-                                          "PrototypeExe"
+                                          "Curiosity"
                                           L.levelInfo-- ML.parseLoggingConf
       -- FIXME: Add support for cookie-settings parsing.
     , _confCookie        = Srv.defaultCookieSettings
@@ -37,17 +37,15 @@ confParser = do
     , _confMkJwtSettings = Srv.defaultJWTSettings
     , ..
     }
-  where flspec = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
 
 defaultConf :: Conf
 defaultConf =
   let _confServer = ServerConf 9000
       _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
       _confDbFile = Nothing
-      flspec      = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
   in  Conf
         { _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
-                                              "PrototypeExe"
+                                              "Curiosity"
                                               L.levelInfo
         , _confCookie        = Srv.defaultCookieSettings
                                  { Srv.cookieIsSecure    = Srv.NotSecure
@@ -57,6 +55,8 @@ defaultConf =
         , _confMkJwtSettings = Srv.defaultJWTSettings
         , ..
         }
+
+flspec = FL.FileLogSpec "/tmp/curiosity.log" 5000 0
 
 serverParser :: A.Parser ServerConf
 serverParser = ServerConf . abs <$> A.option
