@@ -6,6 +6,8 @@ module Main
   ( main
   ) where
 
+import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 import qualified Prototype.Backend.InteractiveState.Class
                                                as IS
@@ -14,6 +16,7 @@ import qualified Prototype.Exe.Exe.Parse       as P
 import qualified Prototype.Exe.Exe.Parse2      as P
 import qualified Prototype.Exe.Runtime         as Rt
 import qualified Servant.Auth.Server           as Srv
+import           System.Directory               ( doesFileExist )
 
 
 --------------------------------------------------------------------------------
@@ -23,6 +26,22 @@ main = A.execParser P.parserInfoWithTarget >>= run
 
 --------------------------------------------------------------------------------
 run :: P.CommandWithTarget -> IO ExitCode
+run (P.CommandWithTarget P.Init (P.StateFileTarget path)) = do
+  exists <- liftIO $ doesFileExist path
+  if exists
+    then do
+      putStrLn @Text $ "The file '" <> T.pack path <> "' already exists."
+      putStrLn @Text "Aborting."
+      exitFailure
+    else do
+      let bs = Data.serialiseDb Data.emptyHask
+      try @SomeException (BS.writeFile path bs) >>= either
+        (\e -> print e >> exitFailure)
+        (const $ do
+          putStrLn @Text $ "State file '" <> T.pack path <> "' created."
+          exitSuccess
+        )
+
 run (P.CommandWithTarget command target) = do
   case target of
     P.StateFileTarget path -> do

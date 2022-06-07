@@ -172,7 +172,9 @@ executable cty
   import: common-dependencies, lang-settings, common-extensions
   main-is: cty.hs
   build-depends:
-      optparse-applicative
+      bytestring
+    , directory
+    , optparse-applicative
     , prototype-hs-exe
     , async
     , fast-logger

@@ -118,7 +118,8 @@ By default, `cty` interacts against a state file called `state.json`. Use the
 instead interact against a running server.
 
 ```
-$ rm state.json
+$ cty init
+State file 'state.json' created.
 
 $ cty user get alice
 Right (UsersVisualised [])

@@ -60,7 +60,9 @@ parserInfoWithTarget =
 -- | Describes the command available from the command-line with `cty`, or
 -- within the UNIX-domain socket server, `cty-sock`.
 data Command =
-    SelectUser (S.DBSelect U.UserProfile)
+    Init
+    -- ^ Initialise a new, empty state file.
+  | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
@@ -81,10 +83,22 @@ parser :: A.Parser Command
 parser =
   A.subparser
       (A.command
-        "user"
-        (A.info (parserUser <**> A.helper) $ A.progDesc "User-related commands")
+        "init"
+        ( A.info (parserInit <**> A.helper)
+        $ A.progDesc "Initialise a new, empty state file"
+        )
       )
+    <|> A.subparser
+          (A.command
+            "user"
+            ( A.info (parserUser <**> A.helper)
+            $ A.progDesc "User-related commands"
+            )
+          )
     <|> parserShowId
+
+parserInit :: A.Parser Command
+parserInit = pure Init
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
