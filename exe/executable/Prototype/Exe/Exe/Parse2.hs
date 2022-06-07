@@ -82,19 +82,18 @@ data CommandTarget = StateFileTarget FilePath | UnixDomainTarget FilePath
 parser :: A.Parser Command
 parser =
   A.subparser
-      (A.command
-        "init"
-        ( A.info (parserInit <**> A.helper)
-        $ A.progDesc "Initialise a new, empty state file"
-        )
-      )
-    <|> A.subparser
-          (A.command
-            "user"
-            ( A.info (parserUser <**> A.helper)
-            $ A.progDesc "User-related commands"
-            )
+      (  A.command
+          "init"
+          ( A.info (parserInit <**> A.helper)
+          $ A.progDesc "Initialise a new, empty state file"
           )
+
+      <> A.command
+           "user"
+           ( A.info (parserUser <**> A.helper)
+           $ A.progDesc "User-related commands"
+           )
+      )
     <|> parserShowId
 
 parserInit :: A.Parser Command
