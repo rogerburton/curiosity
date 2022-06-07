@@ -1,4 +1,5 @@
--- | This is the main server-side program to interact with the server.
+-- | This is the main server-side program to interact with the server (through
+-- a UNIX-domain socket) or a state file.
 
 {-# LANGUAGE DataKinds #-}
 module Main

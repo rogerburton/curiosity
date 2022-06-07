@@ -41,7 +41,8 @@ parserInfoWithTarget =
       <$> (  A.strOption
           $  A.short 's'
           <> A.long "state"
-          <> A.help "A state file"
+          <> A.value "state.json"
+          <> A.help "A state file. Default is 'state.json'."
           <> A.metavar "FILEPATH"
           )
       <|> UnixDomainTarget

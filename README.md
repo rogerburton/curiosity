@@ -109,16 +109,24 @@ UsersVisualised []
 
 # `cty`
 
+`cty` is the main command-line tool to interact against a server running on the
+same host (through a UNIX-domain socket), or against a state file. Note that
+modifying a state file used by a running server should be avoided.
+
+By default, `cty` interacts against a state file called `state.json`. Use the
+`--state` option to override the file name. Use the `--socket` option to
+instead interact against a running server.
+
 ```
 $ rm state.json
 
-$ cty -s state.json user get alice
+$ cty user get alice
 Right (UsersVisualised [])
 
-$ cty -s state.json user create alice pass alice@example.com
+$ cty user create alice pass alice@example.com
 Right (UsersModified [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
 
-$ cty -s state.json user get alice
+$ cty user get alice
 Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
 
 ```
