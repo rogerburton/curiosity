@@ -19,6 +19,7 @@ module Prototype.Exe.Runtime
   , boot
   , powerdown
   , readDb
+  , readDbSafe
   , saveDb
   , saveDbAs
   , runExeAppMSafe
@@ -35,7 +36,9 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
 import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
+import qualified Data.Text                     as T
 import qualified MultiLogging                  as ML
+import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Exe.Data            as Data
@@ -334,7 +337,7 @@ instantiateDb
    . MonadIO m
   => Conf
   -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
-instantiateDb Conf {..} = readDb _confDbFile
+instantiateDb Conf {..} = readDbSafe _confDbFile
 
 readDb
   :: forall m
@@ -357,6 +360,38 @@ readDb mpath = case mpath of
         Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
   useEmpty = Right <$> Data.instantiateEmptyStmDb
   useState = fmap Right . Data.instantiateStmDb
+
+-- | A safer version of readDb: this fails if the file doesn't exist or is
+-- empty. This helps in catching early mistake, e.g. from user specifying the
+-- wrong file name on the command-line.
+readDbSafe
+  :: forall m
+   . MonadIO m
+  => Maybe FilePath
+  -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
+readDbSafe mpath = case mpath of
+  Just fpath -> do
+    -- We may want to read the file only when the file exists.
+    exists <- liftIO $ doesFileExist fpath
+    if exists
+      then fromFile fpath
+      else pure . Left . Errs.knownErr $ FileDoesntExistErr fpath
+  Nothing -> useEmpty
+ where
+  fromFile fpath = do
+    fdata <- liftIO (BS.readFile fpath)
+    Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
+  useEmpty = Right <$> Data.instantiateEmptyStmDb
+  useState = fmap Right . Data.instantiateStmDb
+
+data IOErr = FileDoesntExistErr FilePath
+  deriving Show
+
+instance Errs.IsRuntimeErr IOErr where
+  errCode _ = "ERR.FILE_DOENST_EXIST"
+  httpStatus _ = HTTP.notFound404
+  userMessage = Just . T.pack . show
+  displayErr  = T.pack . show
 
 -- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans
