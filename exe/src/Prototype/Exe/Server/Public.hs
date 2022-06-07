@@ -100,6 +100,7 @@ publicT =
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
   processSignup (CreateData userName password passwordConf)
     | password == passwordConf = env $ do
+      ML.info $ "Signing up new user: " <> show userName <> "..."
       ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
       ML.info $ "Users created: " <> show ids
       pure . SS.P.PublicPage $ case headMay ids of

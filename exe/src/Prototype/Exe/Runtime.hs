@@ -111,16 +111,27 @@ runExeAppMSafe rt (ExeAppM op') =
 instance S.DBStorage ExeAppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate newProfile -> onUserIdExists newProfileId
-                                                 createNew
-                                                 existsErr
+    User.UserCreate newProfile ->
+      ML.localEnv (<> "Storage" <> "UserProfile" <> "UserCreate") $ do
+        ML.info
+          $  "Creating new user: "
+          <> (show . User._userCredsId $ User._userCreds newProfile)
+          <> "..."
+        onUserIdExists newProfileId createNew existsErr
      where
       newProfileId = S.dbId newProfile
       createNew    = onUserNameExists
         (newProfile ^. User.userProfileName)
-        (withUserStorage $ modifyUserProfiles newProfileId (newProfile :))
+        (do
+          result <- withUserStorage
+            $ modifyUserProfiles newProfileId (newProfile :)
+          ML.info "User created."
+          pure result
+        )
         existsErr
-      existsErr = Errs.throwError' . User.UserExists . show
+      existsErr err = do
+        ML.info "User already exists."
+        Errs.throwError' . User.UserExists $ show err
 
     User.UserCreateGeneratingUserId userName password -> do
       -- generate a new and random user-id
