@@ -61,7 +61,7 @@ defaultConf =
 serverParser :: A.Parser ServerConf
 serverParser = ServerConf . abs <$> A.option
   A.auto
-  (A.long "server-port" <> A.metavar "PORT" <> A.help
+  (A.long "server-port" <> A.value 9000 <> A.metavar "PORT" <> A.help
     "Port to run the HTTP server on."
   )
 
@@ -78,9 +78,14 @@ replParser = do
   _replHistory <- A.switch $ A.long "repl-history-on" <> A.help
     "Flag to enable history."
 
-  _replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
+  replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
 
-  pure Repl.ReplConf { .. }
+  pure Repl.ReplConf
+    { _replReplExitCmds = if null replReplExitCmds
+                            then ["quit"]
+                            else replReplExitCmds
+    , ..
+    }
 
 dbFileParser :: A.Parser (Maybe FilePath)
 dbFileParser =
