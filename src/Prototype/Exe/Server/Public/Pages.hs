@@ -26,7 +26,7 @@ import qualified Smart.Html.Render             as Render
 import qualified Smart.Html.Shared.Types       as HTypes
 import qualified Text.Blaze.Html5              as H
 
--- | A simple login page. 
+-- | A simple login page.
 newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
 
 -- | For the `LoginPage` markup, we now rely on our DSL to render the login page to our liking
@@ -101,4 +101,5 @@ data NotFoundPage = NotFoundPage
 
 instance H.ToMarkup NotFoundPage where
   toMarkup NotFoundPage = do
-    H.code "404 Not found."
+    Render.renderCanvas $
+      Dsl.SingletonCanvas Errors.NotFound
