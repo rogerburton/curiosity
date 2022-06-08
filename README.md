@@ -135,7 +135,9 @@ Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = User
 
 ```
 
-# Virtual machine image
+# Virtual machine images
+
+## QEMU
 
 A virtual machine image that can be run with QEMU can be built and run with:
 
@@ -144,7 +146,22 @@ $ nix-build -A runvm
 $ result/bin/run-nixos-vm
 ```
 
+Within the VM, Nginx is setup as a reverse-proxy in front of `cty-serve`. You should be able to confirm that with e.g.:
+
+```
+# curl -v 127.0.0.1
+# systemctl status nginx
+# systemctl status app
+```
+
 Use `ctrl-a x` to quit QEMU.
+
+**Note**: when using the `run-nixos-vm` script, a disk file called
+`nixos.qcow2` is created. It is re-used on the next call, and may create some
+conflicts. Thus it is sometimes necessary to delete it before running the
+script again.
+
+## Digital Ocean
 
 An image suitable for Digital Ocean can also be built:
 
