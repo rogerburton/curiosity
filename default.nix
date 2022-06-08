@@ -25,6 +25,7 @@ in with nixpkgs.haskellPackages;
 
     # Build with nix-build -A <attr>
     binaries = prototype-hs-exe;
+    toplevel = os.config.system.build.toplevel;
     image = os.config.system.build.digitalOceanImage;
     runvm = qemu.config.system.build.vm;
   }
