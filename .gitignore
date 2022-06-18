@@ -7,3 +7,5 @@
 /.direnv/
 /dist-prototype-hs-example-exe-run/
 *build-exe*
+result*
+dist*run

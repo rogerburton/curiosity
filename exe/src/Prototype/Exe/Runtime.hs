@@ -395,14 +395,14 @@ readDbSafe mpath = case mpath of
   useEmpty = Right <$> Data.instantiateEmptyStmDb
   useState = fmap Right . Data.instantiateStmDb
 
-data IOErr = FileDoesntExistErr FilePath
+newtype IOErr = FileDoesntExistErr FilePath
   deriving Show
 
 instance Errs.IsRuntimeErr IOErr where
-  errCode _ = "ERR.FILE_DOENST_EXIST"
-  httpStatus _ = HTTP.notFound404
-  userMessage = Just . T.pack . show
-  displayErr  = T.pack . show
+  errCode FileDoesntExistErr{} = "ERR.FILE_DOENST_EXIST"
+  httpStatus FileDoesntExistErr{} = HTTP.notFound404
+  userMessage = Just . \case
+    FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
 
 -- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans
