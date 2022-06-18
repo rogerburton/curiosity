@@ -30,7 +30,8 @@ demonstrate and explore the features of the application.
   interfaces run against the same live state.
 - `cty-sock` offers a text interface similar to `cty-repl` but through a
   UNIX-domain socket, and accepts multiple clients.
-- `cty` is meant as a client for the `cty-sock` server.
+- `cty` is meant as a client for the `cty-sock` server. It can also be run
+  against a local state file.
 - `cty-parse` is a helper program to play with the command parser used in
   `cty-repl`.
 
@@ -104,6 +105,34 @@ UsersModified
 ```
 > viz user SelectUserById "1"
 UsersVisualised []
+```
+
+# `cty`
+
+`cty` is the main command-line tool to interact against a server running on the
+same host (through a UNIX-domain socket), or against a state file. Note that
+modifying a state file used by a running server should be avoided.
+
+By default, `cty` interacts against a state file called `state.json`. Use the
+`--state` option to override the file name. Use the `--socket` option to
+instead interact against a running server.
+
+```
+$ cty init
+State file 'state.json' created.
+
+$ cty state
+Right (FullStmDbVisualised (Db {_dbUserProfiles = Identity [], _dbTodos = Identity []}))
+
+$ cty user get alice
+Right (UsersVisualised [])
+
+$ cty user create alice pass alice@example.com
+Right (UsersModified [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
+
+$ cty user get alice
+Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = UserId "alice", _userCredsPassword = Password Secret :: Text}, _userProfileName = "alice@example.com"}])
+
 ```
 
 # Virtual machine image

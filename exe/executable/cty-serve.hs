@@ -26,7 +26,7 @@ mainParserInfo =
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   jwk                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf Nothing jwk >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf jwk >>= either throwIO pure
 
   P.startServer runtime >>= P.endServer _rLoggers
 

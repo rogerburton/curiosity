@@ -18,6 +18,10 @@ module Prototype.Exe.Runtime
   , ExeAppM(..)
   , boot
   , powerdown
+  , readDb
+  , readDbSafe
+  , saveDb
+  , saveDbAs
   , runExeAppMSafe
   -- * Servant compat
   , exampleAppMHandlerNatTrans
@@ -32,7 +36,9 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
 import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
+import qualified Data.Text                     as T
 import qualified MultiLogging                  as ML
+import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Backend.InteractiveState.Repl
                                                as Repl
 import qualified Prototype.Exe.Data            as Data
@@ -105,16 +111,27 @@ runExeAppMSafe rt (ExeAppM op') =
 instance S.DBStorage ExeAppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate newProfile -> onUserIdExists newProfileId
-                                                 createNew
-                                                 existsErr
+    User.UserCreate newProfile ->
+      ML.localEnv (<> "Storage" <> "UserProfile" <> "UserCreate") $ do
+        ML.info
+          $  "Creating new user: "
+          <> (show . User._userCredsId $ User._userCreds newProfile)
+          <> "..."
+        onUserIdExists newProfileId createNew existsErr
      where
       newProfileId = S.dbId newProfile
       createNew    = onUserNameExists
         (newProfile ^. User.userProfileName)
-        (withUserStorage $ modifyUserProfiles newProfileId (newProfile :))
+        (do
+          result <- withUserStorage
+            $ modifyUserProfiles newProfileId (newProfile :)
+          ML.info "User created."
+          pure result
+        )
         existsErr
-      existsErr = Errs.throwError' . User.UserExists . show
+      existsErr err = do
+        ML.info "User already exists."
+        Errs.throwError' . User.UserExists $ show err
 
     User.UserCreateGeneratingUserId userName password -> do
       -- generate a new and random user-id
@@ -289,14 +306,13 @@ replaceTodoList newList =
 boot
   :: MonadIO m
   => Conf -- ^ configuration to boot with.
-  -> Maybe (Data.HaskDb Runtime) -- ^ Initial state, if any.
   -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies). 
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf mInitDb jwk = do
+boot _rConf jwk = do
 
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
 
-  eDb       <- instantiateDb _rConf mInitDb
+  eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left err -> Left err
     Right _rDb ->
@@ -304,23 +320,26 @@ boot _rConf mInitDb jwk = do
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-powerdown Runtime {..} = do
-  mDbSaveErr <- saveDb
+powerdown runtime@Runtime {..} = do
+  mDbSaveErr <- saveDb runtime
   -- finally, close loggers.
   ML.flushAndCloseLoggers _rLoggers
   pure mDbSaveErr
- where
-  saveDb = case _rConf ^. confDbFile of
-    Nothing    -> pure Nothing
-    Just fpath -> do
-      haskDb <- Data.readFullStmDbInHask _rDb
-      let bs = Data.serialiseDb haskDb
-      liftIO (try @SomeException (BS.writeFile fpath bs))
-        <&> either (Just . Errs.RuntimeException) (const Nothing)
+
+saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
+saveDb runtime =
+  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. confDbFile
+
+saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
+saveDbAs runtime fpath = do
+  haskDb <- Data.readFullStmDbInHask $ _rDb runtime
+  let bs = Data.serialiseDb haskDb
+  liftIO (try @SomeException (BS.writeFile fpath bs))
+    <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 {- | Instantiate the db.
 
-1. If the user supplies an initial state, that initial state is used without reading any optional file specified in the configuration.
+1. The state is either the empty db, or if a _confDbFile file is specified, is read from the file.
 
 2. Whenever the application exits, the state is written to disk, if a _confDbFile is specified. 
 -}
@@ -328,27 +347,62 @@ instantiateDb
   :: forall m
    . MonadIO m
   => Conf
-  -> Maybe (Data.HaskDb Runtime)
   -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
-instantiateDb Conf {..} mInitDb = maybe attemptFile useState mInitDb
+instantiateDb Conf {..} = readDbSafe _confDbFile
+
+readDb
+  :: forall m
+   . MonadIO m
+  => Maybe FilePath
+  -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
+readDb mpath = case mpath of
+  Just fpath -> do
+    -- We may want to read the file only when the file exists.
+    exists <- liftIO $ doesFileExist fpath
+    if (exists) then fromFile fpath else useEmpty
+  Nothing -> useEmpty
  where
-  attemptFile = case _confDbFile of
-    Just fpath -> do
-      -- We may want to read the file only when the file exists. 
-      exists <- liftIO $ doesFileExist fpath
-      if (exists) then fromFile else useEmpty
-     where
-      fromFile = do
-        fdata <- liftIO (BS.readFile fpath)
-        -- We may want to deserialise the data only when the data is non-empty.
-        if BS.null fdata
-          then useEmpty
-          else
-            Data.deserialiseDb fdata
-              & either (pure . Left . Errs.knownErr) useState
-    Nothing -> useEmpty
-  useState = fmap Right . Data.instantiateStmDb
+  fromFile fpath = do
+    fdata <- liftIO (BS.readFile fpath)
+    -- We may want to deserialise the data only when the data is non-empty.
+    if BS.null fdata
+      then useEmpty
+      else
+        Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
   useEmpty = Right <$> Data.instantiateEmptyStmDb
+  useState = fmap Right . Data.instantiateStmDb
+
+-- | A safer version of readDb: this fails if the file doesn't exist or is
+-- empty. This helps in catching early mistake, e.g. from user specifying the
+-- wrong file name on the command-line.
+readDbSafe
+  :: forall m
+   . MonadIO m
+  => Maybe FilePath
+  -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
+readDbSafe mpath = case mpath of
+  Just fpath -> do
+    -- We may want to read the file only when the file exists.
+    exists <- liftIO $ doesFileExist fpath
+    if exists
+      then fromFile fpath
+      else pure . Left . Errs.knownErr $ FileDoesntExistErr fpath
+  Nothing -> useEmpty
+ where
+  fromFile fpath = do
+    fdata <- liftIO (BS.readFile fpath)
+    Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
+  useEmpty = Right <$> Data.instantiateEmptyStmDb
+  useState = fmap Right . Data.instantiateStmDb
+
+newtype IOErr = FileDoesntExistErr FilePath
+  deriving Show
+
+instance Errs.IsRuntimeErr IOErr where
+  errCode FileDoesntExistErr{} = "ERR.FILE_DOENST_EXIST"
+  httpStatus FileDoesntExistErr{} = HTTP.notFound404
+  userMessage = Just . \case
+    FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
 
 -- | Natural transformation from some `ExeAppM` in any given mode, to a servant Handler. 
 exampleAppMHandlerNatTrans

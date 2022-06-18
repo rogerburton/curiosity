@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Prototype.Exe.Exe.Parse
   ( confParser
+  , defaultConf
   ) where
 
 import           Control.Monad.Log             as L
@@ -24,7 +25,7 @@ confParser = do
     {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
       _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
-                                          "PrototypeExe"
+                                          "Curiosity"
                                           L.levelInfo-- ML.parseLoggingConf
       -- FIXME: Add support for cookie-settings parsing.
     , _confCookie        = Srv.defaultCookieSettings
@@ -36,12 +37,31 @@ confParser = do
     , _confMkJwtSettings = Srv.defaultJWTSettings
     , ..
     }
-  where flspec = FL.FileLogSpec "/tmp/prototype-hs.log" 5000 0
+
+defaultConf :: Conf
+defaultConf =
+  let _confServer = ServerConf 9000
+      _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
+      _confDbFile = Nothing
+  in  Conf
+        { _confLogging       = ML.LoggingConf [FL.LogFile flspec 1024]
+                                              "Curiosity"
+                                              L.levelInfo
+        , _confCookie        = Srv.defaultCookieSettings
+                                 { Srv.cookieIsSecure    = Srv.NotSecure
+                                 , Srv.cookieXsrfSetting = Nothing
+                                 , Srv.cookieSameSite    = Srv.SameSiteStrict
+                                 }
+        , _confMkJwtSettings = Srv.defaultJWTSettings
+        , ..
+        }
+
+flspec = FL.FileLogSpec "/tmp/curiosity.log" 5000 0
 
 serverParser :: A.Parser ServerConf
 serverParser = ServerConf . abs <$> A.option
   A.auto
-  (A.long "server-port" <> A.metavar "PORT" <> A.help
+  (A.long "server-port" <> A.value 9000 <> A.metavar "PORT" <> A.help
     "Port to run the HTTP server on."
   )
 
@@ -58,9 +78,14 @@ replParser = do
   _replHistory <- A.switch $ A.long "repl-history-on" <> A.help
     "Flag to enable history."
 
-  _replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
+  replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
 
-  pure Repl.ReplConf { .. }
+  pure Repl.ReplConf
+    { _replReplExitCmds = if null replReplExitCmds
+                            then ["quit"]
+                            else replReplExitCmds
+    , ..
+    }
 
 dbFileParser :: A.Parser (Maybe FilePath)
 dbFileParser =

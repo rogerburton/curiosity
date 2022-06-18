@@ -17,6 +17,7 @@ module Prototype.Exe.Data
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
   , IS.StateModification(..)
+  , IS.StateVisualisation(..)
   , IS.InteractiveStateErr(..)
   -- * typeclass-free parsers.
   , parseViz
@@ -69,9 +70,9 @@ instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db { _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos }
   =
-  -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole instantiation under a single STM transaction (@atomically@)
+  -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
+  -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
-  -- @runIdentity@ below is necessary to unwrap the values under the @Identity@ newtype.
     _dbUserProfiles <- STM.newTVar seedProfiles
     _dbTodos        <- STM.newTVar seedTodos
     pure Db { .. }
