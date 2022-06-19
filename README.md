@@ -135,7 +135,9 @@ Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = User
 
 ```
 
-# Virtual machine image
+# Virtual machine images
+
+## QEMU
 
 A virtual machine image that can be run with QEMU can be built and run with:
 
@@ -144,7 +146,22 @@ $ nix-build -A runvm
 $ result/bin/run-nixos-vm
 ```
 
+Within the VM, Nginx is setup as a reverse-proxy in front of `cty-serve`. You should be able to confirm that with e.g.:
+
+```
+# curl -v 127.0.0.1
+# systemctl status nginx
+# systemctl status app
+```
+
 Use `ctrl-a x` to quit QEMU.
+
+**Note**: when using the `run-nixos-vm` script, a disk file called
+`nixos.qcow2` is created. It is re-used on the next call, and may create some
+conflicts. Thus it is sometimes necessary to delete it before running the
+script again.
+
+## Digital Ocean
 
 An image suitable for Digital Ocean can also be built:
 
@@ -153,3 +170,60 @@ $ nix-build -A image
 $ ls result/
 nixos.qcow2.gz
 ```
+
+Its weight is about 870MB.
+
+
+# The `smartcoop.sh` host
+
+These are raw notes about how `smartcoo.sh` was deployed. I (Thu) have used 4
+scripts that come from my [nix-notes](https://github.com/noteed/nix-notes)
+repository.
+
+Those scripts require some environment variables for authentication, and some
+configuration to point to the right services (DigitalOcean instead of AWS). I'm
+using `.envrc` and a `s3-config` file, that are not versioned.
+
+-   `upload-image.sh` is used to upload the DigitalOcean image to Spaces
+    (similar to S3). This gives us a URL from where the image can be downloaded
+    for the next step.
+
+-   `import-image.sh` is used to import the image as a "custom image" into
+    DigitalOcean. This requires a URL from which DO will download the file.
+    This was provided by the previous step. The command returns quickly, but the
+    image will show as "Pending" in the DO web interface for quite a while.
+
+    ```
+    $ scripts/import-image.sh
+    ID           Name         Type      Distribution    Slug    Public    Min Disk
+    110021225    curiosity    custom    Unknown OS              false     0
+    ```
+
+    The returned image ID is important for the next step.
+
+-   `create-droplet.sh` is used to create a Drople (i.e. a VM) at DO. The image
+    ID from the previous step is hard-coded in the script. In addition, a
+    public SSH key of mine, already known by DO, is specified in the script to
+    be copied in the Droplet. After that, I note its IP address.
+
+    I've confirmed I could SSH into it:
+
+    ```
+    $ ssh root@146.190.30.165
+    ```
+
+    I've also confirmed that the same commands shown above for the QEMU case
+    also work.
+
+    It seems only 4.4GB are used on the 25GB disk.
+
+-   `deploy.sh` is used to deploy changes to the Droplet, without needing to
+    rebuild an image or create a new Droplet. Note that I specified
+    `smartcoop.sh` into the script instead of its IP address. See below.
+
+# The `smartcoop.sh` domain
+
+I've bought the domain at Namecheap on 2022-06-08 and configured Namecheap to
+use DO's name servers. I've created the `smartcoop.sh` domain manually within
+the DO web interface (within the curiosity project). And then created an A
+record for `@`, associated to the above IP address.
