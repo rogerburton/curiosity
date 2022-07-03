@@ -6,15 +6,15 @@
         "type": "git"
     },
     "commence": {
-        "branch": "master",
+        "branch": "noteed/feature/remove-design-hs",
         "repo": "git@github.com:hypered/commence.git",
-        "rev": "2bddc1dab7e37200c1501bc724571bcd9af5c237",
+        "rev": "f1f6573f966e219c41a6c630b85312120deccd22",
         "type": "git"
     },
     "design-hs": {
         "branch": "main",
-        "repo": "git@github.com:smartcoop/design-hs.git",
-        "rev": "ca84b3fc4f54ac9a5c5a45c41bf2749ebd9ee8d4",
+        "repo": "git@github.com:hypered/smart-design-hs.git",
+        "rev": "4ec712eae1116b1ed3d5916c8893e771a2f5fa2f",
         "type": "git"
     },
     "gitignore": {

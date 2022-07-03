@@ -5,10 +5,8 @@ module Prototype.Exe.Server.Shared.Html.Helpers.Form
 import           Network.HTTP.Types.Method      ( StdMethod
                                                 , renderStdMethod
                                                 )
-import qualified "design-hs-lib" Smart.Html.Button
-                                               as Btn
-import qualified "design-hs-lib" Smart.Html.Shared.Types
-                                               as HTypes
+import qualified Smart.Html.Button             as Btn
+import qualified Smart.Html.Shared.Types       as HTypes
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import           Text.Blaze.Html5.Attributes

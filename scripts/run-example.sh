@@ -4,7 +4,7 @@
 # See ghci.sh for comments.
 
 ghc --interactive \
-  -i../design-hs/lib/src/ \
+  -i../smart-design-hs/lib/src/ \
   -iexe/executable/ \
   -iexe/src/ \
   -ilib/src/ \
