@@ -2,15 +2,15 @@
 
 This repository contains a prototype application for the
 [Smart](https://github.com/smartcoop/) cooperative. What we hear about
-"prototype" is written in `start-servant`'s
-[README](https://github.com/noteed/start-servant#readme).
+"prototype" is written in `commence`'s
+[README](https://github.com/hypered/commence#readme).
 
 # Related repositories
 
-- The prototype uses [`design-hs`](https://github.com/smartcoop/design-hs/) as
+- The prototype uses [`design-hs`](https://github.com/hypered/smart-design-hs/) as
   a component library to create HTML pages.
 
-- It also uses [`start-servant`](https://github.com/noteed/start-servant) as a
+- It also uses [`commence`](https://github.com/hypered/commence) as a
   kind of base "framework" to organize the prototype.
 
 # Content
