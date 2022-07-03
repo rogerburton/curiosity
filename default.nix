@@ -20,7 +20,6 @@ let
   };
 in with nixpkgs.haskellPackages;
   { inherit
-      prototype-hs-lib
       prototype-hs-exe;
 
     # Build with nix-build -A <attr>

@@ -5,10 +5,16 @@
         "rev": "434f9f8e49b847ef3e648672c5564b6dd0d3be67",
         "type": "git"
     },
+    "commence": {
+        "branch": "master",
+        "repo": "git@github.com:hypered/commence.git",
+        "rev": "2bddc1dab7e37200c1501bc724571bcd9af5c237",
+        "type": "git"
+    },
     "design-hs": {
         "branch": "main",
         "repo": "git@github.com:smartcoop/design-hs.git",
-        "rev": "df7af2217ebb58ea3f5cf2de3bdda473abd9ed60",
+        "rev": "ca84b3fc4f54ac9a5c5a45c41bf2749ebd9ee8d4",
         "type": "git"
     },
     "gitignore": {
@@ -44,11 +50,5 @@
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs-channels/archive/4b6bfecc0bd.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "start-servant": {
-        "branch": "asheshambasta/feature/user-polymorphism-pages",
-        "repo": "git@github.com:noteed/start-servant.git",
-        "rev": "3a98d72d8f73cf86937a59e2667ed4c808a9845e",
-        "type": "git"
     }
 }
