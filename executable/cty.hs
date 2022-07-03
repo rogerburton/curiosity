@@ -6,11 +6,11 @@ module Main
   ( main
   ) where
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
-import qualified Commence.InteractiveState.Class
-                                               as IS
 import qualified Prototype.Exe.Data            as Data
 import qualified Prototype.Exe.Exe.Parse       as P
 import qualified Prototype.Exe.Exe.Parse2      as P

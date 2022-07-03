@@ -5,14 +5,14 @@
 --
 --   nc -U curiosity.sock
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
 import qualified Data.ByteString.Char8         as B
 import           Network.Socket          hiding ( recv )
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
 import qualified Options.Applicative           as A
-import qualified Commence.InteractiveState.Class
-                                               as IS
 import qualified Prototype.Exe.Data            as Data
 import qualified Prototype.Exe.Data.User       as User
 import qualified Prototype.Exe.Exe.Parse       as P

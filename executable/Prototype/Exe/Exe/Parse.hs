@@ -4,12 +4,12 @@ module Prototype.Exe.Exe.Parse
   , defaultConf
   ) where
 
-import           Control.Monad.Log             as L
-import           Data.Default.Class
-import qualified Commence.Multilogging                  as ML
-import qualified Options.Applicative           as A
 import qualified Commence.InteractiveState.Repl
                                                as Repl
+import qualified Commence.Multilogging         as ML
+import           Control.Monad.Log             as L
+import           Data.Default.Class
+import qualified Options.Applicative           as A
 import           Prototype.Exe.Runtime
 import qualified Servant.Auth.Server           as Srv
 import qualified System.Log.FastLogger         as FL

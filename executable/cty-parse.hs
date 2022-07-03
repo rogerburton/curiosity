@@ -12,10 +12,10 @@ module Main
   ( main
   ) where
 
-import qualified Data.Text                     as T
-import qualified Options.Applicative           as A
 import qualified Commence.InteractiveState.Class
                                                as IS
+import qualified Data.Text                     as T
+import qualified Options.Applicative           as A
 import qualified Prototype.Exe.Data            as Data
 import qualified Prototype.Exe.Runtime         as Rt
 

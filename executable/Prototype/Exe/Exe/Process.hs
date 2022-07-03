@@ -9,18 +9,18 @@ module Prototype.Exe.Exe.Process
   , startupLogInfo
   ) where
 
-import           Control.Lens
-import qualified Control.Monad.Log             as L
-import qualified Data.Text                     as T
-import qualified Commence.Multilogging                  as ML
 import qualified Commence.InteractiveState.Class
                                                as IS
 import qualified Commence.InteractiveState.Repl
                                                as Repl
+import qualified Commence.Multilogging         as ML
+import qualified Commence.Runtime.Errors       as Errs
+import           Control.Lens
+import qualified Control.Monad.Log             as L
+import qualified Data.Text                     as T
 import qualified Prototype.Exe.Data            as Data
 import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server          as Srv
-import qualified Commence.Runtime.Errors      as Errs
 
 
 --------------------------------------------------------------------------------

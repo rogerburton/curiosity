@@ -60,12 +60,12 @@ module Prototype.Exe.Repl.Parse
   , parseListOf
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import           GHC.Base                       ( String )
 import qualified GHC.Show
 import           Network.HTTP.Types.Status      ( unprocessableEntity422 )
-import qualified Commence.Runtime.Errors      as Errs
 import           Text.Megaparsec               as MP
 import           Text.Megaparsec.Char          as MP.Char
 

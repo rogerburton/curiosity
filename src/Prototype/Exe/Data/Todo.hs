@@ -33,6 +33,8 @@ module Prototype.Exe.Data.Todo
   , TodoListErr(..)
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
+import qualified Commence.Runtime.Storage      as Storage
 import           Control.Lens
 import           Data.Aeson
 import           Data.Default.Class
@@ -41,8 +43,6 @@ import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Exe.Data.User       as U
 import qualified Prototype.Exe.Repl.Parse      as P
-import qualified Commence.Runtime.Errors      as Errs
-import qualified Commence.Runtime.Storage     as Storage
 
 -- | The name of a `TodoList`.
 newtype TodoListName = TodoListName Text

@@ -27,18 +27,18 @@ module Prototype.Exe.Data
   , deserialiseDb
   ) where
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
+import qualified Commence.Runtime.Errors       as E
+import qualified Commence.Runtime.Errors       as Errs
+import qualified Commence.Runtime.Storage      as S
 import qualified Control.Concurrent.STM        as STM
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
-import qualified Commence.InteractiveState.Class
-                                               as IS
 import qualified Prototype.Exe.Data.Todo       as Todo
 import qualified Prototype.Exe.Data.User       as U
 import qualified Prototype.Exe.Repl.Parse      as P
-import qualified Commence.Runtime.Errors      as E
-import qualified Commence.Runtime.Errors      as Errs
-import qualified Commence.Runtime.Storage     as S
 
 {- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
 dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be

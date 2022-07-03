@@ -29,6 +29,7 @@ module Prototype.Exe.Runtime
 
 import qualified Commence.InteractiveState.Repl
                                                as Repl
+import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Commence.Types.Secret          ( (=:=) )
@@ -42,7 +43,6 @@ import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
-import qualified Commence.Multilogging                  as ML
 import qualified Network.HTTP.Types            as HTTP
 import qualified Prototype.Exe.Data            as Data
 import qualified Prototype.Exe.Data.Todo       as Todo

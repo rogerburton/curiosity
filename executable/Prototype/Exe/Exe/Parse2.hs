@@ -8,9 +8,9 @@ module Prototype.Exe.Exe.Parse2
   , CommandTarget(..)
   ) where
 
+import qualified Commence.Runtime.Storage      as S
 import qualified Options.Applicative           as A
 import qualified Prototype.Exe.Data.User       as U
-import qualified Commence.Runtime.Storage     as S
 
 
 --------------------------------------------------------------------------------
@@ -91,10 +91,10 @@ parser =
           )
 
       <> A.command
-          "state"
-          ( A.info (parserState <**> A.helper)
-          $ A.progDesc "Show the full state"
-          )
+           "state"
+           ( A.info (parserState <**> A.helper)
+           $ A.progDesc "Show the full state"
+           )
 
       <> A.command
            "user"

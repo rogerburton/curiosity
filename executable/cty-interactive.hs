@@ -4,8 +4,8 @@ module Main
   ( main
   ) where
 
+import           Commence.Multilogging          ( flushAndCloseLoggers )
 import qualified Control.Concurrent.Async      as Async
-import           Commence.Multilogging                   ( flushAndCloseLoggers )
 import qualified Options.Applicative           as A
 import qualified Prototype.Exe.Exe.Parse       as P
 import qualified Prototype.Exe.Exe.Process     as P
