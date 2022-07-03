@@ -4,13 +4,13 @@
 let
 
   sources = import ./sources.nix;
-  inherit (sources) start-servant design-hs; 
+  inherit (sources) commence design-hs; 
 
   getOverlays = pkg : import "${pkg}/nix/overlays.nix";
 
   # We can overlay haskell packages here.
   haskellOverlays =
-          getOverlays start-servant
+          getOverlays commence # we get 2 packages: commence-core and commence-interactive-state
        ++ getOverlays design-hs
        ;
 
