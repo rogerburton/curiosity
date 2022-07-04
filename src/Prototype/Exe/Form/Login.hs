@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Prototype.Exe.Form.Login
-  ( Input
+  ( Input(..)
   , Page(..)
   , ResultPage(..)
   ) where

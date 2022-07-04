@@ -8,12 +8,13 @@ Description: User related datatypes
 -}
 module Prototype.Exe.Data.User
   ( UserCreds(..)
-  , userCredsId
+  , userCredsName
   , userCredsPassword
   , UserProfile'(..)
   , UserProfile
-  , userCreds
-  , userProfileName
+  , userProfileCreds
+  , userProfileId
+  , userProfileDisplayName
   , UserId(..)
   , genRandomUserId
   , UserName(..)
@@ -21,7 +22,7 @@ module Prototype.Exe.Data.User
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
-  -- ** Parsers 
+  -- ** Parsers
   , dbUpdateParser
   , dbSelectParser
   , userIdParser
@@ -47,29 +48,45 @@ import qualified System.Random                 as Rand
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.FormUrlEncoded             ( FromForm(..), parseUnique )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
--- | User's credentials. 
+
+--------------------------------------------------------------------------------
+-- | User's credentials.
 data UserCreds = UserCreds
-  { _userCredsId       :: UserId
+  { _userCredsName     :: UserName
   , _userCredsPassword :: Password
   }
   deriving (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON, FromForm)
+  deriving anyclass (ToJSON, FromJSON)
 
-data UserProfile' creds userName = UserProfile
-  { _userCreds       :: creds -- ^ Users credentials 
-  , _userProfileName :: userName -- ^ User's human friendly name.
+instance FromForm UserCreds where
+  fromForm f = UserCreds <$> parseUnique "username" f <*> parseUnique "password" f
+
+data UserProfile' creds userDisplayName userEmailAddr = UserProfile
+  { _userProfileId          :: UserId
+  , _userProfileCreds       :: creds -- ^ Users credentials
+  , _userProfileDisplayName :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr   :: userEmailAddr -- ^ User's email address
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-type UserProfile = UserProfile' UserCreds UserName
+type UserProfile = UserProfile' UserCreds UserDisplayName UserEmailAddr
 
+-- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName Text
                  deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
                  deriving (FromHttpApiData, FromForm) via W.Wrapped "username" Text
+
+newtype UserDisplayName = UserDisplayName Text
+                 deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
+                 deriving (FromHttpApiData, FromForm) via W.Wrapped "display-name" Text
+
+newtype UserEmailAddr = UserEmailAddr Text
+                 deriving (Eq, Show, IsString, FromJSON , ToJSON) via Text
+                 deriving (FromHttpApiData, FromForm) via W.Wrapped "email-addr" Text
 
 newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving (Eq, IsString) via Text
@@ -78,21 +95,24 @@ newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                           , ToJSON
                           ) via (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving stock Show
-                 deriving FromForm via W.Wrapped "userPassword" Text
+                 deriving FromForm via W.Wrapped "password" Text
 
+-- | Record ID of the form USER-xxx.
 newtype UserId = UserId Text
                deriving (Eq, Show, SAuth.ToJWT, SAuth.FromJWT)
                deriving (IsString, FromHttpApiData, FromJSON, ToJSON) via Text
-               deriving FromForm via W.Wrapped "userId" Text
+               deriving FromForm via W.Wrapped "user-id" Text
 
 -- | Randomly generated and character based user-id.
+-- TODO Generate this sequentially instead.
 genRandomUserId :: forall m . MonadIO m => Int -> m UserId
 genRandomUserId len =
   liftIO
     $   UserId
     .   T.pack
+    .   ("USER-" <>)
     .   take (abs len)
-    .   Rand.randomRs ('a', 'z')
+    .   Rand.randomRs ('0', '9')
     <$> Rand.getStdGen
 
 instance Nav.IsNavbarContent UserProfile where
@@ -101,12 +121,12 @@ instance Nav.IsNavbarContent UserProfile where
     editProfileLink
     H.hr
    where
-    greeting = H.div . H.text $ T.unwords ["Hi", _userProfileName ^. coerced]
+    greeting = H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
     editProfileLink = H.a ! A.href "/private/user/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
-  dbId = _userCredsId . _userCreds
+  dbId = _userProfileId
 
 instance Storage.DBStorageOps UserProfile where
   data DBUpdate UserProfile =
@@ -115,11 +135,12 @@ instance Storage.DBStorageOps UserProfile where
     | UserDelete UserId
     | UserPasswordUpdate UserId Password
     deriving (Show, Eq)
-  
+
   data DBSelect UserProfile =
-    -- | Attempt a user-login using the more ambiguous but more friendly `UserName` and `Password.
+    -- | Attempt a user-login using the more ambiguous but more friendly
+    -- `UserName` and `Password.
     UserLoginWithUserName UserName Password
-    -- | Select a user with a known `UserId`. 
+    -- | Select a user with a known `UserId`.
     | SelectUserById UserId
     -- | Select a user with `UserName`.
     | SelectUserByUserName UserName
@@ -142,7 +163,7 @@ dbUpdateParser = P.tryAlts
          <*> userPasswordParser
          )
 
--- | For simplicity, we keep the parsers close to the actual data-constructors. 
+-- | For simplicity, we keep the parsers close to the actual data-constructors.
 dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
 dbSelectParser = P.tryAlts
   [userLoginWithUserName, selectUserById, selectUsersByUserName]
@@ -160,24 +181,34 @@ dbSelectParser = P.tryAlts
       *>  userNameParser
       <&> SelectUserByUserName
 
--- | The UserId has to be non-empty ascii character 
+-- | The UserId has to be non-empty ascii character
 userIdParser :: P.ParserText UserId
 userIdParser = UserId <$> P.punctuated P.alphaNumText
 
 userNameParser :: P.ParserText UserName
 userNameParser = UserName <$> P.punctuated P.takeRest
 
--- | For the password, we want to consume everything within the punctuations. 
+userDisplayNameParser :: P.ParserText UserDisplayName
+userDisplayNameParser = UserDisplayName <$> P.punctuated P.takeRest
+
+userEmailAddrParser :: P.ParserText UserEmailAddr
+userEmailAddrParser = UserEmailAddr <$> P.punctuated P.takeRest
+
+-- | For the password, we want to consume everything within the punctuations.
 userPasswordParser :: P.ParserText Password
 userPasswordParser = Password . Secret.Secret <$> P.punctuated
   (P.takeWhile1P (Just "Password") (not . Char.isPunctuation))
 
 userProfileParser :: P.ParserText UserProfile
 userProfileParser =
-  UserProfile <$> (userCredsParser <* P.space) <*> (userNameParser <* P.space)
+  UserProfile
+    <$> (userIdParser <* P.space)
+    <*> (userCredsParser <* P.space)
+    <*> (userDisplayNameParser <* P.space)
+    <*> (userEmailAddrParser <* P.space)
 
 userCredsParser =
-  UserCreds <$> (userIdParser <* P.space) <*> userPasswordParser
+  UserCreds <$> (userNameParser <* P.space) <*> userPasswordParser
 
 data UserErr = UserExists Text
              | UserNotFound Text

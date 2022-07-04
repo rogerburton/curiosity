@@ -41,14 +41,14 @@ instance H.ToMarkup LoginPage where
         )
    where
     username =
-      ( "UserID or UserName"
-      , Inp.PlainTextInput HTypes.Enabled "_userCredsId" "_userCredsId" Nothing
+      ( "Username"
+      , Inp.PlainTextInput HTypes.Enabled "username" "username" Nothing
       )
     password =
       ( "Password"
       , Inp.PasswordInput HTypes.Enabled
-                          "_userCredsPassword"
-                          "_userCredsPassword"
+                          "password"
+                          "password"
                           Nothing
       )
     loginButton = mkButton "Login" submitUrl POST

@@ -78,22 +78,22 @@ publicT =
         mApplyCookies <- liftIO $ SAuth.acceptLogin
           _confCookie
           jwtSettings
-          (u ^. User.userCreds . User.userCredsId)
+          (u ^. User.userProfileId)
         ML.info "Applying cookies."
         case mApplyCookies of
           Nothing -> do
             ML.warning "Auth failed."
-            unauthdErr $ u ^. User.userCreds . User.userCredsId
+            unauthdErr $ creds ^. User.userCredsName
           Just applyCookies -> do
             ML.info "User logged in"
             pure . addHeader @"Location" "/private/welcome" $ applyCookies
               NoContent
-      Nothing -> unauthdErr $ creds ^. User.userCredsId -- no users found
+      Nothing -> unauthdErr $ creds ^. User.userCredsName -- no users found
    where
-    env               = ML.localEnv (<> "Login" <> show _userCredsId)
+    env               = ML.localEnv (<> "Login" <> show _userCredsName)
     findMatchingUsers = do
       ML.info "Login with UserId failed, falling back to UserName based auth."
-      S.dbSelect $ User.UserLoginWithUserName (_userCredsId ^. coerced) -- UserId -> UserName 
+      S.dbSelect $ User.UserLoginWithUserName _userCredsName
                                               _userCredsPassword
 
   showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"

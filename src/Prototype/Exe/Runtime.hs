@@ -115,13 +115,13 @@ instance S.DBStorage ExeAppM User.UserProfile where
       ML.localEnv (<> "Storage" <> "UserProfile" <> "UserCreate") $ do
         ML.info
           $  "Creating new user: "
-          <> (show . User._userCredsId $ User._userCreds newProfile)
+          <> (show . User._userCredsName $ User._userProfileCreds newProfile)
           <> "..."
         onUserIdExists newProfileId createNew existsErr
      where
       newProfileId = S.dbId newProfile
       createNew    = onUserNameExists
-        (newProfile ^. User.userProfileName)
+        (newProfile ^. User.userProfileCreds ^. User.userCredsName)
         (do
           result <- withUserStorage
             $ modifyUserProfiles newProfileId (newProfile :)
@@ -137,7 +137,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
       -- generate a new and random user-id
       newId <- User.genRandomUserId 10
       let newProfile =
-            User.UserProfile (User.UserCreds newId password) userName
+            User.UserProfile newId (User.UserCreds userName password) "TODO" "TOTO@example.com"
       S.dbUpdate $ User.UserCreate newProfile
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
@@ -151,7 +151,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
       updateUser
      where
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
-      setPassword = set (User.userCreds . User.userCredsPassword) newPass
+      setPassword = set (User.userProfileCreds . User.userCredsPassword) newPass
       replaceOlder users =
         [ if S.dbId u == id then setPassword u else u | u <- users ]
 
@@ -168,7 +168,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
          where
           passwordsMatch = storedPass =:= passInput
           User.Password storedPass =
-            u ^. User.userCreds . User.userCredsPassword
+            u ^. User.userProfileCreds . User.userCredsPassword
         _ -> userNotFound $ "No user with userName = " <> userName ^. coerced
 
     User.SelectUserById id ->
@@ -177,7 +177,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
 
     User.SelectUserByUserName userName ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
-        ((== userName) . User._userProfileName)
+        ((== userName) . User._userCredsName . User._userProfileCreds)
 
 -- | Support for logging for the example application 
 instance ML.MonadAppNameLogMulti ExeAppM where

@@ -62,7 +62,7 @@ privateT authResult = showWelcomePage :<|> showProfilePage :<|> editUser
       Just newPass ->
         let updatedProfile =
               profile
-                &  User.userCreds
+                &  User.userProfileCreds
                 .  User.userCredsPassword
                 %~ (`fromMaybe` _editPassword)
         in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
