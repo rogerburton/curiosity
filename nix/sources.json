@@ -12,9 +12,9 @@
         "type": "git"
     },
     "design-hs": {
-        "branch": "main",
+        "branch": "noteed/feature/add-landing-page",
         "repo": "git@github.com:hypered/smart-design-hs.git",
-        "rev": "4ec712eae1116b1ed3d5916c8893e771a2f5fa2f",
+        "rev": "75dbe60896bbf92d60910c18e5f01aa7a737eb2e",
         "type": "git"
     },
     "gitignore": {

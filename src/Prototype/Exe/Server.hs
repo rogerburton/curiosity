@@ -23,6 +23,7 @@ import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
 import           Prototype.Exe.Data.User        ( )
+import qualified Prototype.Exe.Form.Signup     as Signup
 import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server.Private  as Priv
 import qualified Prototype.Exe.Server.Public   as Pub
@@ -39,13 +40,28 @@ type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
 -- brittany-disable-next-binding 
 type Exe = Get '[B.HTML] Pages.LandingPage
+             :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
+             :<|> "echo" :> "signup"
+                  :> ReqBody '[FormUrlEncoded] Signup.Input
+                  :> Post '[B.HTML] Signup.ResultPage
+             :<|> "signup" :> Get '[B.HTML] Signup.Page
+             :<|> "a" :> "signup"
+                  :> ReqBody '[FormUrlEncoded] Signup.Input
+                  :> Post '[B.HTML] Signup.ResultPage
              :<|> "public" :> Pub.Public
              :<|> "private" :> Priv.Private
              :<|> Raw -- catchall for custom 404
 
 exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
 exampleT =
-  showLandingPage :<|> Pub.publicT :<|> Priv.privateT :<|> pure custom404
+  showLandingPage
+    :<|> documentSignupPage
+    :<|> echoSignup
+    :<|> showSignupPage
+    :<|> handleSignup
+    :<|> Pub.publicT
+    :<|> Priv.privateT
+    :<|> pure custom404
 
 -- | Run as a Wai Application
 exampleApplication
@@ -79,6 +95,18 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
 
 showLandingPage :: Pub.PublicServerC m => m Pages.LandingPage
 showLandingPage = pure Pages.LandingPage
+
+showSignupPage :: Pub.PublicServerC m => m Signup.Page
+showSignupPage = pure $ Signup.Page "/a/signup"
+
+documentSignupPage :: Pub.PublicServerC m => m Signup.Page
+documentSignupPage = pure $ Signup.Page "/echo/signup"
+
+handleSignup :: Pub.PublicServerC m => Signup.Input -> m Signup.ResultPage
+handleSignup _ = pure $ Signup.Failure "TODO handleSignup"
+
+echoSignup :: Pub.PublicServerC m => Signup.Input -> m Signup.ResultPage
+echoSignup input = pure $ Signup.Success $ show input
 
 custom404 :: Application
 custom404 _request sendResponse = sendResponse $ Wai.responseLBS

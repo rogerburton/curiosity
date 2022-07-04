@@ -89,6 +89,7 @@ library
     Prototype.Exe.Runtime
     Prototype.Exe.Data.Todo
     Prototype.Exe.Data.User
+    Prototype.Exe.Form.Signup
     Prototype.Exe.Server
     Prototype.Exe.Server.Shared.Html.Helpers.Form
     Prototype.Exe.Server.Public
