@@ -23,6 +23,7 @@ import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
 import           Prototype.Exe.Data.User        ( )
+import qualified Prototype.Exe.Form.Login      as Login
 import qualified Prototype.Exe.Form.Signup     as Signup
 import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server.Private  as Priv
@@ -40,14 +41,26 @@ type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
 
 -- brittany-disable-next-binding 
 type Exe = Get '[B.HTML] Pages.LandingPage
+             :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
+
+             :<|> "echo" :> "login"
+                  :> ReqBody '[FormUrlEncoded] Login.Input
+                  :> Post '[B.HTML] Login.ResultPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] Signup.Input
                   :> Post '[B.HTML] Signup.ResultPage
+
+             :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
+
+             :<|> "a" :> "login"
+                  :> ReqBody '[FormUrlEncoded] Login.Input
+                  :> Post '[B.HTML] Login.ResultPage
              :<|> "a" :> "signup"
                   :> ReqBody '[FormUrlEncoded] Signup.Input
                   :> Post '[B.HTML] Signup.ResultPage
+
              :<|> "public" :> Pub.Public
              :<|> "private" :> Priv.Private
              :<|> Raw -- catchall for custom 404
@@ -55,9 +68,13 @@ type Exe = Get '[B.HTML] Pages.LandingPage
 exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
 exampleT =
   showLandingPage
+    :<|> documentLoginPage
     :<|> documentSignupPage
+    :<|> echoLogin
     :<|> echoSignup
+    :<|> showLoginPage
     :<|> showSignupPage
+    :<|> handleLogin
     :<|> handleSignup
     :<|> Pub.publicT
     :<|> Priv.privateT
@@ -96,6 +113,8 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
 showLandingPage :: Pub.PublicServerC m => m Pages.LandingPage
 showLandingPage = pure Pages.LandingPage
 
+
+--------------------------------------------------------------------------------
 showSignupPage :: Pub.PublicServerC m => m Signup.Page
 showSignupPage = pure $ Signup.Page "/a/signup"
 
@@ -108,6 +127,22 @@ handleSignup _ = pure $ Signup.Failure "TODO handleSignup"
 echoSignup :: Pub.PublicServerC m => Signup.Input -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
 
+
+--------------------------------------------------------------------------------
+showLoginPage :: Pub.PublicServerC m => m Login.Page
+showLoginPage = pure $ Login.Page "/a/login"
+
+documentLoginPage :: Pub.PublicServerC m => m Login.Page
+documentLoginPage = pure $ Login.Page "/echo/login"
+
+handleLogin :: Pub.PublicServerC m => Login.Input -> m Login.ResultPage
+handleLogin _ = pure $ Login.Failure "TODO handleLogin"
+
+echoLogin :: Pub.PublicServerC m => Login.Input -> m Login.ResultPage
+echoLogin input = pure $ Login.Success $ show input
+
+
+--------------------------------------------------------------------------------
 custom404 :: Application
 custom404 _request sendResponse = sendResponse $ Wai.responseLBS
   HTTP.status404
