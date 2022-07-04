@@ -86,7 +86,7 @@ publicT =
             unauthdErr $ creds ^. User.userCredsName
           Just applyCookies -> do
             ML.info "User logged in"
-            pure . addHeader @"Location" "/private/welcome" $ applyCookies
+            pure . addHeader @"Location" "/" $ applyCookies
               NoContent
       Nothing -> unauthdErr $ creds ^. User.userCredsName -- no users found
    where

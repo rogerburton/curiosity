@@ -46,15 +46,12 @@ type PrivateServerC m
 type Private = Auth.UserAuthentication :> UserPages
 -- brittany-disable-next-binding
 type UserPages
-  = "welcome" :> H.GetUserPage Pages.WelcomePage
-    :<|> "user" :> "profile" :> H.GetUserPage Pages.ProfilePage
+  = "user" :> "profile" :> H.GetUserPage Pages.ProfilePage
     :<|> EditUser
 
 privateT :: forall m . PrivateServerC m => ServerT Private m
-privateT authResult = showWelcomePage :<|> showProfilePage :<|> editUser
+privateT authResult = showProfilePage :<|> editUser
  where
-  showWelcomePage =
-    withUser $ \profile -> pure $ SS.P.AuthdPage profile Pages.WelcomePage
   showProfilePage = withUser $ \profile ->
     pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->

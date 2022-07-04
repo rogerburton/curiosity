@@ -15,6 +15,7 @@ module Prototype.Exe.Data.User
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
+  , userProfileEmailAddr
   , UserId(..)
   , genRandomUserId
   , UserName(..)

@@ -18,29 +18,40 @@ module Prototype.Exe.Server
   , ServerSettings
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
+import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import           Prototype.Exe.Data.User        ( )
+import qualified Prototype.Exe.Data.User       as User
 import qualified Prototype.Exe.Form.Login      as Login
 import qualified Prototype.Exe.Form.Signup     as Signup
 import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server.Private  as Priv
+import qualified Prototype.Exe.Server.Private.Auth
+                                               as Auth
+import qualified Prototype.Exe.Server.Private.Pages
+                                               as Pages
 import qualified Prototype.Exe.Server.Public   as Pub
 import qualified Prototype.Exe.Server.Public.Pages
                                                as Pages
 import           Servant
-import qualified Servant.Auth.Server           as Srv
+import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
+import           Smart.Server.Page              ( PageEither )
+import qualified Smart.Server.Page             as SS.P
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 
-type ServerSettings = '[Srv.CookieSettings , Srv.JWTSettings]
+type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 
 -- brittany-disable-next-binding 
-type Exe = Get '[B.HTML] Pages.LandingPage
+type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
+               Pages.LandingPage
+               (SS.P.Page 'SS.P.Authd User.UserProfile Pages.WelcomePage)
+             )
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
 
@@ -110,8 +121,28 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
       Server.:. _rJwtSettings
       Server.:. Server.EmptyContext
 
-showLandingPage :: Pub.PublicServerC m => m Pages.LandingPage
-showLandingPage = pure Pages.LandingPage
+-- | Show the landing page when the user is not logged in, or the welcome page
+-- when the user is logged in.
+showLandingPage
+  :: Pub.PublicServerC m
+  => SAuth.AuthResult User.UserId
+  -> m
+       ( PageEither
+           -- We don't use SS.P.Public Void to not have the automatic heading.
+           Pages.LandingPage
+           (SS.P.Page 'SS.P.Authd User.UserProfile Pages.WelcomePage)
+       )
+showLandingPage = \case
+  SAuth.Authenticated userId ->
+    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+      -- TODO Log out the user.
+      Nothing -> authFailedErr $ "No user found by ID = " <> show userId
+      Just userProfile ->
+        pure . SS.P.PageR $ SS.P.AuthdPage userProfile Pages.WelcomePage
+  _ -> pure $ SS.P.PageL Pages.LandingPage
+ where
+  authFailedErr = Errs.throwError' . User.UserNotFound . mappend
+    "Authentication failed, please login again. Error: "
 
 
 --------------------------------------------------------------------------------
