@@ -50,17 +50,27 @@ import qualified System.Random                 as Rand
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-import           Web.FormUrlEncoded             ( FromForm(..), parseUnique )
+import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseUnique
+                                                )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
 -- | Represents the input data used for user registration.
 data Signup = Signup
-  { username             :: UserName
-  , password             :: Password
+  { username :: UserName
+  , password :: Password
+  , email    :: UserEmailAddr
   }
-  deriving (Generic, Eq, Show, FromForm)
+  deriving (Generic, Eq, Show)
+
+instance FromForm Signup where
+  fromForm f =
+    Signup
+      <$> parseUnique "username"   f
+      <*> parseUnique "password"   f
+      <*> parseUnique "email-addr" f
 
 -- | User's credentials.
 data UserCreds = UserCreds
@@ -71,7 +81,8 @@ data UserCreds = UserCreds
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm UserCreds where
-  fromForm f = UserCreds <$> parseUnique "username" f <*> parseUnique "password" f
+  fromForm f =
+    UserCreds <$> parseUnique "username" f <*> parseUnique "password" f
 
 data UserProfile' creds userDisplayName userEmailAddr = UserProfile
   { _userProfileId          :: UserId
@@ -130,7 +141,8 @@ instance Nav.IsNavbarContent UserProfile where
     editProfileLink
     H.hr
    where
-    greeting = H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
+    greeting =
+      H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
     editProfileLink = H.a ! A.href "/private/user/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
@@ -140,7 +152,7 @@ instance Storage.DBIdentity UserProfile where
 instance Storage.DBStorageOps UserProfile where
   data DBUpdate UserProfile =
     UserCreate UserProfile
-    | UserCreateGeneratingUserId UserName Password
+    | UserCreateGeneratingUserId UserName Password UserEmailAddr
     | UserDelete UserId
     | UserPasswordUpdate UserId Password
     deriving (Show, Eq)
@@ -163,7 +175,11 @@ dbUpdateParser = P.tryAlts
     P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
   userCreateGeneratingUserId =
     P.withTrailSpaces "UserCreateGeneratingUserId"
-      *> (UserCreateGeneratingUserId <$> userNameParser <*> userPasswordParser)
+      *> (   UserCreateGeneratingUserId
+         <$> userNameParser
+         <*> userPasswordParser
+         <*> userEmailAddrParser
+         )
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
     P.withTrailSpaces "UserPasswordUpdate"

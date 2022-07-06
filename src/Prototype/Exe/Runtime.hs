@@ -133,11 +133,11 @@ instance S.DBStorage ExeAppM User.UserProfile where
         ML.info "User already exists."
         Errs.throwError' . User.UserExists $ show err
 
-    User.UserCreateGeneratingUserId userName password -> do
+    User.UserCreateGeneratingUserId username password email -> do
       -- generate a new and random user-id
       newId <- User.genRandomUserId 10
       let newProfile =
-            User.UserProfile newId (User.UserCreds userName password) "TODO" "TOTO@example.com"
+            User.UserProfile newId (User.UserCreds username password) "TODO" email
       S.dbUpdate $ User.UserCreate newProfile
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser

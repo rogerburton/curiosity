@@ -193,9 +193,9 @@ type Public = "a" :> "signup"
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
 publicT = handleSignup :<|> authenticateUser
 
-handleSignup (User.Signup userName password) = env $ do
-  ML.info $ "Signing up new user: " <> show userName <> "..."
-  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
+handleSignup (User.Signup username password email) = env $ do
+  ML.info $ "Signing up new user: " <> show username <> "..."
+  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
   case headMay ids of
     Just uid -> do
       ML.info $ "User created: " <> show uid <> ". Sending success result."
