@@ -12,9 +12,6 @@ import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-import           Web.FormUrlEncoded             ( FromForm(..)
-                                                , parseUnique
-                                                )
 
 
 --------------------------------------------------------------------------------

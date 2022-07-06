@@ -46,7 +46,6 @@ import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
-import           Web.FormUrlEncoded             ( FromForm(..) )
 
 
 --------------------------------------------------------------------------------
