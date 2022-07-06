@@ -200,7 +200,7 @@ type Public = "a" :> "login"
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
 publicT = authenticateUser :<|> processSignup
 
-authenticateUser creds@User.UserCreds {..} =
+authenticateUser User.UserCreds {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
       -- get the config. to get the cookie and JWT settings.
@@ -215,12 +215,12 @@ authenticateUser creds@User.UserCreds {..} =
       case mApplyCookies of
         Nothing -> do
           ML.warning "Auth failed."
-          unauthdErr $ creds ^. User.userCredsName
+          unauthdErr _userCredsName
         Just applyCookies -> do
           ML.info "User logged in"
           pure . addHeader @"Location" "/" $ applyCookies
             NoContent
-    Nothing -> unauthdErr $ creds ^. User.userCredsName -- no users found
+    Nothing -> unauthdErr _userCredsName -- no users found
  where
   env               = ML.localEnv (<> "Login" <> show _userCredsName)
   findMatchingUsers = do
