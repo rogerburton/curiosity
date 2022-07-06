@@ -65,14 +65,15 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
-             :<|> "a" :> "login"
+             -- Temporarily let the old handlers in Public.hs use the "a" prefix.
+             :<|> "b" :> "login"
                   :> ReqBody '[FormUrlEncoded] Login.Input
                   :> Post '[B.HTML] Login.ResultPage
-             :<|> "a" :> "signup"
+             :<|> "b" :> "signup"
                   :> ReqBody '[FormUrlEncoded] Signup.Input
                   :> Post '[B.HTML] Signup.ResultPage
 
-             :<|> "public" :> Pub.Public
+             :<|> Pub.Public
              :<|> "private" :> Priv.Private
              :<|> Raw -- catchall for custom 404
 

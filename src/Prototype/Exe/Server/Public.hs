@@ -45,29 +45,23 @@ type PublicServerC m
 data CreateData = CreateData
   { username             :: User.UserName
   , password             :: User.Password
-  , passwordConfirmation :: User.Password
   }
   deriving (Generic, Eq, Show, FromForm)
 
 -- brittany-disable-next-binding
 -- | A publicly available login page.
-type Public = "login" :> (  Get '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.LoginPage)
-                       :<|> "authenticate" :> ReqBody '[FormUrlEncoded] User.UserCreds
-                           :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
-                                                       NoContent
-                                                     )
-                         )
-            :<|> "signup" :> ( Get '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupPage) -- display the signup page.
-                           :<|> "create" :> ReqBody '[FormUrlEncoded] CreateData
-                                         :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage) -- create the user.
-                             )
+type Public = "a" :> "login"
+                  :> ReqBody '[FormUrlEncoded] User.UserCreds
+                  :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
+                                              NoContent
+                                            )
+            :<|> "a" :> "signup"
+                 :> ReqBody '[FormUrlEncoded] CreateData
+                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
 
 publicT :: forall m . PublicServerC m => ServerT Public m
-publicT =
-  (showLoginPage :<|> authenticateUser) :<|> (showSignupPage :<|> processSignup)
+publicT = authenticateUser :<|> processSignup
  where
-  showLoginPage =
-    pure . SS.P.PublicPage $ Pages.LoginPage "./login/authenticate"
   authenticateUser creds@User.UserCreds {..} =
     env $ findMatchingUsers <&> headMay >>= \case
       Just u -> do
@@ -96,17 +90,13 @@ publicT =
       S.dbSelect $ User.UserLoginWithUserName _userCredsName
                                               _userCredsPassword
 
-  showSignupPage = pure . SS.P.PublicPage $ Pages.SignupPage "./signup/create"
-  processSignup (CreateData userName password passwordConf)
-    | password == passwordConf = env $ do
-      ML.info $ "Signing up new user: " <> show userName <> "..."
-      ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
-      ML.info $ "Users created: " <> show ids
-      pure . SS.P.PublicPage $ case headMay ids of
-        Just uid -> Pages.SignupSuccess uid
-        Nothing  -> Pages.SignupFailed "Failed to create users."
-    | otherwise = pure . SS.P.PublicPage $ Pages.SignupFailed
-      "Passwords mismatch."
+  processSignup (CreateData userName password) = env $ do
+    ML.info $ "Signing up new user: " <> show userName <> "..."
+    ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
+    ML.info $ "Users created: " <> show ids
+    pure . SS.P.PublicPage $ case headMay ids of
+      Just uid -> Pages.SignupSuccess uid
+      Nothing  -> Pages.SignupFailed "Failed to create users."
     where env = ML.localEnv (<> "Signup")
 
   unauthdErr =
