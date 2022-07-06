@@ -48,6 +48,8 @@ import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
+
+--------------------------------------------------------------------------------
 type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 
 -- brittany-disable-next-binding 
@@ -115,6 +117,8 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
       Server.:. _rJwtSettings
       Server.:. Server.EmptyContext
 
+
+--------------------------------------------------------------------------------
 -- | Show the landing page when the user is not logged in, or the welcome page
 -- when the user is logged in.
 showLandingPage
@@ -130,7 +134,8 @@ showLandingPage = \case
   SAuth.Authenticated userId ->
     S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
       Nothing -> do
-        ML.warning "Cookie-based authentication succeeded, but the user ID is not found."
+        ML.warning
+          "Cookie-based authentication succeeded, but the user ID is not found."
         authFailedErr $ "No user found with ID " <> show userId
       Just userProfile ->
         pure . SS.P.PageR $ SS.P.AuthdPage userProfile Pages.WelcomePage
@@ -162,14 +167,6 @@ echoLogin input = pure $ Login.Success $ show input
 
 
 --------------------------------------------------------------------------------
-custom404 :: Application
-custom404 _request sendResponse = sendResponse $ Wai.responseLBS
-  HTTP.status404
-  [("Content-Type", "text/html; charset=UTF-8")]
-  (renderMarkup $ H.toMarkup Pages.NotFoundPage)
-
-
---------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | A publicly available login page.
 type Public = "a" :> "signup"
@@ -184,7 +181,7 @@ type Public = "a" :> "signup"
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
 publicT = handleSignup :<|> handleLogin
 
-handleSignup (User.Signup username password email) = env $ do
+handleSignup User.Signup {..} = env $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
   ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
   case headMay ids of
@@ -193,7 +190,7 @@ handleSignup (User.Signup username password email) = env $ do
       pure . SS.P.PublicPage $ Pages.SignupSuccess uid
     -- TODO Failure to create a user re-using an existing username doesn't
     -- trigger the Nothing case.
-    Nothing  -> do
+    Nothing -> do
       -- TODO This should not be a 200 OK result.
       ML.info $ "Failed to create a user. Sending failure result."
       pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
@@ -204,12 +201,10 @@ handleLogin User.Credentials {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
       ML.info "Found user, generating authentication cookies..."
-      jwtSettings  <- asks Rt._rJwtSettings
-      Rt.Conf {..} <- asks Rt._rConf
-      mApplyCookies <- liftIO $ SAuth.acceptLogin
-        _confCookie
-        jwtSettings
-        (u ^. User.userProfileId)
+      jwtSettings   <- asks Rt._rJwtSettings
+      Rt.Conf {..}  <- asks Rt._rConf
+      mApplyCookies <- liftIO
+        $ SAuth.acceptLogin _confCookie jwtSettings (u ^. User.userProfileId)
       ML.info "Applying cookies..."
       case mApplyCookies of
         Nothing -> do
@@ -218,8 +213,7 @@ handleLogin User.Credentials {..} =
           unauthdErr _userCredsName
         Just applyCookies -> do
           ML.info "Cookies applied. Sending success result."
-          pure . addHeader @"Location" "/" $ applyCookies
-            NoContent
+          pure . addHeader @"Location" "/" $ applyCookies NoContent
     -- TODO This is wrong: if UserLoginWithUserName doesn't find a user, it
     -- throws an error instead of returning a Nothing. So either change its
     -- logic to return a Nothing or an empty list, or catch the exception.
@@ -230,10 +224,17 @@ handleLogin User.Credentials {..} =
   env               = ML.localEnv (<> "HTTP" <> "Login")
   findMatchingUsers = do
     ML.info $ "Logging in user: " <> show _userCredsName <> "..."
-    S.dbSelect $ User.UserLoginWithUserName _userCredsName
-                                            _userCredsPassword
+    S.dbSelect $ User.UserLoginWithUserName _userCredsName _userCredsPassword
   unauthdErr =
     Errs.throwError'
       . User.IncorrectPassword
       . mappend "User login failed: "
       . show
+
+
+--------------------------------------------------------------------------------
+custom404 :: Application
+custom404 _request sendResponse = sendResponse $ Wai.responseLBS
+  HTTP.status404
+  [("Content-Type", "text/html; charset=UTF-8")]
+  (renderMarkup $ H.toMarkup Pages.NotFoundPage)
