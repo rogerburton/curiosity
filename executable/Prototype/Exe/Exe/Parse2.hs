@@ -130,7 +130,7 @@ parserCreateUser = do
   email    <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   return $ UpdateUser . U.UserCreate $ U.UserProfile
     "USER-0" -- TODO
-    (U.UserCreds username password)
+    (U.Credentials username password)
     "TODO"
     email
 

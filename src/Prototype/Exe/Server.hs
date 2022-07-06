@@ -59,7 +59,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
 
              :<|> "echo" :> "login"
-                  :> ReqBody '[FormUrlEncoded] Login.Input
+                  :> ReqBody '[FormUrlEncoded] User.Credentials
                   :> Post '[B.HTML] Login.ResultPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
@@ -67,11 +67,6 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
-
-             -- Temporarily let the old handlers in Public.hs use the "a" prefix.
-             :<|> "b" :> "login"
-                  :> ReqBody '[FormUrlEncoded] Login.Input
-                  :> Post '[B.HTML] Login.ResultPage
 
              :<|> Public
              :<|> "private" :> Priv.Private
@@ -86,7 +81,6 @@ exampleT =
     :<|> echoSignup
     :<|> showLoginPage
     :<|> showSignupPage
-    :<|> handleLogin
     :<|> publicT
     :<|> Priv.privateT
     :<|> pure custom404
@@ -163,10 +157,7 @@ showLoginPage = pure $ Login.Page "/a/login"
 documentLoginPage :: Pub.PublicServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
-handleLogin :: Pub.PublicServerC m => Login.Input -> m Login.ResultPage
-handleLogin _ = pure $ Login.Failure "TODO handleLogin"
-
-echoLogin :: Pub.PublicServerC m => Login.Input -> m Login.ResultPage
+echoLogin :: Pub.PublicServerC m => User.Credentials -> m Login.ResultPage
 echoLogin input = pure $ Login.Success $ show input
 
 
@@ -185,13 +176,13 @@ type Public = "a" :> "signup"
                  :> ReqBody '[FormUrlEncoded] User.Signup
                  :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
             :<|>  "a" :> "login"
-                  :> ReqBody '[FormUrlEncoded] User.UserCreds
+                  :> ReqBody '[FormUrlEncoded] User.Credentials
                   :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
                                               NoContent
                                             )
 
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
-publicT = handleSignup :<|> authenticateUser
+publicT = handleSignup :<|> handleLogin
 
 handleSignup (User.Signup username password email) = env $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
@@ -209,7 +200,7 @@ handleSignup (User.Signup username password email) = env $ do
  where
   env = ML.localEnv (<> "HTTP" <> "Signup")
 
-authenticateUser User.UserCreds {..} =
+handleLogin User.Credentials {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
       ML.info "Found user, generating authentication cookies..."

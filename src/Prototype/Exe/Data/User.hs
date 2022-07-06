@@ -8,7 +8,7 @@ Description: User related datatypes
 -}
 module Prototype.Exe.Data.User
   ( Signup(..)
-  , UserCreds(..)
+  , Credentials(..)
   , userCredsName
   , userCredsPassword
   , UserProfile'(..)
@@ -72,17 +72,18 @@ instance FromForm Signup where
       <*> parseUnique "password"   f
       <*> parseUnique "email-addr" f
 
--- | User's credentials.
-data UserCreds = UserCreds
+-- | Represents user credentials. This is used both for user login and within
+-- the application state.
+data Credentials = Credentials
   { _userCredsName     :: UserName
   , _userCredsPassword :: Password
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-instance FromForm UserCreds where
+instance FromForm Credentials where
   fromForm f =
-    UserCreds <$> parseUnique "username" f <*> parseUnique "password" f
+    Credentials <$> parseUnique "username" f <*> parseUnique "password" f
 
 data UserProfile' creds userDisplayName userEmailAddr = UserProfile
   { _userProfileId          :: UserId
@@ -93,7 +94,7 @@ data UserProfile' creds userDisplayName userEmailAddr = UserProfile
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-type UserProfile = UserProfile' UserCreds UserDisplayName UserEmailAddr
+type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName Text
@@ -233,7 +234,7 @@ userProfileParser =
     <*> (userEmailAddrParser <* P.space)
 
 userCredsParser =
-  UserCreds <$> (userNameParser <* P.space) <*> userPasswordParser
+  Credentials <$> (userNameParser <* P.space) <*> userPasswordParser
 
 data UserErr = UserExists Text
              | UserNotFound Text
@@ -257,5 +258,5 @@ instance Errs.IsRuntimeErr UserErr where
     UserNotFound      msg -> msg
     IncorrectPassword msg -> msg
 
-makeLenses ''UserCreds
+makeLenses ''Credentials
 makeLenses ''UserProfile'

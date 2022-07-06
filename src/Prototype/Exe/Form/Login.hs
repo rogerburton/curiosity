@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Prototype.Exe.Form.Login
-  ( Input(..)
-  , Page(..)
+  ( Page(..)
   , ResultPage(..)
   ) where
 
@@ -16,17 +15,6 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseUnique
                                                 )
-
-
---------------------------------------------------------------------------------
-data Input = Input
-  { username :: Text
-  , password :: Text
-  }
-  deriving (Eq, Show)
-
-instance FromForm Input where
-  fromForm f = Input <$> parseUnique "username" f <*> parseUnique "password" f
 
 
 --------------------------------------------------------------------------------

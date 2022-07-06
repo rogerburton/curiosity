@@ -137,7 +137,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
       -- generate a new and random user-id
       newId <- User.genRandomUserId 10
       let newProfile =
-            User.UserProfile newId (User.UserCreds username password) "TODO" email
+            User.UserProfile newId (User.Credentials username password) "TODO" email
       S.dbUpdate $ User.UserCreate newProfile
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
