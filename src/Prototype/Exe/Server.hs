@@ -139,14 +139,14 @@ showLandingPage
 showLandingPage = \case
   SAuth.Authenticated userId ->
     S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      -- TODO Log out the user.
-      Nothing -> authFailedErr $ "No user found by ID = " <> show userId
+      Nothing -> do
+        ML.warning "Cookie-based authentication succeeded, but the user ID is not found."
+        authFailedErr $ "No user found with ID " <> show userId
       Just userProfile ->
         pure . SS.P.PageR $ SS.P.AuthdPage userProfile Pages.WelcomePage
   _ -> pure $ SS.P.PageL Pages.LandingPage
  where
-  authFailedErr = Errs.throwError' . User.UserNotFound . mappend
-    "Authentication failed, please login again. Error: "
+  authFailedErr = Errs.throwError' . User.UserNotFound
 
 
 --------------------------------------------------------------------------------
@@ -203,28 +203,33 @@ publicT = authenticateUser :<|> processSignup
 authenticateUser User.UserCreds {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
-      -- get the config. to get the cookie and JWT settings.
+      ML.info "Found user, generating authentication cookies..."
       jwtSettings  <- asks Rt._rJwtSettings
       Rt.Conf {..} <- asks Rt._rConf
-      ML.info "Found user, generating authentication cookies for the user."
       mApplyCookies <- liftIO $ SAuth.acceptLogin
         _confCookie
         jwtSettings
         (u ^. User.userProfileId)
-      ML.info "Applying cookies."
+      ML.info "Applying cookies..."
       case mApplyCookies of
         Nothing -> do
-          ML.warning "Auth failed."
+          -- TODO What can cause a failure here ?
+          ML.warning "Applying cookies failed. Sending failure result."
           unauthdErr _userCredsName
         Just applyCookies -> do
-          ML.info "User logged in"
+          ML.info "Cookies applied. Sending success result."
           pure . addHeader @"Location" "/" $ applyCookies
             NoContent
-    Nothing -> unauthdErr _userCredsName -- no users found
+    -- TODO This is wrong: if UserLoginWithUserName doesn't find a user, it
+    -- throws an error instead of returning a Nothing. So either change its
+    -- logic to return a Nothing or an empty list, or catch the exception.
+    Nothing -> do
+      ML.info "User not found. Sending Failure result."
+      unauthdErr _userCredsName
  where
-  env               = ML.localEnv (<> "Login" <> show _userCredsName)
+  env               = ML.localEnv (<> "HTTP" <> "Login")
   findMatchingUsers = do
-    ML.info "Login with UserId failed, falling back to UserName based auth."
+    ML.info $ "Logging in user: " <> show _userCredsName <> "..."
     S.dbSelect $ User.UserLoginWithUserName _userCredsName
                                             _userCredsPassword
   unauthdErr =
@@ -236,8 +241,15 @@ authenticateUser User.UserCreds {..} =
 processSignup (User.CreateData userName password) = env $ do
   ML.info $ "Signing up new user: " <> show userName <> "..."
   ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
-  ML.info $ "Users created: " <> show ids
-  pure . SS.P.PublicPage $ case headMay ids of
-    Just uid -> Pages.SignupSuccess uid
-    Nothing  -> Pages.SignupFailed "Failed to create users."
-  where env = ML.localEnv (<> "Signup")
+  case headMay ids of
+    Just uid -> do
+      ML.info $ "User created: " <> show uid <> ". Sending success result."
+      pure . SS.P.PublicPage $ Pages.SignupSuccess uid
+    -- TODO Failure to create a user re-using an existing username doesn't
+    -- trigger the Nothing case.
+    Nothing  -> do
+      -- TODO This should not be a 200 OK result.
+      ML.info $ "Failed to create a user. Sending failure result."
+      pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
+ where
+  env = ML.localEnv (<> "HTTP" <> "Signup")
