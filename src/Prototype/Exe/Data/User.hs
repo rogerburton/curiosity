@@ -7,7 +7,8 @@ Module: Prototype.Exe.Data.User
 Description: User related datatypes
 -}
 module Prototype.Exe.Data.User
-  ( UserCreds(..)
+  ( CreateData(..)
+  , UserCreds(..)
   , userCredsName
   , userCredsPassword
   , UserProfile'(..)
@@ -54,6 +55,12 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
+data CreateData = CreateData
+  { username             :: UserName
+  , password             :: Password
+  }
+  deriving (Generic, Eq, Show, FromForm)
+
 -- | User's credentials.
 data UserCreds = UserCreds
   { _userCredsName     :: UserName

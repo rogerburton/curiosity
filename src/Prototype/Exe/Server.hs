@@ -186,12 +186,6 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 
 
 --------------------------------------------------------------------------------
-data CreateData = CreateData
-  { username             :: User.UserName
-  , password             :: User.Password
-  }
-  deriving (Generic, Eq, Show, FromForm)
-
 -- brittany-disable-next-binding
 -- | A publicly available login page.
 type Public = "a" :> "login"
@@ -200,7 +194,7 @@ type Public = "a" :> "login"
                                               NoContent
                                             )
             :<|> "a" :> "signup"
-                 :> ReqBody '[FormUrlEncoded] CreateData
+                 :> ReqBody '[FormUrlEncoded] User.CreateData
                  :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
 
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
@@ -239,7 +233,7 @@ authenticateUser creds@User.UserCreds {..} =
       . mappend "User login failed: "
       . show
 
-processSignup (CreateData userName password) = env $ do
+processSignup (User.CreateData userName password) = env $ do
   ML.info $ "Signing up new user: " <> show userName <> "..."
   ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
   ML.info $ "Users created: " <> show ids
