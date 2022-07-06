@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Prototype.Exe.Form.Signup
-  ( Input
-  , Page(..)
+  ( Page(..)
   , ResultPage(..)
   ) where
 
@@ -16,24 +15,6 @@ import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseUnique
                                                 )
-
-
---------------------------------------------------------------------------------
-data Input = Input
-  { username     :: Text
-  , emailAddress :: Text
-  , password     :: Text
-  , iUnderstand  :: Text -- TODO Bool
-  }
-  deriving (Eq, Show)
-
-instance FromForm Input where
-  fromForm f =
-    Input
-      <$> parseUnique "username"     f
-      <*> parseUnique "email-addr"   f
-      <*> parseUnique "password"     f
-      <*> parseUnique "i-understand" f
 
 
 --------------------------------------------------------------------------------

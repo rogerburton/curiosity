@@ -62,7 +62,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] Login.Input
                   :> Post '[B.HTML] Login.ResultPage
              :<|> "echo" :> "signup"
-                  :> ReqBody '[FormUrlEncoded] Signup.Input
+                  :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Signup.ResultPage
 
              :<|> "login" :> Get '[B.HTML] Login.Page
@@ -72,9 +72,6 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "b" :> "login"
                   :> ReqBody '[FormUrlEncoded] Login.Input
                   :> Post '[B.HTML] Login.ResultPage
-             :<|> "b" :> "signup"
-                  :> ReqBody '[FormUrlEncoded] Signup.Input
-                  :> Post '[B.HTML] Signup.ResultPage
 
              :<|> Public
              :<|> "private" :> Priv.Private
@@ -90,7 +87,6 @@ exampleT =
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> handleLogin
-    :<|> handleSignup
     :<|> publicT
     :<|> Priv.privateT
     :<|> pure custom404
@@ -156,10 +152,7 @@ showSignupPage = pure $ Signup.Page "/a/signup"
 documentSignupPage :: Pub.PublicServerC m => m Signup.Page
 documentSignupPage = pure $ Signup.Page "/echo/signup"
 
-handleSignup :: Pub.PublicServerC m => Signup.Input -> m Signup.ResultPage
-handleSignup _ = pure $ Signup.Failure "TODO handleSignup"
-
-echoSignup :: Pub.PublicServerC m => Signup.Input -> m Signup.ResultPage
+echoSignup :: Pub.PublicServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
 
 
@@ -188,17 +181,33 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | A publicly available login page.
-type Public = "a" :> "login"
+type Public = "a" :> "signup"
+                 :> ReqBody '[FormUrlEncoded] User.Signup
+                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
+            :<|>  "a" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.UserCreds
                   :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
                                               NoContent
                                             )
-            :<|> "a" :> "signup"
-                 :> ReqBody '[FormUrlEncoded] User.CreateData
-                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
 
 publicT :: forall m . Pub.PublicServerC m => ServerT Public m
-publicT = authenticateUser :<|> processSignup
+publicT = handleSignup :<|> authenticateUser
+
+handleSignup (User.Signup userName password) = env $ do
+  ML.info $ "Signing up new user: " <> show userName <> "..."
+  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
+  case headMay ids of
+    Just uid -> do
+      ML.info $ "User created: " <> show uid <> ". Sending success result."
+      pure . SS.P.PublicPage $ Pages.SignupSuccess uid
+    -- TODO Failure to create a user re-using an existing username doesn't
+    -- trigger the Nothing case.
+    Nothing  -> do
+      -- TODO This should not be a 200 OK result.
+      ML.info $ "Failed to create a user. Sending failure result."
+      pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
+ where
+  env = ML.localEnv (<> "HTTP" <> "Signup")
 
 authenticateUser User.UserCreds {..} =
   env $ findMatchingUsers <&> headMay >>= \case
@@ -237,19 +246,3 @@ authenticateUser User.UserCreds {..} =
       . User.IncorrectPassword
       . mappend "User login failed: "
       . show
-
-processSignup (User.CreateData userName password) = env $ do
-  ML.info $ "Signing up new user: " <> show userName <> "..."
-  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
-  case headMay ids of
-    Just uid -> do
-      ML.info $ "User created: " <> show uid <> ". Sending success result."
-      pure . SS.P.PublicPage $ Pages.SignupSuccess uid
-    -- TODO Failure to create a user re-using an existing username doesn't
-    -- trigger the Nothing case.
-    Nothing  -> do
-      -- TODO This should not be a 200 OK result.
-      ML.info $ "Failed to create a user. Sending failure result."
-      pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
- where
-  env = ML.localEnv (<> "HTTP" <> "Signup")

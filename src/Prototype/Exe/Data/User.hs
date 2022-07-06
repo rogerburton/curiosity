@@ -7,7 +7,7 @@ Module: Prototype.Exe.Data.User
 Description: User related datatypes
 -}
 module Prototype.Exe.Data.User
-  ( CreateData(..)
+  ( Signup(..)
   , UserCreds(..)
   , userCredsName
   , userCredsPassword
@@ -55,7 +55,8 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
-data CreateData = CreateData
+-- | Represents the input data used for user registration.
+data Signup = Signup
   { username             :: UserName
   , password             :: Password
   }
