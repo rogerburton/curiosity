@@ -12,9 +12,7 @@ and predictability on where these modules come from.
 
 -}
 module Prototype.Exe.Server.Public
-  ( Public
-  , publicT
-  , PublicServerC
+  ( PublicServerC
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -41,67 +39,3 @@ type PublicServerC m
     , MonadReader Rt.Runtime m
     , MonadIO m
     )
-
-data CreateData = CreateData
-  { username             :: User.UserName
-  , password             :: User.Password
-  }
-  deriving (Generic, Eq, Show, FromForm)
-
--- brittany-disable-next-binding
--- | A publicly available login page.
-type Public = "a" :> "login"
-                  :> ReqBody '[FormUrlEncoded] User.UserCreds
-                  :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
-                                              NoContent
-                                            )
-            :<|> "a" :> "signup"
-                 :> ReqBody '[FormUrlEncoded] CreateData
-                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
-
-publicT :: forall m . PublicServerC m => ServerT Public m
-publicT = authenticateUser :<|> processSignup
- where
-  authenticateUser creds@User.UserCreds {..} =
-    env $ findMatchingUsers <&> headMay >>= \case
-      Just u -> do
-        -- get the config. to get the cookie and JWT settings.
-        jwtSettings  <- asks Rt._rJwtSettings
-        Rt.Conf {..} <- asks Rt._rConf
-        ML.info "Found user, generating authentication cookies for the user."
-        mApplyCookies <- liftIO $ SAuth.acceptLogin
-          _confCookie
-          jwtSettings
-          (u ^. User.userProfileId)
-        ML.info "Applying cookies."
-        case mApplyCookies of
-          Nothing -> do
-            ML.warning "Auth failed."
-            unauthdErr $ creds ^. User.userCredsName
-          Just applyCookies -> do
-            ML.info "User logged in"
-            pure . addHeader @"Location" "/" $ applyCookies
-              NoContent
-      Nothing -> unauthdErr $ creds ^. User.userCredsName -- no users found
-   where
-    env               = ML.localEnv (<> "Login" <> show _userCredsName)
-    findMatchingUsers = do
-      ML.info "Login with UserId failed, falling back to UserName based auth."
-      S.dbSelect $ User.UserLoginWithUserName _userCredsName
-                                              _userCredsPassword
-
-  processSignup (CreateData userName password) = env $ do
-    ML.info $ "Signing up new user: " <> show userName <> "..."
-    ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
-    ML.info $ "Users created: " <> show ids
-    pure . SS.P.PublicPage $ case headMay ids of
-      Just uid -> Pages.SignupSuccess uid
-      Nothing  -> Pages.SignupFailed "Failed to create users."
-    where env = ML.localEnv (<> "Signup")
-
-  unauthdErr =
-    Errs.throwError'
-      . User.IncorrectPassword
-      . mappend "User login failed: "
-      . show
-

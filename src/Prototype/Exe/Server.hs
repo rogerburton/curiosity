@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds
            , TypeOperators
@@ -18,6 +19,7 @@ module Prototype.Exe.Server
   , ServerSettings
   ) where
 
+import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
@@ -44,6 +46,7 @@ import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
+import           Web.FormUrlEncoded             ( FromForm(..) )
 
 type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 
@@ -73,7 +76,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] Signup.Input
                   :> Post '[B.HTML] Signup.ResultPage
 
-             :<|> Pub.Public
+             :<|> Public
              :<|> "private" :> Priv.Private
              :<|> Raw -- catchall for custom 404
 
@@ -88,7 +91,7 @@ exampleT =
     :<|> showSignupPage
     :<|> handleLogin
     :<|> handleSignup
-    :<|> Pub.publicT
+    :<|> publicT
     :<|> Priv.privateT
     :<|> pure custom404
 
@@ -180,3 +183,67 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
   HTTP.status404
   [("Content-Type", "text/html; charset=UTF-8")]
   (renderMarkup $ H.toMarkup Pages.NotFoundPage)
+
+
+--------------------------------------------------------------------------------
+data CreateData = CreateData
+  { username             :: User.UserName
+  , password             :: User.Password
+  }
+  deriving (Generic, Eq, Show, FromForm)
+
+-- brittany-disable-next-binding
+-- | A publicly available login page.
+type Public = "a" :> "login"
+                  :> ReqBody '[FormUrlEncoded] User.UserCreds
+                  :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
+                                              NoContent
+                                            )
+            :<|> "a" :> "signup"
+                 :> ReqBody '[FormUrlEncoded] CreateData
+                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
+
+publicT :: forall m . Pub.PublicServerC m => ServerT Public m
+publicT = authenticateUser :<|> processSignup
+
+authenticateUser creds@User.UserCreds {..} =
+  env $ findMatchingUsers <&> headMay >>= \case
+    Just u -> do
+      -- get the config. to get the cookie and JWT settings.
+      jwtSettings  <- asks Rt._rJwtSettings
+      Rt.Conf {..} <- asks Rt._rConf
+      ML.info "Found user, generating authentication cookies for the user."
+      mApplyCookies <- liftIO $ SAuth.acceptLogin
+        _confCookie
+        jwtSettings
+        (u ^. User.userProfileId)
+      ML.info "Applying cookies."
+      case mApplyCookies of
+        Nothing -> do
+          ML.warning "Auth failed."
+          unauthdErr $ creds ^. User.userCredsName
+        Just applyCookies -> do
+          ML.info "User logged in"
+          pure . addHeader @"Location" "/" $ applyCookies
+            NoContent
+    Nothing -> unauthdErr $ creds ^. User.userCredsName -- no users found
+ where
+  env               = ML.localEnv (<> "Login" <> show _userCredsName)
+  findMatchingUsers = do
+    ML.info "Login with UserId failed, falling back to UserName based auth."
+    S.dbSelect $ User.UserLoginWithUserName _userCredsName
+                                            _userCredsPassword
+  unauthdErr =
+    Errs.throwError'
+      . User.IncorrectPassword
+      . mappend "User login failed: "
+      . show
+
+processSignup (CreateData userName password) = env $ do
+  ML.info $ "Signing up new user: " <> show userName <> "..."
+  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId userName password
+  ML.info $ "Users created: " <> show ids
+  pure . SS.P.PublicPage $ case headMay ids of
+    Just uid -> Pages.SignupSuccess uid
+    Nothing  -> Pages.SignupFailed "Failed to create users."
+  where env = ML.localEnv (<> "Signup")
