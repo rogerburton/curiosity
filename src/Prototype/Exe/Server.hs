@@ -46,6 +46,9 @@ import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
+import           WaiAppStatic.Storage.Filesystem
+                                                ( defaultWebAppSettings )
+import           WaiAppStatic.Types             ( ss404Handler )
 
 
 --------------------------------------------------------------------------------
@@ -71,7 +74,8 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> Public
              :<|> "private" :> Priv.Private
-             :<|> Raw -- catchall for custom 404
+             :<|> Raw -- Catchall for static files (documentation)
+                      -- and for a custom 404
 
 exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
 exampleT =
@@ -84,7 +88,7 @@ exampleT =
     :<|> showSignupPage
     :<|> publicT
     :<|> Priv.privateT
-    :<|> pure custom404
+    :<|> serveDocumentation
 
 -- | Run as a Wai Application
 exampleApplication
@@ -232,6 +236,13 @@ handleLogin User.Credentials {..} =
 
 
 --------------------------------------------------------------------------------
+-- | Serve the static files for the documentation. This also provides a custom
+-- 404 fallback.
+serveDocumentation = serveDirectoryWith settings
+ where
+  settings =
+    (defaultWebAppSettings "./_site/") { ss404Handler = Just custom404 }
+
 custom404 :: Application
 custom404 _request sendResponse = sendResponse $ Wai.responseLBS
   HTTP.status404
