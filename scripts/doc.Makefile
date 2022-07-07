@@ -1,13 +1,13 @@
-SOURCES=$(shell find documentation/ -name '*.md')
+SOURCES=$(shell find content/ -name '*.md')
 HTML_FILES := $(patsubst %.md,%.html,$(SOURCES))
-TARGETS := $(addprefix _site/, $(HTML_FILES))
+TARGETS := $(addprefix _site/, $(HTML_FILES:content/%=%))
 
 
 .PHONY: all
 all: $(TARGETS)
 
 
-_site/documentation/%.html: documentation/%.md scripts/template.html
+_site/%.html: content/%.md scripts/template.html
 	mkdir -p $(dir $@)
 	pandoc --standalone \
 		--toc \
@@ -19,5 +19,5 @@ _site/documentation/%.html: documentation/%.md scripts/template.html
 
 
 entr:
-	find documentation/ -name '*.md' \
+	find content/ -name '*.md' \
 		| entr -c bash -c 'make -f scripts/doc.Makefile'
