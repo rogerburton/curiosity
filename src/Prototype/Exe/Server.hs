@@ -321,7 +321,11 @@ webAppLookup hashFunc prefix pieces = fileHelperLR hashFunc fp lastPiece
   pieces' = initPieces ++ [lastPiece]
   (initPieces, lastPiece) | null pieces = ([], unsafeToPiece "index.html")
                           | Just (last pieces) == toPiece "" = (init pieces, unsafeToPiece "index.html")
-                          | otherwise   = (init pieces, unsafeToPiece $ fromPiece (last pieces) <> ".html")
+                          | otherwise   =
+                              let lastP = case fromPiece (last pieces) of
+                                    s | T.isSuffixOf ".txt" s -> last pieces
+                                    s -> unsafeToPiece $ s <> ".html"
+                              in (init pieces, lastP)
 
 -- | Convenience wrapper for @fileHelper@.
 fileHelperLR
