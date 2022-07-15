@@ -121,7 +121,7 @@ instance S.DBStorage ExeAppM User.UserProfile where
      where
       newProfileId = S.dbId newProfile
       createNew    = onUserNameExists
-        (newProfile ^. User.userProfileCreds ^. User.userCredsName)
+        (newProfile ^. User.userProfileCreds . User.userCredsName)
         (do
           result <- withUserStorage
             $ modifyUserProfiles newProfileId (newProfile :)
