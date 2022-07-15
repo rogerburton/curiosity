@@ -22,11 +22,12 @@ import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Errors             as Errors
 import qualified Smart.Html.Form               as Form
 import qualified Smart.Html.Input              as Inp
+import qualified Smart.Html.Pages.LandingPage  as Pages
 import qualified Smart.Html.Render             as Render
 import qualified Smart.Html.Shared.Types       as HTypes
 import qualified Text.Blaze.Html5              as H
 
--- | A simple login page. 
+-- | A simple login page.
 newtype LoginPage  = LoginPage { _loginPageAuthSubmitURL :: H.AttributeValue }
 
 -- | For the `LoginPage` markup, we now rely on our DSL to render the login page to our liking
@@ -95,10 +96,12 @@ data LandingPage = LandingPage
 
 instance H.ToMarkup LandingPage where
   toMarkup LandingPage = do
-    H.code "Welcome."
+    Render.renderCanvas $
+      Pages.landingPage
 
 data NotFoundPage = NotFoundPage
 
 instance H.ToMarkup NotFoundPage where
   toMarkup NotFoundPage = do
-    H.code "404 Not found."
+    Render.renderCanvas $
+      Dsl.SingletonCanvas Errors.NotFound
