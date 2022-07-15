@@ -30,8 +30,7 @@ import qualified Prototype.Exe.Server.Public.Pages
 import           Servant
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
-import qualified "design-hs-lib" Smart.Server.Page
-                                               as SS.P
+import qualified Smart.Server.Page             as SS.P
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be able to run a public server.

@@ -18,14 +18,12 @@ import           Network.HTTP.Types.Method
 import qualified Prototype.Exe.Data.User       as User
 import           Prototype.Exe.Server.Shared.Html.Helpers.Form
                                                 ( mkButton )
-import qualified "design-hs-lib" Smart.Html.Dsl
-                                               as Dsl
-import qualified "design-hs-lib" Smart.Html.Form
-                                               as Form
-import qualified "design-hs-lib" Smart.Html.Input
-                                               as Inp
-import qualified "design-hs-lib" Smart.Html.Shared.Types
-                                               as HTypes
+import qualified Smart.Html.Dsl                as Dsl
+import qualified Smart.Html.Errors             as Errors
+import qualified Smart.Html.Form               as Form
+import qualified Smart.Html.Input              as Inp
+import qualified Smart.Html.Render             as Render
+import qualified Smart.Html.Shared.Types       as HTypes
 import qualified Text.Blaze.Html5              as H
 
 -- | A simple login page. 

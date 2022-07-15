@@ -10,8 +10,7 @@ module Prototype.Exe.Server.Private.Helpers
 import qualified Prototype.Exe.Data.User       as User
 import           Servant.API
 import qualified Servant.HTML.Blaze            as B
-import qualified "design-hs-lib" Smart.Server.Page
-                                               as SS.P
+import qualified Smart.Server.Page             as SS.P
 
 type GetUserPage pageData = UserPage Get pageData
 type PutUserPage pageData = UserPage Put pageData

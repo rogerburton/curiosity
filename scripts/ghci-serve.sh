@@ -1,13 +1,16 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash ../shell.nix
 
-# See ghci.sh for comments.
+# This is a bit convoluted because the Prelude is from smart-design-hs:
+#   - -XNoImplicitPrelude is set here on the command-line
+#   - The ghci.conf file will load smart-design-hs's Prelude
+#   - Then set again -XImplicitPrelude
+#   - Then load what we want: cty-serve.hs
 
 ghc --interactive \
   -i../smart-design-hs/lib/src/ \
-  -iexe/executable/ \
-  -iexe/src/ \
-  -ilib/src/ \
+  -iexecutable/ \
+  -isrc/ \
   -hide-package base \
   -XNoImplicitPrelude \
   -XHaskell2010 \
@@ -27,4 +30,4 @@ ghc --interactive \
   -XGADTs \
   -XOverloadedStrings \
   -XPackageImports \
-  -ghci-script scripts/ghci-run.conf
+  -ghci-script scripts/ghci-serve.conf
