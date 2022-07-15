@@ -14,7 +14,7 @@
     "design-hs": {
         "branch": "noteed/feature/add-landing-page",
         "repo": "git@github.com:hypered/smart-design-hs.git",
-        "rev": "75dbe60896bbf92d60910c18e5f01aa7a737eb2e",
+        "rev": "d27826f9dcd6b04751af43c37e442c0fd91e8467",
         "type": "git"
     },
     "gitignore": {

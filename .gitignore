@@ -11,3 +11,4 @@ result*
 dist*run
 .*.swp
 s3-config
+_site/

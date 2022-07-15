@@ -103,7 +103,12 @@ library
   build-depends:
       http-api-data
     , bytestring 
+    , cryptonite
     , directory 
+    , filepath
+    , memory
+    , unix-compat
+    , wai-app-static
 
 -- HTTP server only
 executable cty-serve
