@@ -124,18 +124,15 @@ parserUser = A.subparser
   )
 
 parserCreateUser :: A.Parser Command
-parserCreateUser =
-  UpdateUser
-    .   U.UserCreate
-    <$> (   U.UserProfile
-        <$> (   U.UserCreds
-            <$> A.argument A.str
-                           (A.metavar "USERNAME" <> A.help "A username")
-            <*> A.argument A.str
-                           (A.metavar "PASSWORD" <> A.help "A password")
-            )
-        <*> A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
-        )
+parserCreateUser = do
+  username <- A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
+  password <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
+  email    <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
+  return $ UpdateUser . U.UserCreate $ U.UserProfile
+    "USER-0" -- TODO
+    (U.Credentials username password)
+    "TODO"
+    email
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument

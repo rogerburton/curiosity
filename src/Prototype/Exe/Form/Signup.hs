@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Prototype.Exe.Form.Signup
-  ( Input
-  , Page(..)
+  ( Page(..)
   , ResultPage(..)
   ) where
 
@@ -13,27 +12,6 @@ import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-import           Web.FormUrlEncoded             ( FromForm(..)
-                                                , parseUnique
-                                                )
-
-
---------------------------------------------------------------------------------
-data Input = Input
-  { username     :: Text
-  , emailAddress :: Text
-  , password     :: Text
-  , iUnderstand  :: Text -- TODO Bool
-  }
-  deriving (Eq, Show)
-
-instance FromForm Input where
-  fromForm f =
-    Input
-      <$> parseUnique "username"     f
-      <*> parseUnique "email"        f
-      <*> parseUnique "password"     f
-      <*> parseUnique "i-understand" f
 
 
 --------------------------------------------------------------------------------
@@ -87,14 +65,14 @@ signupPage Page {..} = Dsl.SingletonCanvas $ do
                     H.div ! A.class_ "o-form-group" $ do
                       H.label
                         ! A.class_ "o-form-group__label"
-                        ! A.for "email"
+                        ! A.for "email-addr"
                         $ "Email address"
                       H.div
                         ! A.class_ "o-form-group__controls"
                         $ H.input
                         ! A.class_ "c-input"
-                        ! A.id "email"
-                        ! A.name "email"
+                        ! A.id "email-addr"
+                        ! A.name "email-addr"
                         ! A.type_ "email"
                     H.div ! A.class_ "o-form-group" $ do
                       H.label

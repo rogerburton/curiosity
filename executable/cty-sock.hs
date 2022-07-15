@@ -75,8 +75,10 @@ repl runtime conn = do
 
       output <- Rt.runExeAppMSafe runtime $ IS.execModification
         (Data.ModifyUser
-          ( User.UserCreate
-          $ User.UserProfile (User.UserCreds "alice" "pass") "Alice"
+          (User.UserCreate $ User.UserProfile "USER-0"
+                                              (User.Credentials "alice" "pass")
+                                              "Alice"
+                                              "alice@example.com"
           )
         )
 
