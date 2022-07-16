@@ -13,4 +13,9 @@
     ../modules/app.nix
     ../modules/nginx.nix
   ];
+
+  environment.systemPackages = [
+    (import ../.).binaries
+    (import ../.).man-pages # TODO Man pages should come with .binaries ?
+  ];
 }
