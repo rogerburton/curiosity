@@ -26,7 +26,9 @@ import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import qualified Data.ByteString.Lazy          as BL
                                                 ( hGetContents )
-import           Data.List                      ( init, last )
+import           Data.List                      ( init
+                                                , last
+                                                )
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -74,11 +76,11 @@ import           System.IO                      ( IOMode(..)
                                                 , withBinaryFile
                                                 )
 
-import           Data.ByteArray.Encoding
 import           Crypto.Hash                    ( Digest
                                                 , MD5
                                                 , hashlazy
                                                 )
+import           Data.ByteArray.Encoding
 
 
 --------------------------------------------------------------------------------
@@ -173,8 +175,7 @@ showLandingPage = \case
       Just userProfile ->
         pure . SS.P.PageR $ SS.P.AuthdPage userProfile Pages.WelcomePage
   _ -> pure $ SS.P.PageL Pages.LandingPage
- where
-  authFailedErr = Errs.throwError' . User.UserNotFound
+  where authFailedErr = Errs.throwError' . User.UserNotFound
 
 
 --------------------------------------------------------------------------------
@@ -227,8 +228,7 @@ handleSignup User.Signup {..} = env $ do
       -- TODO This should not be a 200 OK result.
       ML.info $ "Failed to create a user. Sending failure result."
       pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
- where
-  env = ML.localEnv (<> "HTTP" <> "Signup")
+  where env = ML.localEnv (<> "HTTP" <> "Signup")
 
 handleLogin User.Credentials {..} =
   env $ findMatchingUsers <&> headMay >>= \case
@@ -317,15 +317,18 @@ unsafeToPiece t = let Just p = toPiece t in p
 webAppLookup :: ETagLookup -> FilePath -> Pieces -> IO LookupResult
 webAppLookup hashFunc prefix pieces = fileHelperLR hashFunc fp lastPiece
  where
-  fp = pathFromPieces prefix pieces'
+  fp      = pathFromPieces prefix pieces'
   pieces' = initPieces ++ [lastPiece]
-  (initPieces, lastPiece) | null pieces = ([], unsafeToPiece "index.html")
-                          | Just (last pieces) == toPiece "" = (init pieces, unsafeToPiece "index.html")
-                          | otherwise   =
-                              let lastP = case fromPiece (last pieces) of
-                                    s | T.isSuffixOf ".txt" s -> last pieces
-                                    s -> unsafeToPiece $ s <> ".html"
-                              in (init pieces, lastP)
+  (initPieces, lastPiece)
+    | null pieces
+    = ([], unsafeToPiece "index.html")
+    | Just (last pieces) == toPiece ""
+    = (init pieces, unsafeToPiece "index.html")
+    | otherwise
+    = let lastP = case fromPiece (last pieces) of
+            s | T.isSuffixOf ".txt" s -> last pieces
+            s                         -> unsafeToPiece $ s <> ".html"
+      in  (init pieces, lastP)
 
 -- | Convenience wrapper for @fileHelper@.
 fileHelperLR
