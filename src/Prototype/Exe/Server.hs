@@ -109,8 +109,8 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
-exampleT :: forall m . Pub.PublicServerC m => ServerT Exe m
-exampleT =
+exampleT :: forall m . Pub.PublicServerC m => FilePath -> ServerT Exe m
+exampleT root =
   showLandingPage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -120,7 +120,7 @@ exampleT =
     :<|> showSignupPage
     :<|> publicT
     :<|> Priv.privateT
-    :<|> serveDocumentation
+    :<|> serveDocumentation root
 
 -- | Run as a Wai Application
 exampleApplication
@@ -128,10 +128,12 @@ exampleApplication
    . Pub.PublicServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
   -> Server.Context ServerSettings
+  -> FilePath
   -> Wai.Application
-exampleApplication handlerNatTrans ctx =
+exampleApplication handlerNatTrans ctx root =
   Servant.serveWithContext exampleProxy ctx
-    $ hoistServerWithContext exampleProxy settingsProxy handlerNatTrans exampleT
+    $ hoistServerWithContext exampleProxy settingsProxy handlerNatTrans
+    $ exampleT root
  where
   exampleProxy  = Proxy @Exe
   settingsProxy = Proxy @ServerSettings
@@ -143,9 +145,9 @@ runExeServer
   -> m ()
 runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
-  Rt.ServerConf port = runtime ^. Rt.rConf . Rt.confServer
+  Rt.ServerConf port root = runtime ^. Rt.rConf . Rt.confServer
   waiApp =
-    exampleApplication @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx
+    exampleApplication @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root
   ctx =
     _rConf
       ^.        Rt.confCookie
@@ -268,13 +270,12 @@ handleLogin User.Credentials {..} =
 --------------------------------------------------------------------------------
 -- | Serve the static files for the documentation. This also provides a custom
 -- 404 fallback.
-serveDocumentation = serveDirectoryWith settings
+serveDocumentation root = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings root)
     { ss404Handler = Just custom404
     , ssLookupFile = webAppLookup hashFileIfExists root
     }
-  root = "./_site/"
 
 custom404 :: Application
 custom404 _request sendResponse = sendResponse $ Wai.responseLBS

@@ -40,7 +40,7 @@ confParser = do
 
 defaultConf :: Conf
 defaultConf =
-  let _confServer = ServerConf 9000
+  let _confServer = ServerConf 9000 "./_site/"
       _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
       _confDbFile = Nothing
   in  Conf
@@ -59,11 +59,22 @@ defaultConf =
 flspec = FL.FileLogSpec "/tmp/curiosity.log" 5000 0
 
 serverParser :: A.Parser ServerConf
-serverParser = ServerConf . abs <$> A.option
-  A.auto
-  (A.long "server-port" <> A.value 9000 <> A.metavar "PORT" <> A.help
-    "Port to run the HTTP server on."
-  )
+serverParser =
+  ServerConf
+    .   abs
+    <$> A.option
+          A.auto
+          (A.long "server-port" <> A.value 9000 <> A.metavar "PORT" <> A.help
+            "Port to run the HTTP server on."
+          )
+    <*> A.strOption
+          (  A.long "static-dir"
+          <> A.value "./_site/"
+          <> A.metavar "DIR"
+          <> A.help
+               "A directory served as static assets, in particular HTML \
+            \documentation."
+          )
 
 replParser :: A.Parser Repl.ReplConf
 replParser = do

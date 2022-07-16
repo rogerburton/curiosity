@@ -3,8 +3,9 @@
   systemd.services.app = {
     wantedBy = [ "multi-user.target" ];
     script = ''
-      ${(import ../.).prototype-hs-exe}/bin/cty-serve \
-        --server-port 9000
+      ${(import ../.).binaries}/bin/cty-serve \
+        --server-port 9000 \
+        --static-dir ${(import ../.).content}
     '';
   };
 }

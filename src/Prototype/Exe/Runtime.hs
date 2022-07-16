@@ -51,8 +51,11 @@ import qualified Servant
 import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )
 
-newtype ServerConf = ServerConf { _serverPort :: Int }
-                   deriving Show
+data ServerConf = ServerConf
+  { _serverPort      :: Int
+  , _serverStaticDir :: FilePath
+  }
+  deriving Show
 
 -- | Application config.
 data Conf = Conf
