@@ -40,6 +40,8 @@ import qualified Prototype.Exe.Runtime         as Rt
 import qualified Prototype.Exe.Server.Private  as Priv
 import qualified Prototype.Exe.Server.Private.Auth
                                                as Auth
+import qualified Prototype.Exe.Server.Private.Helpers
+                                               as H
 import qualified Prototype.Exe.Server.Private.Pages
                                                as Pages
 import qualified Prototype.Exe.Server.Public   as Pub
@@ -105,7 +107,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
              :<|> Public
-             :<|> "private" :> Priv.Private
+             :<|> "private" :> Private
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -119,7 +121,7 @@ exampleT root =
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> publicT
-    :<|> Priv.privateT
+    :<|> privateT
     :<|> serveDocumentation root
 
 -- | Run as a Wai Application
@@ -264,6 +266,58 @@ handleLogin User.Credentials {..} =
       . User.IncorrectPassword
       . mappend "User login failed: "
       . show
+
+
+--------------------------------------------------------------------------------
+-- brittany-disable-next-binding
+-- | The private API with authentication.
+type Private = Auth.UserAuthentication :> UserPages
+-- brittany-disable-next-binding
+type UserPages
+  = "user" :> "profile" :> H.GetUserPage Pages.ProfilePage
+    :<|> EditUser
+
+privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
+privateT authResult = showProfilePage :<|> editUser
+ where
+  showProfilePage = withUser $ \profile ->
+    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./profile"
+  editUser Pages.EditProfileForm {..} = withUser $ \profile ->
+    case _editPassword of
+      Just newPass ->
+        let updatedProfile =
+              profile
+                &  User.userProfileCreds
+                .  User.userCredsPassword
+                %~ (`fromMaybe` _editPassword)
+        in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
+              <&> headMay
+              <&> SS.P.AuthdPage updatedProfile
+              .   \case
+                    Nothing -> Pages.ProfileSaveFailure
+                      $ Just "Empty list of affected User IDs on update."
+                    Just{} -> Pages.ProfileSaveSuccess
+      Nothing ->
+        pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
+          "Nothing to update."
+
+  -- extract the user from the authentication result or throw an error.
+  withUser :: forall a . (User.UserProfile -> m a) -> m a
+  withUser f = case authResult of
+    SAuth.Authenticated userId ->
+      S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+        Nothing -> authFailedErr $ "No user found by ID = " <> show userId
+        Just userProfile -> f userProfile
+    authFailed -> authFailedErr $ show authFailed
+   where
+    authFailedErr = Errs.throwError' . User.UserNotFound . mappend
+      "Authentication failed, please login again. Error: "
+
+-- brittany-disable-next-binding
+type EditUser = "user"
+                :> "profile"
+                :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
+                :> H.PostUserPage Pages.ProfileSaveConfirmPage
 
 
 --------------------------------------------------------------------------------
