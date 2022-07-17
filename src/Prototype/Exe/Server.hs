@@ -282,8 +282,8 @@ type Private = Auth.UserAuthentication :> (
 privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
 privateT authResult = showProfilePage :<|> editUser
  where
-  showProfilePage = withUser $ \profile ->
-    pure . Pages.ProfilePage $ "/a/set-user-profile"
+  showProfilePage = withUser
+    $ \profile -> pure $ Pages.ProfilePage profile "/a/set-user-profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
     case _editPassword of
       Just newPass ->
