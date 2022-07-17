@@ -30,6 +30,8 @@ import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
+
+--------------------------------------------------------------------------------
 -- | A simple welcome page.
 data WelcomePage = WelcomePage
 
@@ -42,24 +44,26 @@ instance H.ToMarkup WelcomePage where
       $ H.header
       $ H.toMarkup exampleNavbarAlt
 
-exampleNavbarAlt :: Navbar
-exampleNavbarAlt = Navbar [] [userEntry]
 
-userEntry = UserEntry userEntries NoAvatarImage
-
-userEntries = [SubEntry "My profile" "/settings/profile" False]
-
+--------------------------------------------------------------------------------
 newtype ProfilePage = ProfilePage { _profilePageSubmitURL :: H.AttributeValue }
 
 instance H.ToMarkup ProfilePage where
-  toMarkup (ProfilePage submitUrl) = do
-    H.title "Edit user profile."
-    H.form
-      . H.toMarkup @Dsl.HtmlCanvas
-      $ (       Form.InputGroup [username, password]
-        Dsl.::~ mkButton "Update" submitUrl POST
-        Dsl.::~ Dsl.EmptyCanvas
-        )
+  toMarkup (ProfilePage submitUrl) =
+    Render.renderCanvas
+      . Dsl.SingletonCanvas
+      $ H.div
+      ! A.class_ "c-app-layout" $ do
+        H.header $ H.toMarkup exampleNavbarAlt
+        H.main $
+          do
+            H.title "Edit user profile."
+            H.form
+              . H.toMarkup @Dsl.HtmlCanvas
+              $ (       Form.InputGroup [username, password]
+                Dsl.::~ mkButton "Update" submitUrl POST
+                Dsl.::~ Dsl.EmptyCanvas
+                )
 
    where
     username =
@@ -90,3 +94,12 @@ instance H.ToMarkup ProfileSaveConfirmPage where
     ProfileSaveFailure mmsg -> do
       H.text $ "We had a problem saving your data."
       maybe mempty (H.text . mappend "Reason: ") mmsg
+
+
+--------------------------------------------------------------------------------
+exampleNavbarAlt :: Navbar
+exampleNavbarAlt = Navbar [] [userEntry]
+
+userEntry = UserEntry userEntries NoAvatarImage
+
+userEntries = [SubEntry "My profile" "/settings/profile" False]

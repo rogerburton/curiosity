@@ -273,7 +273,7 @@ handleLogin User.Credentials {..} =
 -- | The private API with authentication.
 type Private = Auth.UserAuthentication :> (
                    "settings" :> "profile"
-                   :> H.GetUserPage Pages.ProfilePage
+                   :> Get '[B.HTML] Pages.ProfilePage
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
@@ -283,7 +283,7 @@ privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
 privateT authResult = showProfilePage :<|> editUser
  where
   showProfilePage = withUser $ \profile ->
-    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "/a/set-user-profile"
+    pure . Pages.ProfilePage $ "/a/set-user-profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
     case _editPassword of
       Just newPass ->
