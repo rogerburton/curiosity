@@ -122,7 +122,7 @@ signupPage Page {..} = Dsl.SingletonCanvas $ do
                       $ "Sign up"
                     H.div ! A.class_ "o-form-group u-ta-center" $ ""
         H.div ! A.class_ "c-content u-text-center u-spacer-top-l" $ do
-          H.a ! A.class_ "u-text-muted" ! A.href "#" $ "Log in"
+          H.a ! A.class_ "u-text-muted" ! A.href "/login" $ "Log in"
 
 
 --------------------------------------------------------------------------------
