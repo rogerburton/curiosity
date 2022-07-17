@@ -88,13 +88,16 @@ import           Data.ByteArray.Encoding
 --------------------------------------------------------------------------------
 type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 
--- brittany-disable-next-binding 
+-- brittany-disable-next-binding
 type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
                Pages.LandingPage
                Pages.WelcomePage
              )
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
+             -- TODO Add the user profile update form.
+
+             :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Credentials
@@ -116,6 +119,7 @@ exampleT root =
   showLandingPage
     :<|> documentLoginPage
     :<|> documentSignupPage
+    :<|> messageSignupSuccess
     :<|> echoLogin
     :<|> echoSignup
     :<|> showLoginPage
@@ -188,6 +192,9 @@ showSignupPage = pure $ Signup.Page "/a/signup"
 documentSignupPage :: Pub.PublicServerC m => m Signup.Page
 documentSignupPage = pure $ Signup.Page "/echo/signup"
 
+messageSignupSuccess :: Pub.PublicServerC m => m Signup.SignupResultPage
+messageSignupSuccess = pure Signup.SignupSuccess
+
 echoSignup :: Pub.PublicServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
 
@@ -208,7 +215,7 @@ echoLogin input = pure $ Login.Success $ show input
 -- | A publicly available login page.
 type Public =    "a" :> "signup"
                  :> ReqBody '[FormUrlEncoded] User.Signup
-                 :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
+                 :> Post '[B.HTML] Signup.SignupResultPage
             :<|> "a" :> "login"
                  :> ReqBody '[FormUrlEncoded] User.Credentials
                  :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
@@ -224,13 +231,13 @@ handleSignup User.Signup {..} = env $ do
   case headMay ids of
     Just uid -> do
       ML.info $ "User created: " <> show uid <> ". Sending success result."
-      pure . SS.P.PublicPage $ Pages.SignupSuccess uid
+      pure Signup.SignupSuccess
     -- TODO Failure to create a user re-using an existing username doesn't
     -- trigger the Nothing case.
     Nothing -> do
       -- TODO This should not be a 200 OK result.
       ML.info $ "Failed to create a user. Sending failure result."
-      pure . SS.P.PublicPage $ Pages.SignupFailed "Failed to create users."
+      pure $ Signup.SignupFailed "Failed to create users."
   where env = ML.localEnv (<> "HTTP" <> "Signup")
 
 handleLogin User.Credentials {..} =

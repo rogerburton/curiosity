@@ -2,12 +2,14 @@
 module Prototype.Exe.Form.Signup
   ( Page(..)
   , ResultPage(..)
+  , SignupResultPage(..)
   ) where
 
 import           Smart.Html.Dsl                 ( HtmlCanvas )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons
+import qualified Smart.Html.Shared.Types       as HTypes
 import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
@@ -125,6 +127,83 @@ signupPage Page {..} = Dsl.SingletonCanvas $ do
           H.a ! A.class_ "u-text-muted" ! A.href "/login" $ "Log in"
 
 
+--------------------------------------------------------------------------------
+data SignupResultPage = SignupSuccess
+                      | SignupFailed Text
+
+instance H.ToMarkup SignupResultPage where
+  toMarkup = \case
+    SignupSuccess ->
+      Render.renderCanvas
+        $ Dsl.SingletonCanvas
+        $ withMessage "Sign up successful"
+        $ H.p
+        $ do
+            "You can now proceed to "
+            H.a ! A.href "/login" $ "log in"
+            "."
+    SignupFailed msg -> withText $ "Failed sign up: " <> msg
+   where
+    withText msg =
+      H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
+
+withMessage :: Text -> H.Html -> H.Html
+withMessage title msg = do
+  H.header
+    $
+    -- TODO The main header bottom border is not aligned with a regular
+    -- navigation bar.  (But here we don't display the border, so it's not really
+    -- visible. This is based on a Dialog component. Maybe this should be based
+    -- on a normal page instead. There is also an auto-focus thing going on.
+      H.div
+    ! A.class_ "c-dialog"
+    ! A.role "dialog"
+    ! customAttribute "aria-labelledby" "dialogTitle-04"
+    $ do
+        H.div
+          ! A.class_ "c-dialog__header c-dialog__header"
+          $ H.div
+          ! A.class_ "c-toolbar c-toolbar--spaced"
+          $ do
+              H.div
+                ! A.class_ "c-toolbar__left"
+                $ H.div
+                ! A.class_ "c-toolbar__item"
+                $ H.h2
+                ! A.class_ "c-dialog__title"
+                ! A.id "dialogTitle-04"
+                $ H.div
+                ! A.class_ "c-brand c-brand--xsmall"
+                $ H.a
+                ! A.href "/"
+                $ H.img
+                ! A.src "https://design.smart.coop/images/logo.svg"
+                ! A.alt "Smart"
+              H.div
+                ! A.class_ "c-toolbar__right"
+                $ H.div
+                ! A.class_ "c-toolbar__item"
+                $ H.a
+                ! A.href "/login"
+                ! A.class_ "c-button c-button--borderless c-button--icon"
+                ! customAttribute "data-dialog-close" "data-dialog-close"
+                ! customAttribute "aria-label"        "Close dialog"
+                $ H.div
+                ! A.class_ "c-button__content"
+                $ H.div
+                ! A.class_ "o-svg-icon o-svg-icon-close"
+                $ H.toMarkup svgIconClose
+  H.main
+    $ H.div
+    ! A.class_ "u-scroll-wrapper-body"
+    $ H.div
+    ! A.class_ "o-container o-container--large"
+    $ H.div
+    ! A.class_ "o-container-vertical"
+    $ do
+        H.div ! A.class_ "c-content" $ H.h1 $ H.toHtml title
+
+        H.div ! A.class_ "c-panel" $ H.div ! A.class_ "c-panel__body" $ msg
 --------------------------------------------------------------------------------
 data ResultPage = Success Text
                 | Failure Text
