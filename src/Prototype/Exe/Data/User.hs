@@ -144,7 +144,7 @@ instance Nav.IsNavbarContent UserProfile where
    where
     greeting =
       H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
-    editProfileLink = H.a ! A.href "/private/user/profile" $ "Edit profile"
+    editProfileLink = H.a ! A.href "/settings/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId

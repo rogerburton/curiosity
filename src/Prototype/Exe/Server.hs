@@ -107,7 +107,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
              :<|> Public
-             :<|> "private" :> Private
+             :<|> Private
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -206,12 +206,12 @@ echoLogin input = pure $ Login.Success $ show input
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | A publicly available login page.
-type Public = "a" :> "signup"
+type Public =    "a" :> "signup"
                  :> ReqBody '[FormUrlEncoded] User.Signup
                  :> Post '[B.HTML] (SS.P.Page 'SS.P.Public Void Pages.SignupResultPage)
-            :<|>  "a" :> "login"
-                  :> ReqBody '[FormUrlEncoded] User.Credentials
-                  :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
+            :<|> "a" :> "login"
+                 :> ReqBody '[FormUrlEncoded] User.Credentials
+                 :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
                                               NoContent
                                             )
 
@@ -271,17 +271,19 @@ handleLogin User.Credentials {..} =
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | The private API with authentication.
-type Private = Auth.UserAuthentication :> UserPages
--- brittany-disable-next-binding
-type UserPages
-  = "user" :> "profile" :> H.GetUserPage Pages.ProfilePage
-    :<|> EditUser
+type Private = Auth.UserAuthentication :> (
+                   "settings" :> "profile"
+                   :> H.GetUserPage Pages.ProfilePage
+             :<|>  "a" :>"set-user-profile"
+                   :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
+                   :> H.PostUserPage Pages.ProfileSaveConfirmPage
+  )
 
 privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
 privateT authResult = showProfilePage :<|> editUser
  where
   showProfilePage = withUser $ \profile ->
-    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "./profile"
+    pure . SS.P.AuthdPage profile . Pages.ProfilePage $ "/a/set-user-profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
     case _editPassword of
       Just newPass ->
@@ -312,12 +314,6 @@ privateT authResult = showProfilePage :<|> editUser
    where
     authFailedErr = Errs.throwError' . User.UserNotFound . mappend
       "Authentication failed, please login again. Error: "
-
--- brittany-disable-next-binding
-type EditUser = "user"
-                :> "profile"
-                :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
-                :> H.PostUserPage Pages.ProfileSaveConfirmPage
 
 
 --------------------------------------------------------------------------------

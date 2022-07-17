@@ -47,7 +47,7 @@ exampleNavbarAlt = Navbar [] [userEntry]
 
 userEntry = UserEntry userEntries NoAvatarImage
 
-userEntries = [SubEntry "My profile" "/private/user/profile" False]
+userEntries = [SubEntry "My profile" "/settings/profile" False]
 
 newtype ProfilePage = ProfilePage { _profilePageSubmitURL :: H.AttributeValue }
 
