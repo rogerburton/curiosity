@@ -18,18 +18,36 @@ import           Network.HTTP.Types.Method
 import qualified Prototype.Exe.Data.User       as User
 import           Prototype.Exe.Server.Shared.Html.Helpers.Form
                                                 ( mkButton )
+import           Smart.Html.Avatar
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Form               as Form
 import qualified Smart.Html.Input              as Inp
+import           Smart.Html.Navbar
+import qualified Smart.Html.Render             as Render
 import qualified Smart.Html.Shared.Types       as HTypes
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Html5               ( (!) )
+import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
 -- | A simple welcome page.
 data WelcomePage = WelcomePage
 
 instance H.ToMarkup WelcomePage where
-  toMarkup _ = "Welcome to the welcome page!"
+  toMarkup _ =
+    Render.renderCanvas
+      . Dsl.SingletonCanvas
+      $ H.div
+      ! A.class_ "c-app-layout"
+      $ H.header
+      $ H.toMarkup exampleNavbarAlt
+
+exampleNavbarAlt :: Navbar
+exampleNavbarAlt = Navbar [] [userEntry]
+
+userEntry = UserEntry userEntries NoAvatarImage
+
+userEntries = [SubEntry "My profile" "/private/user/profile" False]
 
 newtype ProfilePage = ProfilePage { _profilePageSubmitURL :: H.AttributeValue }
 

@@ -89,7 +89,7 @@ type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 -- brittany-disable-next-binding 
 type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
                Pages.LandingPage
-               (SS.P.Page 'SS.P.Authd User.UserProfile Pages.WelcomePage)
+               Pages.WelcomePage
              )
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
@@ -146,8 +146,10 @@ runExeServer
 runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
   Rt.ServerConf port root = runtime ^. Rt.rConf . Rt.confServer
-  waiApp =
-    exampleApplication @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root
+  waiApp                  = exampleApplication @Rt.ExeAppM
+    (Rt.exampleAppMHandlerNatTrans runtime)
+    ctx
+    root
   ctx =
     _rConf
       ^.        Rt.confCookie
@@ -161,12 +163,10 @@ runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
 showLandingPage
   :: Pub.PublicServerC m
   => SAuth.AuthResult User.UserId
-  -> m
-       ( PageEither
-           -- We don't use SS.P.Public Void to not have the automatic heading.
-           Pages.LandingPage
-           (SS.P.Page 'SS.P.Authd User.UserProfile Pages.WelcomePage)
-       )
+  -> m (PageEither
+           -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
+           -- to not have the automatic heading.
+                   Pages.LandingPage Pages.WelcomePage)
 showLandingPage = \case
   SAuth.Authenticated userId ->
     S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
@@ -174,8 +174,7 @@ showLandingPage = \case
         ML.warning
           "Cookie-based authentication succeeded, but the user ID is not found."
         authFailedErr $ "No user found with ID " <> show userId
-      Just userProfile ->
-        pure . SS.P.PageR $ SS.P.AuthdPage userProfile Pages.WelcomePage
+      Just userProfile -> pure $ SS.P.PageR Pages.WelcomePage
   _ -> pure $ SS.P.PageL Pages.LandingPage
   where authFailedErr = Errs.throwError' . User.UserNotFound
 
