@@ -33,8 +33,6 @@ import qualified Prototype.Form.Login          as Login
 import qualified Prototype.Form.Signup         as Signup
 import qualified Prototype.Runtime             as Rt
 import qualified Prototype.Server.Private      as Priv
-import qualified Prototype.Server.Private.Auth
-                                               as Auth
 import qualified Prototype.Server.Private.Helpers
                                                as H
 import qualified Prototype.Server.Private.Pages
@@ -62,7 +60,7 @@ import           WaiAppStatic.Types             ( ss404Handler
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | This is the main Servant API definition for Curiosity.
-type App = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
+type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                Pages.LandingPage
                Pages.WelcomePage
              )
@@ -198,7 +196,7 @@ type Public =    "a" :> "signup"
                  :> Post '[B.HTML] Signup.SignupResultPage
             :<|> "a" :> "login"
                  :> ReqBody '[FormUrlEncoded] User.Credentials
-                 :> Verb 'POST 303 '[JSON] ( Headers Auth.PostAuthHeaders
+                 :> Verb 'POST 303 '[JSON] ( Headers H.PostAuthHeaders
                                               NoContent
                                             )
 
@@ -258,7 +256,7 @@ handleLogin User.Credentials {..} =
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | The private API with authentication.
-type Private = Auth.UserAuthentication :> (
+type Private = H.UserAuthentication :> (
                    "settings" :> "profile"
                    :> Get '[B.HTML] Pages.ProfileView
              :<|>  "settings" :> "profile" :> "edit"
