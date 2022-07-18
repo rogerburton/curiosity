@@ -11,7 +11,6 @@ module Prototype.Exe.Server.Private.Pages
   ( WelcomePage(..)
   , ProfilePage(..)
   , ProfileView(..)
-  , EditProfileForm(..)
   , ProfileSaveConfirmPage(..)
   ) where
 
@@ -28,9 +27,6 @@ import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-import           Web.FormUrlEncoded             ( FromForm(..)
-                                                , parseMaybe
-                                                )
 
 
 --------------------------------------------------------------------------------
@@ -426,14 +422,6 @@ contractCreate1Confirm =
                 H.dt ! A.class_ "c-key-value-item__key" $ "Description"
                 H.dd ! A.class_ "c-key-value-item__value" $ "Some description."
 
-
-newtype EditProfileForm = EditProfileForm
-  { _editPassword :: Maybe User.Password
-  }
-  deriving (Eq, Show, Generic)
-
-instance FromForm EditProfileForm where
-  fromForm f = EditProfileForm <$> parseMaybe "password" f
 
 data ProfileSaveConfirmPage = ProfileSaveSuccess
                             | ProfileSaveFailure (Maybe Text)

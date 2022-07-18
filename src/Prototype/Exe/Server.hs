@@ -285,7 +285,7 @@ type Private = Auth.UserAuthentication :> (
              :<|>  "settings" :> "profile" :> "edit"
                    :> Get '[B.HTML] Pages.ProfilePage
              :<|>  "a" :>"set-user-profile"
-                   :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
+                   :> ReqBody '[FormUrlEncoded] User.Update
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
   )
 
@@ -295,7 +295,7 @@ privateT authResult = showProfileView :<|> showProfilePage :<|> editUser
   showProfileView = withUser $ \profile -> pure $ Pages.ProfileView profile
   showProfilePage = withUser
     $ \profile -> pure $ Pages.ProfilePage profile "/a/set-user-profile"
-  editUser Pages.EditProfileForm {..} = withUser $ \profile ->
+  editUser User.Update {..} = withUser $ \profile ->
     case _editPassword of
       Just newPass ->
         let updatedProfile =
