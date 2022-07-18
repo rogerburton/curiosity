@@ -100,7 +100,6 @@ library
     Prototype.Parse2
     Prototype.Process
     Prototype.Server
-    Prototype.Server.Shared.Html.Helpers.Form
     Prototype.Server.Public
     Prototype.Server.Private
     Prototype.Server.Private.Helpers
