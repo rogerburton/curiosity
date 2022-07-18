@@ -102,6 +102,7 @@ library
     Prototype.Server.Private.Helpers
     Prototype.Server.Private.Auth
     Prototype.Server.Private.Pages
+    WaiAppStatic.Storage.Filesystem.Extended
   -- More dependencies only specific to the library
   build-depends:
       http-api-data
