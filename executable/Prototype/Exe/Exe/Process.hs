@@ -49,7 +49,7 @@ startServer :: Rt.Runtime -> IO Errs.RuntimeErr
 startServer runtime@Rt.Runtime {..} = do
   let Rt.ServerConf port _ = runtime ^. Rt.rConf . Rt.confServer
   startupLogInfo _rLoggers $ "Starting up server on port " <> show port <> "..."
-  try @SomeException (Srv.runExeServer runtime) >>= pure . either
+  try @SomeException (Srv.run runtime) >>= pure . either
     Errs.RuntimeException
     (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.

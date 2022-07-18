@@ -12,11 +12,12 @@ Description: Server root module, split up into public and private sub-modules.
 module Prototype.Exe.Server
   (
     -- * Top level server types.
-    Exe
-  , exampleT
-  , exampleApplication
-  , runExeServer
-  -- * Type-aliases for convenience
+    App
+  , serverT
+  , serve
+  , run
+
+    -- * Type-aliases for convenience
   , ServerSettings
   ) where
 
@@ -47,7 +48,7 @@ import qualified Prototype.Exe.Server.Private.Pages
 import qualified Prototype.Exe.Server.Public   as Pub
 import qualified Prototype.Exe.Server.Public.Pages
                                                as Pages
-import           Servant
+import           Servant                 hiding ( serve )
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
@@ -86,10 +87,9 @@ import           Data.ByteArray.Encoding
 
 
 --------------------------------------------------------------------------------
-type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
-
 -- brittany-disable-next-binding
-type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
+-- | This is the main Servant API definition for Curiosity.
+type App = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
                Pages.LandingPage
                Pages.WelcomePage
              )
@@ -115,8 +115,9 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
-exampleT :: forall m . Pub.PublicServerC m => FilePath -> ServerT Exe m
-exampleT root =
+-- | This is the main Servant server definition, corresponding to @App@.
+serverT :: forall m . Pub.PublicServerC m => FilePath -> ServerT App m
+serverT root =
   showLandingPage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -129,39 +130,44 @@ exampleT root =
     :<|> privateT
     :<|> serveDocumentation root
 
--- | Run as a Wai Application
-exampleApplication
-  :: forall m
-   . Pub.PublicServerC m
-  => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an arbitrary @m@ to a Servant @Handler@
-  -> Server.Context ServerSettings
-  -> FilePath
-  -> Wai.Application
-exampleApplication handlerNatTrans ctx root =
-  Servant.serveWithContext exampleProxy ctx
-    $ hoistServerWithContext exampleProxy settingsProxy handlerNatTrans
-    $ exampleT root
- where
-  exampleProxy  = Proxy @Exe
-  settingsProxy = Proxy @ServerSettings
 
-runExeServer
+--------------------------------------------------------------------------------
+type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
+
+-- | This is the main function of this module. It runs a Warp server, serving
+-- our @App@ API definition.
+run
   :: forall m
    . MonadIO m
   => Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-runExeServer runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
+run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
   Rt.ServerConf port root = runtime ^. Rt.rConf . Rt.confServer
-  waiApp                  = exampleApplication @Rt.ExeAppM
-    (Rt.exampleAppMHandlerNatTrans runtime)
-    ctx
-    root
+  waiApp = serve @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root
   ctx =
     _rConf
       ^.        Rt.confCookie
       Server.:. _rJwtSettings
       Server.:. Server.EmptyContext
+
+-- | Turn our @serverT@ definition into a Wai application, suitable for
+-- Warp.run.
+serve
+  :: forall m
+   . Pub.PublicServerC m
+  => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
+                                   -- arbitrary @m@ to a Servant @Handler@
+  -> Server.Context ServerSettings
+  -> FilePath
+  -> Wai.Application
+serve handlerNatTrans ctx root =
+  Servant.serveWithContext appProxy ctx
+    $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
+    $ serverT root
+ where
+  appProxy      = Proxy @App
+  settingsProxy = Proxy @ServerSettings
 
 
 --------------------------------------------------------------------------------
