@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds
            , TypeOperators
 #-} -- Language extensions needed for servant.
+{-# LANGUAGE ConstraintKinds #-}
 {- |
 Module: Prototype.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -25,6 +26,7 @@ import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
+import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -40,10 +42,8 @@ import qualified Prototype.Html.LandingPage
 import qualified Prototype.Html.Profile
                                                as Pages
 import qualified Prototype.Runtime             as Rt
-import qualified Prototype.Server.Private      as Priv
 import qualified Prototype.Server.Private.Helpers
                                                as H
-import qualified Prototype.Server.Public       as Pub
 import           Servant                 hiding ( serve )
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
@@ -91,7 +91,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                       -- and for a custom 404
 
 -- | This is the main Servant server definition, corresponding to @App@.
-serverT :: forall m . Pub.PublicServerC m => FilePath -> ServerT App m
+serverT :: forall m . ServerC m => FilePath -> ServerT App m
 serverT root =
   showLandingPage
     :<|> documentLoginPage
@@ -104,6 +104,18 @@ serverT root =
     :<|> publicT
     :<|> privateT
     :<|> serveDocumentation root
+
+
+--------------------------------------------------------------------------------
+-- | Minimal set of constraints needed on some monad @m@ to be satisfied to be
+-- able to run a server.
+type ServerC m
+  = ( MonadMask m
+    , ML.MonadAppNameLogMulti m
+    , S.DBStorage m User.UserProfile
+    , MonadReader Rt.Runtime m
+    , MonadIO m
+    )
 
 
 --------------------------------------------------------------------------------
@@ -130,7 +142,7 @@ run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
 -- Warp.run.
 serve
   :: forall m
-   . Pub.PublicServerC m
+   . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
   -> Server.Context ServerSettings
@@ -149,7 +161,7 @@ serve handlerNatTrans ctx root =
 -- | Show the landing page when the user is not logged in, or the welcome page
 -- when the user is logged in.
 showLandingPage
-  :: Pub.PublicServerC m
+  :: ServerC m
   => SAuth.AuthResult User.UserId
   -> m (PageEither
            -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
@@ -168,27 +180,27 @@ showLandingPage = \case
 
 
 --------------------------------------------------------------------------------
-showSignupPage :: Pub.PublicServerC m => m Signup.Page
+showSignupPage :: ServerC m => m Signup.Page
 showSignupPage = pure $ Signup.Page "/a/signup"
 
-documentSignupPage :: Pub.PublicServerC m => m Signup.Page
+documentSignupPage :: ServerC m => m Signup.Page
 documentSignupPage = pure $ Signup.Page "/echo/signup"
 
-messageSignupSuccess :: Pub.PublicServerC m => m Signup.SignupResultPage
+messageSignupSuccess :: ServerC m => m Signup.SignupResultPage
 messageSignupSuccess = pure Signup.SignupSuccess
 
-echoSignup :: Pub.PublicServerC m => User.Signup -> m Signup.ResultPage
+echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
 
 
 --------------------------------------------------------------------------------
-showLoginPage :: Pub.PublicServerC m => m Login.Page
+showLoginPage :: ServerC m => m Login.Page
 showLoginPage = pure $ Login.Page "/a/login"
 
-documentLoginPage :: Pub.PublicServerC m => m Login.Page
+documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
-echoLogin :: Pub.PublicServerC m => User.Credentials -> m Login.ResultPage
+echoLogin :: ServerC m => User.Credentials -> m Login.ResultPage
 echoLogin input = pure $ Login.Success $ show input
 
 
@@ -204,7 +216,7 @@ type Public =    "a" :> "signup"
                                               NoContent
                                             )
 
-publicT :: forall m . Pub.PublicServerC m => ServerT Public m
+publicT :: forall m . ServerC m => ServerT Public m
 publicT = handleSignup :<|> handleLogin
 
 handleSignup User.Signup {..} = env $ do
@@ -270,7 +282,7 @@ type Private = H.UserAuthentication :> (
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
   )
 
-privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
+privateT :: forall m . ServerC m => ServerT Private m
 privateT authResult =
   (withUser authResult showProfilePage)
     :<|> (withUser authResult showEditProfilePage)
@@ -283,7 +295,7 @@ showEditProfilePage profile =
 
 handleUserUpdate
   :: forall m
-   . Priv.PrivateServerC m
+   . ServerC m
   => User.Update
   -> User.UserProfile
   -> m
@@ -313,7 +325,7 @@ handleUserUpdate User.Update {..} profile = case _editPassword of
 -- authentication result, or throw an error.
 withUser
   :: forall m a
-   . Priv.PrivateServerC m
+   . ServerC m
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> m a)
   -> m a

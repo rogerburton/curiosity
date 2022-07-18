@@ -100,8 +100,6 @@ library
     Prototype.Parse2
     Prototype.Process
     Prototype.Server
-    Prototype.Server.Public
-    Prototype.Server.Private
     Prototype.Server.Private.Helpers
     WaiAppStatic.Storage.Filesystem.Extended
   -- More dependencies only specific to the library
