@@ -11,10 +11,10 @@ import qualified Commence.InteractiveState.Class
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
-import qualified Prototype.Exe.Data            as Data
-import qualified Prototype.Exe.Exe.Parse       as P
-import qualified Prototype.Exe.Exe.Parse2      as P
-import qualified Prototype.Exe.Runtime         as Rt
+import qualified Prototype.Data                as Data
+import qualified Prototype.Parse               as P
+import qualified Prototype.Parse2              as P
+import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )
 

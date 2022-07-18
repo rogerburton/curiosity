@@ -3,9 +3,9 @@ module Main
   ) where
 
 import qualified Options.Applicative           as A
-import qualified Prototype.Exe.Exe.Parse       as P
-import qualified Prototype.Exe.Exe.Process     as P
-import qualified Prototype.Exe.Runtime         as Rt
+import qualified Prototype.Parse               as P
+import qualified Prototype.Process             as P
+import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 
 

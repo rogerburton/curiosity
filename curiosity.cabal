@@ -84,21 +84,21 @@ library
   import: common-dependencies, lang-settings, common-extensions
   hs-source-dirs: src
   exposed-modules:
-    Prototype.Exe.Data
-    Prototype.Exe.Repl.Parse
-    Prototype.Exe.Runtime
-    Prototype.Exe.Data.Todo
-    Prototype.Exe.Data.User
-    Prototype.Exe.Form.Login
-    Prototype.Exe.Form.Signup
-    Prototype.Exe.Server
-    Prototype.Exe.Server.Shared.Html.Helpers.Form
-    Prototype.Exe.Server.Public
-    Prototype.Exe.Server.Public.Pages
-    Prototype.Exe.Server.Private
-    Prototype.Exe.Server.Private.Helpers
-    Prototype.Exe.Server.Private.Auth
-    Prototype.Exe.Server.Private.Pages
+    Prototype.Data
+    Prototype.Repl.Parse
+    Prototype.Runtime
+    Prototype.Data.Todo
+    Prototype.Data.User
+    Prototype.Form.Login
+    Prototype.Form.Signup
+    Prototype.Server
+    Prototype.Server.Shared.Html.Helpers.Form
+    Prototype.Server.Public
+    Prototype.Server.Public.Pages
+    Prototype.Server.Private
+    Prototype.Server.Private.Helpers
+    Prototype.Server.Private.Auth
+    Prototype.Server.Private.Pages
   -- More dependencies only specific to the library
   build-depends:
       http-api-data
@@ -121,8 +121,8 @@ executable cty-serve
     , fast-logger
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -137,8 +137,8 @@ executable cty-interactive
     , fast-logger
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -153,8 +153,8 @@ executable cty-parse
     , fast-logger
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -169,8 +169,8 @@ executable cty-repl
     , fast-logger
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -187,9 +187,9 @@ executable cty
     , fast-logger
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Parse2
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Parse2
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -206,9 +206,9 @@ executable cty-sock
     , network
   hs-source-dirs: executable
   other-modules:
-    Prototype.Exe.Exe.Parse
-    Prototype.Exe.Exe.Parse2
-    Prototype.Exe.Exe.Process
+    Prototype.Parse
+    Prototype.Parse2
+    Prototype.Process
   ghc-options:
     -threaded
 
@@ -227,10 +227,10 @@ executable cty-sock
 --     , curiosity
 
 --   other-modules:
---      Prototype.Exe.Data.UserSpec
---      Prototype.Exe.Data.TodoSpec
---      Prototype.Exe.DataSpec
---      Prototype.Exe.Data.Shared
+--      Prototype.Data.UserSpec
+--      Prototype.Data.TodoSpec
+--      Prototype.DataSpec
+--      Prototype.Data.Shared
 
 --   type: exitcode-stdio-1.0
 --   main-is: Spec.hs
