@@ -96,6 +96,7 @@ type Exe = Auth.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              -- TODO Add the user profile update form.
+             -- TODO Add the user profile view.
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -280,6 +281,8 @@ handleLogin User.Credentials {..} =
 -- | The private API with authentication.
 type Private = Auth.UserAuthentication :> (
                    "settings" :> "profile"
+                   :> Get '[B.HTML] Pages.ProfileView
+             :<|>  "settings" :> "profile" :> "edit"
                    :> Get '[B.HTML] Pages.ProfilePage
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] Pages.EditProfileForm
@@ -287,8 +290,9 @@ type Private = Auth.UserAuthentication :> (
   )
 
 privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
-privateT authResult = showProfilePage :<|> editUser
+privateT authResult = showProfileView :<|> showProfilePage :<|> editUser
  where
+  showProfileView = withUser $ \profile -> pure $ Pages.ProfileView profile
   showProfilePage = withUser
     $ \profile -> pure $ Pages.ProfilePage profile "/a/set-user-profile"
   editUser Pages.EditProfileForm {..} = withUser $ \profile ->
