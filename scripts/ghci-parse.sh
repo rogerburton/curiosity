@@ -9,7 +9,7 @@
 
 ghc --interactive \
   -i../smart-design-hs/lib/src/ \
-  -iexecutable/ \
+  -ibin/ \
   -isrc/ \
   -hide-package base \
   -XNoImplicitPrelude \

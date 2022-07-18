@@ -124,7 +124,7 @@ executable cty-serve
     , curiosity
     , async
     , fast-logger
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
@@ -137,7 +137,7 @@ executable cty-interactive
     , curiosity
     , async
     , fast-logger
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
@@ -150,7 +150,7 @@ executable cty-parse
     , curiosity
     , async
     , fast-logger
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
@@ -163,7 +163,7 @@ executable cty-repl
     , curiosity
     , async
     , fast-logger
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
@@ -178,7 +178,7 @@ executable cty
     , curiosity
     , async
     , fast-logger
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
@@ -193,7 +193,7 @@ executable cty-sock
     , bytestring
     , fast-logger
     , network
-  hs-source-dirs: executable
+  hs-source-dirs: bin
   ghc-options:
     -threaded
 
