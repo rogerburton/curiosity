@@ -72,6 +72,8 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
              -- TODO Add the user profile view.
 
+             :<|> "views" :> "profile" :> Get '[B.HTML] Pages.ProfileView
+
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
              :<|> "state" :> Get '[B.HTML] Login.ResultPage -- TODO Proper type.
@@ -99,6 +101,7 @@ serverT root =
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage
+    :<|> documentProfilePage
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -329,6 +332,9 @@ handleUserUpdate User.Update {..} profile = case _editPassword of
 documentEditProfilePage :: ServerC m => m Pages.ProfilePage
 documentEditProfilePage =
   pure $ Pages.ProfilePage Example.alice "/echo/profile"
+
+documentProfilePage :: ServerC m => m Pages.ProfileView
+documentProfilePage = pure $ Pages.ProfileView Example.alice
 
 
 --------------------------------------------------------------------------------
