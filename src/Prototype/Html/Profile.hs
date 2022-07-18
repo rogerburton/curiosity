@@ -1,23 +1,16 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {- |
-Module: Prototype.Server.Private.Pages
-Description: Private pages for the application
-
-The goal is to exemplify the use of our DSL for some simple pages and to have something more tangible to show.
-
+Module: Prototype.Html.Profile
+Description: Profile pages (view and edit).
 -}
-module Prototype.Server.Private.Pages
-  ( WelcomePage(..)
-  , ProfilePage(..)
+module Prototype.Html.Profile
+  ( ProfilePage(..)
   , ProfileView(..)
   , ProfileSaveConfirmPage(..)
   ) where
 
 import qualified Prototype.Data.User           as User
-import           Smart.Html.Avatar
+import           Prototype.Html.Navbar          ( exampleNavbarAlt )
 import qualified Smart.Html.Dsl                as Dsl
-import           Smart.Html.Navbar
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
@@ -27,20 +20,6 @@ import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-
-
---------------------------------------------------------------------------------
--- | A simple welcome page.
-data WelcomePage = WelcomePage
-
-instance H.ToMarkup WelcomePage where
-  toMarkup _ =
-    Render.renderCanvas
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout"
-      $ H.header
-      $ H.toMarkup exampleNavbarAlt
 
 
 --------------------------------------------------------------------------------
@@ -433,12 +412,3 @@ instance H.ToMarkup ProfileSaveConfirmPage where
     ProfileSaveFailure mmsg -> do
       H.text $ "We had a problem saving your data."
       maybe mempty (H.text . mappend "Reason: ") mmsg
-
-
---------------------------------------------------------------------------------
-exampleNavbarAlt :: Navbar
-exampleNavbarAlt = Navbar [] [userEntry]
-
-userEntry = UserEntry userEntries NoAvatarImage
-
-userEntries = [SubEntry "Settings" "/settings/profile" False]

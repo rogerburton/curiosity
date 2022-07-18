@@ -31,12 +31,14 @@ import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Prototype.Data.User           as User
 import qualified Prototype.Form.Login          as Login
 import qualified Prototype.Form.Signup         as Signup
+import qualified Prototype.Html.Homepage
+                                               as Pages
+import qualified Prototype.Html.Profile
+                                               as Pages
 import qualified Prototype.Runtime             as Rt
 import qualified Prototype.Server.Private      as Priv
 import qualified Prototype.Server.Private.Helpers
                                                as H
-import qualified Prototype.Server.Private.Pages
-                                               as Pages
 import qualified Prototype.Server.Public       as Pub
 import qualified Prototype.Server.Public.Pages
                                                as Pages

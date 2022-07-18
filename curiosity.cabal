@@ -91,6 +91,9 @@ library
     Prototype.Data.User
     Prototype.Form.Login
     Prototype.Form.Signup
+    Prototype.Html.Navbar
+    Prototype.Html.Homepage
+    Prototype.Html.Profile
     Prototype.Parse
     Prototype.Parse2
     Prototype.Process
@@ -100,7 +103,6 @@ library
     Prototype.Server.Public.Pages
     Prototype.Server.Private
     Prototype.Server.Private.Helpers
-    Prototype.Server.Private.Pages
     WaiAppStatic.Storage.Filesystem.Extended
   -- More dependencies only specific to the library
   build-depends:
