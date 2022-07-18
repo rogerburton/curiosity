@@ -290,41 +290,61 @@ type Private = Auth.UserAuthentication :> (
   )
 
 privateT :: forall m . Priv.PrivateServerC m => ServerT Private m
-privateT authResult = showProfileView :<|> showProfilePage :<|> editUser
- where
-  showProfileView = withUser $ \profile -> pure $ Pages.ProfileView profile
-  showProfilePage = withUser
-    $ \profile -> pure $ Pages.ProfilePage profile "/a/set-user-profile"
-  editUser User.Update {..} = withUser $ \profile ->
-    case _editPassword of
-      Just newPass ->
-        let updatedProfile =
-              profile
-                &  User.userProfileCreds
-                .  User.userCredsPassword
-                %~ (`fromMaybe` _editPassword)
-        in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
-              <&> headMay
-              <&> SS.P.AuthdPage updatedProfile
-              .   \case
-                    Nothing -> Pages.ProfileSaveFailure
-                      $ Just "Empty list of affected User IDs on update."
-                    Just{} -> Pages.ProfileSaveSuccess
-      Nothing ->
-        pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
-          "Nothing to update."
+privateT authResult =
+  (withUser authResult showProfilePage)
+    :<|> (withUser authResult showEditProfilePage)
+    :<|> (withUser authResult . handleUserUpdate)
 
-  -- extract the user from the authentication result or throw an error.
-  withUser :: forall a . (User.UserProfile -> m a) -> m a
-  withUser f = case authResult of
-    SAuth.Authenticated userId ->
-      S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-        Nothing -> authFailedErr $ "No user found by ID = " <> show userId
-        Just userProfile -> f userProfile
-    authFailed -> authFailedErr $ show authFailed
-   where
-    authFailedErr = Errs.throwError' . User.UserNotFound . mappend
-      "Authentication failed, please login again. Error: "
+showProfilePage profile = pure $ Pages.ProfileView profile
+
+showEditProfilePage profile =
+  pure $ Pages.ProfilePage profile "/a/set-user-profile"
+
+handleUserUpdate
+  :: forall m
+   . Priv.PrivateServerC m
+  => User.Update
+  -> User.UserProfile
+  -> m
+       ( SS.P.Page
+           'SS.P.Authd
+           User.UserProfile
+           Pages.ProfileSaveConfirmPage
+       )
+handleUserUpdate User.Update {..} profile = case _editPassword of
+  Just newPass ->
+    let updatedProfile =
+          profile
+            &  User.userProfileCreds
+            .  User.userCredsPassword
+            %~ (`fromMaybe` _editPassword)
+    in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
+          <&> headMay
+          <&> SS.P.AuthdPage updatedProfile
+          .   \case
+                Nothing -> Pages.ProfileSaveFailure
+                  $ Just "Empty list of affected User IDs on update."
+                Just{} -> Pages.ProfileSaveSuccess
+  Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
+    "Nothing to update."
+
+-- | Run a handler, ensuring a user profile can be extracted from the
+-- authentication result, or throw an error.
+withUser
+  :: forall m a
+   . Priv.PrivateServerC m
+  => SAuth.AuthResult User.UserId
+  -> (User.UserProfile -> m a)
+  -> m a
+withUser authResult f = case authResult of
+  SAuth.Authenticated userId ->
+    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+      Nothing -> authFailedErr $ "No user found by ID = " <> show userId
+      Just userProfile -> f userProfile
+  authFailed -> authFailedErr $ show authFailed
+ where
+  authFailedErr = Errs.throwError' . User.UserNotFound . mappend
+    "Authentication failed, please login again. Error: "
 
 
 --------------------------------------------------------------------------------
