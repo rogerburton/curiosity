@@ -42,7 +42,7 @@ import qualified Prototype.Html.LandingPage
 import qualified Prototype.Html.Profile
                                                as Pages
 import qualified Prototype.Runtime             as Rt
-import qualified Prototype.Server.Private.Helpers
+import qualified Prototype.Server.Helpers
                                                as H
 import           Servant                 hiding ( serve )
 import qualified Servant.Auth.Server           as SAuth

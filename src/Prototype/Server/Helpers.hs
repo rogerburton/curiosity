@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-module Prototype.Server.Private.Helpers
+module Prototype.Server.Helpers
   ( GetUserPage
   , PutUserPage
   , DeleteUserPage
