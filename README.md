@@ -48,7 +48,7 @@ instead of Main):
 
 ```
 $ nix-shell
-$ cabal repl prototype-hs-exe
+$ cabal repl curiosity
 ```
 
 Instead it's possible to use a helper script to call `:main` with GHCi.
@@ -61,21 +61,21 @@ We can also use Cabal to run the example:
 
 ```
 $ nix-shell
-$ cabal run -- prototype-hs-exe --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
+$ cabal run -- cty-interactive --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
 ```
 
 The binary can be built and run also this way, which bypass building the tests:
 
 ```
-$ cabal build prototype-hs-exe
-$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/prototype-hs-exe-0.1.0.0/x/prototype-hs-exe/build/prototype-hs-exe/prototype-hs-exe --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
+$ cabal build curiosity
+$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/curiosity-0.1.0.0/x/curiosity/build/curiosity/cty-interactive --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
 ```
 
 And finally, we can build a binary with Nix:
 
 ```
-$ nix-build -A prototype-hs-exe
-$ ./result/bin/prototype-hs-exe \
+$ nix-build -A curiosity
+$ ./result/bin/cty-interactive \
     --server-port 9000 \
     --repl-prompt "> " \
     --repl-history-on \

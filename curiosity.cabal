@@ -1,5 +1,5 @@
 cabal-version:      2.2
-name:               prototype-hs-exe
+name:               curiosity
 version:            0.1.0.0
 category:           web
 
@@ -116,7 +116,7 @@ executable cty-serve
   main-is: cty-serve.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -132,7 +132,7 @@ executable cty-interactive
   main-is: cty-interactive.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -148,7 +148,7 @@ executable cty-parse
   main-is: cty-parse.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -164,7 +164,7 @@ executable cty-repl
   main-is: cty-repl.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -182,7 +182,7 @@ executable cty
       bytestring
     , directory
     , optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , fast-logger
   hs-source-dirs: executable
@@ -199,7 +199,7 @@ executable cty-sock
   main-is: cty-sock.hs
   build-depends:
       optparse-applicative
-    , prototype-hs-exe
+    , curiosity
     , async
     , bytestring
     , fast-logger
@@ -212,7 +212,7 @@ executable cty-sock
   ghc-options:
     -threaded
 
--- test-suite prototype-hs-exe-test
+-- test-suite curiosity-test
 
 --   import:
 --        common-dependencies
@@ -224,7 +224,7 @@ executable cty-sock
 --   build-depends:
 --       QuickCheck
 --     , hspec
---     , prototype-hs-exe
+--     , curiosity
 
 --   other-modules:
 --      Prototype.Exe.Data.UserSpec
