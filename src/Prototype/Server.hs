@@ -30,7 +30,9 @@ import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import           Prototype.Data                 ( readFullStmDbInHask, HaskDb )
+import           Prototype.Data                 ( HaskDb
+                                                , readFullStmDbInHask
+                                                )
 import qualified Prototype.Data.User           as User
 import qualified Prototype.Example             as Example
 import qualified Prototype.Form.Login          as Login
@@ -283,6 +285,8 @@ handleLogin User.Credentials {..} =
 type Private = H.UserAuthentication :> (
                    "settings" :> "profile"
                    :> Get '[B.HTML] Pages.ProfileView
+             :<|>  "settings" :> "profile.json"
+                   :> Get '[JSON] User.UserProfile
              :<|>  "settings" :> "profile" :> "edit"
                    :> Get '[B.HTML] Pages.ProfilePage
              :<|>  "a" :>"set-user-profile"
@@ -293,10 +297,15 @@ type Private = H.UserAuthentication :> (
 privateT :: forall m . ServerC m => ServerT Private m
 privateT authResult =
   (withUser authResult showProfilePage)
+    :<|> (withUser authResult showProfileAsJson)
     :<|> (withUser authResult showEditProfilePage)
     :<|> (withUser authResult . handleUserUpdate)
 
 showProfilePage profile = pure $ Pages.ProfileView profile
+
+showProfileAsJson
+  :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
+showProfileAsJson = pure
 
 showEditProfilePage profile =
   pure $ Pages.ProfilePage profile "/a/set-user-profile"
@@ -361,7 +370,7 @@ withUser authResult f = case authResult of
 showState :: ServerC m => m Login.ResultPage
 showState = do
   stmDb <- asks Rt._rDb
-  db <- readFullStmDbInHask stmDb
+  db    <- readFullStmDbInHask stmDb
   pure . Login.Success $ show db
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
@@ -369,7 +378,7 @@ showState = do
 showStateAsJson :: ServerC m => m (HaskDb Rt.Runtime)
 showStateAsJson = do
   stmDb <- asks Rt._rDb
-  db <- readFullStmDbInHask stmDb
+  db    <- readFullStmDbInHask stmDb
   pure db
 
 --------------------------------------------------------------------------------
