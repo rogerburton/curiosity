@@ -73,7 +73,6 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
-             -- TODO Add the user profile view.
 
              :<|> "views" :> "profile" :> Get '[B.HTML] Pages.ProfileView
 
