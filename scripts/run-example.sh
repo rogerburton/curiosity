@@ -5,9 +5,8 @@
 
 ghc --interactive \
   -i../smart-design-hs/lib/src/ \
-  -iexe/executable/ \
-  -iexe/src/ \
-  -ilib/src/ \
+  -ibin/ \
+  -isrc/ \
   -hide-package base \
   -XNoImplicitPrelude \
   -XHaskell2010 \

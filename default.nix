@@ -19,11 +19,9 @@ let
     ];
   };
 in with nixpkgs.haskellPackages;
-  { inherit
-      prototype-hs-exe;
-
+  {
     # Build with nix-build -A <attr>
-    binaries = prototype-hs-exe;
+    binaries = nixpkgs.haskellPackages.curiosity;
     content = (import ./content {}).html.all;
     man-pages = (import ./man {}).man-pages;
     toplevel = os.config.system.build.toplevel;
