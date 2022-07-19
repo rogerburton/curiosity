@@ -9,6 +9,7 @@ Description: User related datatypes
 module Prototype.Exe.Data.User
   ( Signup(..)
   , Credentials(..)
+  , Update(..)
   , userCredsName
   , userCredsPassword
   , UserProfile'(..)
@@ -51,6 +52,7 @@ import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
 import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseMaybe
                                                 , parseUnique
                                                 )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
@@ -84,6 +86,15 @@ data Credentials = Credentials
 instance FromForm Credentials where
   fromForm f =
     Credentials <$> parseUnique "username" f <*> parseUnique "password" f
+
+-- | Represents the input data to update a user profile.
+newtype Update = Update
+  { _editPassword :: Maybe Password
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromForm Update where
+  fromForm f = Update <$> parseMaybe "password" f
 
 data UserProfile' creds userDisplayName userEmailAddr = UserProfile
   { _userProfileId          :: UserId
@@ -144,7 +155,7 @@ instance Nav.IsNavbarContent UserProfile where
    where
     greeting =
       H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
-    editProfileLink = H.a ! A.href "/private/user/profile" $ "Edit profile"
+    editProfileLink = H.a ! A.href "/settings/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
   type DBId UserProfile = UserId
