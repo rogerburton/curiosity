@@ -21,7 +21,9 @@ let
 in with nixpkgs.haskellPackages;
   {
     # Build with nix-build -A <attr>
+    # binaries + haddock are also available as binaries.all.
     binaries = nixpkgs.haskellPackages.curiosity;
+    haddock = nixpkgs.haskellPackages.curiosity.doc;
     content = (import ./content {}).html.all;
     man-pages = (import ./man {}).man-pages;
     toplevel = os.config.system.build.toplevel;
