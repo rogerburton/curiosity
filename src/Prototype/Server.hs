@@ -28,6 +28,7 @@ import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import           Data.Aeson                     ( FromJSON, eitherDecode )
+import           System.FilePath                ( (</>) )
 import qualified Data.ByteString.Lazy          as BS
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -74,7 +75,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
 
-             :<|> "views" :> "profile" :> Get '[B.HTML] Pages.ProfileView
+             :<|> "views" :> "profile"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.ProfileView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -104,7 +107,7 @@ serverT root dataDir =
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage
-    :<|> documentProfilePage
+    :<|> documentProfilePage dataDir
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -346,9 +349,10 @@ documentEditProfilePage = do
   profile <- readJson "data/alice.json"
   pure $ Pages.ProfilePage profile "/echo/profile"
 
-documentProfilePage :: ServerC m => m Pages.ProfileView
-documentProfilePage = do
-  profile <- readJson "data/alice.json"
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
+documentProfilePage dataDir filename = do
+  profile <- readJson $ dataDir </> filename
   pure $ Pages.ProfileView profile
 
 
