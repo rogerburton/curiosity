@@ -146,12 +146,21 @@ $ nix-build -A runvm
 $ result/bin/run-nixos-vm
 ```
 
-Within the VM, Nginx is setup as a reverse-proxy in front of `cty-serve`. You should be able to confirm that with e.g.:
+Within the VM, Nginx is setup as a reverse-proxy in front of `cty-serve`. You
+should be able to confirm that with e.g.:
 
 ```
 # curl -v 127.0.0.1
 # systemctl status nginx
 # systemctl status app
+```
+
+The VM contains other binaries to help interact with the system, and local
+documentation is available as man pages:
+
+```
+# cty --help
+# man curiosity
 ```
 
 Use `ctrl-a x` to quit QEMU.

@@ -51,8 +51,11 @@ import qualified Servant
 import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )
 
-newtype ServerConf = ServerConf { _serverPort :: Int }
-                   deriving Show
+data ServerConf = ServerConf
+  { _serverPort      :: Int
+  , _serverStaticDir :: FilePath
+  }
+  deriving Show
 
 -- | Application config.
 data Conf = Conf
@@ -136,8 +139,10 @@ instance S.DBStorage ExeAppM User.UserProfile where
     User.UserCreateGeneratingUserId username password email -> do
       -- generate a new and random user-id
       newId <- User.genRandomUserId 10
-      let newProfile =
-            User.UserProfile newId (User.Credentials username password) "TODO" email
+      let newProfile = User.UserProfile newId
+                                        (User.Credentials username password)
+                                        "TODO"
+                                        email
       S.dbUpdate $ User.UserCreate newProfile
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
@@ -151,7 +156,8 @@ instance S.DBStorage ExeAppM User.UserProfile where
       updateUser
      where
       updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
-      setPassword = set (User.userProfileCreds . User.userCredsPassword) newPass
+      setPassword =
+        set (User.userProfileCreds . User.userCredsPassword) newPass
       replaceOlder users =
         [ if S.dbId u == id then setPassword u else u | u <- users ]
 
