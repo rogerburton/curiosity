@@ -27,8 +27,9 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import           Data.Aeson                     ( FromJSON, eitherDecode )
-import           System.FilePath                ( (</>) )
+import           Data.Aeson                     ( FromJSON
+                                                , eitherDecode
+                                                )
 import qualified Data.ByteString.Lazy          as BS
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -51,6 +52,7 @@ import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
+import           System.FilePath                ( (</>) )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           WaiAppStatic.Storage.Filesystem
@@ -146,7 +148,8 @@ run
 run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
   Rt.ServerConf port root dataDir = runtime ^. Rt.rConf . Rt.confServer
-  waiApp = serve @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root dataDir
+  waiApp =
+    serve @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root dataDir
   ctx =
     _rConf
       ^.        Rt.confCookie
@@ -366,7 +369,7 @@ readJson path = do
   case ma of
     Right a -> pure a
     -- TODO Be more specific, e.g. the error can also be malformed JSON.
-    Left _ -> Errs.throwError' $ Rt.FileDoesntExistErr path
+    Left  _ -> Errs.throwError' $ Rt.FileDoesntExistErr path
 
 
 --------------------------------------------------------------------------------
@@ -426,6 +429,4 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 -- | Serve example data as JSON files.
 serveData path = serveDirectoryWith settings
  where
-  settings = (defaultWebAppSettings path)
-    { ss404Handler = Just custom404
-    }
+  settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
