@@ -14,10 +14,10 @@ module Main
 
 import qualified Commence.InteractiveState.Class
                                                as IS
+import qualified Curiosity.Data                as Data
+import qualified Curiosity.Runtime             as Rt
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
-import qualified Prototype.Data                as Data
-import qualified Prototype.Runtime             as Rt
 
 
 --------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ parserInfo :: A.ParserInfo Conf
 parserInfo =
   A.info (parser <**> A.helper)
     $  A.fullDesc
-    <> A.header "Curiosity parser"
+    <> A.header "cty-parse - Curiosity parser"
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
          \of a web application for Smart."

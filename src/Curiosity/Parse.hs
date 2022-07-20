@@ -1,5 +1,5 @@
 {-# LANGUAGE ApplicativeDo #-}
-module Prototype.Parse
+module Curiosity.Parse
   ( confParser
   , defaultConf
   ) where
@@ -8,9 +8,9 @@ import qualified Commence.InteractiveState.Repl
                                                as Repl
 import qualified Commence.Multilogging         as ML
 import           Control.Monad.Log             as L
+import           Curiosity.Runtime
 import           Data.Default.Class
 import qualified Options.Applicative           as A
-import           Prototype.Runtime
 import qualified Servant.Auth.Server           as Srv
 import qualified System.Log.FastLogger         as FL
 

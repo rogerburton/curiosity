@@ -8,13 +8,13 @@ module Main
 
 import qualified Commence.InteractiveState.Class
                                                as IS
+import qualified Curiosity.Data                as Data
+import qualified Curiosity.Parse               as P
+import qualified Curiosity.Parse2              as P
+import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
-import qualified Prototype.Data                as Data
-import qualified Prototype.Parse               as P
-import qualified Prototype.Parse2              as P
-import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )
 

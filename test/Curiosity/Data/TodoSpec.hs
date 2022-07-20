@@ -1,14 +1,14 @@
 {-# OPTIONS_GHC -Wno-orphans  #-}
-module Prototype.Data.TodoSpec
+module Curiosity.Data.TodoSpec
   ( spec
   ) where
 
+import qualified Curiosity.Data.Shared         as S
+import           Curiosity.Data.Todo
+import qualified Curiosity.Data.User           as U
+import           Curiosity.Data.UserSpec        ( ) -- Q.Arbitrary instance for U.UserId
+import qualified Curiosity.Runtime.Storage     as Storage
 import qualified Data.Text                     as T
-import qualified Prototype.Data.Shared         as S
-import           Prototype.Data.Todo
-import qualified Prototype.Data.User           as U
-import           Prototype.Data.UserSpec        ( ) -- Q.Arbitrary instance for U.UserId
-import qualified Prototype.Runtime.Storage     as Storage
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 

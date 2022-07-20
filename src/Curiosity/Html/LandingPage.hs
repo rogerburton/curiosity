@@ -1,8 +1,8 @@
 {- |
-Module: Prototype.Html.LandingPage
+Module: Curiosity.Html.LandingPage
 Description: A landing page (when the user is not logge in) for Curiosity.
 -}
-module Prototype.Html.LandingPage
+module Curiosity.Html.LandingPage
   ( LandingPage(..)
   ) where
 

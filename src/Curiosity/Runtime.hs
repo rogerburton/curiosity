@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-module Prototype.Runtime
+module Curiosity.Runtime
   ( Conf(..)
   , IOErr(..)
   , confRepl
@@ -40,14 +40,14 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
                                                 )
+import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Todo           as Todo
+import qualified Curiosity.Data.User           as User
 import qualified Crypto.JOSE.JWK               as JWK
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Data                as Data
-import qualified Prototype.Data.Todo           as Todo
-import qualified Prototype.Data.User           as User
 import qualified Servant
 import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )

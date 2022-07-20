@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
-module Prototype.Form.Login
+module Curiosity.Form.Login
   ( Page(..)
   , ResultPage(..)
   ) where

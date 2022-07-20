@@ -1,8 +1,8 @@
 {- |
-Module: Prototype.Html.Errors
+Module: Curiosity.Html.Errors
 Description: Error pages.
 -}
-module Prototype.Html.Errors
+module Curiosity.Html.Errors
   ( NotFoundPage(..)
   ) where
 

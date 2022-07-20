@@ -1,6 +1,6 @@
 
 {- |
-Module: Prototype.Repl.Parse
+Module: Curiosity.Repl.Parse
 Description: Parser helpers.
 
 Note to self:
@@ -10,7 +10,7 @@ Note to self:
 
 -- λ> P.parse userIdParser "" "'far         '"
 -- Left (ParseErrorBundle {bundleErrors = FancyError 13 (fromList [ErrorCustom (ParseErrBundle (ParseErrorBundle {bundleErrors = TrivialError 3 (Just (Tokens (' ' :| ""))) (fromList [Label ('a' :| "lphanumeric character"),EndOfInput]) :| [], bundlePosState = PosState {pstateInput = "far         ", pstateOffset = 0, pstateSourcePos = SourcePos {sourceName = "far         ", sourceLine = Pos 1, sourceColumn = Pos 1}, pstateTabWidth = Pos 8, pstateLinePrefix = ""}}))]) :| [], bundlePosState = PosState {pstateInput = "'far         '", pstateOffset = 0, pstateSourcePos = SourcePos {sourceName = "", sourceLine = Pos 1, sourceColumn = Pos 1}, pstateTabWidth = Pos 8, pstateLinePrefix = ""}})
--- *Prototype.Data Prototype.Data Commence.InteractiveState.Class P Prototype.Data.User Data.Char Char MP
+-- *Curiosity.Data Curiosity.Data Commence.InteractiveState.Class P Curiosity.Data.User Data.Char Char MP
 -- λ> either putStrLn (putStrLn . show @UserId @Text) it
 
 -- <interactive>:88:8: error:
@@ -24,7 +24,7 @@ Note to self:
 --         either putStrLn (putStrLn . show @UserId @Text) it
 --       In an equation for ‘it’:
 --           it = either putStrLn (putStrLn . show @UserId @Text) it
--- *Prototype.Data Prototype.Data Commence.InteractiveState.Class P Prototype.Data.User Data.Char Char MP
+-- *Curiosity.Data Curiosity.Data Commence.InteractiveState.Class P Curiosity.Data.User Data.Char Char MP
 -- λ> either (putStrLn . MP.errorBundlePretty )  (putStrLn . show @UserId @Text) it
 -- 1:14:
 --   |
@@ -39,7 +39,7 @@ Note to self:
 
 @
 -}
-module Prototype.Repl.Parse
+module Curiosity.Repl.Parse
   ( ParseErr(..)
   , ParserText
   -- * Re-exports
