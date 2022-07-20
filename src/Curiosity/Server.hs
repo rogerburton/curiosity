@@ -182,20 +182,13 @@ serve handlerNatTrans ctx root dataDir =
 showLandingPage
   :: ServerC m
   => SAuth.AuthResult User.UserId
-  -> m (PageEither
-           -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
-           -- to not have the automatic heading.
-                   Pages.LandingPage Pages.WelcomePage)
-showLandingPage = \case
-  SAuth.Authenticated userId ->
-    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      Nothing -> do
-        ML.warning
-          "Cookie-based authentication succeeded, but the user ID is not found."
-        authFailedErr $ "No user found with ID " <> show userId
-      Just userProfile -> pure $ SS.P.PageR Pages.WelcomePage
-  _ -> pure $ SS.P.PageL Pages.LandingPage
-  where authFailedErr = Errs.throwError' . User.UserNotFound
+  -> m (PageEither Pages.LandingPage Pages.WelcomePage)
+     -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
+     -- to not have the automatic heading.
+showLandingPage authResult = withMaybeUser
+  authResult
+  (\_ -> pure $ SS.P.PageL Pages.LandingPage)
+  (\userProfile -> pure $ SS.P.PageR Pages.WelcomePage)
 
 
 --------------------------------------------------------------------------------
@@ -381,15 +374,31 @@ withUser
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> m a)
   -> m a
-withUser authResult f = case authResult of
-  SAuth.Authenticated userId ->
-    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      Nothing -> authFailedErr $ "No user found by ID = " <> show userId
-      Just userProfile -> f userProfile
-  authFailed -> authFailedErr $ show authFailed
+withUser authResult f = withMaybeUser authResult (authFailedErr . show) f
  where
   authFailedErr = Errs.throwError' . User.UserNotFound . mappend
     "Authentication failed, please login again. Error: "
+
+-- | Run either a handler expecting a user profile, or a normal handler,
+-- depending on if a user profile can be extracted from the authentication
+-- result or not.
+withMaybeUser
+  :: forall m a b
+   . ServerC m
+  => SAuth.AuthResult User.UserId
+  -> (SAuth.AuthResult User.UserId -> m a)
+  -> (User.UserProfile -> m a)
+  -> m a
+withMaybeUser authResult a f = case authResult of
+  SAuth.Authenticated userId ->
+    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+      Nothing -> do
+        ML.warning
+          "Cookie-based authentication succeeded, but the user ID is not found."
+        authFailedErr $ "No user found with ID " <> show userId
+      Just userProfile -> f userProfile
+  authFailed -> a authFailed
+  where authFailedErr = Errs.throwError' . User.UserNotFound
 
 
 --------------------------------------------------------------------------------
