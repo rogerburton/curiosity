@@ -6,11 +6,11 @@
 #-} -- Language extensions needed for servant.
 {-# LANGUAGE ConstraintKinds #-}
 {- |
-Module: Prototype.Server
+Module: Curiosity.Server
 Description: Server root module, split up into public and private sub-modules.
 
 -}
-module Prototype.Server
+module Curiosity.Server
   (
     -- * Top level server types.
     App
@@ -27,6 +27,18 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import           Curiosity.Data                 ( HaskDb
+                                                , readFullStmDbInHask
+                                                )
+import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Form.Login          as Login
+import qualified Curiosity.Form.Signup         as Signup
+import qualified Curiosity.Html.Errors         as Pages
+import qualified Curiosity.Html.Homepage       as Pages
+import qualified Curiosity.Html.LandingPage    as Pages
+import qualified Curiosity.Html.Profile        as Pages
+import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
@@ -34,18 +46,6 @@ import qualified Data.ByteString.Lazy          as BS
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import           Prototype.Data                 ( HaskDb
-                                                , readFullStmDbInHask
-                                                )
-import qualified Prototype.Data.User           as User
-import qualified Prototype.Form.Login          as Login
-import qualified Prototype.Form.Signup         as Signup
-import qualified Prototype.Html.Errors         as Pages
-import qualified Prototype.Html.Homepage       as Pages
-import qualified Prototype.Html.LandingPage    as Pages
-import qualified Prototype.Html.Profile        as Pages
-import qualified Prototype.Runtime             as Rt
-import qualified Prototype.Server.Helpers      as H
 import           Servant                 hiding ( serve )
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B

@@ -1,10 +1,10 @@
-module Prototype.DataSpec
+module Curiosity.DataSpec
   ( spec
   ) where
 
-import           Prototype.Data
-import           Prototype.Data.User
-import qualified Prototype.Data.UserSpec       as US
+import           Curiosity.Data
+import           Curiosity.Data.User
+import qualified Curiosity.Data.UserSpec       as US
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 

@@ -3,10 +3,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {- |
-Module: Prototype.Data.Todo
+Module: Curiosity.Data.Todo
 Description: All datatypes related to Todos
 -}
-module Prototype.Data.Todo
+module Curiosity.Data.Todo
   ( TodoList(..)
   , TodoListItem(..)
   , TodoListItemState(..)
@@ -36,13 +36,13 @@ module Prototype.Data.Todo
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as Storage
 import           Control.Lens
+import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import           Data.Default.Class
 import qualified Data.Set                      as Set
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Data.User           as U
-import qualified Prototype.Repl.Parse          as P
 
 -- | The name of a `TodoList`.
 newtype TodoListName = TodoListName Text

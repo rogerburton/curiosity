@@ -84,23 +84,23 @@ library
   import: common-dependencies, lang-settings, common-extensions
   hs-source-dirs: src
   exposed-modules:
-    Prototype.Data
-    Prototype.Repl.Parse
-    Prototype.Runtime
-    Prototype.Data.Todo
-    Prototype.Data.User
-    Prototype.Form.Login
-    Prototype.Form.Signup
-    Prototype.Html.Errors
-    Prototype.Html.Homepage
-    Prototype.Html.LandingPage
-    Prototype.Html.Navbar
-    Prototype.Html.Profile
-    Prototype.Parse
-    Prototype.Parse2
-    Prototype.Process
-    Prototype.Server
-    Prototype.Server.Helpers
+    Curiosity.Data
+    Curiosity.Repl.Parse
+    Curiosity.Runtime
+    Curiosity.Data.Todo
+    Curiosity.Data.User
+    Curiosity.Form.Login
+    Curiosity.Form.Signup
+    Curiosity.Html.Errors
+    Curiosity.Html.Homepage
+    Curiosity.Html.LandingPage
+    Curiosity.Html.Navbar
+    Curiosity.Html.Profile
+    Curiosity.Parse
+    Curiosity.Parse2
+    Curiosity.Process
+    Curiosity.Server
+    Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended
   -- More dependencies only specific to the library
   build-depends:
@@ -212,10 +212,10 @@ executable cty-sock
 --     , curiosity
 
 --   other-modules:
---      Prototype.Data.UserSpec
---      Prototype.Data.TodoSpec
---      Prototype.DataSpec
---      Prototype.Data.Shared
+--      Curiosity.Data.UserSpec
+--      Curiosity.Data.TodoSpec
+--      Curiosity.DataSpec
+--      Curiosity.Data.Shared
 
 --   type: exitcode-stdio-1.0
 --   main-is: Spec.hs

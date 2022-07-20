@@ -1,4 +1,4 @@
-module Prototype.Data.Shared
+module Curiosity.Data.Shared
   ( quote
   , nonEmptyAlphaNum
   -- * Commonly needed generators.
@@ -10,9 +10,9 @@ module Prototype.Data.Shared
   ) where
 
 import           Control.Lens
+import qualified Curiosity.Repl.Parse          as P
 import qualified Data.Char                     as C
 import qualified Data.Text                     as T
-import qualified Prototype.Repl.Parse          as P
 import qualified Test.QuickCheck               as Q
 
 quote :: forall a s . (Semigroup a, IsString a, Coercible s a) => s -> a

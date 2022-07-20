@@ -3,10 +3,10 @@ module Main
   ( main
   ) where
 
+import qualified Curiosity.Parse               as P
+import qualified Curiosity.Process             as P
+import qualified Curiosity.Runtime             as Rt
 import qualified Options.Applicative           as A
-import qualified Prototype.Parse               as P
-import qualified Prototype.Process             as P
-import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 
 
@@ -18,7 +18,7 @@ mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
   A.info (P.confParser <**> A.helper)
     $  A.fullDesc
-    <> A.header "Curiosity"
+    <> A.header "cty-serve - Curiosity HTTP server"
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
          \of a web application for Smart."

@@ -5,8 +5,18 @@
            , TypeOperators
 #-} -- Language extensions needed for servant.
 {- |
-Module: Prototype.Server
-Description: Server root module, split up into public and private sub-modules.
+Module: WaiAppStatic.Storage.Filesystem.Extended
+
+Most of this is taken from WaiAppStatic.Storage.Filesystem.
+The goal is to allow to re-define the above `ssLookupFile` in
+`defaultWebAppSettings`: instead of looking up files as-is, we make it so
+that given a URL such as /some/path, we act as if it was /some/path.html,
+thus making nicer URLs (where the .html is not necessary).
+TODO Move this to hypered/commence.
+TODO Don't rewrite paths when there is an extension, otherwise it won't work
+for e.g. images.
+Note: we copy more code than necessary because it is not in the export list
+of the original module.
 
 -}
 module WaiAppStatic.Storage.Filesystem.Extended
@@ -49,17 +59,6 @@ import           Data.ByteArray.Encoding
 
 
 --------------------------------------------------------------------------------
--- Most of this is taken from WaiAppStatic.Storage.Filesystem.
--- The goal is to allow to re-define the above `ssLookupFile` in
--- `defaultWebAppSettings`: instead of looking up files as-is, we make it so
--- that given a URL such as /some/path, we act as if it was /some/path.html,
--- thus making nicer URLs (where the .html is not necessary).
--- TODO Move this to hypered/commence.
--- TODO Don't rewrite paths when there is an extension, otherwise it won't work
--- for e.g. images.
--- Note: we copy more code than necessary because it is not in the export list
--- of the original module.
-
 -- | Construct a new path from a root and some @Pieces@.
 pathFromPieces :: FilePath -> Pieces -> FilePath
 pathFromPieces = foldl' (\fp p -> fp </> T.unpack (fromPiece p))

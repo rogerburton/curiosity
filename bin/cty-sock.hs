@@ -7,17 +7,17 @@
 
 import qualified Commence.InteractiveState.Class
                                                as IS
+import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Parse               as P
+import qualified Curiosity.Parse2              as P
+import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
 import           Network.Socket          hiding ( recv )
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
 import qualified Options.Applicative           as A
-import qualified Prototype.Data                as Data
-import qualified Prototype.Data.User           as User
-import qualified Prototype.Parse               as P
-import qualified Prototype.Parse2              as P
-import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 
 

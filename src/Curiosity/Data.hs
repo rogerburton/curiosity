@@ -3,7 +3,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies   #-}
-module Prototype.Data
+module Curiosity.Data
   ( Db(..)
   , StmDb
   , HaskDb
@@ -33,12 +33,12 @@ import qualified Commence.Runtime.Errors       as E
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import qualified Control.Concurrent.STM        as STM
+import qualified Curiosity.Data.Todo           as Todo
+import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
-import qualified Prototype.Data.Todo           as Todo
-import qualified Prototype.Data.User           as U
-import qualified Prototype.Repl.Parse          as P
 
 {- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
 dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be

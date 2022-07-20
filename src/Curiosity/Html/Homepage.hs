@@ -1,12 +1,12 @@
 {- |
-Module: Prototype.Html.Homepage
+Module: Curiosity.Html.Homepage
 Description: The homepage for Curiosity (when a user is logged in).
 -}
-module Prototype.Html.Homepage
+module Curiosity.Html.Homepage
   ( WelcomePage(..)
   ) where
 
-import           Prototype.Html.Navbar          ( exampleNavbarAlt )
+import           Curiosity.Html.Navbar          ( exampleNavbarAlt )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import qualified Text.Blaze.Html5              as H

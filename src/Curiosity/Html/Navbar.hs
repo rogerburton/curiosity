@@ -1,8 +1,8 @@
 {- |
-Module: Prototype.Html.Navbar
+Module: Curiosity.Html.Navbar
 Description: A navigation bar for Curiosity.
 -}
-module Prototype.Html.Navbar
+module Curiosity.Html.Navbar
   ( exampleNavbarAlt
   ) where
 

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-orphans  #-}
-module Prototype.Data.UserSpec
+module Curiosity.Data.UserSpec
   ( spec
   , showUserPasswordUpdate
   , showUserDelete
@@ -8,10 +8,10 @@ module Prototype.Data.UserSpec
   , showUserLogin
   ) where
 
+import qualified Curiosity.Data.Shared         as S
+import           Curiosity.Data.User
+import           Curiosity.Types.Secret  hiding ( Password )
 import qualified Data.Text                     as T
-import qualified Prototype.Data.Shared         as S
-import           Prototype.Data.User
-import           Prototype.Types.Secret  hiding ( Password )
 import           Test.Hspec
 import qualified Test.QuickCheck               as Q
 

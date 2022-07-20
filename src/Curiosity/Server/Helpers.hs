@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-module Prototype.Server.Helpers
+module Curiosity.Server.Helpers
   ( GetUserPage
   , PutUserPage
   , DeleteUserPage
@@ -10,7 +10,7 @@ module Prototype.Server.Helpers
   ) where
 
 import           Commence.Server.Auth           ( PostAuthHeaders )
-import qualified Prototype.Data.User           as User
+import qualified Curiosity.Data.User           as User
 import           Servant.API
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B

@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
-module Prototype.Form.Signup
+module Curiosity.Form.Signup
   ( Page(..)
   , ResultPage(..)
   , SignupResultPage(..)

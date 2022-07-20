@@ -1,6 +1,6 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
-module Prototype.Parse2
+module Curiosity.Parse2
   ( parserInfo
   , parserInfoWithTarget
   , Command(..)
@@ -9,8 +9,8 @@ module Prototype.Parse2
   ) where
 
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data.User           as U
 import qualified Options.Applicative           as A
-import qualified Prototype.Data.User           as U
 
 
 --------------------------------------------------------------------------------

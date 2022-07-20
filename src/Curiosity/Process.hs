@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-module Prototype.Process
+module Curiosity.Process
   ( startRepl
   , endRepl
   , startServer
@@ -17,10 +17,10 @@ import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import           Control.Lens
 import qualified Control.Monad.Log             as L
+import qualified Curiosity.Data                as Data
+import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Server              as Srv
 import qualified Data.Text                     as T
-import qualified Prototype.Data                as Data
-import qualified Prototype.Runtime             as Rt
-import qualified Prototype.Server              as Srv
 
 
 --------------------------------------------------------------------------------

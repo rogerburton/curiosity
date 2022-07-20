@@ -3,10 +3,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {- |
-Module: Prototype.Data.User
+Module: Curiosity.Data.User
 Description: User related datatypes
 -}
-module Prototype.Data.User
+module Curiosity.Data.User
   ( Signup(..)
   , Credentials(..)
   , Update(..)
@@ -40,11 +40,11 @@ import qualified Commence.Runtime.Storage      as Storage
 import qualified Commence.Types.Secret         as Secret
 import qualified Commence.Types.Wrapped        as W
 import           Control.Lens
+import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
-import qualified Prototype.Repl.Parse          as P
 import qualified Servant.Auth.Server           as SAuth
 import qualified Smart.Server.Page.Navbar      as Nav
 import qualified System.Random                 as Rand

@@ -1,15 +1,15 @@
 {- |
-Module: Prototype.Html.Profile
+Module: Curiosity.Html.Profile
 Description: Profile pages (view and edit).
 -}
-module Prototype.Html.Profile
+module Curiosity.Html.Profile
   ( ProfilePage(..)
   , ProfileView(..)
   , ProfileSaveConfirmPage(..)
   ) where
 
-import qualified Prototype.Data.User           as User
-import           Prototype.Html.Navbar          ( exampleNavbarAlt )
+import qualified Curiosity.Data.User           as User
+import           Curiosity.Html.Navbar          ( exampleNavbarAlt )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd

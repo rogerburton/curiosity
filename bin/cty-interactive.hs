@@ -5,11 +5,11 @@ module Main
   ) where
 
 import           Commence.Multilogging          ( flushAndCloseLoggers )
+import qualified Curiosity.Parse               as P
+import qualified Curiosity.Process             as P
+import qualified Curiosity.Runtime             as Rt
 import qualified Control.Concurrent.Async      as Async
 import qualified Options.Applicative           as A
-import qualified Prototype.Parse               as P
-import qualified Prototype.Process             as P
-import qualified Prototype.Runtime             as Rt
 import qualified Servant.Auth.Server           as Srv
 
 --------------------------------------------------------------------------------
@@ -23,7 +23,7 @@ mainParserInfo :: A.ParserInfo Rt.Conf
 mainParserInfo =
   A.info (P.confParser <**> A.helper)
     $  A.fullDesc
-    <> A.header "Prototype-hs Exe program"
+    <> A.header "cty-interactive - Curiosity HTTP server and REPL"
     <> A.progDesc
          "Interactive state demo: modify states via multiple sources of input: \
          \HTTP and a REPL."
