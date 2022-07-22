@@ -7,7 +7,7 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
-import Data.List (words)
+import           Data.List                      ( words )
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
@@ -39,22 +39,23 @@ runWithConf conf = do
 
 --------------------------------------------------------------------------------
 repl :: Rt.Runtime -> IO ()
-repl runtime =
-  HL.runInputT HL.defaultSettings loop
+repl runtime = HL.runInputT HL.defaultSettings loop
  where
   loop = HL.getInputLine prompt >>= \case
-    Nothing                       -> output' ""
+    Nothing     -> output' ""
     -- TODO Probably processInput below (within parseAnyStateInput) should have
     -- other possible results (beside mod and viz): comments and blanks
     -- (no-op), instead of this special empty case.
-    Just ""      -> loop
-    Just "quit"  -> pure ()
-    Just input -> do
-      let result = A.execParserPure A.defaultPrefs Command.parserInfo $ words input
+    Just ""     -> loop
+    Just "quit" -> pure ()
+    Just input  -> do
+      let result =
+            A.execParserPure A.defaultPrefs Command.parserInfo $ words input
       case result of
-        A.Success           command -> Command.handleCommand runtime output' command >> pure ()
-        A.Failure           err     -> output' $ show err
-        A.CompletionInvoked _       -> output' "Shouldn't happen"
+        A.Success command ->
+          Command.handleCommand runtime output' command >> pure ()
+        A.Failure           err -> output' $ show err
+        A.CompletionInvoked _   -> output' "Shouldn't happen"
 
       loop
 

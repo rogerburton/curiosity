@@ -23,21 +23,22 @@ main = A.execParser Command.parserInfoWithTarget >>= run
 
 --------------------------------------------------------------------------------
 run :: Command.CommandWithTarget -> IO ExitCode
-run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) = do
-  exists <- liftIO $ doesFileExist path
-  if exists
-    then do
-      putStrLn @Text $ "The file '" <> T.pack path <> "' already exists."
-      putStrLn @Text "Aborting."
-      exitFailure
-    else do
-      let bs = Data.serialiseDb Data.emptyHask
-      try @SomeException (BS.writeFile path bs) >>= either
-        (\e -> print e >> exitFailure)
-        (const $ do
-          putStrLn @Text $ "State file '" <> T.pack path <> "' created."
-          exitSuccess
-        )
+run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
+  do
+    exists <- liftIO $ doesFileExist path
+    if exists
+      then do
+        putStrLn @Text $ "The file '" <> T.pack path <> "' already exists."
+        putStrLn @Text "Aborting."
+        exitFailure
+      else do
+        let bs = Data.serialiseDb Data.emptyHask
+        try @SomeException (BS.writeFile path bs) >>= either
+          (\e -> print e >> exitFailure)
+          (const $ do
+            putStrLn @Text $ "State file '" <> T.pack path <> "' created."
+            exitSuccess
+          )
 
 run (Command.CommandWithTarget command target) = do
   case target of

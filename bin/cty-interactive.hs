@@ -17,9 +17,7 @@ import qualified Options.Applicative           as A
 
 --------------------------------------------------------------------------------
 main :: IO ExitCode
-main =
-  A.execParser mainParserInfo
-    >>= runWithConf
+main = A.execParser mainParserInfo >>= runWithConf
 
 mainParserInfo :: A.ParserInfo (Rt.Conf, Srv.ServerConf, Repl.ReplConf)
 mainParserInfo =
@@ -29,8 +27,7 @@ mainParserInfo =
     <> A.progDesc
          "Interactive state demo: modify states via multiple sources of input: \
          \HTTP and a REPL."
- where
-  parser = (,,) <$> P.confParser <*> P.serverParser <*> P.replParser
+  where parser = (,,) <$> P.confParser <*> P.serverParser <*> P.replParser
 
 runWithConf :: (Rt.Conf, Srv.ServerConf, Repl.ReplConf) -> IO ExitCode
 runWithConf (conf, serverConf, replConf) = do

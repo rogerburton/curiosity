@@ -160,14 +160,13 @@ parserShowId =
 -- | Handle a single command. The @display@ function and the return type
 -- provide some flexibility, so this function can be used in both `cty` and
 -- `cty-repl-2`.
-handleCommand :: MonadIO m => Rt.Runtime -> (Text -> m ()) -> Command -> m ExitCode
+handleCommand
+  :: MonadIO m => Rt.Runtime -> (Text -> m ()) -> Command -> m ExitCode
 handleCommand runtime display command = do
   case command of
     State -> do
       output <-
-        Rt.runAppMSafe runtime
-        . IS.execVisualisation
-        $ Data.VisualiseFullStmDb
+        Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
       display $ show output
       return ExitSuccess
     SelectUser select -> do
@@ -177,9 +176,8 @@ handleCommand runtime display command = do
       display $ show output
       return ExitSuccess
     UpdateUser update -> do
-      output <-
-        Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
-          update
+      output <- Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
+        update
       display $ show output
       return ExitSuccess
     _ -> do

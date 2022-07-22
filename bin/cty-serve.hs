@@ -22,8 +22,7 @@ mainParserInfo =
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
          \of a web application for Smart."
- where
-  parser = (,) <$> P.confParser <*> P.serverParser
+  where parser = (,) <$> P.confParser <*> P.serverParser
 
 runWithConf :: (Rt.Conf, Srv.ServerConf) -> IO ExitCode
 runWithConf (conf, serverConf) = do
