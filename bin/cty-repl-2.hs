@@ -5,7 +5,6 @@ module Main
 
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Parse               as P
-import qualified Curiosity.Parse2              as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
 import Data.List (words)
@@ -51,7 +50,7 @@ repl runtime =
     Just ""      -> loop
     Just "quit"  -> pure ()
     Just input -> do
-      let result = A.execParserPure A.defaultPrefs P.parserInfo $ words input
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo $ words input
       case result of
         A.Success           command -> Command.handleCommand runtime output' command >> pure ()
         A.Failure           err     -> output' $ show err

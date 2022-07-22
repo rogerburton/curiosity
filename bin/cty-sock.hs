@@ -7,10 +7,10 @@
 
 import qualified Commence.InteractiveState.Class
                                                as IS
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
-import qualified Curiosity.Parse2              as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
 import           Network.Socket          hiding ( recv )
@@ -64,7 +64,7 @@ repl runtime conn = do
     ["quit"]       -> return ()
     []             -> repl runtime conn
     _              -> do
-      let result = A.execParserPure A.defaultPrefs P.parserInfo command
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo command
       case result of
         A.Success           x   -> print x >> sendAll conn (show x <> "\n")
         A.Failure           err -> print err

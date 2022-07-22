@@ -98,7 +98,6 @@ library
     Curiosity.Html.Navbar
     Curiosity.Html.Profile
     Curiosity.Parse
-    Curiosity.Parse2
     Curiosity.Process
     Curiosity.Server
     Curiosity.Server.Helpers

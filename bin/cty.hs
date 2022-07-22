@@ -9,7 +9,6 @@ module Main
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
-import qualified Curiosity.Parse2              as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
@@ -19,12 +18,12 @@ import           System.Directory               ( doesFileExist )
 
 --------------------------------------------------------------------------------
 main :: IO ExitCode
-main = A.execParser P.parserInfoWithTarget >>= run
+main = A.execParser Command.parserInfoWithTarget >>= run
 
 
 --------------------------------------------------------------------------------
-run :: P.CommandWithTarget -> IO ExitCode
-run (P.CommandWithTarget P.Init (P.StateFileTarget path)) = do
+run :: Command.CommandWithTarget -> IO ExitCode
+run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) = do
   exists <- liftIO $ doesFileExist path
   if exists
     then do
@@ -40,9 +39,9 @@ run (P.CommandWithTarget P.Init (P.StateFileTarget path)) = do
           exitSuccess
         )
 
-run (P.CommandWithTarget command target) = do
+run (Command.CommandWithTarget command target) = do
   case target of
-    P.StateFileTarget path -> do
+    Command.StateFileTarget path -> do
       runtime@Rt.Runtime {..} <-
         Rt.boot P.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
@@ -53,6 +52,6 @@ run (P.CommandWithTarget command target) = do
       -- TODO shutdown runtime, loggers, save state, ...
       exitWith exitCode
 
-    P.UnixDomainTarget _ -> do
+    Command.UnixDomainTarget _ -> do
       putStrLn @Text "Unimplemented: --socket, a.k.a UnixDomainTarget"
       exitFailure
