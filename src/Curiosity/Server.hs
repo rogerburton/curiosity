@@ -147,12 +147,10 @@ run
   -> m ()
 run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
-  Rt.ServerConf port root dataDir = runtime ^. Rt.rConf . Rt.confServer
-  waiApp =
-    serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) ctx root dataDir
+  Rt.ServerConf port root dataDir _ _ = runtime ^. Rt.rConf . Rt.confServer
+  waiApp = serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) ctx root dataDir
   ctx =
-    _rConf
-      ^.        Rt.confCookie
+    Rt._serverCookie (_rConf ^. Rt.confServer)
       Server.:. _rJwtSettings
       Server.:. Server.EmptyContext
 
@@ -252,8 +250,10 @@ handleLogin User.Credentials {..} =
       ML.info "Found user, generating authentication cookies..."
       jwtSettings   <- asks Rt._rJwtSettings
       Rt.Conf {..}  <- asks Rt._rConf
-      mApplyCookies <- liftIO
-        $ SAuth.acceptLogin _confCookie jwtSettings (u ^. User.userProfileId)
+      mApplyCookies <- liftIO $ SAuth.acceptLogin
+        (Rt._serverCookie _confServer)
+        jwtSettings
+        (u ^. User.userProfileId)
       ML.info "Applying cookies..."
       case mApplyCookies of
         Nothing -> do

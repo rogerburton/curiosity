@@ -7,8 +7,6 @@ module Curiosity.Runtime
   , confRepl
   , confServer
   , confLogging
-  , confCookie
-  , confMkJwtSettings
   , confDbFile
   , ServerConf(..)
   , Runtime(..)
@@ -56,22 +54,21 @@ import           System.Directory               ( doesFileExist )
 --------------------------------------------------------------------------------
 -- | HTTP server config.
 data ServerConf = ServerConf
-  { _serverPort      :: Int
-  , _serverStaticDir :: FilePath
-  , _serverDataDir   :: FilePath
+  { _serverPort          :: Int
+  , _serverStaticDir     :: FilePath
+  , _serverDataDir       :: FilePath
+  , _serverCookie        :: Srv.CookieSettings
+    -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _serverMkJwtSettings :: JWK.JWK -> Srv.JWTSettings
+    -- ^ JWK settings to use, depending on the key employed.
   }
-  deriving Show
 
 -- | Application config.
 data Conf = Conf
-  { _confRepl          :: Repl.ReplConf -- ^ Config. for the REPL.
-  , _confServer        :: ServerConf -- ^ Config. for the HTTP server.
-  , _confLogging       :: ML.LoggingConf -- ^ Logging configuration.
-  , _confCookie        :: Srv.CookieSettings
-    -- ^ Settings for setting cookies as a server (for authentication etc.).
-  , _confMkJwtSettings :: JWK.JWK -> Srv.JWTSettings
-    -- ^ JWK settings to use, depending on the key employed.
-  , _confDbFile        :: Maybe FilePath
+  { _confRepl    :: Repl.ReplConf -- ^ Config. for the REPL.
+  , _confServer  :: ServerConf -- ^ Config. for the HTTP server.
+  , _confLogging :: ML.LoggingConf -- ^ Logging configuration.
+  , _confDbFile  :: Maybe FilePath
     -- ^ An optional filepath to write the DB to, or read it from. If the file
     -- is absent, it will be created on server exit, with the latest DB state
     -- written to it.
@@ -135,9 +132,11 @@ boot _rConf jwk = do
 
   eDb       <- instantiateDb _rConf
   pure $ case eDb of
-    Left err -> Left err
-    Right _rDb ->
-      Right Runtime { _rJwtSettings = (_rConf ^. confMkJwtSettings) jwk, .. }
+    Left  err  -> Left err
+    Right _rDb -> Right Runtime
+      { _rJwtSettings = (_serverMkJwtSettings (_rConf ^. confServer)) jwk
+      , ..
+      }
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
@@ -220,8 +219,7 @@ readDbSafe mpath = case mpath of
 
 -- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.
-appMHandlerNatTrans
-  :: forall a . Runtime -> AppM a -> Servant.Handler a
+appMHandlerNatTrans :: forall a . Runtime -> AppM a -> Servant.Handler a
 appMHandlerNatTrans rt appM =
   let
       -- We peel off the AppM + ReaderT layers, exposing our ExceptT

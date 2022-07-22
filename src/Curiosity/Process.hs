@@ -35,8 +35,8 @@ startRepl rt@Rt.Runtime {..} = runSafeMapErrs $ do
     -- TypeApplications not needed below, but left for clarity.
     IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.AppM
       >=> either displayErr pure
-  runSafeMapErrs = fmap (either Repl.ReplExitOnGeneralException identity)
-    . Rt.runAppMSafe rt
+  runSafeMapErrs =
+    fmap (either Repl.ReplExitOnGeneralException identity) . Rt.runAppMSafe rt
   displayErr (Data.ParseFailed err) =
     pure . IS.ReplOutputStrict . Errs.displayErr $ err
 
@@ -47,7 +47,7 @@ endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
 --------------------------------------------------------------------------------
 startServer :: Rt.Runtime -> IO Errs.RuntimeErr
 startServer runtime@Rt.Runtime {..} = do
-  let Rt.ServerConf port _ _ = runtime ^. Rt.rConf . Rt.confServer
+  let Rt.ServerConf port _ _ _ _ = runtime ^. Rt.rConf . Rt.confServer
   startupLogInfo _rLoggers $ "Starting up server on port " <> show port <> "..."
   try @SomeException (Srv.run runtime) >>= pure . either
     Errs.RuntimeException
