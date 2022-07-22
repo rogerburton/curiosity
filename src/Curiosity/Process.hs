@@ -15,7 +15,6 @@ import qualified Commence.InteractiveState.Repl
                                                as Repl
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
-import           Control.Lens
 import qualified Control.Monad.Log             as L
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Runtime             as Rt
@@ -24,10 +23,10 @@ import qualified Data.Text                     as T
 
 
 --------------------------------------------------------------------------------
-startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
-startRepl rt@Rt.Runtime {..} = runSafeMapErrs $ do
+startRepl :: Repl.ReplConf -> Rt.Runtime -> IO Repl.ReplLoopResult
+startRepl conf rt@Rt.Runtime {..} = runSafeMapErrs $ do
   startupLogInfo _rLoggers "Starting up REPL..."
-  Repl.startReadEvalPrintLoop (rt ^. Rt.rConf . Rt.confRepl)
+  Repl.startReadEvalPrintLoop conf
                               handleReplInputs
                               (Rt.runAppMSafe rt)
  where

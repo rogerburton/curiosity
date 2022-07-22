@@ -4,7 +4,6 @@
 module Curiosity.Runtime
   ( Conf(..)
   , IOErr(..)
-  , confRepl
   , confLogging
   , confDbFile
   , Runtime(..)
@@ -23,8 +22,6 @@ module Curiosity.Runtime
   , appMHandlerNatTrans
   ) where
 
-import qualified Commence.InteractiveState.Repl
-                                               as Repl
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
@@ -49,8 +46,7 @@ import           System.Directory               ( doesFileExist )
 --------------------------------------------------------------------------------
 -- | Application config.
 data Conf = Conf
-  { _confRepl    :: Repl.ReplConf -- ^ Config. for the REPL.
-  , _confLogging :: ML.LoggingConf -- ^ Logging configuration.
+  { _confLogging :: ML.LoggingConf -- ^ Logging configuration.
   , _confDbFile  :: Maybe FilePath
     -- ^ An optional filepath to write the DB to, or read it from. If the file
     -- is absent, it will be created on server exit, with the latest DB state

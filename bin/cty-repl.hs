@@ -5,6 +5,7 @@ module Main
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
+import           Data.Default.Class             ( def )
 import qualified Options.Applicative           as A
 
 
@@ -28,5 +29,6 @@ runWithConf conf = do
   let handleExceptions = (`catch` P.shutdown runtime . Just)
 
   handleExceptions $ do
-    P.startRepl runtime >>= P.endRepl
+    -- TODO Parse the REPL config.
+    P.startRepl def runtime >>= P.endRepl
     P.shutdown runtime Nothing

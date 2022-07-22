@@ -9,6 +9,7 @@ import qualified Control.Concurrent.Async      as Async
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
+import           Data.Default.Class             ( def )
 import qualified Options.Applicative           as A
 
 
@@ -50,7 +51,8 @@ runWithConf conf = do
             -- re-report the error. 
             pure err
 
-          replProcess = P.startRepl runtime >>= P.endRepl
+          -- TODO Parse the REPL config.
+          replProcess = P.startRepl def runtime >>= P.endRepl
       in  Async.withAsync serverProcess $ \serverRef -> do
             Async.withAsync replProcess $ \replRef -> do
               -- wait for the server process to exit. 

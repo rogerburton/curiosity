@@ -1,6 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Curiosity.Parse
   ( confParser
+  , replParser
   , serverParser
   , defaultConf
   , defaultServerConf
@@ -21,7 +22,6 @@ import qualified System.Log.FastLogger         as FL
 --------------------------------------------------------------------------------
 confParser :: A.Parser Conf
 confParser = do
-  _confRepl   <- replParser
   _confDbFile <- dbFileParser
   pure Conf
     {
@@ -34,8 +34,7 @@ confParser = do
 
 defaultConf :: Conf
 defaultConf =
-  let _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
-      _confDbFile = Nothing
+  let _confDbFile = Nothing
   in  Conf
         { _confLogging = ML.LoggingConf [FL.LogFile flspec 1024]
                                         "Curiosity"
