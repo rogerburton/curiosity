@@ -54,19 +54,19 @@ run (P.CommandWithTarget command target) = do
       case command of
         P.State -> do
           output <-
-            Rt.runExeAppMSafe runtime
+            Rt.runAppMSafe runtime
             . IS.execVisualisation
             $ Data.VisualiseFullStmDb
           print output
         P.SelectUser select -> do
           output <-
-            Rt.runExeAppMSafe runtime
+            Rt.runAppMSafe runtime
             . IS.execVisualisation
             $ Data.VisualiseUser select
           print output
         P.UpdateUser update -> do
           output <-
-            Rt.runExeAppMSafe runtime . IS.execModification $ Data.ModifyUser
+            Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
               update
           print output
         _ -> do

@@ -16,16 +16,16 @@ module Curiosity.Runtime
   , rDb
   , rLoggers
   , rJwtSettings
-  , ExeAppM(..)
+  , AppM(..)
   , boot
   , powerdown
   , readDb
   , readDbSafe
   , saveDb
   , saveDbAs
-  , runExeAppMSafe
+  , runAppMSafe
   -- * Servant compat
-  , exampleAppMHandlerNatTrans
+  , appMHandlerNatTrans
   ) where
 
 import qualified Commence.InteractiveState.Repl
@@ -95,7 +95,7 @@ instance Data.RuntimeHasStmDb Runtime where
 
 
 --------------------------------------------------------------------------------
-newtype ExeAppM a = ExeAppM { runExeAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
+newtype AppM a = AppM { runAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
   deriving ( Functor
            , Applicative
            , Monad
@@ -107,14 +107,14 @@ newtype ExeAppM a = ExeAppM { runExeAppM :: ReaderT Runtime (ExceptT Errs.Runtim
            , MonadMask
            )
 
--- | Run the `ExeAppM` computation catching all possible exceptions.
-runExeAppMSafe
+-- | Run the `AppM` computation catching all possible exceptions.
+runAppMSafe
   :: forall a m
    . MonadIO m
   => Runtime
-  -> ExeAppM a
+  -> AppM a
   -> m (Either Errs.RuntimeErr a)
-runExeAppMSafe rt (ExeAppM op') =
+runAppMSafe rt (AppM op') =
   liftIO
     . fmap (join . first Errs.RuntimeException)
     . try @SomeException
@@ -218,16 +218,16 @@ readDbSafe mpath = case mpath of
   useEmpty = Right <$> Data.instantiateEmptyStmDb
   useState = fmap Right . Data.instantiateStmDb
 
--- | Natural transformation from some `ExeAppM` in any given mode, to a servant
+-- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.
-exampleAppMHandlerNatTrans
-  :: forall a . Runtime -> ExeAppM a -> Servant.Handler a
-exampleAppMHandlerNatTrans rt appM =
+appMHandlerNatTrans
+  :: forall a . Runtime -> AppM a -> Servant.Handler a
+appMHandlerNatTrans rt appM =
   let
-      -- We peel off the ExeAppM + ReaderT layers, exposing our ExceptT
+      -- We peel off the AppM + ReaderT layers, exposing our ExceptT
       -- RuntimeErr IO a This is very similar to Servant's Handler:
       -- https://hackage.haskell.org/package/servant-server-0.17/docs/Servant-Server-Internal-Handler.html#t:Handler
-      unwrapReaderT          = (`runReaderT` rt) . runExeAppM $ appM
+      unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
   in
@@ -237,7 +237,7 @@ exampleAppMHandlerNatTrans rt appM =
 
 --------------------------------------------------------------------------------
 -- | Support for logging for the application
-instance ML.MonadAppNameLogMulti ExeAppM where
+instance ML.MonadAppNameLogMulti AppM where
   askLoggers = asks _rLoggers
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
@@ -245,7 +245,7 @@ instance ML.MonadAppNameLogMulti ExeAppM where
 
 --------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
-instance S.DBStorage ExeAppM User.UserProfile where
+instance S.DBStorage AppM User.UserProfile where
   dbUpdate = \case
 
     User.UserCreate newProfile ->
@@ -333,7 +333,7 @@ withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
 
 --------------------------------------------------------------------------------
-instance S.DBStorage ExeAppM Todo.TodoList where
+instance S.DBStorage AppM Todo.TodoList where
 
   dbUpdate = \case
     Todo.AddItem id item -> onTodoListExists id

@@ -73,7 +73,7 @@ repl runtime conn = do
         A.Failure           err -> print err
         A.CompletionInvoked _   -> print @IO @Text "Shouldn't happen"
 
-      output <- Rt.runExeAppMSafe runtime $ IS.execModification
+      output <- Rt.runAppMSafe runtime $ IS.execModification
         (Data.ModifyUser
           (User.UserCreate $ User.UserProfile "USER-0"
                                               (User.Credentials "alice" "pass")

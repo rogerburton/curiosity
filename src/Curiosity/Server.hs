@@ -149,7 +149,7 @@ run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
  where
   Rt.ServerConf port root dataDir = runtime ^. Rt.rConf . Rt.confServer
   waiApp =
-    serve @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root dataDir
+    serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) ctx root dataDir
   ctx =
     _rConf
       ^.        Rt.confCookie
