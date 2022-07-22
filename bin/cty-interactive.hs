@@ -4,12 +4,14 @@ module Main
   ( main
   ) where
 
+import qualified Commence.InteractiveState.Repl
+                                               as Repl
 import           Commence.Multilogging          ( flushAndCloseLoggers )
 import qualified Control.Concurrent.Async      as Async
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
-import           Data.Default.Class             ( def )
+import qualified Curiosity.Server              as Srv
 import qualified Options.Applicative           as A
 
 
@@ -20,17 +22,19 @@ main =
     >>  A.execParser mainParserInfo
     >>= runWithConf
 
-mainParserInfo :: A.ParserInfo Rt.Conf
+mainParserInfo :: A.ParserInfo (Rt.Conf, Srv.ServerConf, Repl.ReplConf)
 mainParserInfo =
-  A.info (P.confParser <**> A.helper)
+  A.info (parser <**> A.helper)
     $  A.fullDesc
     <> A.header "cty-interactive - Curiosity HTTP server and REPL"
     <> A.progDesc
          "Interactive state demo: modify states via multiple sources of input: \
          \HTTP and a REPL."
+ where
+  parser = (,,) <$> P.confParser <*> P.serverParser <*> P.replParser
 
-runWithConf :: Rt.Conf -> IO ExitCode
-runWithConf conf = do
+runWithConf :: (Rt.Conf, Srv.ServerConf, Repl.ReplConf) -> IO ExitCode
+runWithConf (conf, serverConf, replConf) = do
   putStrLn @Text
     "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
   runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
@@ -45,14 +49,12 @@ runWithConf conf = do
     -- the server and repl processes are different: for the server, we are conserving the exception with which the the server process exited.
     -- this exception is also used to end the repl process.
     $ let serverProcess = do
-            -- TODO Parse the server config.
-            err <- P.startServer P.defaultServerConf runtime
+            err <- P.startServer serverConf runtime
             P.endServer _rLoggers err
             -- re-report the error. 
             pure err
 
-          -- TODO Parse the REPL config.
-          replProcess = P.startRepl def runtime >>= P.endRepl
+          replProcess = P.startRepl replConf runtime >>= P.endRepl
       in  Async.withAsync serverProcess $ \serverRef -> do
             Async.withAsync replProcess $ \replRef -> do
               -- wait for the server process to exit. 

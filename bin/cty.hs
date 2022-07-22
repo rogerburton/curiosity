@@ -47,7 +47,6 @@ run (P.CommandWithTarget command target) = do
       runtime@Rt.Runtime {..} <-
         Rt.boot P.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
-      -- TODO jwt should'nt be in the runtime, but in the HTTP layer
 
       case command of
         P.State -> do
