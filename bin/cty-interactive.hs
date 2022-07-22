@@ -18,8 +18,7 @@ import qualified Options.Applicative           as A
 --------------------------------------------------------------------------------
 main :: IO ExitCode
 main =
-  putStrLn @Text "Parsing command-line options..."
-    >>  A.execParser mainParserInfo
+  A.execParser mainParserInfo
     >>= runWithConf
 
 mainParserInfo :: A.ParserInfo (Rt.Conf, Srv.ServerConf, Repl.ReplConf)
