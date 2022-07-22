@@ -1,7 +1,9 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Curiosity.Parse
   ( confParser
+  , serverParser
   , defaultConf
+  , defaultServerConf
   ) where
 
 import qualified Commence.InteractiveState.Repl
@@ -9,6 +11,7 @@ import qualified Commence.InteractiveState.Repl
 import qualified Commence.Multilogging         as ML
 import           Control.Monad.Log             as L
 import           Curiosity.Runtime
+import           Curiosity.Server
 import           Data.Default.Class
 import qualified Options.Applicative           as A
 import qualified Servant.Auth.Server           as Srv
@@ -18,7 +21,6 @@ import qualified System.Log.FastLogger         as FL
 --------------------------------------------------------------------------------
 confParser :: A.Parser Conf
 confParser = do
-  _confServer <- serverParser
   _confRepl   <- replParser
   _confDbFile <- dbFileParser
   pure Conf
@@ -32,18 +34,7 @@ confParser = do
 
 defaultConf :: Conf
 defaultConf =
-  let _confServer = ServerConf
-        { _serverPort          = 9000
-        , _serverStaticDir     = "./_site/"
-        , _serverDataDir       = "./data/"
-        , _serverCookie        = Srv.defaultCookieSettings
-                                   { Srv.cookieIsSecure    = Srv.NotSecure
-                                   , Srv.cookieXsrfSetting = Nothing
-                                   , Srv.cookieSameSite    = Srv.SameSiteStrict
-                                   }
-        , _serverMkJwtSettings = Srv.defaultJWTSettings
-        }
-      _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
+  let _confRepl   = Repl.ReplConf "> " False ["exit", "quit"]
       _confDbFile = Nothing
   in  Conf
         { _confLogging = ML.LoggingConf [FL.LogFile flspec 1024]
@@ -51,6 +42,19 @@ defaultConf =
                                         L.levelInfo
         , ..
         }
+
+defaultServerConf :: ServerConf
+defaultServerConf = ServerConf
+  { _serverPort          = 9000
+  , _serverStaticDir     = "./_site/"
+  , _serverDataDir       = "./data/"
+  , _serverCookie        = Srv.defaultCookieSettings
+                             { Srv.cookieIsSecure    = Srv.NotSecure
+                             , Srv.cookieXsrfSetting = Nothing
+                             , Srv.cookieSameSite    = Srv.SameSiteStrict
+                             }
+  , _serverMkJwtSettings = Srv.defaultJWTSettings
+  }
 
 flspec = FL.FileLogSpec "/tmp/curiosity.log" 5000 0
 

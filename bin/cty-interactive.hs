@@ -44,7 +44,8 @@ runWithConf conf = do
     -- the server and repl processes are different: for the server, we are conserving the exception with which the the server process exited.
     -- this exception is also used to end the repl process.
     $ let serverProcess = do
-            err <- P.startServer runtime
+            -- TODO Parse the server config.
+            err <- P.startServer P.defaultServerConf runtime
             P.endServer _rLoggers err
             -- re-report the error. 
             pure err

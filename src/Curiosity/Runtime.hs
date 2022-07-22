@@ -5,10 +5,8 @@ module Curiosity.Runtime
   ( Conf(..)
   , IOErr(..)
   , confRepl
-  , confServer
   , confLogging
   , confDbFile
-  , ServerConf(..)
   , Runtime(..)
   , rConf
   , rDb
@@ -37,7 +35,6 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
                                                 )
-import qualified Crypto.JOSE.JWK               as JWK
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
@@ -46,26 +43,13 @@ import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
-import qualified Servant.Auth.Server           as SAuth
 import           System.Directory               ( doesFileExist )
 
 
 --------------------------------------------------------------------------------
--- | HTTP server config.
-data ServerConf = ServerConf
-  { _serverPort          :: Int
-  , _serverStaticDir     :: FilePath
-  , _serverDataDir       :: FilePath
-  , _serverCookie        :: SAuth.CookieSettings
-    -- ^ Settings for setting cookies as a server (for authentication etc.).
-  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
-    -- ^ JWK settings to use, depending on the key employed.
-  }
-
 -- | Application config.
 data Conf = Conf
   { _confRepl    :: Repl.ReplConf -- ^ Config. for the REPL.
-  , _confServer  :: ServerConf -- ^ Config. for the HTTP server.
   , _confLogging :: ML.LoggingConf -- ^ Logging configuration.
   , _confDbFile  :: Maybe FilePath
     -- ^ An optional filepath to write the DB to, or read it from. If the file

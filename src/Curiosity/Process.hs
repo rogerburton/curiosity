@@ -45,11 +45,11 @@ endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
 
 
 --------------------------------------------------------------------------------
-startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer runtime@Rt.Runtime {..} = do
-  let Rt.ServerConf port _ _ _ _ = runtime ^. Rt.rConf . Rt.confServer
+startServer :: Srv.ServerConf -> Rt.Runtime -> IO Errs.RuntimeErr
+startServer conf runtime@Rt.Runtime {..} = do
+  let Srv.ServerConf port _ _ _ _ = conf
   startupLogInfo _rLoggers $ "Starting up server on port " <> show port <> "..."
-  try @SomeException (Srv.run runtime) >>= pure . either
+  try @SomeException (Srv.run conf runtime) >>= pure . either
     Errs.RuntimeException
     (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.

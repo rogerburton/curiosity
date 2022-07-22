@@ -6,6 +6,7 @@ module Main
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Server              as Srv
 import qualified Options.Applicative           as A
 
 
@@ -13,20 +14,21 @@ import qualified Options.Applicative           as A
 main :: IO ExitCode
 main = A.execParser mainParserInfo >>= runWithConf
 
-mainParserInfo :: A.ParserInfo Rt.Conf
+mainParserInfo :: A.ParserInfo Srv.ServerConf
 mainParserInfo =
-  A.info (P.confParser <**> A.helper)
+  A.info (P.serverParser <**> A.helper)
     $  A.fullDesc
     <> A.header "cty-serve - Curiosity HTTP server"
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
          \of a web application for Smart."
 
-runWithConf :: Rt.Conf -> IO ExitCode
+runWithConf :: Srv.ServerConf -> IO ExitCode
 runWithConf conf = do
-  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+  -- TODO Parse the runtime config.
+  runtime@Rt.Runtime {..} <- Rt.boot P.defaultConf >>= either throwIO pure
 
-  P.startServer runtime >>= P.endServer _rLoggers
+  P.startServer conf runtime >>= P.endServer _rLoggers
 
   mPowerdownErrs <- Rt.powerdown runtime
 
