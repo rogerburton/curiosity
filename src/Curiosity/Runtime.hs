@@ -334,23 +334,50 @@ instance S.DBStorage AppM User.UserProfile where
 
   dbSelect = \case
 
-    User.UserLoginWithUserName userName (User.Password passInput) ->
-      -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
-      S.dbSelect (User.SelectUserByUserName userName) >>= \case
-        [u] | passwordsMatch -> pure [u]
-         where
-          passwordsMatch = storedPass =:= passInput
-          User.Password storedPass =
-            u ^. User.userProfileCreds . User.userCredsPassword
-        _ -> userNotFound $ "No user with userName = " <> userName ^. coerced
-
+    User.UserLoginWithUserName username passInput -> do
+      mprofile <- withRuntimeAtomically
+        $ \rt -> checkCredentials rt username passInput
+      case mprofile of
+        Right profile -> pure [profile]
+        Left  err     -> Errs.throwError' err
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
 
-    User.SelectUserByUserName userName ->
-      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
-        ((== userName) . User._userCredsName . User._userProfileCreds)
+    User.SelectUserByUserName username -> do
+      mprofile <- withRuntimeAtomically
+        $ \rt -> selectUserByUsername rt username
+      case mprofile of
+        Just profile -> pure [profile]
+        Nothing      -> pure []
+
+selectUserByUsername
+  :: Runtime -> User.UserName -> STM (Maybe User.UserProfile)
+selectUserByUsername runtime username = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  case
+      filter ((== username) . User._userCredsName . User._userProfileCreds)
+             users'
+    of
+      [u] -> pure $ Just u
+      _   -> pure Nothing
+
+checkCredentials
+  :: Runtime
+  -> User.UserName
+  -> User.Password
+  -> STM (Either User.UserErr User.UserProfile)
+checkCredentials runtime username passInput = do
+  mprofile <- selectUserByUsername runtime username
+  case mprofile of
+    Just profile | checkPassword profile passInput -> pure $ Right profile
+    _ -> pure . Left . User.UserNotFound $ "Incorrect username or password."
+
+checkPassword profile (User.Password passInput) = storedPass =:= passInput
+ where
+  User.Password storedPass =
+    profile ^. User.userProfileCreds . User.userCredsPassword
 
 onUserIdExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
@@ -361,6 +388,8 @@ onUserNameExists userName onNone onExisting =
 
 userNotFound =
   Errs.throwError' . User.UserNotFound . mappend "User not found: "
+
+withRuntimeAtomically f = ask >>= \rt -> liftIO . STM.atomically $ f rt
 
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
