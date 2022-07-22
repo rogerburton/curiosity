@@ -6,8 +6,7 @@ module Main
   ( main
   ) where
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Parse2              as P
@@ -48,30 +47,11 @@ run (P.CommandWithTarget command target) = do
         Rt.boot P.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
 
-      case command of
-        P.State -> do
-          output <-
-            Rt.runAppMSafe runtime
-            . IS.execVisualisation
-            $ Data.VisualiseFullStmDb
-          print output
-        P.SelectUser select -> do
-          output <-
-            Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
-              select
-          print output
-        P.UpdateUser update -> do
-          output <-
-            Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
-              update
-          print output
-        _ -> do
-          putStrLn @Text $ "Unhandled command " <> show command
-          exitFailure
+      exitCode <- Command.handleCommand runtime putStrLn command
 
       Rt.powerdown runtime
       -- TODO shutdown runtime, loggers, save state, ...
-      exitSuccess
+      exitWith exitCode
 
     P.UnixDomainTarget _ -> do
       putStrLn @Text "Unimplemented: --socket, a.k.a UnixDomainTarget"

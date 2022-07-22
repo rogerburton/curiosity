@@ -84,6 +84,7 @@ library
   import: common-dependencies, lang-settings, common-extensions
   hs-source-dirs: src
   exposed-modules:
+    Curiosity.Command
     Curiosity.Data
     Curiosity.Repl.Parse
     Curiosity.Runtime
@@ -163,6 +164,20 @@ executable cty-repl
     , curiosity
     , async
     , fast-logger
+  hs-source-dirs: bin
+  ghc-options:
+    -threaded
+
+-- REPL only, uses optparse-applicative
+executable cty-repl-2
+  import: common-dependencies, lang-settings, common-extensions
+  main-is: cty-repl-2.hs
+  build-depends:
+      async
+    , curiosity
+    , fast-logger
+    , haskeline
+    , optparse-applicative
   hs-source-dirs: bin
   ghc-options:
     -threaded
