@@ -13,7 +13,6 @@ module Curiosity.Runtime
   , rConf
   , rDb
   , rLoggers
-  , rJwtSettings
   , AppM(..)
   , boot
   , powerdown
@@ -47,7 +46,7 @@ import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
-import qualified Servant.Auth.Server           as Srv
+import qualified Servant.Auth.Server           as SAuth
 import           System.Directory               ( doesFileExist )
 
 
@@ -57,9 +56,9 @@ data ServerConf = ServerConf
   { _serverPort          :: Int
   , _serverStaticDir     :: FilePath
   , _serverDataDir       :: FilePath
-  , _serverCookie        :: Srv.CookieSettings
+  , _serverCookie        :: SAuth.CookieSettings
     -- ^ Settings for setting cookies as a server (for authentication etc.).
-  , _serverMkJwtSettings :: JWK.JWK -> Srv.JWTSettings
+  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
     -- ^ JWK settings to use, depending on the key employed.
   }
 
@@ -79,10 +78,9 @@ makeLenses ''Conf
 -- | The runtime, a central product type that should contain all our runtime
 -- supporting values.
 data Runtime = Runtime
-  { _rConf        :: Conf -- ^ The application configuration.
-  , _rDb          :: Data.StmDb Runtime -- ^ The Storage.
-  , _rLoggers     :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
-  , _rJwtSettings :: Srv.JWTSettings -- ^ JWT settings to use.
+  { _rConf    :: Conf -- ^ The application configuration.
+  , _rDb      :: Data.StmDb Runtime -- ^ The Storage.
+  , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
   }
 
 makeLenses ''Runtime
@@ -124,19 +122,15 @@ runAppMSafe rt (AppM op') =
 boot
   :: MonadIO m
   => Conf -- ^ configuration to boot with.
-  -> JWK.JWK -- ^ A Key for JSON Web Tokens (used to encrypt auth. cookies).
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf jwk = do
+boot _rConf = do
 
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
 
   eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left  err  -> Left err
-    Right _rDb -> Right Runtime
-      { _rJwtSettings = (_serverMkJwtSettings (_rConf ^. confServer)) jwk
-      , ..
-      }
+    Right _rDb -> Right Runtime { .. }
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)

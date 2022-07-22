@@ -6,7 +6,6 @@ import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Options.Applicative           as A
-import qualified Servant.Auth.Server           as Srv
 
 
 --------------------------------------------------------------------------------
@@ -24,8 +23,7 @@ mainParserInfo =
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  jwk                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf jwk >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
 
   let handleExceptions = (`catch` P.shutdown runtime . Just)
 

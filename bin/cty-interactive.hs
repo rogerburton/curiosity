@@ -5,12 +5,12 @@ module Main
   ) where
 
 import           Commence.Multilogging          ( flushAndCloseLoggers )
+import qualified Control.Concurrent.Async      as Async
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
-import qualified Control.Concurrent.Async      as Async
 import qualified Options.Applicative           as A
-import qualified Servant.Auth.Server           as Srv
+
 
 --------------------------------------------------------------------------------
 main :: IO ExitCode
@@ -32,8 +32,7 @@ runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
   putStrLn @Text
     "Booting runtime; the rest of the startup logs will be in the configured logging outputs."
-  jwk                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf jwk >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
 
   let handleExceptions = (`catch` P.shutdown runtime . Just)
       reportServerEnd  = P.startupLogInfo

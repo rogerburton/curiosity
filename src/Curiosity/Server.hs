@@ -27,6 +27,7 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Crypto.JOSE.JWK               as JWK
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
@@ -103,8 +104,14 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                       -- and for a custom 404
 
 -- | This is the main Servant server definition, corresponding to @App@.
-serverT :: forall m . ServerC m => FilePath -> FilePath -> ServerT App m
-serverT root dataDir =
+serverT
+  :: forall m
+   . ServerC m
+  => SAuth.JWTSettings
+  -> FilePath
+  -> FilePath
+  -> ServerT App m
+serverT jwtS root dataDir =
   showLandingPage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -117,7 +124,7 @@ serverT root dataDir =
     :<|> echoSignup
     :<|> showLoginPage
     :<|> showSignupPage
-    :<|> publicT
+    :<|> publicT jwtS
     :<|> privateT
     :<|> serveData dataDir
     :<|> serveDocumentation root
@@ -145,13 +152,17 @@ run
    . MonadIO m
   => Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
+run runtime@Rt.Runtime {..} = liftIO $ do
+  jwk <- SAuth.generateKey
+  let jwtSettings = (Rt._serverMkJwtSettings $ Rt._confServer _rConf) jwk
+  Warp.run port $ waiApp jwtSettings
  where
   Rt.ServerConf port root dataDir _ _ = runtime ^. Rt.rConf . Rt.confServer
-  waiApp = serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) ctx root dataDir
-  ctx =
+  waiApp jwtS =
+    serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) (ctx jwtS) jwtS root dataDir
+  ctx jwtS =
     Rt._serverCookie (_rConf ^. Rt.confServer)
-      Server.:. _rJwtSettings
+      Server.:. jwtS
       Server.:. Server.EmptyContext
 
 -- | Turn our @serverT@ definition into a Wai application, suitable for
@@ -162,13 +173,14 @@ serve
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
   -> Server.Context ServerSettings
+  -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
   -> Wai.Application
-serve handlerNatTrans ctx root dataDir =
+serve handlerNatTrans ctx jwtS root dataDir =
   Servant.serveWithContext appProxy ctx
     $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
-    $ serverT root dataDir
+    $ serverT jwtS root dataDir
  where
   appProxy      = Proxy @App
   settingsProxy = Proxy @ServerSettings
@@ -226,8 +238,8 @@ type Public =    "a" :> "signup"
                                               NoContent
                                             )
 
-publicT :: forall m . ServerC m => ServerT Public m
-publicT = handleSignup :<|> handleLogin
+publicT :: forall m . ServerC m => SAuth.JWTSettings -> ServerT Public m
+publicT jwtS = handleSignup :<|> handleLogin jwtS
 
 handleSignup User.Signup {..} = env $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
@@ -244,12 +256,14 @@ handleSignup User.Signup {..} = env $ do
       pure $ Signup.SignupFailed "Failed to create users."
   where env = ML.localEnv (<> "HTTP" <> "Signup")
 
-handleLogin User.Credentials {..} =
+handleLogin jwtSettings User.Credentials {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
       ML.info "Found user, generating authentication cookies..."
-      jwtSettings   <- asks Rt._rJwtSettings
       Rt.Conf {..}  <- asks Rt._rConf
+      -- TODO I think jwtSettings could be retrieve with
+      -- Servant.Server.getContetEntry. This would avoid threading
+      -- jwtSettings evereywhere.
       mApplyCookies <- liftIO $ SAuth.acceptLogin
         (Rt._serverCookie _confServer)
         jwtSettings
