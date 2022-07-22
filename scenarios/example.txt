@@ -1,0 +1,5 @@
+state
+user get USER-0
+user create alice secret alice@example.com
+user get USER-0
+state
