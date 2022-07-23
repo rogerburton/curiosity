@@ -10,8 +10,15 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
+import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
+import           Network.Socket          hiding ( recv
+                                                , send
+                                                )
+import           Network.Socket.ByteString      ( recv
+                                                , send
+                                                )
 import qualified Options.Applicative           as A
 import           System.Directory               ( doesFileExist )
 
@@ -53,6 +60,22 @@ run (Command.CommandWithTarget command target) = do
       -- TODO shutdown runtime, loggers, save state, ...
       exitWith exitCode
 
-    Command.UnixDomainTarget _ -> do
-      putStrLn @Text "Unimplemented: --socket, a.k.a UnixDomainTarget"
-      exitFailure
+    Command.UnixDomainTarget path -> do
+      client path command
+
+client :: FilePath -> Command.Command -> IO ExitCode
+client path command = do
+  sock <- socket AF_UNIX Stream 0
+  connect sock $ SockAddrUnix path
+  let command' = commandToString command
+  send sock command'
+  msg <- recv sock 1024
+  let response = map B.unpack $ B.words msg -- TODO decodeUtf8
+  print response
+  close sock
+  exitSuccess
+
+commandToString = \case
+  Command.Init  -> undefined -- error "Can't send `init` to a server."
+  Command.State -> "state"
+  _             -> undefined -- error "Unimplemented"
