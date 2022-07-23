@@ -108,13 +108,20 @@ boot
   => Conf -- ^ configuration to boot with.
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf = do
-
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
-
   eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left  err  -> Left err
     Right _rDb -> Right Runtime { .. }
+
+-- | Create a runtime from a given state.
+boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
+boot' db logsPath = do
+  let loggingConf = mkLoggingConf logsPath
+      _rConf      = defaultConf { _confLogging = loggingConf }
+  _rDb      <- Data.instantiateStmDb db
+  _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
+  pure $ Runtime { .. }
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)

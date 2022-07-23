@@ -7,14 +7,11 @@ module Curiosity.Parse
 
 import qualified Commence.InteractiveState.Repl
                                                as Repl
-import qualified Commence.Multilogging         as ML
-import           Control.Monad.Log             as L
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server              as Srv
 import           Data.Default.Class
 import qualified Options.Applicative           as A
 import qualified Servant.Auth.Server           as SAuth
-import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
