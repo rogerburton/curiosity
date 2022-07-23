@@ -3,61 +3,29 @@ module Curiosity.Parse
   ( confParser
   , replParser
   , serverParser
-  , defaultConf
-  , defaultServerConf
   ) where
 
 import qualified Commence.InteractiveState.Repl
                                                as Repl
 import qualified Commence.Multilogging         as ML
 import           Control.Monad.Log             as L
-import           Curiosity.Runtime
-import           Curiosity.Server
+import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Server              as Srv
 import           Data.Default.Class
 import qualified Options.Applicative           as A
-import qualified Servant.Auth.Server           as Srv
+import qualified Servant.Auth.Server           as SAuth
 import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
-confParser :: A.Parser Conf
+confParser :: A.Parser Rt.Conf
 confParser = do
   _confDbFile <- dbFileParser
-  pure Conf
-    {
+  pure Rt.Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-      _confLogging = ML.LoggingConf [FL.LogFile flspec 1024]
-                                    "Curiosity"
-                                    L.levelInfo-- ML.parseLoggingConf
-    , ..
-    }
+                 _confLogging = Rt.defaultLoggingConf, .. }
 
-defaultConf :: Conf
-defaultConf =
-  let _confDbFile = Nothing
-  in  Conf
-        { _confLogging = ML.LoggingConf [FL.LogFile flspec 1024]
-                                        "Curiosity"
-                                        L.levelInfo
-        , ..
-        }
-
-defaultServerConf :: ServerConf
-defaultServerConf = ServerConf
-  { _serverPort          = 9000
-  , _serverStaticDir     = "./_site/"
-  , _serverDataDir       = "./data/"
-  , _serverCookie        = Srv.defaultCookieSettings
-                             { Srv.cookieIsSecure    = Srv.NotSecure
-                             , Srv.cookieXsrfSetting = Nothing
-                             , Srv.cookieSameSite    = Srv.SameSiteStrict
-                             }
-  , _serverMkJwtSettings = Srv.defaultJWTSettings
-  }
-
-flspec = FL.FileLogSpec "/tmp/curiosity.log" 5000 0
-
-serverParser :: A.Parser ServerConf
+serverParser :: A.Parser Srv.ServerConf
 serverParser = do
   _serverPort <- abs <$> A.option
     A.auto
@@ -77,16 +45,16 @@ serverParser = do
       "A directory containing example data."
     )
 
-  pure ServerConf
+  pure Srv.ServerConf
     {
       -- FIXME: Add support for cookie-settings parsing.
-      _serverCookie        = Srv.defaultCookieSettings
-                               { Srv.cookieIsSecure    = Srv.NotSecure -- Use temporarily NotSecure for easier local testing with cURL.
-                               , Srv.cookieXsrfSetting = Nothing -- XSRF disabled to simplify curl calls (same as start-servant)
-                               , Srv.cookieSameSite    = Srv.SameSiteStrict
+      _serverCookie        = SAuth.defaultCookieSettings
+                               { SAuth.cookieIsSecure    = SAuth.NotSecure -- Use temporarily NotSecure for easier local testing with cURL.
+                               , SAuth.cookieXsrfSetting = Nothing -- XSRF disabled to simplify curl calls (same as start-servant)
+                               , SAuth.cookieSameSite    = SAuth.SameSiteStrict
                                }
       -- FIXME: See if this can be customized via parsing.
-    , _serverMkJwtSettings = Srv.defaultJWTSettings
+    , _serverMkJwtSettings = SAuth.defaultJWTSettings
     , ..
     }
 
@@ -112,6 +80,8 @@ replParser = do
     , ..
     }
 
+
+--------------------------------------------------------------------------------
 dbFileParser :: A.Parser (Maybe FilePath)
 dbFileParser =
   A.optional $ A.strOption $ A.long "db-file" <> A.help helpTxt <> A.metavar

@@ -6,6 +6,8 @@ module Curiosity.Runtime
   , IOErr(..)
   , confLogging
   , confDbFile
+  , defaultConf
+  , defaultLoggingConf
   , Runtime(..)
   , rConf
   , rDb
@@ -32,6 +34,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
                                                 )
+import qualified Control.Monad.Log             as L
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
@@ -41,6 +44,7 @@ import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
+import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
@@ -422,3 +426,19 @@ instance Errs.IsRuntimeErr IOErr where
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
+
+
+--------------------------------------------------------------------------------
+defaultConf :: Conf
+defaultConf =
+  let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
+
+defaultLoggingConf :: ML.LoggingConf
+defaultLoggingConf = mkLoggingConf "/tmp/curiosity.log"
+
+mkLoggingConf :: FilePath -> ML.LoggingConf
+mkLoggingConf path =
+  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
+
+flspec :: FilePath -> FL.FileLogSpec
+flspec path = FL.FileLogSpec path 5000 0
