@@ -40,9 +40,11 @@ in
     (import ../.).man-pages # TODO Man pages should come with .binaries ?
   ];
 
+  # Output to stderr, otherwise this confuses nix-copy-closure during
+  # deployment.
   programs.bash.loginShellInit = ''
-    echo "Welcome to the Curiosity environment."
-    echo "Run \`man curiosity\` for the manual."
+    >&2 echo "Welcome to the Curiosity environment."
+    >&2 echo "Run \`man curiosity\` for the manual."
   '';
 
   programs.bash.interactiveShellInit = ''
