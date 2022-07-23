@@ -53,7 +53,7 @@ repl runtime = HL.runInputT HL.defaultSettings loop
             A.execParserPure A.defaultPrefs Command.parserInfo $ words input
       case result of
         A.Success command ->
-          Command.handleCommand runtime output' command >> pure ()
+          Rt.handleCommand runtime output' command >> pure ()
         A.Failure           err -> output' $ show err
         A.CompletionInvoked _   -> output' "Shouldn't happen"
 

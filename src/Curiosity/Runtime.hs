@@ -14,6 +14,8 @@ module Curiosity.Runtime
   , rLoggers
   , AppM(..)
   , boot
+  , boot'
+  , handleCommand
   , powerdown
   , readDb
   , readDbSafe
@@ -24,6 +26,8 @@ module Curiosity.Runtime
   , appMHandlerNatTrans
   ) where
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
@@ -35,6 +39,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadThrow
                                                 )
 import qualified Control.Monad.Log             as L
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
@@ -224,6 +229,51 @@ instance ML.MonadAppNameLogMulti AppM where
   askLoggers = asks _rLoggers
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
+
+
+--------------------------------------------------------------------------------
+-- | Handle a single command. The @display@ function and the return type
+-- provide some flexibility, so this function can be used in both `cty` and
+-- `cty-repl-2`.
+handleCommand
+  :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
+handleCommand runtime display command = do
+  case command of
+    Command.State -> do
+      output <-
+        runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
+      display $ show output
+      return ExitSuccess
+    Command.SelectUser select -> do
+      output <- runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
+        select
+      display $ show output
+      return ExitSuccess
+    Command.UpdateUser update -> do
+      output <- runAppMSafe runtime . IS.execModification $ Data.ModifyUser
+        update
+      display $ show output
+      return ExitSuccess
+    _ -> do
+      display $ "Unhandled command " <> show command
+      return $ ExitFailure 1
+
+-- | Given an initial state, applies a list of commands, returning the list of
+-- new (intermediate and final) states.
+interpret
+  :: Data.HaskDb Runtime -> [Command.Command] -> IO [Data.HaskDb Runtime]
+interpret = loop []
+ where
+  -- TODO Maybe it would be more efficient to thread a runtime instate of a
+  -- state (that needs to be "booted" over and over again).
+  loop acc _  []               = pure $ reverse acc
+  loop acc st (command : rest) = do
+    runtime <- boot' st "/tmp/curiosity-xxx.log"
+    handleCommand runtime display command
+    st' <- Data.readFullStmDbInHask $ _rDb runtime
+    loop (st' : acc) st' rest
+  display = putStrLn -- TODO Accumulate in a list, so it can be returned.
+                     -- TODO Is is possible to also log to a list ?
 
 
 --------------------------------------------------------------------------------

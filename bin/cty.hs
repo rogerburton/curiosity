@@ -53,7 +53,7 @@ run (Command.CommandWithTarget command target) = do
         Rt.boot Rt.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
 
-      exitCode <- Command.handleCommand runtime putStrLn command
+      exitCode <- Rt.handleCommand runtime putStrLn command
 
       Rt.powerdown runtime
       -- TODO shutdown runtime, loggers, save state, ...
