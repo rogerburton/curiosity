@@ -6,12 +6,16 @@ module Curiosity.Runtime
   , IOErr(..)
   , confLogging
   , confDbFile
+  , defaultConf
+  , defaultLoggingConf
   , Runtime(..)
   , rConf
   , rDb
   , rLoggers
   , AppM(..)
   , boot
+  , boot'
+  , handleCommand
   , powerdown
   , readDb
   , readDbSafe
@@ -22,6 +26,8 @@ module Curiosity.Runtime
   , appMHandlerNatTrans
   ) where
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
@@ -32,6 +38,8 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
                                                 )
+import qualified Control.Monad.Log             as L
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
@@ -41,6 +49,7 @@ import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
+import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
@@ -104,13 +113,20 @@ boot
   => Conf -- ^ configuration to boot with.
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf = do
-
   _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
-
   eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left  err  -> Left err
     Right _rDb -> Right Runtime { .. }
+
+-- | Create a runtime from a given state.
+boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
+boot' db logsPath = do
+  let loggingConf = mkLoggingConf logsPath
+      _rConf      = defaultConf { _confLogging = loggingConf }
+  _rDb      <- Data.instantiateStmDb db
+  _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
+  pure $ Runtime { .. }
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
@@ -213,6 +229,51 @@ instance ML.MonadAppNameLogMulti AppM where
   askLoggers = asks _rLoggers
   localLoggers modLogger =
     local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
+
+
+--------------------------------------------------------------------------------
+-- | Handle a single command. The @display@ function and the return type
+-- provide some flexibility, so this function can be used in both `cty` and
+-- `cty-repl-2`.
+handleCommand
+  :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
+handleCommand runtime display command = do
+  case command of
+    Command.State -> do
+      output <-
+        runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
+      display $ show output
+      return ExitSuccess
+    Command.SelectUser select -> do
+      output <- runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
+        select
+      display $ show output
+      return ExitSuccess
+    Command.UpdateUser update -> do
+      output <- runAppMSafe runtime . IS.execModification $ Data.ModifyUser
+        update
+      display $ show output
+      return ExitSuccess
+    _ -> do
+      display $ "Unhandled command " <> show command
+      return $ ExitFailure 1
+
+-- | Given an initial state, applies a list of commands, returning the list of
+-- new (intermediate and final) states.
+interpret
+  :: Data.HaskDb Runtime -> [Command.Command] -> IO [Data.HaskDb Runtime]
+interpret = loop []
+ where
+  -- TODO Maybe it would be more efficient to thread a runtime instate of a
+  -- state (that needs to be "booted" over and over again).
+  loop acc _  []               = pure $ reverse acc
+  loop acc st (command : rest) = do
+    runtime <- boot' st "/tmp/curiosity-xxx.log"
+    handleCommand runtime display command
+    st' <- Data.readFullStmDbInHask $ _rDb runtime
+    loop (st' : acc) st' rest
+  display = putStrLn -- TODO Accumulate in a list, so it can be returned.
+                     -- TODO Is is possible to also log to a list ?
 
 
 --------------------------------------------------------------------------------
@@ -422,3 +483,19 @@ instance Errs.IsRuntimeErr IOErr where
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
+
+
+--------------------------------------------------------------------------------
+defaultConf :: Conf
+defaultConf =
+  let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
+
+defaultLoggingConf :: ML.LoggingConf
+defaultLoggingConf = mkLoggingConf "/tmp/curiosity.log"
+
+mkLoggingConf :: FilePath -> ML.LoggingConf
+mkLoggingConf path =
+  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
+
+flspec :: FilePath -> FL.FileLogSpec
+flspec path = FL.FileLogSpec path 5000 0

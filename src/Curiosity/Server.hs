@@ -173,12 +173,13 @@ run conf@ServerConf {..} runtime@Rt.Runtime {..} = liftIO $ do
   let jwtSettings = _serverMkJwtSettings jwk
   Warp.run _serverPort $ waiApp jwtSettings
  where
-  waiApp jwtS =
-    serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) conf (ctx jwtS) jwtS _serverStaticDir _serverDataDir
-  ctx jwtS =
-    _serverCookie
-      Server.:. jwtS
-      Server.:. Server.EmptyContext
+  waiApp jwtS = serve @Rt.AppM (Rt.appMHandlerNatTrans runtime)
+                               conf
+                               (ctx jwtS)
+                               jwtS
+                               _serverStaticDir
+                               _serverDataDir
+  ctx jwtS = _serverCookie Server.:. jwtS Server.:. Server.EmptyContext
 
 -- | Turn our @serverT@ definition into a Wai application, suitable for
 -- Warp.run.
@@ -254,7 +255,12 @@ type Public =    "a" :> "signup"
                                               NoContent
                                             )
 
-publicT :: forall m . ServerC m => ServerConf -> SAuth.JWTSettings -> ServerT Public m
+publicT
+  :: forall m
+   . ServerC m
+  => ServerConf
+  -> SAuth.JWTSettings
+  -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
 handleSignup User.Signup {..} = env $ do
@@ -280,10 +286,9 @@ handleLogin conf jwtSettings User.Credentials {..} =
       -- TODO I think jwtSettings could be retrieve with
       -- Servant.Server.getContetEntry. This would avoid threading
       -- jwtSettings evereywhere.
-      mApplyCookies <- liftIO $ SAuth.acceptLogin
-        (_serverCookie conf)
-        jwtSettings
-        (u ^. User.userProfileId)
+      mApplyCookies <- liftIO $ SAuth.acceptLogin (_serverCookie conf)
+                                                  jwtSettings
+                                                  (u ^. User.userProfileId)
       ML.info "Applying cookies..."
       case mApplyCookies of
         Nothing -> do

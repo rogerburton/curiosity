@@ -50,7 +50,7 @@ interpret runtime path = do
             $ map T.unpack input
       case result of
         A.Success command -> do
-          Command.handleCommand runtime output' command
+          Rt.handleCommand runtime output' command
           loop rest
         A.Failure err -> do
           output' $ show err
