@@ -511,7 +511,7 @@ newtype IOErr = FileDoesntExistErr FilePath
   deriving Show
 
 instance Errs.IsRuntimeErr IOErr where
-  errCode FileDoesntExistErr{} = "ERR.FILE_DOENST_EXIST"
+  errCode FileDoesntExistErr{} = "ERR.FILE_NOT_FOUND"
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
