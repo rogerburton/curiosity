@@ -266,19 +266,25 @@ publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
 handleSignup
   :: forall m . ServerC m => User.Signup -> m Signup.SignupResultPage
-handleSignup User.Signup {..} = ML.localEnv (<> "HTTP" <> "Signup") $ do
-  ML.info $ "Signing up new user: " <> show username <> "..."
-  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
-  case headMay ids of
-    Just uid -> do
-      ML.info $ "User created: " <> show uid <> ". Sending success result."
-      pure Signup.SignupSuccess
-    -- TODO Failure to create a user re-using an existing username doesn't
-    -- trigger the Nothing case.
-    Nothing -> do
-      -- TODO This should not be a 200 OK result.
-      ML.info $ "Failed to create a user. Sending failure result."
-      pure $ Signup.SignupFailed "Failed to create users."
+handleSignup input@User.Signup {..} =
+  ML.localEnv (<> "HTTP" <> "Signup")
+    $   do
+          ML.info $ "Signing up new user: " <> show username <> "..."
+          -- TODO Generate deterministically within STM.
+          newId <- User.genRandomUserId 10
+          Rt.withRuntimeAtomically Rt.createUser (newId, input)
+    >>= \case
+          Right uid -> do
+            ML.info
+              $  "User created: "
+              <> show uid
+              <> ". Sending success result."
+            pure Signup.SignupSuccess
+          Left err -> do
+            ML.info
+              $  "Failed to create a user. Sending failure result: "
+              <> show err
+            Errs.throwError' err
 
 handleLogin
   :: forall m
