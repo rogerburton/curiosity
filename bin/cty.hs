@@ -6,11 +6,9 @@ module Main
   ( main
   ) where
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
-import qualified Curiosity.Parse2              as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
@@ -20,59 +18,41 @@ import           System.Directory               ( doesFileExist )
 
 --------------------------------------------------------------------------------
 main :: IO ExitCode
-main = A.execParser P.parserInfoWithTarget >>= run
+main = A.execParser Command.parserInfoWithTarget >>= run
 
 
 --------------------------------------------------------------------------------
-run :: P.CommandWithTarget -> IO ExitCode
-run (P.CommandWithTarget P.Init (P.StateFileTarget path)) = do
-  exists <- liftIO $ doesFileExist path
-  if exists
-    then do
-      putStrLn @Text $ "The file '" <> T.pack path <> "' already exists."
-      putStrLn @Text "Aborting."
-      exitFailure
-    else do
-      let bs = Data.serialiseDb Data.emptyHask
-      try @SomeException (BS.writeFile path bs) >>= either
-        (\e -> print e >> exitFailure)
-        (const $ do
-          putStrLn @Text $ "State file '" <> T.pack path <> "' created."
-          exitSuccess
-        )
+run :: Command.CommandWithTarget -> IO ExitCode
+run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
+  do
+    exists <- liftIO $ doesFileExist path
+    if exists
+      then do
+        putStrLn @Text $ "The file '" <> T.pack path <> "' already exists."
+        putStrLn @Text "Aborting."
+        exitFailure
+      else do
+        let bs = Data.serialiseDb Data.emptyHask
+        try @SomeException (BS.writeFile path bs) >>= either
+          (\e -> print e >> exitFailure)
+          (const $ do
+            putStrLn @Text $ "State file '" <> T.pack path <> "' created."
+            exitSuccess
+          )
 
-run (P.CommandWithTarget command target) = do
+run (Command.CommandWithTarget command target) = do
   case target of
-    P.StateFileTarget path -> do
+    Command.StateFileTarget path -> do
       runtime@Rt.Runtime {..} <-
         Rt.boot P.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
 
-      case command of
-        P.State -> do
-          output <-
-            Rt.runAppMSafe runtime
-            . IS.execVisualisation
-            $ Data.VisualiseFullStmDb
-          print output
-        P.SelectUser select -> do
-          output <-
-            Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
-              select
-          print output
-        P.UpdateUser update -> do
-          output <-
-            Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
-              update
-          print output
-        _ -> do
-          putStrLn @Text $ "Unhandled command " <> show command
-          exitFailure
+      exitCode <- Command.handleCommand runtime putStrLn command
 
       Rt.powerdown runtime
       -- TODO shutdown runtime, loggers, save state, ...
-      exitSuccess
+      exitWith exitCode
 
-    P.UnixDomainTarget _ -> do
+    Command.UnixDomainTarget _ -> do
       putStrLn @Text "Unimplemented: --socket, a.k.a UnixDomainTarget"
       exitFailure

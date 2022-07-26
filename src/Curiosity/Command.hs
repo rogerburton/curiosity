@@ -1,16 +1,47 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
-module Curiosity.Parse2
-  ( parserInfo
-  , parserInfoWithTarget
-  , Command(..)
+module Curiosity.Command
+  ( Command(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
+  , parserInfo
+  , parserInfoWithTarget
+  , handleCommand
   ) where
 
+import qualified Commence.InteractiveState.Class
+                                               as IS
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Runtime             as Rt
 import qualified Options.Applicative           as A
+
+
+--------------------------------------------------------------------------------
+-- | Describes the command available from the command-line with `cty`, or
+-- within the UNIX-domain socket server, `cty-sock`, or the `cty-repl-2` REPL.
+data Command =
+    Init
+    -- ^ Initialise a new, empty state file.
+  | State
+    -- ^ Show the full state.
+  | SelectUser (S.DBSelect U.UserProfile)
+  | UpdateUser (S.DBUpdate U.UserProfile)
+  | ShowId Text
+    -- ^ If not a command per se, assume it's an ID to be looked up.
+  deriving Show
+
+-- | The same commands, defined above, can be used within the UNIX-domain
+-- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
+-- In the later case, a user might want to direct the command-line tool to
+-- interact with a server, or a local state file. This data type is meant to
+-- augment the above commands with such options.
+data CommandWithTarget = CommandWithTarget Command CommandTarget
+  deriving Show
+
+data CommandTarget = StateFileTarget FilePath | UnixDomainTarget FilePath
+  deriving Show
 
 
 --------------------------------------------------------------------------------
@@ -57,30 +88,6 @@ parserInfoWithTarget =
 
 
 --------------------------------------------------------------------------------
--- | Describes the command available from the command-line with `cty`, or
--- within the UNIX-domain socket server, `cty-sock`.
-data Command =
-    Init
-    -- ^ Initialise a new, empty state file.
-  | State
-    -- ^ Show the full state.
-  | SelectUser (S.DBSelect U.UserProfile)
-  | UpdateUser (S.DBUpdate U.UserProfile)
-  | ShowId Text
-    -- ^ If not a command per se, assume it's an ID to be looked up.
-  deriving Show
-
--- | The same commands, defined above, can be used within the UNIX-domain
--- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
--- In the later case, a user might want to direct the command-line tool to
--- interact with a server, or a local state file. This data type is meant to
--- augment the above commands with such options.
-data CommandWithTarget = CommandWithTarget Command CommandTarget
-  deriving Show
-
-data CommandTarget = StateFileTarget FilePath | UnixDomainTarget FilePath
-  deriving Show
-
 parser :: A.Parser Command
 parser =
   A.subparser
@@ -147,3 +154,32 @@ parserGetUser = SelectUser . U.SelectUserById . U.UserId <$> A.argument
 parserShowId :: A.Parser Command
 parserShowId =
   ShowId <$> A.argument A.str (A.metavar "ID" <> A.help "An object ID")
+
+
+--------------------------------------------------------------------------------
+-- | Handle a single command. The @display@ function and the return type
+-- provide some flexibility, so this function can be used in both `cty` and
+-- `cty-repl-2`.
+handleCommand
+  :: MonadIO m => Rt.Runtime -> (Text -> m ()) -> Command -> m ExitCode
+handleCommand runtime display command = do
+  case command of
+    State -> do
+      output <-
+        Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
+      display $ show output
+      return ExitSuccess
+    SelectUser select -> do
+      output <-
+        Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
+          select
+      display $ show output
+      return ExitSuccess
+    UpdateUser update -> do
+      output <- Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
+        update
+      display $ show output
+      return ExitSuccess
+    _ -> do
+      display $ "Unhandled command " <> show command
+      return $ ExitFailure 1
