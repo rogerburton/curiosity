@@ -22,6 +22,9 @@ module Curiosity.Runtime
   , saveDb
   , saveDbAs
   , runAppMSafe
+  , withRuntimeAtomically
+  -- * High-level operations
+  , checkCredentials
   -- * Servant compat
   , appMHandlerNatTrans
   ) where

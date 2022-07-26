@@ -11,6 +11,6 @@ BASE_URL="http://127.0.0.1:9000"
 # This should return a proper HTML page.
 # This should return 403 Forbidden ?
 
-rm cookies.txt
+rm -f cookies.txt
 curl --cookie-jar cookies.txt -d username="alice" -d password="secret" "${BASE_URL}/a/login"
 echo

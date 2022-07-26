@@ -263,6 +263,8 @@ publicT
   -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
+handleSignup
+  :: forall m . ServerC m => User.Signup -> m Signup.SignupResultPage
 handleSignup User.Signup {..} = env $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
   ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
@@ -278,42 +280,46 @@ handleSignup User.Signup {..} = env $ do
       pure $ Signup.SignupFailed "Failed to create users."
   where env = ML.localEnv (<> "HTTP" <> "Signup")
 
+handleLogin
+  :: forall m
+   . ServerC m
+  => ServerConf
+  -> SAuth.JWTSettings
+  -> User.Credentials
+  -> m (Headers H.PostAuthHeaders NoContent)
 handleLogin conf jwtSettings User.Credentials {..} =
-  env $ findMatchingUsers <&> headMay >>= \case
-    Just u -> do
-      ML.info "Found user, generating authentication cookies..."
-      Rt.Conf {..}  <- asks Rt._rConf
-      -- TODO I think jwtSettings could be retrieve with
-      -- Servant.Server.getContetEntry. This would avoid threading
-      -- jwtSettings evereywhere.
-      mApplyCookies <- liftIO $ SAuth.acceptLogin (_serverCookie conf)
-                                                  jwtSettings
-                                                  (u ^. User.userProfileId)
-      ML.info "Applying cookies..."
-      case mApplyCookies of
-        Nothing -> do
-          -- TODO What can cause a failure here ?
-          ML.warning "Applying cookies failed. Sending failure result."
-          unauthdErr _userCredsName
-        Just applyCookies -> do
-          ML.info "Cookies applied. Sending success result."
-          pure . addHeader @"Location" "/" $ applyCookies NoContent
-    -- TODO This is wrong: if UserLoginWithUserName doesn't find a user, it
-    -- throws an error instead of returning a Nothing. So either change its
-    -- logic to return a Nothing or an empty list, or catch the exception.
-    Nothing -> do
-      ML.info "User not found. Sending Failure result."
-      unauthdErr _userCredsName
- where
-  env               = ML.localEnv (<> "HTTP" <> "Login")
-  findMatchingUsers = do
-    ML.info $ "Logging in user: " <> show _userCredsName <> "..."
-    S.dbSelect $ User.UserLoginWithUserName _userCredsName _userCredsPassword
-  unauthdErr =
-    Errs.throwError'
-      . User.IncorrectPassword
-      . mappend "User login failed: "
-      . show
+  env
+    $   do
+          ML.info $ "Logging in user: " <> show _userCredsName <> "..."
+          Rt.withRuntimeAtomically
+            $ \rt -> Rt.checkCredentials rt _userCredsName _userCredsPassword
+    >>= \case
+          Right u -> do
+            ML.info "Found user, applying authentication cookies..."
+            Rt.Conf {..}  <- asks Rt._rConf
+            -- TODO I think jwtSettings could be retrieved with
+            -- Servant.Server.getContetEntry. This would avoid threading
+            -- jwtSettings evereywhere.
+            mApplyCookies <- liftIO $ SAuth.acceptLogin
+              (_serverCookie conf)
+              jwtSettings
+              (u ^. User.userProfileId)
+            case mApplyCookies of
+              Nothing -> do
+                -- TODO What can cause a failure here ?
+                -- From a quick look at Servant, it seems the error would be a
+                -- JSON-encoding failure of the generated JWT.
+                -- So, something else than UserNotFound would be better, like a
+                -- 500.
+                ML.error "Applying cookies failed. Sending failure result."
+                Errs.throwError' $ User.UserNotFound "Something went wrong."
+              Just applyCookies -> do
+                ML.info "Cookies applied. Sending success result."
+                pure . addHeader @"Location" "/" $ applyCookies NoContent
+          Left err -> do
+            ML.info "Incorrect username or password. Sending Failure result."
+            Errs.throwError' err
+  where env = ML.localEnv (<> "HTTP" <> "Login")
 
 
 --------------------------------------------------------------------------------
