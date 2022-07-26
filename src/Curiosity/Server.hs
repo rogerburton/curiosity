@@ -45,6 +45,7 @@ import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -265,7 +266,7 @@ publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
 handleSignup
   :: forall m . ServerC m => User.Signup -> m Signup.SignupResultPage
-handleSignup User.Signup {..} = env $ do
+handleSignup User.Signup {..} = ML.localEnv (<> "HTTP" <> "Signup") $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
   ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
   case headMay ids of
@@ -278,7 +279,6 @@ handleSignup User.Signup {..} = env $ do
       -- TODO This should not be a 200 OK result.
       ML.info $ "Failed to create a user. Sending failure result."
       pure $ Signup.SignupFailed "Failed to create users."
-  where env = ML.localEnv (<> "HTTP" <> "Signup")
 
 handleLogin
   :: forall m
@@ -288,13 +288,13 @@ handleLogin
   -> User.Credentials
   -> m (Headers H.PostAuthHeaders NoContent)
 handleLogin conf jwtSettings input =
-  env
+  ML.localEnv (<> "HTTP" <> "Login")
     $   do
           ML.info
             $  "Logging in user: "
             <> show (User._userCredsName input)
             <> "..."
-          Rt.withRuntimeAtomically $ \rt -> Rt.checkCredentials rt input
+          Rt.withRuntimeAtomically Rt.checkCredentials input
     >>= \case
           Right u -> do
             ML.info "Found user, applying authentication cookies..."
@@ -308,20 +308,21 @@ handleLogin conf jwtSettings input =
               (u ^. User.userProfileId)
             case mApplyCookies of
               Nothing -> do
-                -- TODO What can cause a failure here ?
                 -- From a quick look at Servant, it seems the error would be a
                 -- JSON-encoding failure of the generated JWT.
-                -- So, something else than UserNotFound would be better, like a
-                -- 500.
-                ML.error "Applying cookies failed. Sending failure result."
-                Errs.throwError' $ User.UserNotFound "Something went wrong."
+                let err = ServerErr "Couldn't apply cookies."
+                ML.error
+                  $  "Applying cookies failed. Sending failure result: "
+                  <> show err
+                Errs.throwError' err
               Just applyCookies -> do
                 ML.info "Cookies applied. Sending success result."
                 pure . addHeader @"Location" "/" $ applyCookies NoContent
           Left err -> do
-            ML.info "Incorrect username or password. Sending Failure result."
+            ML.info
+              $  "Incorrect username or password. Sending failure result: "
+              <> show err
             Errs.throwError' err
-  where env = ML.localEnv (<> "HTTP" <> "Login")
 
 
 --------------------------------------------------------------------------------
@@ -482,3 +483,14 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 serveData path = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
+
+
+--------------------------------------------------------------------------------
+newtype ServerErr = ServerErr Text
+  deriving Show
+
+instance Errs.IsRuntimeErr ServerErr where
+  errCode ServerErr{} = "ERR.INTERNAL"
+  httpStatus ServerErr{} = HTTP.internalServerError500
+  userMessage = Just . \case
+    ServerErr msg -> T.unwords ["Internal server error: ", msg]

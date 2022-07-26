@@ -338,7 +338,7 @@ instance S.DBStorage AppM User.UserProfile where
   dbSelect = \case
 
     User.UserLoginWithUserName input -> do
-      mprofile <- withRuntimeAtomically $ \rt -> checkCredentials rt input
+      mprofile <- withRuntimeAtomically checkCredentials input
       case mprofile of
         Right profile -> pure [profile]
         Left  err     -> Errs.throwError' err
@@ -347,8 +347,7 @@ instance S.DBStorage AppM User.UserProfile where
         ((== id) . S.dbId)
 
     User.SelectUserByUserName username -> do
-      mprofile <- withRuntimeAtomically
-        $ \rt -> selectUserByUsername rt username
+      mprofile <- withRuntimeAtomically selectUserByUsername username
       case mprofile of
         Just profile -> pure [profile]
         Nothing      -> pure []
@@ -391,7 +390,7 @@ onUserNameExists userName onNone onExisting =
 userNotFound =
   Errs.throwError' . User.UserNotFound . mappend "User not found: "
 
-withRuntimeAtomically f = ask >>= \rt -> liftIO . STM.atomically $ f rt
+withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
