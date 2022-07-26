@@ -172,7 +172,7 @@ instance Storage.DBStorageOps UserProfile where
   data DBSelect UserProfile =
     -- | Attempt a user-login using the more ambiguous but more friendly
     -- `UserName` and `Password.
-    UserLoginWithUserName UserName Password
+    UserLoginWithUserName Credentials
     -- | Select a user with a known `UserId`.
     | SelectUserById UserId
     -- | Select a user with `UserName`.
@@ -208,8 +208,10 @@ dbSelectParser = P.tryAlts
   userLoginWithUserName =
     P.withTrailSpaces "UserLoginWithUserName"
       *> (   UserLoginWithUserName
-         <$> (userNameParser <* P.space)
-         <*> userPasswordParser
+         <$> (   Credentials
+             <$> (userNameParser <* P.space)
+             <*> userPasswordParser
+             )
          )
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById

@@ -337,9 +337,8 @@ instance S.DBStorage AppM User.UserProfile where
 
   dbSelect = \case
 
-    User.UserLoginWithUserName username passInput -> do
-      mprofile <- withRuntimeAtomically
-        $ \rt -> checkCredentials rt username passInput
+    User.UserLoginWithUserName input -> do
+      mprofile <- withRuntimeAtomically $ \rt -> checkCredentials rt input
       case mprofile of
         Right profile -> pure [profile]
         Left  err     -> Errs.throwError' err
@@ -367,16 +366,16 @@ selectUserByUsername runtime username = do
       _   -> pure Nothing
 
 checkCredentials
-  :: Runtime
-  -> User.UserName
-  -> User.Password
-  -> STM (Either User.UserErr User.UserProfile)
-checkCredentials runtime username passInput = do
-  mprofile <- selectUserByUsername runtime username
+  :: Runtime -> User.Credentials -> STM (Either User.UserErr User.UserProfile)
+checkCredentials runtime User.Credentials {..} = do
+  mprofile <- selectUserByUsername runtime _userCredsName
   case mprofile of
-    Just profile | checkPassword profile passInput -> pure $ Right profile
+    Just profile | checkPassword profile _userCredsPassword ->
+      pure $ Right profile
     _ -> pure $ Left User.IncorrectUsernameOrPassword
 
+-- TODO Use constant-time string comparison.
+checkPassword :: User.UserProfile -> User.Password -> Bool
 checkPassword profile (User.Password passInput) = storedPass =:= passInput
  where
   User.Password storedPass =

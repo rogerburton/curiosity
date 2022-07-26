@@ -287,12 +287,14 @@ handleLogin
   -> SAuth.JWTSettings
   -> User.Credentials
   -> m (Headers H.PostAuthHeaders NoContent)
-handleLogin conf jwtSettings User.Credentials {..} =
+handleLogin conf jwtSettings input =
   env
     $   do
-          ML.info $ "Logging in user: " <> show _userCredsName <> "..."
-          Rt.withRuntimeAtomically
-            $ \rt -> Rt.checkCredentials rt _userCredsName _userCredsPassword
+          ML.info
+            $  "Logging in user: "
+            <> show (User._userCredsName input)
+            <> "..."
+          Rt.withRuntimeAtomically $ \rt -> Rt.checkCredentials rt input
     >>= \case
           Right u -> do
             ML.info "Found user, applying authentication cookies..."
