@@ -375,7 +375,7 @@ checkCredentials runtime username passInput = do
   mprofile <- selectUserByUsername runtime username
   case mprofile of
     Just profile | checkPassword profile passInput -> pure $ Right profile
-    _ -> pure . Left . User.UserNotFound $ "Incorrect username or password."
+    _ -> pure $ Left User.IncorrectUsernameOrPassword
 
 checkPassword profile (User.Password passInput) = storedPass =:= passInput
  where
