@@ -18,7 +18,6 @@ import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
 import qualified Options.Applicative           as A
-import qualified Servant.Auth.Server           as Srv
 
 
 --------------------------------------------------------------------------------
@@ -34,9 +33,7 @@ mainParserInfo =
 
 runWithConf conf = do
   putStrLn @Text "Creating runtime..."
-  jwt                     <- Srv.generateKey
-  runtime@Rt.Runtime {..} <- Rt.boot conf jwt >>= either throwIO pure
-  -- TODO jwt should'nt be in the runtime, but in the HTTP layer
+  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
 
   putStrLn @Text "Creating curiosity.sock..."
   sock <- socket AF_UNIX Stream 0
@@ -73,12 +70,13 @@ repl runtime conn = do
         A.Failure           err -> print err
         A.CompletionInvoked _   -> print @IO @Text "Shouldn't happen"
 
-      output <- Rt.runExeAppMSafe runtime $ IS.execModification
+      output <- Rt.runAppMSafe runtime $ IS.execModification
         (Data.ModifyUser
-          (User.UserCreate $ User.UserProfile "USER-0"
-                                              (User.Credentials "alice" "pass")
-                                              "Alice"
-                                              "alice@example.com"
+          (User.UserCreate $ User.UserProfile
+            "USER-0"
+            (User.Credentials "alice" "pass")
+            "Alice"
+            "alice@example.com"
           )
         )
 

@@ -15,7 +15,6 @@ import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
-import qualified Servant.Auth.Server           as Srv
 import           System.Directory               ( doesFileExist )
 
 
@@ -45,28 +44,25 @@ run (P.CommandWithTarget P.Init (P.StateFileTarget path)) = do
 run (P.CommandWithTarget command target) = do
   case target of
     P.StateFileTarget path -> do
-      jwt                     <- Srv.generateKey
       runtime@Rt.Runtime {..} <-
-        Rt.boot P.defaultConf { Rt._confDbFile = Just path } jwt
+        Rt.boot P.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
-      -- TODO jwt should'nt be in the runtime, but in the HTTP layer
 
       case command of
         P.State -> do
           output <-
-            Rt.runExeAppMSafe runtime
+            Rt.runAppMSafe runtime
             . IS.execVisualisation
             $ Data.VisualiseFullStmDb
           print output
         P.SelectUser select -> do
           output <-
-            Rt.runExeAppMSafe runtime
-            . IS.execVisualisation
-            $ Data.VisualiseUser select
+            Rt.runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
+              select
           print output
         P.UpdateUser update -> do
           output <-
-            Rt.runExeAppMSafe runtime . IS.execModification $ Data.ModifyUser
+            Rt.runAppMSafe runtime . IS.execModification $ Data.ModifyUser
               update
           print output
         _ -> do

@@ -14,6 +14,7 @@ module Curiosity.Server
   (
     -- * Top level server types.
     App
+  , ServerConf(..)
   , serverT
   , serve
   , run
@@ -27,6 +28,7 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Crypto.JOSE.JWK               as JWK
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
@@ -67,6 +69,19 @@ import           WaiAppStatic.Types             ( ss404Handler
 
 
 --------------------------------------------------------------------------------
+-- | HTTP server config.
+data ServerConf = ServerConf
+  { _serverPort          :: Int
+  , _serverStaticDir     :: FilePath
+  , _serverDataDir       :: FilePath
+  , _serverCookie        :: SAuth.CookieSettings
+    -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
+    -- ^ JWK settings to use, depending on the key employed.
+  }
+
+
+--------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | This is the main Servant API definition for Curiosity.
 type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
@@ -103,8 +118,15 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                       -- and for a custom 404
 
 -- | This is the main Servant server definition, corresponding to @App@.
-serverT :: forall m . ServerC m => FilePath -> FilePath -> ServerT App m
-serverT root dataDir =
+serverT
+  :: forall m
+   . ServerC m
+  => ServerConf
+  -> SAuth.JWTSettings
+  -> FilePath
+  -> FilePath
+  -> ServerT App m
+serverT conf jwtS root dataDir =
   showLandingPage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -117,7 +139,7 @@ serverT root dataDir =
     :<|> echoSignup
     :<|> showLoginPage
     :<|> showSignupPage
-    :<|> publicT
+    :<|> publicT conf jwtS
     :<|> privateT
     :<|> serveData dataDir
     :<|> serveDocumentation root
@@ -143,17 +165,19 @@ type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
 run
   :: forall m
    . MonadIO m
-  => Rt.Runtime -- ^ Runtime to use for running the server.
+  => ServerConf
+  -> Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run runtime@Rt.Runtime {..} = liftIO $ Warp.run port waiApp
+run conf@ServerConf {..} runtime@Rt.Runtime {..} = liftIO $ do
+  jwk <- SAuth.generateKey
+  let jwtSettings = _serverMkJwtSettings jwk
+  Warp.run _serverPort $ waiApp jwtSettings
  where
-  Rt.ServerConf port root dataDir = runtime ^. Rt.rConf . Rt.confServer
-  waiApp =
-    serve @Rt.ExeAppM (Rt.exampleAppMHandlerNatTrans runtime) ctx root dataDir
-  ctx =
-    _rConf
-      ^.        Rt.confCookie
-      Server.:. _rJwtSettings
+  waiApp jwtS =
+    serve @Rt.AppM (Rt.appMHandlerNatTrans runtime) conf (ctx jwtS) jwtS _serverStaticDir _serverDataDir
+  ctx jwtS =
+    _serverCookie
+      Server.:. jwtS
       Server.:. Server.EmptyContext
 
 -- | Turn our @serverT@ definition into a Wai application, suitable for
@@ -163,14 +187,16 @@ serve
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
+  -> ServerConf
   -> Server.Context ServerSettings
+  -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
   -> Wai.Application
-serve handlerNatTrans ctx root dataDir =
+serve handlerNatTrans conf ctx jwtS root dataDir =
   Servant.serveWithContext appProxy ctx
     $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
-    $ serverT root dataDir
+    $ serverT conf jwtS root dataDir
  where
   appProxy      = Proxy @App
   settingsProxy = Proxy @ServerSettings
@@ -182,20 +208,13 @@ serve handlerNatTrans ctx root dataDir =
 showLandingPage
   :: ServerC m
   => SAuth.AuthResult User.UserId
-  -> m (PageEither
-           -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
-           -- to not have the automatic heading.
-                   Pages.LandingPage Pages.WelcomePage)
-showLandingPage = \case
-  SAuth.Authenticated userId ->
-    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      Nothing -> do
-        ML.warning
-          "Cookie-based authentication succeeded, but the user ID is not found."
-        authFailedErr $ "No user found with ID " <> show userId
-      Just userProfile -> pure $ SS.P.PageR Pages.WelcomePage
-  _ -> pure $ SS.P.PageL Pages.LandingPage
-  where authFailedErr = Errs.throwError' . User.UserNotFound
+  -> m (PageEither Pages.LandingPage Pages.WelcomePage)
+     -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
+     -- to not have the automatic heading.
+showLandingPage authResult = withMaybeUser
+  authResult
+  (\_ -> pure $ SS.P.PageL Pages.LandingPage)
+  (\userProfile -> pure $ SS.P.PageR Pages.WelcomePage)
 
 
 --------------------------------------------------------------------------------
@@ -235,8 +254,8 @@ type Public =    "a" :> "signup"
                                               NoContent
                                             )
 
-publicT :: forall m . ServerC m => ServerT Public m
-publicT = handleSignup :<|> handleLogin
+publicT :: forall m . ServerC m => ServerConf -> SAuth.JWTSettings -> ServerT Public m
+publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
 handleSignup User.Signup {..} = env $ do
   ML.info $ "Signing up new user: " <> show username <> "..."
@@ -253,14 +272,18 @@ handleSignup User.Signup {..} = env $ do
       pure $ Signup.SignupFailed "Failed to create users."
   where env = ML.localEnv (<> "HTTP" <> "Signup")
 
-handleLogin User.Credentials {..} =
+handleLogin conf jwtSettings User.Credentials {..} =
   env $ findMatchingUsers <&> headMay >>= \case
     Just u -> do
       ML.info "Found user, generating authentication cookies..."
-      jwtSettings   <- asks Rt._rJwtSettings
       Rt.Conf {..}  <- asks Rt._rConf
-      mApplyCookies <- liftIO
-        $ SAuth.acceptLogin _confCookie jwtSettings (u ^. User.userProfileId)
+      -- TODO I think jwtSettings could be retrieve with
+      -- Servant.Server.getContetEntry. This would avoid threading
+      -- jwtSettings evereywhere.
+      mApplyCookies <- liftIO $ SAuth.acceptLogin
+        (_serverCookie conf)
+        jwtSettings
+        (u ^. User.userProfileId)
       ML.info "Applying cookies..."
       case mApplyCookies of
         Nothing -> do
@@ -381,15 +404,31 @@ withUser
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> m a)
   -> m a
-withUser authResult f = case authResult of
-  SAuth.Authenticated userId ->
-    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      Nothing -> authFailedErr $ "No user found by ID = " <> show userId
-      Just userProfile -> f userProfile
-  authFailed -> authFailedErr $ show authFailed
+withUser authResult f = withMaybeUser authResult (authFailedErr . show) f
  where
   authFailedErr = Errs.throwError' . User.UserNotFound . mappend
     "Authentication failed, please login again. Error: "
+
+-- | Run either a handler expecting a user profile, or a normal handler,
+-- depending on if a user profile can be extracted from the authentication
+-- result or not.
+withMaybeUser
+  :: forall m a
+   . ServerC m
+  => SAuth.AuthResult User.UserId
+  -> (SAuth.AuthResult User.UserId -> m a)
+  -> (User.UserProfile -> m a)
+  -> m a
+withMaybeUser authResult a f = case authResult of
+  SAuth.Authenticated userId ->
+    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
+      Nothing -> do
+        ML.warning
+          "Cookie-based authentication succeeded, but the user ID is not found."
+        authFailedErr $ "No user found with ID " <> show userId
+      Just userProfile -> f userProfile
+  authFailed -> a authFailed
+  where authFailedErr = Errs.throwError' . User.UserNotFound
 
 
 --------------------------------------------------------------------------------

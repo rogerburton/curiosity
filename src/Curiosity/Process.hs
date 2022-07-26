@@ -15,7 +15,6 @@ import qualified Commence.InteractiveState.Repl
                                                as Repl
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
-import           Control.Lens
 import qualified Control.Monad.Log             as L
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Runtime             as Rt
@@ -24,19 +23,19 @@ import qualified Data.Text                     as T
 
 
 --------------------------------------------------------------------------------
-startRepl :: Rt.Runtime -> IO Repl.ReplLoopResult
-startRepl rt@Rt.Runtime {..} = runSafeMapErrs $ do
+startRepl :: Repl.ReplConf -> Rt.Runtime -> IO Repl.ReplLoopResult
+startRepl conf rt@Rt.Runtime {..} = runSafeMapErrs $ do
   startupLogInfo _rLoggers "Starting up REPL..."
-  Repl.startReadEvalPrintLoop (rt ^. Rt.rConf . Rt.confRepl)
+  Repl.startReadEvalPrintLoop conf
                               handleReplInputs
-                              (Rt.runExeAppMSafe rt)
+                              (Rt.runAppMSafe rt)
  where
   handleReplInputs =
     -- TypeApplications not needed below, but left for clarity.
-    IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.ExeAppM
+    IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.AppM
       >=> either displayErr pure
-  runSafeMapErrs = fmap (either Repl.ReplExitOnGeneralException identity)
-    . Rt.runExeAppMSafe rt
+  runSafeMapErrs =
+    fmap (either Repl.ReplExitOnGeneralException identity) . Rt.runAppMSafe rt
   displayErr (Data.ParseFailed err) =
     pure . IS.ReplOutputStrict . Errs.displayErr $ err
 
@@ -45,11 +44,11 @@ endRepl res = putStrLn @Text $ T.unlines ["REPL process ended: " <> show res]
 
 
 --------------------------------------------------------------------------------
-startServer :: Rt.Runtime -> IO Errs.RuntimeErr
-startServer runtime@Rt.Runtime {..} = do
-  let Rt.ServerConf port _ _ = runtime ^. Rt.rConf . Rt.confServer
+startServer :: Srv.ServerConf -> Rt.Runtime -> IO Errs.RuntimeErr
+startServer conf runtime@Rt.Runtime {..} = do
+  let Srv.ServerConf port _ _ _ _ = conf
   startupLogInfo _rLoggers $ "Starting up server on port " <> show port <> "..."
-  try @SomeException (Srv.run runtime) >>= pure . either
+  try @SomeException (Srv.run conf runtime) >>= pure . either
     Errs.RuntimeException
     (const $ Errs.RuntimeException UserInterrupt)
   -- FIXME: improve this, incorrect error reporting here.
