@@ -115,6 +115,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
+             :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -143,6 +144,7 @@ serverT conf jwtS root dataDir =
     :<|> publicT conf jwtS
     :<|> privateT
     :<|> serveData dataDir
+    :<|> serveErrors
     :<|> serveDocumentation root
 
 
@@ -489,6 +491,21 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 serveData path = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
+
+
+--------------------------------------------------------------------------------
+-- | Serve errors intentionally. Only 500 for now.
+serveErrors :: ServerC m => m Text
+serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
+
+-- TODO This seems present in newer version of Servant.
+-- We're on nixos-20.03. When updating sources.json to nixos-20.09 or 22.05,
+-- monal-log is marked as broken. Maybe we can use monad-logger instead.
+-- There is also monad-logger-extra from Obsidian Systems than can log to
+-- multiple destinations.
+--
+-- errorFormatters :: Server.ErrorFormatters
+-- errorFormatters = defaultErrorFormatters
 
 
 --------------------------------------------------------------------------------
