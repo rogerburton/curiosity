@@ -199,12 +199,13 @@ executable cty
   import: common-dependencies, lang-settings, common-extensions
   main-is: cty.hs
   build-depends:
-      bytestring
-    , directory
-    , optparse-applicative
+      async
+    , bytestring
     , curiosity
-    , async
+    , directory
     , fast-logger
+    , optparse-applicative
+    , network
   hs-source-dirs: bin
   ghc-options:
     -threaded
