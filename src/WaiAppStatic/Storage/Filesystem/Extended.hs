@@ -47,9 +47,7 @@ import           WaiAppStatic.Types             ( File(..)
                                                 , toPiece
                                                 )
 
-import           System.IO                      ( IOMode(..)
-                                                , withBinaryFile
-                                                )
+import           System.IO                      ( withBinaryFile )
 
 import           Crypto.Hash                    ( Digest
                                                 , MD5

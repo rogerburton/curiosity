@@ -13,7 +13,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
-import           Network.Socket          hiding ( recv )
+import           Network.Socket
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
@@ -33,7 +33,7 @@ mainParserInfo =
 
 runWithConf conf = do
   putStrLn @Text "Creating runtime..."
-  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+  runtime <- Rt.boot conf >>= either throwIO pure
 
   putStrLn @Text "Creating curiosity.sock..."
   sock <- socket AF_UNIX Stream 0
