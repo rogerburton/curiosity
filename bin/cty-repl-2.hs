@@ -7,7 +7,6 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
-import           Data.List                      ( words )
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
@@ -50,7 +49,10 @@ repl runtime = HL.runInputT HL.defaultSettings loop
     Just "quit" -> pure ()
     Just input  -> do
       let result =
-            A.execParserPure A.defaultPrefs Command.parserInfo $ words input
+            A.execParserPure A.defaultPrefs Command.parserInfo
+              $ map T.unpack
+              $ words
+              $ T.pack input
       case result of
         A.Success command ->
           Rt.handleCommand runtime output' command >> pure ()

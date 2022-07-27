@@ -66,9 +66,9 @@ repl runtime conn = do
     _              -> do
       let result = A.execParserPure A.defaultPrefs Command.parserInfo command
       case result of
-        A.Success           x   -> print x >> sendAll conn (show x <> "\n")
-        A.Failure           err -> print err
-        A.CompletionInvoked _   -> print @IO @Text "Shouldn't happen"
+        A.Success x -> print x >> sendAll conn (B.pack $ show x <> "\n")
+        A.Failure err -> print err
+        A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
 
       output <- Rt.runAppMSafe runtime $ IS.execModification
         (Data.ModifyUser

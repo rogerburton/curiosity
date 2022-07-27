@@ -46,6 +46,7 @@ import           Data.Aeson                     ( FromJSON
                                                 )
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
+import           Prelude                 hiding ( Handler )
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -498,14 +499,8 @@ serveData path = serveDirectoryWith settings
 serveErrors :: ServerC m => m Text
 serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
 
--- TODO This seems present in newer version of Servant.
--- We're on nixos-20.03. When updating sources.json to nixos-20.09 or 22.05,
--- monal-log is marked as broken. Maybe we can use monad-logger instead.
--- There is also monad-logger-extra from Obsidian Systems than can log to
--- multiple destinations.
---
--- errorFormatters :: Server.ErrorFormatters
--- errorFormatters = defaultErrorFormatters
+errorFormatters :: Server.ErrorFormatters
+errorFormatters = defaultErrorFormatters
 
 
 --------------------------------------------------------------------------------
