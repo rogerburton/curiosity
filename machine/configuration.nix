@@ -28,7 +28,7 @@ in
 
   users.users.root.password = "nixos";
   services.openssh.permitRootLogin = lib.mkDefault "yes";
-  services.mingetty.autologinUser = lib.mkDefault "root";
+  services.getty.autologinUser = lib.mkDefault "root";
 
   imports = [
     ../modules/app.nix
@@ -75,4 +75,6 @@ in
   };
 
   users.groups.curiosity = {};
+
+  system.stateVersion = "22.05";
 }
