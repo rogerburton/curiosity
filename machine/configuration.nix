@@ -28,7 +28,7 @@ in
 
   users.users.root.password = "nixos";
   services.openssh.permitRootLogin = lib.mkDefault "yes";
-  services.mingetty.autologinUser = lib.mkDefault "root";
+  services.getty.autologinUser = lib.mkDefault "root";
 
   imports = [
     ../modules/app.nix
@@ -60,7 +60,7 @@ in
   users.users.curiosity = {
     description = "Curiosity SSH commands user";
     isSystemUser = true; # TODO What does this do ?
-    # group = "xxx"; # TODO Set something here ?
+    group = "curiosity";
     shell = "${cty-shell}/bin/cty-shell";
     openssh.authorizedKeys.keys = [
       ''command="cty --user thu",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC9pA/P3A72o7wCs40rPo4kr91c8OokgJhH0LxKBF0EmiLjY++8Nh3t7avo88fJI86dkBR4SkdmAG+elicNwQc/n7iN4zMOs8Cdbye/ZrN4xoI5OHyAz1OjzYY6Lje0tuFYrQa8XxW3GF6cWVOLE/v6ShlIoUL1QPrwygdREVhh+as4DhJ6G+4qcjQMMSWw9IPIwpKV+Q8TycTVfL/rDnzzadkp5aPmPgpUhXo8mjY0CY7hGxOpmuPDmyEej8aOTl5fR4yyuz/12lglNNCm8UDu8zJbMOKvvyVWQiXoxmnNFg7lAUU/FcLla0JbQx+4szPHfUgqJNYKyoxdGktmx0FvKavPK5df70ezwEnBAqhHauHDu52GsrCSH8ZItgxvts2CowP52X+GDaWsVtNgXOsu2+1FODog/wVHjOadKBOsp0w6tXsf5zcfysANeSHgB79zyAg4NaJ8UpD0g9qdbhzX5zOJ3JCeA/J+ulnHdegRZSbeXlhTCsvAJygHF74RWx0Bcdr1SiUgOj51Wl9aTERgM7wIykHOvEv38T3ZYw7ZVVsV2atcWdqCOsT9OhVOdO5nqgS8Yh3maHoP9fwKoxNZGF650KIl927GQ7l2DKH8aWhqxhxMagtj4zKimpCEUMUQNJFzOQbi9jL5ri9yUA1FqWlCnxc65MTVWQ8FdPp0LQ== thu on tank''
@@ -73,4 +73,8 @@ in
     #   ];
     # Or AuthorizedKeysCommand.
   };
+
+  users.groups.curiosity = {};
+
+  system.stateVersion = "22.05";
 }
