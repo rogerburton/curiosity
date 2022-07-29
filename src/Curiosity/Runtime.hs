@@ -22,6 +22,10 @@ module Curiosity.Runtime
   , saveDb
   , saveDbAs
   , runAppMSafe
+  , withRuntimeAtomically
+  -- * High-level operations
+  , createUser
+  , checkCredentials
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -218,7 +222,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in
+  in 
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -281,36 +285,18 @@ interpret = loop []
 instance S.DBStorage AppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate newProfile ->
-      ML.localEnv (<> "Storage" <> "UserProfile" <> "UserCreate") $ do
-        ML.info
-          $  "Creating new user: "
-          <> (show . User._userCredsName $ User._userProfileCreds newProfile)
-          <> "..."
-        onUserIdExists newProfileId createNew existsErr
-     where
-      newProfileId = S.dbId newProfile
-      createNew    = onUserNameExists
-        (newProfile ^. User.userProfileCreds . User.userCredsName)
-        (do
-          result <- withUserStorage
-            $ modifyUserProfiles newProfileId (newProfile :)
-          ML.info "User created."
-          pure result
-        )
-        existsErr
-      existsErr err = do
-        ML.info "User already exists."
-        Errs.throwError' . User.UserExists $ show err
+    User.UserCreate input -> do
+      muid <- withRuntimeAtomically createUserFull input
+      case muid of
+        Right uid -> pure [uid]
+        Left  err -> Errs.throwError' err
 
-    User.UserCreateGeneratingUserId username password email -> do
-      -- generate a new and random user-id
-      newId <- User.genRandomUserId 10
-      let newProfile = User.UserProfile newId
-                                        (User.Credentials username password)
-                                        "TODO"
-                                        email
-      S.dbUpdate $ User.UserCreate newProfile
+    User.UserCreateGeneratingUserId input -> do
+      newId <- User.genRandomUserId 10 -- TODO Generate deterministically within STM.
+      muid  <- withRuntimeAtomically createUser (newId, input)
+      case muid of
+        Right uid -> pure [uid]
+        Left  err -> Errs.throwError' err
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
      where
@@ -328,39 +314,104 @@ instance S.DBStorage AppM User.UserProfile where
       replaceOlder users =
         [ if S.dbId u == id then setPassword u else u | u <- users ]
 
-   where
-    modifyUserProfiles id f userProfiles =
-      liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
-
   dbSelect = \case
 
-    User.UserLoginWithUserName userName (User.Password passInput) ->
-      -- Try to look up an unambigous user-id using the human friendly name, and then execute UserLogin.
-      S.dbSelect (User.SelectUserByUserName userName) >>= \case
-        [u] | passwordsMatch -> pure [u]
-         where
-          passwordsMatch = storedPass =:= passInput
-          User.Password storedPass =
-            u ^. User.userProfileCreds . User.userCredsPassword
-        _ -> userNotFound $ "No user with userName = " <> userName ^. coerced
+    User.UserLoginWithUserName input -> do
+      mprofile <- withRuntimeAtomically checkCredentials input
+      case mprofile of
+        Right profile -> pure [profile]
+        Left  err     -> Errs.throwError' err
 
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
 
-    User.SelectUserByUserName userName ->
-      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
-        ((== userName) . User._userCredsName . User._userProfileCreds)
+    User.SelectUserByUserName username -> do
+      mprofile <- withRuntimeAtomically selectUserByUsername username
+      case mprofile of
+        Just profile -> pure [profile]
+        Nothing      -> pure []
+
+
+modifyUserProfiles id f userProfiles =
+  liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
+
+selectUserById runtime id = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  case filter ((== id) . S.dbId) users' of
+    [profile] -> pure $ Just profile
+    _         -> pure Nothing
+
+selectUserByUsername
+  :: Runtime -> User.UserName -> STM (Maybe User.UserProfile)
+selectUserByUsername runtime username = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  case
+      filter ((== username) . User._userCredsName . User._userProfileCreds)
+             users'
+    of
+      [u] -> pure $ Just u
+      _   -> pure Nothing
+
+createUser
+  :: Runtime
+  -> (User.UserId, User.Signup)
+  -> STM (Either User.UserErr User.UserId)
+createUser runtime (newId, User.Signup {..}) = do
+  let newProfile =
+        User.UserProfile newId (User.Credentials username password) "TODO" email
+  createUserFull runtime newProfile
+
+createUserFull
+  :: Runtime -> User.UserProfile -> STM (Either User.UserErr User.UserId)
+createUserFull runtime newProfile = do
+  mprofile <- selectUserById runtime newProfileId
+  case mprofile of
+    Just profile -> existsErr
+    Nothing      -> createNew
+ where
+  newProfileId = S.dbId newProfile
+  createNew    = do
+    mprofile <- selectUserByUsername
+      runtime
+      (newProfile ^. User.userProfileCreds . User.userCredsName)
+    case mprofile of
+      Just profile -> existsErr
+      Nothing      -> do
+        modifyUsers runtime (newProfile :)
+        pure $ Right newProfileId
+  existsErr = pure . Left $ User.UserExists
+
+modifyUsers :: Runtime -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
+modifyUsers runtime f = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  STM.modifyTVar usersTVar f
+
+checkCredentials
+  :: Runtime -> User.Credentials -> STM (Either User.UserErr User.UserProfile)
+checkCredentials runtime User.Credentials {..} = do
+  mprofile <- selectUserByUsername runtime _userCredsName
+  case mprofile of
+    Just profile | checkPassword profile _userCredsPassword ->
+      pure $ Right profile
+    _ -> pure $ Left User.IncorrectUsernameOrPassword
+
+-- TODO Use constant-time string comparison.
+checkPassword :: User.UserProfile -> User.Password -> Bool
+checkPassword profile (User.Password passInput) = storedPass =:= passInput
+ where
+  User.Password storedPass =
+    profile ^. User.userProfileCreds . User.userCredsPassword
 
 onUserIdExists id onNone onExisting =
   S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
-onUserNameExists userName onNone onExisting =
-  S.dbSelect (User.SelectUserByUserName userName)
-    <&> headMay
-    >>= maybe onNone onExisting
 
 userNotFound =
   Errs.throwError' . User.UserNotFound . mappend "User not found: "
+
+withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 
 withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
@@ -479,7 +530,7 @@ newtype IOErr = FileDoesntExistErr FilePath
   deriving Show
 
 instance Errs.IsRuntimeErr IOErr where
-  errCode FileDoesntExistErr{} = "ERR.FILE_DOENST_EXIST"
+  errCode FileDoesntExistErr{} = "ERR.FILE_NOT_FOUND"
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]

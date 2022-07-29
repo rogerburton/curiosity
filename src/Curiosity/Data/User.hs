@@ -164,7 +164,7 @@ instance Storage.DBIdentity UserProfile where
 instance Storage.DBStorageOps UserProfile where
   data DBUpdate UserProfile =
     UserCreate UserProfile
-    | UserCreateGeneratingUserId UserName Password UserEmailAddr
+    | UserCreateGeneratingUserId Signup
     | UserDelete UserId
     | UserPasswordUpdate UserId Password
     deriving (Show, Eq)
@@ -172,7 +172,7 @@ instance Storage.DBStorageOps UserProfile where
   data DBSelect UserProfile =
     -- | Attempt a user-login using the more ambiguous but more friendly
     -- `UserName` and `Password.
-    UserLoginWithUserName UserName Password
+    UserLoginWithUserName Credentials
     -- | Select a user with a known `UserId`.
     | SelectUserById UserId
     -- | Select a user with `UserName`.
@@ -188,9 +188,11 @@ dbUpdateParser = P.tryAlts
   userCreateGeneratingUserId =
     P.withTrailSpaces "UserCreateGeneratingUserId"
       *> (   UserCreateGeneratingUserId
-         <$> userNameParser
-         <*> userPasswordParser
-         <*> userEmailAddrParser
+         <$> (   Signup
+             <$> userNameParser
+             <*> userPasswordParser
+             <*> userEmailAddrParser
+             )
          )
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
   userUpdate =
@@ -208,8 +210,10 @@ dbSelectParser = P.tryAlts
   userLoginWithUserName =
     P.withTrailSpaces "UserLoginWithUserName"
       *> (   UserLoginWithUserName
-         <$> (userNameParser <* P.space)
-         <*> userPasswordParser
+         <$> (   Credentials
+             <$> (userNameParser <* P.space)
+             <*> userPasswordParser
+             )
          )
   selectUserById =
     P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
@@ -247,27 +251,27 @@ userProfileParser =
 userCredsParser =
   Credentials <$> (userNameParser <* P.space) <*> userPasswordParser
 
-data UserErr = UserExists Text
+data UserErr = UserExists
              | UserNotFound Text
-             | IncorrectPassword Text
+             | IncorrectUsernameOrPassword
              deriving Show
 
 instance Errs.IsRuntimeErr UserErr where
   errCode = errCode' . \case
-    UserExists{}        -> "USER_EXISTS"
-    UserNotFound{}      -> "USER_NOT_FOUND"
-    IncorrectPassword{} -> "INCORRECT_PASSWORD"
-    where errCode' = mappend "ERR.USER."
+    UserExists                  -> "USER_EXISTS"
+    UserNotFound{}              -> "USER_NOT_FOUND"
+    IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
+    where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
-    UserExists{}        -> HTTP.conflict409
-    UserNotFound{}      -> HTTP.notFound404
-    IncorrectPassword{} -> HTTP.unauthorized401
+    UserExists                  -> HTTP.conflict409
+    UserNotFound{}              -> HTTP.notFound404
+    IncorrectUsernameOrPassword -> HTTP.unauthorized401
 
   userMessage = Just . \case
-    UserExists        msg -> msg
-    UserNotFound      msg -> msg
-    IncorrectPassword msg -> msg
+    UserExists                  -> "User exists (same username or ID)"
+    UserNotFound msg            -> msg
+    IncorrectUsernameOrPassword -> "Incorrect username or password."
 
 makeLenses ''Credentials
 makeLenses ''UserProfile'

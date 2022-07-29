@@ -45,6 +45,7 @@ import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -263,57 +264,71 @@ publicT
   -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
-handleSignup User.Signup {..} = env $ do
-  ML.info $ "Signing up new user: " <> show username <> "..."
-  ids <- S.dbUpdate $ User.UserCreateGeneratingUserId username password email
-  case headMay ids of
-    Just uid -> do
-      ML.info $ "User created: " <> show uid <> ". Sending success result."
-      pure Signup.SignupSuccess
-    -- TODO Failure to create a user re-using an existing username doesn't
-    -- trigger the Nothing case.
-    Nothing -> do
-      -- TODO This should not be a 200 OK result.
-      ML.info $ "Failed to create a user. Sending failure result."
-      pure $ Signup.SignupFailed "Failed to create users."
-  where env = ML.localEnv (<> "HTTP" <> "Signup")
+handleSignup
+  :: forall m . ServerC m => User.Signup -> m Signup.SignupResultPage
+handleSignup input@User.Signup {..} =
+  ML.localEnv (<> "HTTP" <> "Signup")
+    $   do
+          ML.info $ "Signing up new user: " <> show username <> "..."
+          -- TODO Generate deterministically within STM.
+          newId <- User.genRandomUserId 10
+          Rt.withRuntimeAtomically Rt.createUser (newId, input)
+    >>= \case
+          Right uid -> do
+            ML.info
+              $  "User created: "
+              <> show uid
+              <> ". Sending success result."
+            pure Signup.SignupSuccess
+          Left err -> do
+            ML.info
+              $  "Failed to create a user. Sending failure result: "
+              <> show err
+            Errs.throwError' err
 
-handleLogin conf jwtSettings User.Credentials {..} =
-  env $ findMatchingUsers <&> headMay >>= \case
-    Just u -> do
-      ML.info "Found user, generating authentication cookies..."
-      Rt.Conf {..}  <- asks Rt._rConf
-      -- TODO I think jwtSettings could be retrieve with
-      -- Servant.Server.getContetEntry. This would avoid threading
-      -- jwtSettings evereywhere.
-      mApplyCookies <- liftIO $ SAuth.acceptLogin (_serverCookie conf)
-                                                  jwtSettings
-                                                  (u ^. User.userProfileId)
-      ML.info "Applying cookies..."
-      case mApplyCookies of
-        Nothing -> do
-          -- TODO What can cause a failure here ?
-          ML.warning "Applying cookies failed. Sending failure result."
-          unauthdErr _userCredsName
-        Just applyCookies -> do
-          ML.info "Cookies applied. Sending success result."
-          pure . addHeader @"Location" "/" $ applyCookies NoContent
-    -- TODO This is wrong: if UserLoginWithUserName doesn't find a user, it
-    -- throws an error instead of returning a Nothing. So either change its
-    -- logic to return a Nothing or an empty list, or catch the exception.
-    Nothing -> do
-      ML.info "User not found. Sending Failure result."
-      unauthdErr _userCredsName
- where
-  env               = ML.localEnv (<> "HTTP" <> "Login")
-  findMatchingUsers = do
-    ML.info $ "Logging in user: " <> show _userCredsName <> "..."
-    S.dbSelect $ User.UserLoginWithUserName _userCredsName _userCredsPassword
-  unauthdErr =
-    Errs.throwError'
-      . User.IncorrectPassword
-      . mappend "User login failed: "
-      . show
+handleLogin
+  :: forall m
+   . ServerC m
+  => ServerConf
+  -> SAuth.JWTSettings
+  -> User.Credentials
+  -> m (Headers H.PostAuthHeaders NoContent)
+handleLogin conf jwtSettings input =
+  ML.localEnv (<> "HTTP" <> "Login")
+    $   do
+          ML.info
+            $  "Logging in user: "
+            <> show (User._userCredsName input)
+            <> "..."
+          Rt.withRuntimeAtomically Rt.checkCredentials input
+    >>= \case
+          Right u -> do
+            ML.info "Found user, applying authentication cookies..."
+            Rt.Conf {..}  <- asks Rt._rConf
+            -- TODO I think jwtSettings could be retrieved with
+            -- Servant.Server.getContetEntry. This would avoid threading
+            -- jwtSettings evereywhere.
+            mApplyCookies <- liftIO $ SAuth.acceptLogin
+              (_serverCookie conf)
+              jwtSettings
+              (u ^. User.userProfileId)
+            case mApplyCookies of
+              Nothing -> do
+                -- From a quick look at Servant, it seems the error would be a
+                -- JSON-encoding failure of the generated JWT.
+                let err = ServerErr "Couldn't apply cookies."
+                ML.error
+                  $  "Applying cookies failed. Sending failure result: "
+                  <> show err
+                Errs.throwError' err
+              Just applyCookies -> do
+                ML.info "Cookies applied. Sending success result."
+                pure . addHeader @"Location" "/" $ applyCookies NoContent
+          Left err -> do
+            ML.info
+              $  "Incorrect username or password. Sending failure result: "
+              <> show err
+            Errs.throwError' err
 
 
 --------------------------------------------------------------------------------
@@ -474,3 +489,14 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 serveData path = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
+
+
+--------------------------------------------------------------------------------
+newtype ServerErr = ServerErr Text
+  deriving Show
+
+instance Errs.IsRuntimeErr ServerErr where
+  errCode ServerErr{} = "ERR.INTERNAL"
+  httpStatus ServerErr{} = HTTP.internalServerError500
+  userMessage = Just . \case
+    ServerErr msg -> T.unwords ["Internal server error: ", msg]
