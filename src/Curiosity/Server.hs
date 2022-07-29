@@ -11,9 +11,8 @@ Description: Server root module, split up into public and private sub-modules.
 
 -}
 module Curiosity.Server
-  (
+  ( App
     -- * Top level server types.
-    App
   , ServerConf(..)
   , serverT
   , serve
@@ -45,10 +44,11 @@ import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
-import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
+import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
@@ -57,6 +57,8 @@ import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import           System.FilePath                ( (</>) )
 import qualified Text.Blaze.Html5              as H
+import qualified Text.Blaze.Renderer.Text      as R
+                                                ( renderMarkup )
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
 import           WaiAppStatic.Storage.Filesystem
                                                 ( defaultWebAppSettings )
@@ -115,6 +117,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
+             :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -143,6 +146,7 @@ serverT conf jwtS root dataDir =
     :<|> publicT conf jwtS
     :<|> privateT
     :<|> serveData dataDir
+    :<|> serveErrors
     :<|> serveDocumentation root
 
 
@@ -159,7 +163,8 @@ type ServerC m
 
 
 --------------------------------------------------------------------------------
-type ServerSettings = '[SAuth.CookieSettings , SAuth.JWTSettings]
+type ServerSettings
+  = '[SAuth.CookieSettings , SAuth.JWTSettings , ErrorFormatters]
 
 -- | This is the main function of this module. It runs a Warp server, serving
 -- our @App@ API definition.
@@ -169,7 +174,7 @@ run
   => ServerConf
   -> Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run conf@ServerConf {..} runtime@Rt.Runtime {..} = liftIO $ do
+run conf@ServerConf {..} runtime = liftIO $ do
   jwk <- SAuth.generateKey
   let jwtSettings = _serverMkJwtSettings jwk
   Warp.run _serverPort $ waiApp jwtSettings
@@ -180,7 +185,11 @@ run conf@ServerConf {..} runtime@Rt.Runtime {..} = liftIO $ do
                                jwtS
                                _serverStaticDir
                                _serverDataDir
-  ctx jwtS = _serverCookie Server.:. jwtS Server.:. Server.EmptyContext
+  ctx jwtS =
+    _serverCookie
+      Server.:. jwtS
+      Server.:. errorFormatters
+      Server.:. Server.EmptyContext
 
 -- | Turn our @serverT@ definition into a Wai application, suitable for
 -- Warp.run.
@@ -304,7 +313,6 @@ handleLogin conf jwtSettings input =
     >>= \case
           Right u -> do
             ML.info "Found user, applying authentication cookies..."
-            Rt.Conf {..}  <- asks Rt._rConf
             -- TODO I think jwtSettings could be retrieved with
             -- Servant.Server.getContetEntry. This would avoid threading
             -- jwtSettings evereywhere.
@@ -492,6 +500,15 @@ serveData path = serveDirectoryWith settings
 
 
 --------------------------------------------------------------------------------
+-- | Serve errors intentionally. Only 500 for now.
+serveErrors :: ServerC m => m Text
+serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
+
+errorFormatters :: Server.ErrorFormatters
+errorFormatters = defaultErrorFormatters
+
+
+--------------------------------------------------------------------------------
 newtype ServerErr = ServerErr Text
   deriving Show
 
@@ -499,4 +516,8 @@ instance Errs.IsRuntimeErr ServerErr where
   errCode ServerErr{} = "ERR.INTERNAL"
   httpStatus ServerErr{} = HTTP.internalServerError500
   userMessage = Just . \case
-    ServerErr msg -> T.unwords ["Internal server error: ", msg]
+    ServerErr msg ->
+      LT.toStrict . R.renderMarkup . H.toMarkup $ Pages.ErrorPage
+        500
+        "Internal server error"
+        msg

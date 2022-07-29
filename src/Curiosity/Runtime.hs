@@ -102,12 +102,12 @@ runAppMSafe
   => Runtime
   -> AppM a
   -> m (Either Errs.RuntimeErr a)
-runAppMSafe rt (AppM op') =
+runAppMSafe runtime AppM {..} =
   liftIO
     . fmap (join . first Errs.RuntimeException)
     . try @SomeException
     . runExceptT
-    $ runReaderT op' rt
+    $ runReaderT runAppM runtime
 
 
 --------------------------------------------------------------------------------

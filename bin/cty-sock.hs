@@ -13,7 +13,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
-import           Network.Socket          hiding ( recv )
+import           Network.Socket
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
@@ -33,7 +33,7 @@ mainParserInfo =
 
 runWithConf conf = do
   putStrLn @Text "Creating runtime..."
-  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+  runtime <- Rt.boot conf >>= either throwIO pure
 
   putStrLn @Text "Creating curiosity.sock..."
   sock <- socket AF_UNIX Stream 0
@@ -66,9 +66,9 @@ repl runtime conn = do
     _              -> do
       let result = A.execParserPure A.defaultPrefs Command.parserInfo command
       case result of
-        A.Success           x   -> print x >> sendAll conn (show x <> "\n")
-        A.Failure           err -> print err
-        A.CompletionInvoked _   -> print @IO @Text "Shouldn't happen"
+        A.Success x -> print x >> sendAll conn (B.pack $ show x <> "\n")
+        A.Failure err -> print err
+        A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
 
       output <- Rt.runAppMSafe runtime $ IS.execModification
         (Data.ModifyUser

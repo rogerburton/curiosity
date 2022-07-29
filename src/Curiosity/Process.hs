@@ -26,14 +26,9 @@ import qualified Data.Text                     as T
 startRepl :: Repl.ReplConf -> Rt.Runtime -> IO Repl.ReplLoopResult
 startRepl conf rt@Rt.Runtime {..} = runSafeMapErrs $ do
   startupLogInfo _rLoggers "Starting up REPL..."
-  Repl.startReadEvalPrintLoop conf
-                              handleReplInputs
-                              (Rt.runAppMSafe rt)
+  Repl.startReadEvalPrintLoop conf handleReplInputs (Rt.runAppMSafe rt)
  where
-  handleReplInputs =
-    -- TypeApplications not needed below, but left for clarity.
-    IS.execAnyInputOnState @(Data.StmDb Rt.Runtime) @ 'IS.Repl @Rt.AppM
-      >=> either displayErr pure
+  handleReplInputs = IS.execAnyInputOnState >=> either displayErr pure
   runSafeMapErrs =
     fmap (either Repl.ReplExitOnGeneralException identity) . Rt.runAppMSafe rt
   displayErr (Data.ParseFailed err) =

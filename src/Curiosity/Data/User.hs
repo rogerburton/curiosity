@@ -40,10 +40,12 @@ import qualified Commence.Runtime.Storage      as Storage
 import qualified Commence.Types.Secret         as Secret
 import qualified Commence.Types.Wrapped        as W
 import           Control.Lens
+import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant.Auth.Server           as SAuth
 import qualified Smart.Server.Page.Navbar      as Nav
@@ -51,6 +53,7 @@ import qualified System.Random                 as Rand
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
+import           Text.Blaze.Renderer.Text       ( renderMarkup )
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseMaybe
                                                 , parseUnique
@@ -269,9 +272,16 @@ instance Errs.IsRuntimeErr UserErr where
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
 
   userMessage = Just . \case
-    UserExists                  -> "User exists (same username or ID)"
+    UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+      409
+      "User exists"
+      "A user with the same username or ID already exists."
     UserNotFound msg            -> msg
-    IncorrectUsernameOrPassword -> "Incorrect username or password."
+    IncorrectUsernameOrPassword ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        401
+        "Wrong credentials"
+        "The supplied username or password is incorrect."
 
 makeLenses ''Credentials
 makeLenses ''UserProfile'
