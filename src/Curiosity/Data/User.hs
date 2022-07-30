@@ -27,6 +27,7 @@ module Curiosity.Data.User
   , Storage.DBSelect(..)
   -- * Errors
   , UserErr(..)
+  , usernameBlocklist
   ) where
 
 import qualified Commence.Runtime.Errors       as Errs
@@ -224,3 +225,29 @@ instance Errs.IsRuntimeErr UserErr where
 
 makeLenses ''Credentials
 makeLenses ''UserProfile'
+
+
+--------------------------------------------------------------------------------
+-- | In addition of dynamic rules (e.g. the username should not already be
+-- taken), we disallow some names because they might be used later by the
+-- system or the company, or cause confusion (because usernames are used as
+-- e.g. smartcoop.sh/<username>).
+usernameBlocklist :: [UserName]
+usernameBlocklist =
+  [ "a"
+  , "about"
+  , "data"
+  , "documentation"
+  , "echo"
+  , "errors"
+  , "forms"
+  , "login"
+  , "messages"
+  , "settings"
+  , "signup"
+  , "smart"
+  , "smartcoop" -- In a real syste, I guess this one should be a username that
+                -- we ensure is created.
+  , "state"
+  , "views"
+  ]

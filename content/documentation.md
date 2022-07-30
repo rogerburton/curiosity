@@ -15,5 +15,6 @@ title: Curiosity
 - [Messages](/documentation/messages)
 - [Objects](/documentation/objects)
 - [Sitemap](/documentation/sitemap)
+- [Validation rules](/documentation/validation)
 - [Views](/documentation/views)
 - [Virtual machine image](/documentation/machine)

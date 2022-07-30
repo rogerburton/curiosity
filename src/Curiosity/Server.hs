@@ -96,6 +96,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Signup.ResultPage
 
+             :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [Text]
+
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
@@ -126,6 +129,8 @@ serverT conf jwtS root dataDir =
     :<|> showStateAsJson
     :<|> echoLogin
     :<|> echoSignup
+    :<|> partialUsernameBlocklist
+    :<|> partialUsernameBlocklistAsJson
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> publicT conf jwtS
@@ -226,6 +231,14 @@ messageSignupSuccess = pure Signup.SignupSuccess
 echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
 
+
+--------------------------------------------------------------------------------
+partialUsernameBlocklist :: ServerC m => m H.Html
+partialUsernameBlocklist = pure $
+  H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
+
+partialUsernameBlocklistAsJson :: ServerC m => m [Text]
+partialUsernameBlocklistAsJson = pure $ map show User.usernameBlocklist
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
