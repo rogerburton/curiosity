@@ -8,6 +8,8 @@ module Main
 
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Parse               as P
+import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
@@ -44,11 +46,18 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
             exitSuccess
           )
 
+run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFileTarget path))
+  = do
+    runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+    P.startServer serverConf runtime >>= P.endServer _rLoggers
+    mPowerdownErrs <- Rt.powerdown runtime
+    maybe exitSuccess throwIO mPowerdownErrs
+
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.StateFileTarget path -> do
       runtime <-
-        Rt.boot Rt.defaultConf { Rt._confDbFile = Just path }
+        Rt.boot P.defaultConf { P._confDbFile = Just path }
           >>= either throwIO pure
 
       exitCode <- Rt.handleCommand runtime putStrLn command

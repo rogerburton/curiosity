@@ -16,7 +16,7 @@ import qualified System.Console.Haskeline      as HL
 main :: IO ExitCode
 main = A.execParser mainParserInfo >>= runWithConf
 
-mainParserInfo :: A.ParserInfo Rt.Conf
+mainParserInfo :: A.ParserInfo P.Conf
 mainParserInfo =
   A.info (P.confParser <**> A.helper)
     $  A.fullDesc
@@ -25,7 +25,7 @@ mainParserInfo =
          "Curiosity is a prototype application to explore the design space \
          \of a web application for Smart."
 
-runWithConf :: Rt.Conf -> IO ExitCode
+runWithConf :: P.Conf -> IO ExitCode
 runWithConf conf = do
   runtime <- Rt.boot conf >>= either throwIO pure
 

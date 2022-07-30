@@ -11,7 +11,6 @@ Description: Server root module, split up into public and private sub-modules.
 module Curiosity.Server
   ( App
     -- * Top level server types.
-  , ServerConf(..)
   , serverT
   , serve
   , run
@@ -26,7 +25,6 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import qualified Crypto.JOSE.JWK               as JWK
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
@@ -38,6 +36,7 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
@@ -68,19 +67,6 @@ import           WaiAppStatic.Storage.Filesystem.Extended
 import           WaiAppStatic.Types             ( ss404Handler
                                                 , ssLookupFile
                                                 )
-
-
---------------------------------------------------------------------------------
--- | HTTP server config.
-data ServerConf = ServerConf
-  { _serverPort          :: Int
-  , _serverStaticDir     :: FilePath
-  , _serverDataDir       :: FilePath
-  , _serverCookie        :: SAuth.CookieSettings
-    -- ^ Settings for setting cookies as a server (for authentication etc.).
-  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
-    -- ^ JWK settings to use, depending on the key employed.
-  }
 
 
 --------------------------------------------------------------------------------
@@ -124,7 +110,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 serverT
   :: forall m
    . ServerC m
-  => ServerConf
+  => Command.ServerConf
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
@@ -170,10 +156,10 @@ type ServerSettings
 run
   :: forall m
    . MonadIO m
-  => ServerConf
+  => Command.ServerConf
   -> Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run conf@ServerConf {..} runtime = liftIO $ do
+run conf@Command.ServerConf {..} runtime = liftIO $ do
   jwk <- SAuth.generateKey
   let jwtSettings = _serverMkJwtSettings jwk
   Warp.run _serverPort $ waiApp jwtSettings
@@ -197,7 +183,7 @@ serve
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
-  -> ServerConf
+  -> Command.ServerConf
   -> Server.Context ServerSettings
   -> SAuth.JWTSettings
   -> FilePath
@@ -267,7 +253,7 @@ type Public =    "a" :> "signup"
 publicT
   :: forall m
    . ServerC m
-  => ServerConf
+  => Command.ServerConf
   -> SAuth.JWTSettings
   -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
@@ -297,7 +283,7 @@ handleSignup input@User.Signup {..} =
 handleLogin
   :: forall m
    . ServerC m
-  => ServerConf
+  => Command.ServerConf
   -> SAuth.JWTSettings
   -> User.Credentials
   -> m (Headers CAuth.PostAuthHeaders NoContent)
@@ -316,7 +302,7 @@ handleLogin conf jwtSettings input =
             -- Servant.Server.getContetEntry. This would avoid threading
             -- jwtSettings evereywhere.
             mApplyCookies <- liftIO $ SAuth.acceptLogin
-              (_serverCookie conf)
+              (Command._serverCookie conf)
               jwtSettings
               (u ^. User.userProfileId)
             case mApplyCookies of
@@ -357,7 +343,7 @@ type Private = H.UserAuthentication :> (
 
   )
 
-privateT :: forall m . ServerC m => ServerConf -> ServerT Private m
+privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
 privateT conf authResult =
   (withUser authResult showProfilePage)
     :<|> (withUser authResult showProfileAsJson)
@@ -370,10 +356,10 @@ privateT conf authResult =
 handleLogout
   :: forall m
    . ServerC m
-  => ServerConf
+  => Command.ServerConf
   -> m (Headers CAuth.PostLogoutHeaders NoContent)
 handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
-  (_serverCookie conf)
+  (Command._serverCookie conf)
   NoContent
 
 showProfilePage profile = pure $ Pages.ProfileView profile

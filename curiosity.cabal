@@ -115,32 +115,6 @@ library
     , unix-compat
     , wai-app-static
 
--- HTTP server only
-executable cty-serve
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-serve.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- HTTP server + REPL
-executable cty-interactive
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-interactive.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
 -- Command parser
 executable cty-parse
   import: common-dependencies, lang-settings, common-extensions
@@ -155,19 +129,6 @@ executable cty-parse
     -threaded
 
 -- REPL only
-executable cty-repl
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-repl.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- REPL only, uses optparse-applicative
 executable cty-repl-2
   import: common-dependencies, lang-settings, common-extensions
   main-is: cty-repl-2.hs

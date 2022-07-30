@@ -10,6 +10,7 @@ module Curiosity.Command
 
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Parse               as P
 import qualified Options.Applicative           as A
 
 
@@ -19,6 +20,8 @@ import qualified Options.Applicative           as A
 data Command =
     Init
     -- ^ Initialise a new, empty state file.
+  | Serve P.Conf P.ServerConf
+    -- ^ Run an HTTP server.
   | State
     -- ^ Show the full state.
   | SelectUser (S.DBSelect U.UserProfile)
@@ -93,6 +96,12 @@ parser =
           )
 
       <> A.command
+           "serve"
+           ( A.info (parserServe <**> A.helper)
+           $ A.progDesc "Run the Curiosity HTTP server"
+           )
+
+      <> A.command
            "state"
            ( A.info (parserState <**> A.helper)
            $ A.progDesc "Show the full state"
@@ -108,6 +117,9 @@ parser =
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserServe :: A.Parser Command
+parserServe = Serve <$> P.confParser <*> P.serverParser
 
 parserState :: A.Parser Command
 parserState = pure State

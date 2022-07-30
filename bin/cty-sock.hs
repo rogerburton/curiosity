@@ -24,7 +24,7 @@ import qualified Options.Applicative           as A
 main :: IO ()
 main = A.execParser mainParserInfo >>= runWithConf
 
-mainParserInfo :: A.ParserInfo Rt.Conf
+mainParserInfo :: A.ParserInfo P.Conf
 mainParserInfo =
   A.info (P.confParser <**> A.helper)
     $  A.fullDesc

@@ -2,12 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 module Curiosity.Runtime
-  ( Conf(..)
-  , IOErr(..)
-  , confLogging
-  , confDbFile
-  , defaultConf
-  , defaultLoggingConf
+  ( IOErr(..)
   , Runtime(..)
   , rConf
   , rDb
@@ -42,36 +37,24 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadMask
                                                 , MonadThrow
                                                 )
-import qualified Control.Monad.Log             as L
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Parse               as Command
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
-import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
--- | Application config.
-data Conf = Conf
-  { _confLogging :: ML.LoggingConf -- ^ Logging configuration.
-  , _confDbFile  :: Maybe FilePath
-    -- ^ An optional filepath to write the DB to, or read it from. If the file
-    -- is absent, it will be created on server exit, with the latest DB state
-    -- written to it.
-  }
-
-makeLenses ''Conf
-
 -- | The runtime, a central product type that should contain all our runtime
 -- supporting values.
 data Runtime = Runtime
-  { _rConf    :: Conf -- ^ The application configuration.
+  { _rConf    :: Command.Conf -- ^ The application configuration.
   , _rDb      :: Data.StmDb Runtime -- ^ The Storage.
   , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
   }
@@ -114,10 +97,10 @@ runAppMSafe runtime AppM {..} =
 -- | Boot up a runtime.
 boot
   :: MonadIO m
-  => Conf -- ^ configuration to boot with.
+  => Command.Conf -- ^ configuration to boot with.
   -> m (Either Errs.RuntimeErr Runtime)
 boot _rConf = do
-  _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. confLogging
+  _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. Command.confLogging
   eDb       <- instantiateDb _rConf
   pure $ case eDb of
     Left  err  -> Left err
@@ -126,8 +109,8 @@ boot _rConf = do
 -- | Create a runtime from a given state.
 boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
 boot' db logsPath = do
-  let loggingConf = mkLoggingConf logsPath
-      _rConf      = defaultConf { _confLogging = loggingConf }
+  let loggingConf = Command.mkLoggingConf logsPath
+      _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
   _rDb      <- Data.instantiateStmDb db
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
   pure $ Runtime { .. }
@@ -142,7 +125,7 @@ powerdown runtime@Runtime {..} = do
 
 saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
 saveDb runtime =
-  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. confDbFile
+  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. Command.confDbFile
 
 saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
 saveDbAs runtime fpath = do
@@ -162,9 +145,9 @@ _confDbFile is specified.
 instantiateDb
   :: forall m
    . MonadIO m
-  => Conf
+  => Command.Conf
   -> m (Either Errs.RuntimeErr (Data.StmDb Runtime))
-instantiateDb Conf {..} = readDbSafe _confDbFile
+instantiateDb Command.Conf {..} = readDbSafe _confDbFile
 
 readDb
   :: forall m
@@ -520,19 +503,3 @@ instance Errs.IsRuntimeErr IOErr where
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
-
-
---------------------------------------------------------------------------------
-defaultConf :: Conf
-defaultConf =
-  let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
-
-defaultLoggingConf :: ML.LoggingConf
-defaultLoggingConf = mkLoggingConf "/tmp/curiosity.log"
-
-mkLoggingConf :: FilePath -> ML.LoggingConf
-mkLoggingConf path =
-  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
-
-flspec :: FilePath -> FL.FileLogSpec
-flspec path = FL.FileLogSpec path 5000 0
