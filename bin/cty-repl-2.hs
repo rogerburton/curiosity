@@ -27,7 +27,7 @@ mainParserInfo =
 
 runWithConf :: Rt.Conf -> IO ExitCode
 runWithConf conf = do
-  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+  runtime <- Rt.boot conf >>= either throwIO pure
 
   let handleExceptions = (`catch` P.shutdown runtime . Just)
 

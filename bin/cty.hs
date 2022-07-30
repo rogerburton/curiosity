@@ -12,9 +12,7 @@ import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
-import           Network.Socket          hiding ( recv
-                                                , send
-                                                )
+import           Network.Socket
 import           Network.Socket.ByteString      ( recv
                                                 , send
                                                 )
@@ -49,7 +47,7 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.StateFileTarget path -> do
-      runtime@Rt.Runtime {..} <-
+      runtime <-
         Rt.boot Rt.defaultConf { Rt._confDbFile = Just path }
           >>= either throwIO pure
 
