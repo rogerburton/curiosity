@@ -12,8 +12,7 @@ module Main
   ( main
   ) where
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.Text                     as T
@@ -55,15 +54,21 @@ parserFileName = A.argument (A.eitherReader f)
   f s   = Right $ ConfFileName s
 
 run :: Conf -> IO ExitCode
-run (ConfCommand confCommand) = do
-  let input = IS.ReplInputStrict confCommand
-  IS.parseAnyStateInput @(Data.StmDb Rt.Runtime) input >>= \case
-    Left err -> do
+run (ConfCommand command) = do
+  let result =
+        A.execParserPure A.defaultPrefs Command.parserInfo
+          . map T.unpack
+          $ T.words command
+  case result of
+    A.Success x -> do
+      print x
+      exitSuccess
+    A.Failure err -> do
       print err
       exitFailure
-    Right input' -> do
-      print input'
-      exitSuccess
+    A.CompletionInvoked _ -> do
+      print @IO @Text "Shouldn't happen"
+      exitFailure
 
 -- TODO We need a parser for multiple commands separated by newlines.
 run (ConfFileName fileName) = do
