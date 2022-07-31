@@ -6,9 +6,9 @@
         "type": "git"
     },
     "commence": {
-        "branch": "main",
+        "branch": "asheshambasta/feature/logout-headers",
         "repo": "git@github.com:hypered/commence.git",
-        "rev": "9318349ab25edcc1280c797056e0453cccc5b488",
+        "rev": "e6a45c02fc90b0b8ef1d55e847ead881fd411981",
         "type": "git"
     },
     "design-hs": {
