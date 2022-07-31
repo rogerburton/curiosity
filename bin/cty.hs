@@ -70,6 +70,35 @@ run (Command.CommandWithTarget (Command.Run conf) (Command.StateFileTarget path)
       interpret runtime "scenarios/example.txt"
       P.shutdown runtime Nothing
 
+run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarget path))
+  = case confParser of
+    Command.ConfCommand command -> do
+      let result =
+            A.execParserPure A.defaultPrefs Command.parserInfo
+              . map T.unpack
+              $ T.words command
+      case result of
+        A.Success x -> do
+          print x
+          exitSuccess
+        A.Failure err -> do
+          print err
+          exitFailure
+        A.CompletionInvoked _ -> do
+          print @IO @Text "Shouldn't happen"
+          exitFailure
+
+    -- TODO We need a parser for multiple commands separated by newlines.
+    Command.ConfFileName fileName -> do
+      content <- T.lines <$> readFile fileName
+      print content
+      exitSuccess
+
+    Command.ConfStdin -> do
+      content <- T.lines <$> getContents
+      print content
+      exitSuccess
+
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.StateFileTarget path -> do

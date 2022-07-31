@@ -115,19 +115,6 @@ library
     , unix-compat
     , wai-app-static
 
--- Command parser
-executable cty-parse
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-parse.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
 -- The single-binary Curiosity suite.
 executable cty
   import: common-dependencies, lang-settings, common-extensions

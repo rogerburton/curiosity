@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 module Curiosity.Command
   ( Command(..)
+  , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
   , parserInfo
@@ -26,12 +27,20 @@ data Command =
     -- ^ Run an HTTP server.
   | Run P.Conf
     -- ^ Interpret a script.
+  | Parse ParseConf
+    -- ^ Parse a single command.
   | State
     -- ^ Show the full state.
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
+  deriving Show
+
+data ParseConf =
+    ConfCommand Text
+  | ConfFileName FilePath
+  | ConfStdin
   deriving Show
 
 -- | The same commands, defined above, can be used within the UNIX-domain
@@ -117,6 +126,11 @@ parser =
            $ A.progDesc "Interpret a script"
            )
 
+      <> A.command
+           "parse"
+           ( A.info (parserParse <**> A.helper)
+           $ A.progDesc "Parse a single command"
+           )
 
       <> A.command
            "state"
@@ -143,6 +157,22 @@ parserServe = Serve <$> P.confParser <*> P.serverParser
 
 parserRun :: A.Parser Command
 parserRun = Run <$> P.confParser
+
+parserParse :: A.Parser Command
+parserParse = Parse <$> (parserCommand <|> parserFileName)
+
+parserCommand :: A.Parser ParseConf
+parserCommand = ConfCommand <$> A.strOption
+  (A.long "command" <> A.short 'c' <> A.metavar "COMMAND" <> A.help
+    "Command to parse."
+  )
+
+parserFileName :: A.Parser ParseConf
+parserFileName = A.argument (A.eitherReader f)
+                            (A.metavar "FILE" <> A.help "Command to parse.")
+ where
+  f "-" = Right ConfStdin
+  f s   = Right $ ConfFileName s
 
 parserState :: A.Parser Command
 parserState = pure State
