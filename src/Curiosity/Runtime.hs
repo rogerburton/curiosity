@@ -247,17 +247,17 @@ handleCommand runtime display command = do
       output <-
         runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
       display $ show output
-      return ExitSuccess
+      pure ExitSuccess
     Command.SelectUser select -> do
       output <- runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
         select
       display $ show output
-      return ExitSuccess
+      pure ExitSuccess
     Command.UpdateUser update -> do
       output <- runAppMSafe runtime . IS.execModification $ Data.ModifyUser
         update
       display $ show output
-      return ExitSuccess
+      pure ExitSuccess
     _ -> do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
@@ -285,18 +285,14 @@ interpret = loop []
 instance S.DBStorage AppM User.UserProfile where
   dbUpdate = \case
 
-    User.UserCreate input -> do
-      muid <- withRuntimeAtomically createUserFull input
-      case muid of
-        Right uid -> pure [uid]
-        Left  err -> Errs.throwError' err
+    User.UserCreate input ->
+      withRuntimeAtomically createUserFull input
+        >>= either Errs.throwError' (pure . pure)
 
     User.UserCreateGeneratingUserId input -> do
       newId <- User.genRandomUserId 10 -- TODO Generate deterministically within STM.
-      muid  <- withRuntimeAtomically createUser (newId, input)
-      case muid of
-        Right uid -> pure [uid]
-        Left  err -> Errs.throwError' err
+      withRuntimeAtomically createUser (newId, input)
+        >>= either Errs.throwError' (pure . pure)
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
      where
@@ -317,43 +313,30 @@ instance S.DBStorage AppM User.UserProfile where
   dbSelect = \case
 
     User.UserLoginWithUserName input -> do
-      mprofile <- withRuntimeAtomically checkCredentials input
-      case mprofile of
-        Right profile -> pure [profile]
-        Left  err     -> Errs.throwError' err
+      withRuntimeAtomically checkCredentials input
+        >>= either Errs.throwError' (pure . pure)
 
     User.SelectUserById id ->
       withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
         ((== id) . S.dbId)
 
-    User.SelectUserByUserName username -> do
-      mprofile <- withRuntimeAtomically selectUserByUsername username
-      case mprofile of
-        Just profile -> pure [profile]
-        Nothing      -> pure []
-
+    User.SelectUserByUserName username ->
+      toList <$> withRuntimeAtomically selectUserByUsername username
 
 modifyUserProfiles id f userProfiles =
   liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
 
 selectUserById runtime id = do
   let usersTVar = Data._dbUserProfiles $ _rDb runtime
-  users' <- STM.readTVar usersTVar
-  case filter ((== id) . S.dbId) users' of
-    [profile] -> pure $ Just profile
-    _         -> pure Nothing
+  STM.readTVar usersTVar <&> find ((== id) . S.dbId)
 
 selectUserByUsername
   :: Runtime -> User.UserName -> STM (Maybe User.UserProfile)
 selectUserByUsername runtime username = do
   let usersTVar = Data._dbUserProfiles $ _rDb runtime
   users' <- STM.readTVar usersTVar
-  case
-      filter ((== username) . User._userCredsName . User._userProfileCreds)
-             users'
-    of
-      [u] -> pure $ Just u
-      _   -> pure Nothing
+  pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
+              users'
 
 createUser
   :: Runtime
