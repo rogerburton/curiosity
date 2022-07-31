@@ -142,19 +142,6 @@ executable cty-repl-2
   ghc-options:
     -threaded
 
--- Interpret a file containing commands
-executable cty-run
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-run.hs
-  build-depends:
-      async
-    , curiosity
-    , fast-logger
-    , optparse-applicative
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
 -- Server-side program to interact with the server.
 executable cty
   import: common-dependencies, lang-settings, common-extensions

@@ -22,6 +22,8 @@ data Command =
     -- ^ Initialise a new, empty state file.
   | Serve P.Conf P.ServerConf
     -- ^ Run an HTTP server.
+  | Run P.Conf
+    -- ^ Interpret a script.
   | State
     -- ^ Show the full state.
   | SelectUser (S.DBSelect U.UserProfile)
@@ -102,6 +104,13 @@ parser =
            )
 
       <> A.command
+           "run"
+           ( A.info (parserRun <**> A.helper)
+           $ A.progDesc "Interpret a script"
+           )
+
+
+      <> A.command
            "state"
            ( A.info (parserState <**> A.helper)
            $ A.progDesc "Show the full state"
@@ -120,6 +129,9 @@ parserInit = pure Init
 
 parserServe :: A.Parser Command
 parserServe = Serve <$> P.confParser <*> P.serverParser
+
+parserRun :: A.Parser Command
+parserRun = Run <$> P.confParser
 
 parserState :: A.Parser Command
 parserState = pure State

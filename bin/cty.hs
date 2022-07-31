@@ -53,6 +53,15 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFil
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
+run (Command.CommandWithTarget (Command.Run conf) (Command.StateFileTarget path))
+  = do
+    runtime <- Rt.boot conf >>= either throwIO pure
+    let handleExceptions = (`catch` P.shutdown runtime . Just)
+    handleExceptions $ do
+      interpret runtime "scenarios/example.txt"
+      P.shutdown runtime Nothing
+
+
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.StateFileTarget path -> do
@@ -85,3 +94,30 @@ commandToString = \case
   Command.Init  -> undefined -- error "Can't send `init` to a server."
   Command.State -> "state"
   _             -> undefined -- error "Unimplemented"
+
+
+--------------------------------------------------------------------------------
+interpret :: Rt.Runtime -> FilePath -> IO ()
+interpret runtime path = do
+  content <- readFile path
+  loop $ T.lines content
+ where
+  loop []            = pure ()
+  loop (line : rest) = case T.words line of
+    []       -> loop rest
+    ["quit"] -> pure ()
+    input    -> do
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo
+            $ map T.unpack input
+      case result of
+        A.Success command -> do
+          Rt.handleCommand runtime output' command
+          loop rest
+        A.Failure err -> do
+          output' $ show err
+          exitFailure
+        A.CompletionInvoked _ -> do
+          output' "Shouldn't happen"
+          exitFailure
+
+  output' = putStrLn . T.unpack
