@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds
            , TypeOperators
@@ -25,6 +23,7 @@ module Curiosity.Server
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
+import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified Crypto.JOSE.JWK               as JWK
@@ -144,7 +143,7 @@ serverT conf jwtS root dataDir =
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> publicT conf jwtS
-    :<|> privateT
+    :<|> privateT conf
     :<|> serveData dataDir
     :<|> serveErrors
     :<|> serveDocumentation root
@@ -261,7 +260,7 @@ type Public =    "a" :> "signup"
                  :> Post '[B.HTML] Signup.SignupResultPage
             :<|> "a" :> "login"
                  :> ReqBody '[FormUrlEncoded] User.Credentials
-                 :> Verb 'POST 303 '[JSON] ( Headers H.PostAuthHeaders
+                 :> Verb 'POST 303 '[JSON] ( Headers CAuth.PostAuthHeaders
                                               NoContent
                                             )
 
@@ -301,7 +300,7 @@ handleLogin
   => ServerConf
   -> SAuth.JWTSettings
   -> User.Credentials
-  -> m (Headers H.PostAuthHeaders NoContent)
+  -> m (Headers CAuth.PostAuthHeaders NoContent)
 handleLogin conf jwtSettings input =
   ML.localEnv (<> "HTTP" <> "Login")
     $   do
@@ -352,14 +351,30 @@ type Private = H.UserAuthentication :> (
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
+             :<|> "a" :> "logout" :> Verb 'GET 303 '[JSON] ( Headers CAuth.PostLogoutHeaders
+                                                             NoContent
+                                                            )
+
   )
 
-privateT :: forall m . ServerC m => ServerT Private m
-privateT authResult =
+privateT :: forall m . ServerC m => ServerConf -> ServerT Private m
+privateT conf authResult =
   (withUser authResult showProfilePage)
     :<|> (withUser authResult showProfileAsJson)
     :<|> (withUser authResult showEditProfilePage)
     :<|> (withUser authResult . handleUserUpdate)
+    :<|> (withUser authResult $ const (handleLogout conf))
+
+--------------------------------------------------------------------------------
+-- | Handle a user's logout. 
+handleLogout
+  :: forall m
+   . ServerC m
+  => ServerConf
+  -> m (Headers CAuth.PostLogoutHeaders NoContent)
+handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
+  (_serverCookie conf)
+  NoContent
 
 showProfilePage profile = pure $ Pages.ProfileView profile
 
