@@ -128,21 +128,7 @@ executable cty-parse
   ghc-options:
     -threaded
 
--- REPL only
-executable cty-repl-2
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-repl-2.hs
-  build-depends:
-      async
-    , curiosity
-    , fast-logger
-    , haskeline
-    , optparse-applicative
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- Server-side program to interact with the server.
+-- The single-binary Curiosity suite.
 executable cty
   import: common-dependencies, lang-settings, common-extensions
   main-is: cty.hs
@@ -152,6 +138,7 @@ executable cty
     , curiosity
     , directory
     , fast-logger
+    , haskeline
     , optparse-applicative
     , network
   hs-source-dirs: bin

@@ -19,6 +19,7 @@ import           Network.Socket.ByteString      ( recv
                                                 , send
                                                 )
 import qualified Options.Applicative           as A
+import qualified System.Console.Haskeline      as HL
 import           System.Directory               ( doesFileExist )
 
 
@@ -46,6 +47,14 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
             exitSuccess
           )
 
+run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path))
+  = do
+    runtime <- Rt.boot conf >>= either throwIO pure
+    let handleExceptions = (`catch` P.shutdown runtime . Just)
+    handleExceptions $ do
+      repl runtime
+      P.shutdown runtime Nothing
+
 run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFileTarget path))
   = do
     runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
@@ -60,7 +69,6 @@ run (Command.CommandWithTarget (Command.Run conf) (Command.StateFileTarget path)
     handleExceptions $ do
       interpret runtime "scenarios/example.txt"
       P.shutdown runtime Nothing
-
 
 run (Command.CommandWithTarget command target) = do
   case target of
@@ -94,6 +102,36 @@ commandToString = \case
   Command.Init  -> undefined -- error "Can't send `init` to a server."
   Command.State -> "state"
   _             -> undefined -- error "Unimplemented"
+
+
+--------------------------------------------------------------------------------
+repl :: Rt.Runtime -> IO ()
+repl runtime = HL.runInputT HL.defaultSettings loop
+ where
+  loop = HL.getInputLine prompt >>= \case
+    Nothing     -> output' ""
+    -- TODO Probably processInput below (within parseAnyStateInput) should have
+    -- other possible results (beside mod and viz): comments and blanks
+    -- (no-op), instead of this special empty case.
+    Just ""     -> loop
+    Just "quit" -> pure ()
+    Just input  -> do
+      let result =
+            A.execParserPure A.defaultPrefs Command.parserInfo
+              $ map T.unpack
+              $ words
+              $ T.pack input
+      case result of
+        A.Success command ->
+          Rt.handleCommand runtime output' command >> pure ()
+        A.Failure           err -> output' $ show err
+        A.CompletionInvoked _   -> output' "Shouldn't happen"
+
+      loop
+
+  prompt  = "> "
+
+  output' = HL.outputStrLn . T.unpack
 
 
 --------------------------------------------------------------------------------

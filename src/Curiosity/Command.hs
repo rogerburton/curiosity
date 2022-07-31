@@ -20,6 +20,8 @@ import qualified Options.Applicative           as A
 data Command =
     Init
     -- ^ Initialise a new, empty state file.
+  | Repl P.Conf
+    -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
     -- ^ Run an HTTP server.
   | Run P.Conf
@@ -98,6 +100,12 @@ parser =
           )
 
       <> A.command
+           "repl"
+           ( A.info (parserRepl <**> A.helper)
+           $ A.progDesc "Start a REPL"
+           )
+
+      <> A.command
            "serve"
            ( A.info (parserServe <**> A.helper)
            $ A.progDesc "Run the Curiosity HTTP server"
@@ -126,6 +134,9 @@ parser =
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserRepl :: A.Parser Command
+parserRepl = Repl <$> P.confParser
 
 parserServe :: A.Parser Command
 parserServe = Serve <$> P.confParser <*> P.serverParser
