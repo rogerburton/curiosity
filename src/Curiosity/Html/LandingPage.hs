@@ -16,4 +16,4 @@ data LandingPage = LandingPage
 
 instance H.ToMarkup LandingPage where
   toMarkup LandingPage = do
-    Render.renderCanvas $ Pages.landingPage
+    Render.renderCanvas Pages.landingPage

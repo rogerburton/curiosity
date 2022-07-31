@@ -105,12 +105,13 @@ signupPage Page {..} = Dsl.SingletonCanvas $ do
                       H.div ! A.class_ "c-checkbox" $ do
                         H.label $ do
                           H.input
-                            ! A.id "i-understand"
-                            ! A.name "i-understand"
+                            ! A.id "tos-consent"
+                            ! A.name "tos-consent"
                             ! A.type_ "checkbox"
+                            ! A.value "tos-consent-granted"
                           H.div $ do
                             "I understand that this site is up for "
-                            "demonstration purpose only, and that data are "
+                            "demonstration purpose only, and that data is "
                             "regularly erased."
                             H.a ! A.href "#" $ "Read more."
                     H.div
