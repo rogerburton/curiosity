@@ -15,31 +15,28 @@ This repository contains a prototype application for the
 
 # Content
 
-The application is implemented as a web server. In particular it uses the
-`servant` and `stm` libraries. The `stm` library is used instead of a regular
-relational database (e.g. PostgreSQL). This means the whole state of the
-application is in memory instead of in the database.
+Curiosity offers multiple tools compiled as a single executable.  The main
+command is a web server. In particular it uses the `servant` and `stm`
+libraries. The `stm` library is used instead of a regular relational database
+(e.g. PostgreSQL). This means the whole state of the application is in memory
+instead of in the database.
 
-In addition of the main program, some other programs are provided to better
+In addition of the web application, some other commands are provided to better
 demonstrate and explore the features of the application.
 
-- `cty-serve` is the main program.
-- `cty-repl` is similar but exposes a REPL instead of a HTTP server to run
+- `cty serve` run the web application.
+- `cty repl` is similar but exposes a REPL instead of a HTTP server to run
   commands and interact with the state.
-- `cty-interactive` combines both `cty-serve` and `cty-repl` so that both
-  interfaces run against the same live state.
-- `cty-sock` offers a text interface similar to `cty-repl` but through a
+- `cty-sock` offers a text interface similar to `cty repl` but through a
   UNIX-domain socket, and accepts multiple clients.
-- `cty` is meant as a client for the `cty-sock` server. It can also be run
-  against a local state file.
-- `cty-parse` is a helper program to play with the command parser used in
-  `cty-repl`.
+- Other commands of `cty` are meant as a client for the `cty-sock` server. It
+  can also be run against a local state file.
+- `cty parse` is a helper command to play with the command parser used in
+  `cty repl`.
 
-**Note**: Currently, `cty-repl` and `cty-sock` use different syntax. `cty-repl`
-uses a custom syntax, while `cty-sock` re-use the capabilities of the
-`optparse-applicative` library. The idea is that the exact command can be
-played within the interactive `cty-sock` REPL, or within Bash using the `cty`
-client program.
+**Note**: The commands that can be typed in the REPL are using the same syntax
+used by `cty` itself. E.g. `cty state` typed in a shell, is similar to `state`
+typed in the Curiosity REPL.
 
 # Running
 
@@ -61,25 +58,21 @@ We can also use Cabal to run the example:
 
 ```
 $ nix-shell
-$ cabal run -- cty-interactive --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
+$ cabal run -- cty serve
 ```
 
 The binary can be built and run also this way, which bypass building the tests:
 
 ```
 $ cabal build curiosity
-$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/curiosity-0.1.0.0/x/curiosity/build/curiosity/cty-interactive --server-port 9000 --repl-prompt "> " --repl-history-on --repl-exit-cmd exit
+$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/curiosity-0.1.0.0/x/curiosity/build/curiosity/cty serve
 ```
 
 And finally, we can build a binary with Nix:
 
 ```
 $ nix-build -A curiosity
-$ ./result/bin/cty-interactive \
-    --server-port 9000 \
-    --repl-prompt "> " \
-    --repl-history-on \
-    --repl-exit-cmd exit
+$ ./result/bin/cty serve
 ```
 
 # Example REPL commands
@@ -146,7 +139,7 @@ $ nix-build -A runvm
 $ result/bin/run-nixos-vm
 ```
 
-Within the VM, Nginx is setup as a reverse-proxy in front of `cty-serve`. You
+Within the VM, Nginx is setup as a reverse-proxy in front of `cty serve`. You
 should be able to confirm that with e.g.:
 
 ```

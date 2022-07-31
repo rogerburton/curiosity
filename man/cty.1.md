@@ -44,4 +44,4 @@ Part of the curiosity(7) suite
 SEE ALSO
 ========
 
-**cty-serve(1)**, **curiosity(7)**
+**curiosity(7)**

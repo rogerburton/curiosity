@@ -48,15 +48,15 @@ may become obsolete as the project evolves.
     should be the display name instead.
 
 - Command-line interfaces
-  - `cty-serve` is the web application.
+  - `cty serve` is the web application.
   - `cty` is a command-line application designed to perform most of the same
     actions available on the web site. It can run those actions eitheir against
     its own local state, or the state of a running application.
-  - `cty-run` runs a script containing REPL commands.
+  - `cty run` runs a script containing REPL commands.
   - `cty-sock` is intended as a target of `cty`, without running a web
     interface.
-  - `cty-parse` parses REPL commands.
-  - `cty-repl` allows to run multiple commands in a single session. This mostly
+  - `cty parse` parses REPL commands.
+  - `cty repl` allows to run multiple commands in a single session. This mostly
     avoids repeating the `cty` program name.
   - `cty-shell` is a small program running behind SSH, for the `curiosity`
     user. It exposes only some Curiosity-related command.
@@ -68,11 +68,11 @@ may become obsolete as the project evolves.
   - The VM contains our binaries.
   - The VM contains our man-pages.
   - Bash completion for our binaries is setup within the VM.
-  - The VM runs `cty-serve`.
-  - The VM runs `Nginx` as a reverse-proxy, in front of `cty-serve`.
+  - The VM runs `cty serve`.
+  - The VM runs `Nginx` as a reverse-proxy, in front of `cty serve`.
   - When running localy, ports 22 and 80 are forwareded to the host.
   - Create a `curiosity` user on the VM to be able to run `cty`, and in
-    particular interact with `cty-sock`. This is currently wired to `cty-parse`
+    particular interact with `cty-sock`. This is currently wired to `cty parse`
     instead. TODO Document this and other things.
   - SSH configuration (using `cty-shell` and `ForceCommand`) to expose the
     above `curiosity` user.

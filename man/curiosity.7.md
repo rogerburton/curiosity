@@ -20,4 +20,4 @@ Part of the curiosity(7) suite
 SEE ALSO
 ========
 
-**cty(1)**, **cty-serve(1)**
+**cty(1)**

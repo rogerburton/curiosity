@@ -16,26 +16,15 @@ module Curiosity.Data
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
-  , IS.StateModification(..)
-  , IS.StateVisualisation(..)
-  , IS.InteractiveStateErr(..)
-  -- * typeclass-free parsers.
-  , parseViz
-  , parseMod
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
   ) where
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
 import qualified Commence.Runtime.Errors       as E
-import qualified Commence.Runtime.Errors       as Errs
-import qualified Commence.Runtime.Storage      as S
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as U
-import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
@@ -105,137 +94,6 @@ This solves cyclic imports, without caring about the concrete @runtime@ types, w
 -}
 class RuntimeHasStmDb runtime where
   stmDbFromRuntime :: runtime -> StmDb runtime
-
-{- | We want to represent our `StmDb` as an interactive state; and allow modifications of users and todos
-it currently contains, for example. 
-
-Some notes:
-
-1. Modifications are pretty easy; we just enclose each value's DBUpdate's as necessary. 
-
-2. We'd like to visualise either the users in the system, or the todo-lists, or everything.
-
-3. For modification constraints, since we'd manifest STM operations into `IO`; we'd like to constrain on being able to
-lift `IO` ops. to some arbitrary `m`
-
--}
-instance IS.InteractiveState (StmDb runtime) where
-  
-  data StateModification (StmDb runtime) =
-    ModifyUser (S.DBUpdate U.UserProfile)
-    | ModifyTodo (S.DBUpdate Todo.TodoList)
-      deriving Show
-  
-  data InteractiveStateErr (StmDb runtime) = ParseFailed P.ParseErr
-      deriving Show
-  
-  data StateVisualisation (StmDb runtime) =
-    VisualiseUser (S.DBSelect U.UserProfile)
-    | VisualiseTodo (S.DBSelect Todo.TodoList)
-    | VisualiseFullStmDb
-      deriving Show
-
-  type StateModificationC (StmDb runtime) m
-    = ( MonadIO m
-      , MonadError Errs.RuntimeErr m
-      , MonadReader runtime m
-      , RuntimeHasStmDb runtime
-      -- The constraints that actually let us perform the updates
-      -- within this @m@.
-      , S.DBStorage m U.UserProfile
-      , S.DBStorage m Todo.TodoList
-      )
-  type StateVisualisationC (StmDb runtime) m = IS.StateModificationC
-    (StmDb runtime)
-    m
-  
-  data StateModificationOutput (StmDb runtime) = UsersModified [U.UserProfile]
-                                               | TodoListsModified [Todo.TodoList]
-                                               deriving Show
-  
-  data StateVisualisationOutput (StmDb runtime) = UsersVisualised [U.UserProfile]
-                                                | TodoListsVisualised [Todo.TodoList]
-                                                | FullStmDbVisualised (HaskDb runtime)
-                                                deriving Show
-
-  execVisualisation = \case
-    VisualiseUser userSelect -> S.dbSelect userSelect <&> UsersVisualised
-    VisualiseTodo todoSelect -> S.dbSelect todoSelect <&> TodoListsVisualised
-    VisualiseFullStmDb ->
-      ask >>= readFullStmDbInHaskFromRuntime <&> FullStmDbVisualised
-
-  execModification = \case
-    ModifyUser userUpdate -> S.dbUpdate userUpdate >>= getAffectedUsers
-     where
-      getAffectedUsers =
-        fmap UsersModified . concatMapM (S.dbSelect . U.SelectUserById)
-
-    ModifyTodo todoUpdate -> S.dbUpdate todoUpdate >>= getAffectedTodos
-     where
-      getAffectedTodos = fmap TodoListsModified
-        . concatMapM (S.dbSelect . Todo.SelectTodoListById)
-
-{- | This instance defines parsing for incoming inputs that visualise or modify the `Db` state.. 
-
-All modification inputs need to start with the word @mod@ (case insensitive)
-
-For example, to modfify a user, we should have commands of the form:
-
-@
-mod user <UserSubcommand>
-@
-
-etc.
--}
-instance IS.InteractiveStateOnDisp (StmDb runtime) 'IS.Repl where
-
-  type StateParseInputC (StmDb runtime) 'IS.Repl m = (Applicative m)
-
-  parseModificationInput
-    :: forall m
-     . (IS.StateParseInputC (StmDb runtime) 'IS.Repl m)
-    => IS.DispInput 'IS.Repl -- ^ Raw input 
-    -> m
-         ( Either
-             (IS.InteractiveStateErr (StmDb runtime))
-             (IS.StateModification (StmDb runtime))
-         ) -- ^ We eventually return a successfully parsed modification.
-  parseModificationInput (IS.ReplInputStrict input) =
-    pure $ parseMod input & first ParseFailed
-
-  parseVisualisationInput (IS.ReplInputStrict input) =
-    pure $ parseViz input & first ParseFailed
-
-parseViz
-  :: forall runtime
-   . Text
-  -> Either P.ParseErr (IS.StateVisualisation (StmDb runtime))
-parseViz =
-  P.parseInputCtx
-    $  P.withTrailSpaces "viz"
-    *> (let
-          userViz =
-            P.withTrailSpaces "user" *> U.dbSelectParser <&> VisualiseUser
-          todoViz =
-            P.withTrailSpaces "todo" *> Todo.dbSelectParser <&> VisualiseTodo
-          fullViz = P.string' "all" $> VisualiseFullStmDb
-        in
-          P.tryAlts [userViz, todoViz, fullViz]
-       )
-
-parseMod
-  :: forall runtime
-   . Text
-  -> Either P.ParseErr (IS.StateModification (StmDb runtime))
-parseMod =
-  P.parseInputCtx
-    $  P.withTrailSpaces "mod"
-    *> (let userMod =
-              P.withTrailSpaces "user" *> U.dbUpdateParser <&> ModifyUser
-            todoMod =
-              P.withTrailSpaces "todo" *> Todo.dbUpdateParser <&> ModifyTodo
-        in  P.tryAlts [todoMod, userMod]
-       )
 
 newtype DbErr = DbDecodeFailed Text
               deriving Show

@@ -1,28 +1,78 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ApplicativeDo #-}
 module Curiosity.Parse
-  ( confParser
-  , replParser
+  ( Conf(..)
+  , confLogging
+  , confDbFile
+  , ServerConf(..)
+  , defaultConf
+  , defaultLoggingConf
+  , mkLoggingConf
+  , confParser
   , serverParser
   ) where
 
-import qualified Commence.InteractiveState.Repl
-                                               as Repl
-import qualified Curiosity.Runtime             as Rt
-import qualified Curiosity.Server              as Srv
-import           Data.Default.Class
+import qualified Commence.Multilogging         as ML
+import           Control.Lens                  as Lens
+import qualified Control.Monad.Log             as L
+import qualified Crypto.JOSE.JWK               as JWK
 import qualified Options.Applicative           as A
 import qualified Servant.Auth.Server           as SAuth
+import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
-confParser :: A.Parser Rt.Conf
+-- | Application config.
+data Conf = Conf
+  { _confLogging :: ML.LoggingConf -- ^ Logging configuration.
+  , _confDbFile  :: Maybe FilePath
+    -- ^ An optional filepath to write the DB to, or read it from. If the file
+    -- is absent, it will be created on server exit, with the latest DB state
+    -- written to it.
+  }
+
+instance Show Conf
+
+makeLenses ''Conf
+
+-- | HTTP server config.
+data ServerConf = ServerConf
+  { _serverPort          :: Int
+  , _serverStaticDir     :: FilePath
+  , _serverDataDir       :: FilePath
+  , _serverCookie        :: SAuth.CookieSettings
+    -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
+    -- ^ JWK settings to use, depending on the key employed.
+  }
+
+instance Show ServerConf
+
+--------------------------------------------------------------------------------
+defaultConf :: Conf
+defaultConf =
+  let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
+
+defaultLoggingConf :: ML.LoggingConf
+defaultLoggingConf = mkLoggingConf "/tmp/curiosity.log"
+
+mkLoggingConf :: FilePath -> ML.LoggingConf
+mkLoggingConf path =
+  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
+
+flspec :: FilePath -> FL.FileLogSpec
+flspec path = FL.FileLogSpec path 5000 0
+
+
+--------------------------------------------------------------------------------
+confParser :: A.Parser Conf
 confParser = do
   _confDbFile <- dbFileParser
-  pure Rt.Conf {
+  pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-                 _confLogging = Rt.defaultLoggingConf, .. }
+                 _confLogging = defaultLoggingConf, .. }
 
-serverParser :: A.Parser Srv.ServerConf
+serverParser :: A.Parser ServerConf
 serverParser = do
   _serverPort <- abs <$> A.option
     A.auto
@@ -42,7 +92,7 @@ serverParser = do
       "A directory containing example data."
     )
 
-  pure Srv.ServerConf
+  pure ServerConf
     {
       -- FIXME: Add support for cookie-settings parsing.
       _serverCookie        = SAuth.defaultCookieSettings
@@ -52,28 +102,6 @@ serverParser = do
                                }
       -- FIXME: See if this can be customized via parsing.
     , _serverMkJwtSettings = SAuth.defaultJWTSettings
-    , ..
-    }
-
-replParser :: A.Parser Repl.ReplConf
-replParser = do
-  _replPrompt <-
-    A.strOption
-    $  A.long "repl-prompt"
-    <> A.value (Repl._replPrompt def)
-    <> A.showDefault
-    <> A.metavar "PROMPT"
-    <> A.help "Prompt to use for the repl"
-
-  _replHistory <- A.switch $ A.long "repl-history-on" <> A.help
-    "Flag to enable history."
-
-  replReplExitCmds <- A.many $ A.strOption (A.long "repl-exit-cmd")
-
-  pure Repl.ReplConf
-    { _replReplExitCmds = if null replReplExitCmds
-                            then ["quit"]
-                            else replReplExitCmds
     , ..
     }
 

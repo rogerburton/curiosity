@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 module Curiosity.Command
   ( Command(..)
+  , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
   , parserInfo
@@ -10,6 +11,7 @@ module Curiosity.Command
 
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Parse               as P
 import qualified Options.Applicative           as A
 
 
@@ -19,12 +21,26 @@ import qualified Options.Applicative           as A
 data Command =
     Init
     -- ^ Initialise a new, empty state file.
+  | Repl P.Conf
+    -- ^ Run a REPL.
+  | Serve P.Conf P.ServerConf
+    -- ^ Run an HTTP server.
+  | Run P.Conf
+    -- ^ Interpret a script.
+  | Parse ParseConf
+    -- ^ Parse a single command.
   | State
     -- ^ Show the full state.
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
+  deriving Show
+
+data ParseConf =
+    ConfCommand Text
+  | ConfFileName FilePath
+  | ConfStdin
   deriving Show
 
 -- | The same commands, defined above, can be used within the UNIX-domain
@@ -93,6 +109,30 @@ parser =
           )
 
       <> A.command
+           "repl"
+           ( A.info (parserRepl <**> A.helper)
+           $ A.progDesc "Start a REPL"
+           )
+
+      <> A.command
+           "serve"
+           ( A.info (parserServe <**> A.helper)
+           $ A.progDesc "Run the Curiosity HTTP server"
+           )
+
+      <> A.command
+           "run"
+           ( A.info (parserRun <**> A.helper)
+           $ A.progDesc "Interpret a script"
+           )
+
+      <> A.command
+           "parse"
+           ( A.info (parserParse <**> A.helper)
+           $ A.progDesc "Parse a single command"
+           )
+
+      <> A.command
            "state"
            ( A.info (parserState <**> A.helper)
            $ A.progDesc "Show the full state"
@@ -108,6 +148,31 @@ parser =
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserRepl :: A.Parser Command
+parserRepl = Repl <$> P.confParser
+
+parserServe :: A.Parser Command
+parserServe = Serve <$> P.confParser <*> P.serverParser
+
+parserRun :: A.Parser Command
+parserRun = Run <$> P.confParser
+
+parserParse :: A.Parser Command
+parserParse = Parse <$> (parserCommand <|> parserFileName)
+
+parserCommand :: A.Parser ParseConf
+parserCommand = ConfCommand <$> A.strOption
+  (A.long "command" <> A.short 'c' <> A.metavar "COMMAND" <> A.help
+    "Command to parse."
+  )
+
+parserFileName :: A.Parser ParseConf
+parserFileName = A.argument (A.eitherReader f)
+                            (A.metavar "FILE" <> A.help "Command to parse.")
+ where
+  f "-" = Right ConfStdin
+  f s   = Right $ ConfFileName s
 
 parserState :: A.Parser Command
 parserState = pure State

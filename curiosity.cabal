@@ -86,7 +86,6 @@ library
   exposed-modules:
     Curiosity.Command
     Curiosity.Data
-    Curiosity.Repl.Parse
     Curiosity.Runtime
     Curiosity.Data.Todo
     Curiosity.Data.User
@@ -115,86 +114,7 @@ library
     , unix-compat
     , wai-app-static
 
--- HTTP server only
-executable cty-serve
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-serve.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- HTTP server + REPL
-executable cty-interactive
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-interactive.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- Command parser
-executable cty-parse
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-parse.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- REPL only
-executable cty-repl
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-repl.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , fast-logger
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- REPL only, uses optparse-applicative
-executable cty-repl-2
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-repl-2.hs
-  build-depends:
-      async
-    , curiosity
-    , fast-logger
-    , haskeline
-    , optparse-applicative
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- Interpret a file containing commands
-executable cty-run
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-run.hs
-  build-depends:
-      async
-    , curiosity
-    , fast-logger
-    , optparse-applicative
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
--- Server-side program to interact with the server.
+-- The single-binary Curiosity suite.
 executable cty
   import: common-dependencies, lang-settings, common-extensions
   main-is: cty.hs
@@ -204,6 +124,7 @@ executable cty
     , curiosity
     , directory
     , fast-logger
+    , haskeline
     , optparse-applicative
     , network
   hs-source-dirs: bin
