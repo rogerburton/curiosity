@@ -64,18 +64,20 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 --------------------------------------------------------------------------------
 -- | Represents the input data used for user registration.
 data Signup = Signup
-  { username :: UserName
-  , password :: Password
-  , email    :: UserEmailAddr
+  { username   :: UserName
+  , password   :: Password
+  , email      :: UserEmailAddr
+  , toaConsent :: Maybe Bool
   }
   deriving (Generic, Eq, Show)
 
 instance FromForm Signup where
   fromForm f =
     Signup
-      <$> parseUnique "username"   f
-      <*> parseUnique "password"   f
-      <*> parseUnique "email-addr" f
+      <$> parseUnique "username"    f
+      <*> parseUnique "password"    f
+      <*> parseUnique "email-addr"  f
+      <*> parseUnique "toa-consent" f
 
 -- | Represents user credentials. This is used both for user login and within
 -- the application state.
@@ -221,6 +223,7 @@ dbUpdateParser = P.tryAlts
              <$> userNameParser
              <*> userPasswordParser
              <*> userEmailAddrParser
+             <*> toaConsentParser
              )
          )
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
@@ -250,6 +253,15 @@ dbSelectParser = P.tryAlts
     P.withTrailSpaces "SelectUserByUserName"
       *>  userNameParser
       <&> SelectUserByUserName
+
+toaConsentParser :: P.ParserText (Maybe Bool)
+toaConsentParser =
+  P.tryAlts
+    $   P.punctuated
+    <$> [ P.string' "agreed" $> Just True
+        , P.string' "disagree" $> Just False
+        , P.string' "" $> Nothing
+        ]
 
 -- | The UserId has to be non-empty ascii character
 userIdParser :: P.ParserText UserId
