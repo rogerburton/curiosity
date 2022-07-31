@@ -127,14 +127,17 @@ parserUser = A.subparser
 
 parserCreateUser :: A.Parser Command
 parserCreateUser = do
-  username <- A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
-  password <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
-  email    <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
+  username   <- A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
+  password   <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
+  email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
+  tosConsent <- A.switch
+    (A.help "Indicate if the user being created consents to the TOS.")
   return $ UpdateUser . U.UserCreate $ U.UserProfile
     "USER-0" -- TODO
     (U.Credentials username password)
     "TODO"
     email
+    tosConsent
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument

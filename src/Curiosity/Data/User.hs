@@ -18,6 +18,7 @@ module Curiosity.Data.User
   , userProfileId
   , userProfileDisplayName
   , userProfileEmailAddr
+  , userTosConsent
   , UserId(..)
   , genRandomUserId
   , UserName(..)
@@ -64,9 +65,10 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 --------------------------------------------------------------------------------
 -- | Represents the input data used for user registration.
 data Signup = Signup
-  { username :: UserName
-  , password :: Password
-  , email    :: UserEmailAddr
+  { username   :: UserName
+  , password   :: Password
+  , email      :: UserEmailAddr
+  , tosConsent :: Bool
   }
   deriving (Generic, Eq, Show)
 
@@ -76,6 +78,10 @@ instance FromForm Signup where
       <$> parseUnique "username"   f
       <*> parseUnique "password"   f
       <*> parseUnique "email-addr" f
+      <*> (   (Just "tos-consent-granted" ==)
+          .   fmap T.toLower
+          <$> parseMaybe "tos-consent" f
+          )
 
 -- | Represents user credentials. This is used both for user login and within
 -- the application state.
@@ -99,16 +105,17 @@ newtype Update = Update
 instance FromForm Update where
   fromForm f = Update <$> parseMaybe "password" f
 
-data UserProfile' creds userDisplayName userEmailAddr = UserProfile
+data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   { _userProfileId          :: UserId
   , _userProfileCreds       :: creds -- ^ Users credentials
   , _userProfileDisplayName :: userDisplayName -- ^ User's human friendly name
   , _userProfileEmailAddr   :: userEmailAddr -- ^ User's email address
+  , _userTosConsent         :: tosConsent
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr
+type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName Text
@@ -221,6 +228,7 @@ dbUpdateParser = P.tryAlts
              <$> userNameParser
              <*> userPasswordParser
              <*> userEmailAddrParser
+             <*> tosConsentParser
              )
          )
   userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
@@ -251,6 +259,12 @@ dbSelectParser = P.tryAlts
       *>  userNameParser
       <&> SelectUserByUserName
 
+tosConsentParser :: P.ParserText Bool
+tosConsentParser =
+  P.tryAlts
+    $   P.punctuated
+    <$> [P.string' "tos-consent-granted" $> True, pure False]
+
 -- | The UserId has to be non-empty ascii character
 userIdParser :: P.ParserText UserId
 userIdParser = UserId <$> P.punctuated P.alphaNumText
@@ -276,6 +290,7 @@ userProfileParser =
     <*> (userCredsParser <* P.space)
     <*> (userDisplayNameParser <* P.space)
     <*> (userEmailAddrParser <* P.space)
+    <*> (tosConsentParser <* P.space)
 
 userCredsParser =
   Credentials <$> (userNameParser <* P.space) <*> userPasswordParser

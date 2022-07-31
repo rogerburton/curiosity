@@ -343,8 +343,11 @@ createUser
   -> (User.UserId, User.Signup)
   -> STM (Either User.UserErr User.UserId)
 createUser runtime (newId, User.Signup {..}) = do
-  let newProfile =
-        User.UserProfile newId (User.Credentials username password) "TODO" email
+  let newProfile = User.UserProfile newId
+                                    (User.Credentials username password)
+                                    "TODO"
+                                    email
+                                    tosConsent
   createUserFull runtime newProfile
 
 createUserFull
