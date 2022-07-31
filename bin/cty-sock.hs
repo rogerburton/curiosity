@@ -77,6 +77,7 @@ repl runtime conn = do
             (User.Credentials "alice" "pass")
             "Alice"
             "alice@example.com"
+            True
           )
         )
 
