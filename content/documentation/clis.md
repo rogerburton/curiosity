@@ -4,7 +4,7 @@ title: Curiosity
 
 # Command-line interfaces
 
-Curiosity is mainly a web application, `cty-serve`, but it also comes with
+Curiosity is mainly a web application, `cty serve`, but it also comes with
 additional CLIs (command-line interfaces).
 
 The documentation for these CLIs is available as [man
@@ -13,7 +13,6 @@ rendered as HTML pages:
 
 - [`curiosity(7)`](/documentation/clis/curiosity.7)
 - [`cty(1)`](/documentation/clis/cty.1)
-- [`cty-serve(1)`](/documentation/clis/cty-serve.1)
 
 
 # For developers

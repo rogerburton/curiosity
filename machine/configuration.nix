@@ -14,7 +14,7 @@ let
     if [[ -n $SSH_ORIGINAL_COMMAND ]]
     then
       # TODO Replace by cty --user <username>
-      cty-parse -c "$SSH_ORIGINAL_COMMAND"
+      cty parse -c "$SSH_ORIGINAL_COMMAND"
     else
       echo "Hi <username>, your SSH key is recognized, but"
       echo "Curiosity does not offer an interactive shell."
@@ -49,8 +49,6 @@ in
 
   programs.bash.interactiveShellInit = ''
     source <(cty             --bash-completion-script `which cty`)
-    source <(cty-parse       --bash-completion-script `which cty-parse`)
-    source <(cty-repl-2      --bash-completion-script `which cty-repl-2`)
     source <(cty-sock        --bash-completion-script `which cty-sock`)
   '';
 

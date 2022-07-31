@@ -221,7 +221,7 @@ instance ML.MonadAppNameLogMulti AppM where
 --------------------------------------------------------------------------------
 -- | Handle a single command. The @display@ function and the return type
 -- provide some flexibility, so this function can be used in both `cty` and
--- `cty-repl-2`.
+-- `cty repl`.
 handleCommand
   :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
 handleCommand runtime display command = do

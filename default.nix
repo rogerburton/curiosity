@@ -43,11 +43,6 @@ in rec
       ];
       shellHook = ''
         source <(cty             --bash-completion-script `which cty`)
-        source <(cty-interactive --bash-completion-script `which cty-interactive`)
-        source <(cty-parse       --bash-completion-script `which cty-parse`)
-        source <(cty-repl        --bash-completion-script `which cty-repl`)
-        source <(cty-repl-2      --bash-completion-script `which cty-repl-2`)
-        source <(cty-serve       --bash-completion-script `which cty-serve`)
         source <(cty-sock        --bash-completion-script `which cty-sock`)
         export MANPATH=${man-pages}/share/man
       '';
