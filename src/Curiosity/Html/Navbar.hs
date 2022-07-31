@@ -16,4 +16,7 @@ exampleNavbarAlt = Navbar [] [userEntry]
 
 userEntry = UserEntry userEntries NoAvatarImage
 
-userEntries = [SubEntry "Settings" "/settings/profile" False]
+userEntries =
+  [ SubEntry "Settings" "/settings/profile" False
+  , SubEntry "Logout"   "/a/logout"         False
+  ]
