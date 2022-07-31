@@ -5,10 +5,8 @@
 --
 --   nc -U curiosity.sock
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
+import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Command             as Command
-import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
@@ -70,8 +68,7 @@ repl runtime conn = do
         A.Failure err -> print err
         A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
 
-      output <- Rt.runAppMSafe runtime $ IS.execModification
-        (Data.ModifyUser
+      output <- Rt.runAppMSafe runtime $ S.dbUpdate
           (User.UserCreate $ User.UserProfile
             "USER-0"
             (User.Credentials "alice" "pass")
@@ -79,7 +76,6 @@ repl runtime conn = do
             "alice@example.com"
             True
           )
-        )
 
       print output
 

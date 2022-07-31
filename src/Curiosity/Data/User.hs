@@ -26,12 +26,6 @@ module Curiosity.Data.User
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
-  -- ** Parsers
-  , dbUpdateParser
-  , dbSelectParser
-  , userIdParser
-  , userNameParser
-  , userPasswordParser
   -- * Errors
   , UserErr(..)
   ) where
@@ -42,9 +36,7 @@ import qualified Commence.Types.Secret         as Secret
 import qualified Commence.Types.Wrapped        as W
 import           Control.Lens
 import qualified Curiosity.Html.Errors         as Pages
-import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
-import qualified Data.Char                     as Char
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
@@ -214,86 +206,6 @@ instance Storage.DBStorageOps UserProfile where
     -- | Select a user with `UserName`.
     | SelectUserByUserName UserName
     deriving (Show, Eq)
-
-dbUpdateParser :: P.ParserText (Storage.DBUpdate UserProfile)
-dbUpdateParser = P.tryAlts
-  [userCreate, userCreateGeneratingUserId, userDelete, userUpdate]
- where
-  userCreate =
-    P.withTrailSpaces "UserCreate" *> fmap UserCreate userProfileParser
-  userCreateGeneratingUserId =
-    P.withTrailSpaces "UserCreateGeneratingUserId"
-      *> (   UserCreateGeneratingUserId
-         <$> (   Signup
-             <$> userNameParser
-             <*> userPasswordParser
-             <*> userEmailAddrParser
-             <*> tosConsentParser
-             )
-         )
-  userDelete = P.withTrailSpaces "UserDelete" *> userIdParser <&> UserDelete
-  userUpdate =
-    P.withTrailSpaces "UserPasswordUpdate"
-      *> (   UserPasswordUpdate
-         <$> (userIdParser <* P.space)
-         <*> userPasswordParser
-         )
-
--- | For simplicity, we keep the parsers close to the actual data-constructors.
-dbSelectParser :: P.ParserText (Storage.DBSelect UserProfile)
-dbSelectParser = P.tryAlts
-  [userLoginWithUserName, selectUserById, selectUsersByUserName]
- where
-  userLoginWithUserName =
-    P.withTrailSpaces "UserLoginWithUserName"
-      *> (   UserLoginWithUserName
-         <$> (   Credentials
-             <$> (userNameParser <* P.space)
-             <*> userPasswordParser
-             )
-         )
-  selectUserById =
-    P.withTrailSpaces "SelectUserById" *> userIdParser <&> SelectUserById
-  selectUsersByUserName =
-    P.withTrailSpaces "SelectUserByUserName"
-      *>  userNameParser
-      <&> SelectUserByUserName
-
-tosConsentParser :: P.ParserText Bool
-tosConsentParser =
-  P.tryAlts
-    $   P.punctuated
-    <$> [P.string' "tos-consent-granted" $> True, pure False]
-
--- | The UserId has to be non-empty ascii character
-userIdParser :: P.ParserText UserId
-userIdParser = UserId <$> P.punctuated P.alphaNumText
-
-userNameParser :: P.ParserText UserName
-userNameParser = UserName <$> P.punctuated P.takeRest
-
-userDisplayNameParser :: P.ParserText UserDisplayName
-userDisplayNameParser = UserDisplayName <$> P.punctuated P.takeRest
-
-userEmailAddrParser :: P.ParserText UserEmailAddr
-userEmailAddrParser = UserEmailAddr <$> P.punctuated P.takeRest
-
--- | For the password, we want to consume everything within the punctuations.
-userPasswordParser :: P.ParserText Password
-userPasswordParser = Password . Secret.Secret <$> P.punctuated
-  (P.takeWhile1P (Just "Password") (not . Char.isPunctuation))
-
-userProfileParser :: P.ParserText UserProfile
-userProfileParser =
-  UserProfile
-    <$> (userIdParser <* P.space)
-    <*> (userCredsParser <* P.space)
-    <*> (userDisplayNameParser <* P.space)
-    <*> (userEmailAddrParser <* P.space)
-    <*> (tosConsentParser <* P.space)
-
-userCredsParser =
-  Credentials <$> (userNameParser <* P.space) <*> userPasswordParser
 
 data UserErr = UserExists
              | UserNotFound Text

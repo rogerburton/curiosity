@@ -17,14 +17,6 @@ module Curiosity.Data.Todo
   -- * Export all DB operations
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
-  -- ** Parsers
-  , dbUpdateParser
-  , dbSelectParser
-  , todoListNameParser
-  , todoListItemNameParser
-  , todoListItemStateParser
-  , todoListItemDescParserMaybe
-  , todoListItemParser
   -- * Lenses 
   , todoListName
   , todoListItems
@@ -37,11 +29,8 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as Storage
 import           Control.Lens
 import qualified Curiosity.Data.User           as U
-import qualified Curiosity.Repl.Parse          as P
 import           Data.Aeson
 import           Data.Default.Class
-import qualified Data.Set                      as Set
-import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
 
 -- | The name of a `TodoList`.
@@ -112,91 +101,6 @@ instance Storage.DBStorageOps TodoList where
     -- | Remove users from a list
     | RemoveUsersFromList (Storage.DBId TodoList) (NonEmpty U.UserId)
     deriving (Eq, Show)
-
-dbUpdateParser :: P.ParserText (Storage.DBUpdate TodoList)
-dbUpdateParser = P.tryAlts
-  [createList, addItem, deleteItem, markItem, addUsers, deleteList, removeUsers]
- where
-  createList =
-    P.withTrailSpaces "CreateList" *> (CreateList <$> todoListParser)
-  addItem =
-    P.withTrailSpaces "AddItem"
-      *> (AddItem <$> todoListNameParser <* P.space <*> todoListItemParser)
-  deleteItem =
-    P.withTrailSpaces "DeleteItem"
-      *> (   DeleteItem
-         <$> todoListNameParser
-         <*  P.space
-         <*> todoListItemNameParser
-         )
-  markItem =
-    P.withTrailSpaces "MarkItem"
-      *> (   MarkItem
-         <$> todoListNameParser
-         <*  P.space
-         <*> todoListItemNameParser
-         <*  P.space
-         <*> todoListItemStateParser
-         )
-  addUsers = uncurry AddUsersToList <$> listNameAndUserIds "AddUsersToList"
-  removeUsers =
-    uncurry RemoveUsersFromList <$> listNameAndUserIds "RemoveUsersFromList"
-  deleteList =
-    P.withTrailSpaces "DeleteList" *> (DeleteList <$> todoListNameParser)
-
-  listNameAndUserIds name = P.withTrailSpaces name *> do
-    listName <- todoListNameParser
-    P.space
-    mUserIds <- nonEmpty <$> P.parseListOf U.userIdParser
-    maybe noUsers (pure . (listName, )) mUserIds
-   where
-    noUsers = P.fancyFailure . Set.singleton . P.ErrorFail $ "No user-ids!"
-
-dbSelectParser :: P.ParserText (Storage.DBSelect TodoList)
-dbSelectParser = selectById <|> selectByPendingItems <|> selectTodoListsByUser
- where
-  selectById =
-    P.withTrailSpaces "SelectTodoListById"
-      *> (SelectTodoListById <$> todoListNameParser)
-  selectByPendingItems =
-    P.string' "SelectTodoListsByPendingItems" $> SelectTodoListsByPendingItems
-  selectTodoListsByUser =
-    P.withTrailSpaces "SelectTodoListsByUser"
-      *> (SelectTodoListsByUser <$> U.userIdParser)
-
-todoListParser :: P.ParserText TodoList
-todoListParser =
-  TodoList
-    <$> todoListNameParser
-    <*  P.space
-    <*> P.parseListOf todoListItemParser
-    <*  P.space
-    <*> P.parseListOf U.userIdParser
-
-todoListNameParser = TodoListName <$> P.punctuated P.alphaNumText
-todoListItemNameParser = TodoListItemName <$> P.punctuated P.alphaNumText
-
-todoListItemStateParser :: P.ParserText TodoListItemState
-todoListItemStateParser = P.try pending <|> complete
- where
-  pending  = P.punctuated (P.string' "pending") $> TodoListItemPending
-  complete = P.punctuated (P.string' "complete") $> TodoListItemComplete
-
-todoListItemDescParserMaybe :: P.ParserText (Maybe TodoListItemDesc)
-todoListItemDescParserMaybe = do
-  -- Read text; stripping whitespaces within the punctuated part. 
-  txt <- T.strip <$> P.punctuated P.alphaNumText
-  -- If the supplied text is not empty; we return a Just otherwise, we ignore the provided /blank/ description.
-  pure $ if T.null txt then Nothing else Just (TodoListItemDesc txt)
-
-todoListItemParser :: P.ParserText TodoListItem
-todoListItemParser =
-  TodoListItem
-    <$> todoListItemNameParser
-    <*  P.space
-    <*> todoListItemDescParserMaybe
-    <*  P.space
-    <*> todoListItemStateParser
 
 data TodoListErr = TodoListNotFound Text
                     | TodoListExists TodoListName

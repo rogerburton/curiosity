@@ -25,8 +25,6 @@ module Curiosity.Runtime
   , appMHandlerNatTrans
   ) where
 
-import qualified Commence.InteractiveState.Class
-                                               as IS
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
@@ -228,17 +226,15 @@ handleCommand runtime display command = do
   case command of
     Command.State -> do
       output <-
-        runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseFullStmDb
+        runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
       display $ show output
       pure ExitSuccess
     Command.SelectUser select -> do
-      output <- runAppMSafe runtime . IS.execVisualisation $ Data.VisualiseUser
-        select
+      output <- runAppMSafe runtime $ S.dbSelect select
       display $ show output
       pure ExitSuccess
     Command.UpdateUser update -> do
-      output <- runAppMSafe runtime . IS.execModification $ Data.ModifyUser
-        update
+      output <- runAppMSafe runtime $ S.dbUpdate update
       display $ show output
       pure ExitSuccess
     _ -> do

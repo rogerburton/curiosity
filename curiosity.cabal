@@ -86,7 +86,6 @@ library
   exposed-modules:
     Curiosity.Command
     Curiosity.Data
-    Curiosity.Repl.Parse
     Curiosity.Runtime
     Curiosity.Data.Todo
     Curiosity.Data.User
