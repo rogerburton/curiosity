@@ -27,6 +27,7 @@ module Curiosity.Data.User
   , Storage.DBSelect(..)
   -- * Errors
   , UserErr(..)
+  , usernameBlocklist
   ) where
 
 import qualified Commence.Runtime.Errors       as Errs
@@ -194,6 +195,7 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
 
 data UserErr = UserExists
+             | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
              deriving Show
@@ -201,12 +203,14 @@ data UserErr = UserExists
 instance Errs.IsRuntimeErr UserErr where
   errCode = errCode' . \case
     UserExists                  -> "USER_EXISTS"
+    UsernameBlocked             -> "USERNAME_BLOCKED"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
     UserExists                  -> HTTP.conflict409
+    UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
 
@@ -215,6 +219,10 @@ instance Errs.IsRuntimeErr UserErr where
       409
       "User exists"
       "A user with the same username or ID already exists."
+    UsernameBlocked -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+      409 -- TODO
+      "Username disallowed"
+      "Some usernames are not allowed. Please select another."
     UserNotFound msg -> msg
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -224,3 +232,29 @@ instance Errs.IsRuntimeErr UserErr where
 
 makeLenses ''Credentials
 makeLenses ''UserProfile'
+
+
+--------------------------------------------------------------------------------
+-- | In addition of dynamic rules (e.g. the username should not already be
+-- taken), we disallow some names because they might be used later by the
+-- system or the company, or cause confusion (because usernames are used as
+-- e.g. smartcoop.sh/<username>).
+usernameBlocklist :: [UserName]
+usernameBlocklist =
+  [ "a"
+  , "about"
+  , "data"
+  , "documentation"
+  , "echo"
+  , "errors"
+  , "forms"
+  , "login"
+  , "messages"
+  , "settings"
+  , "signup"
+  , "smart"
+  , "smartcoop" -- In a real syste, I guess this one should be a username that
+                -- we ensure is created.
+  , "state"
+  , "views"
+  ]
