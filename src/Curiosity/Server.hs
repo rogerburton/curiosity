@@ -264,9 +264,7 @@ handleSignup input@User.Signup {..} =
   ML.localEnv (<> "HTTP" <> "Signup")
     $   do
           ML.info $ "Signing up new user: " <> show username <> "..."
-          -- TODO Generate deterministically within STM.
-          newId <- User.genRandomUserId 10
-          Rt.withRuntimeAtomically Rt.createUser (newId, input)
+          Rt.withRuntimeAtomically Rt.createUser input
     >>= \case
           Right uid -> do
             ML.info

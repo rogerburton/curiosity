@@ -36,7 +36,8 @@ STM based.
 Additionally, we want to parameterise over a @runtime@ type parameter. This is a container type of the database. 
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
-  { _dbUserProfiles :: datastore [U.UserProfile]
+  { _dbNextUserId   :: datastore Int
+  , _dbUserProfiles :: datastore [U.UserProfile]
   , _dbTodos        :: datastore [Todo.TodoList]
   }
 
@@ -53,15 +54,16 @@ type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
-emptyHask = Db (pure mempty) (pure mempty)
+emptyHask = Db (pure 1) (pure mempty) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos }
+instantiateStmDb Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
+    _dbNextUserId   <- STM.newTVar seedNextUserId
     _dbUserProfiles <- STM.newTVar seedProfiles
     _dbTodos        <- STM.newTVar seedTodos
     pure Db { .. }
@@ -82,6 +84,7 @@ readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
 readFullStmDbInHask
   :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
 readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
+  _dbNextUserId   <- pure <$> STM.readTVar (_dbNextUserId stmDb)
   _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
   _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
   pure Db { .. }
