@@ -229,6 +229,10 @@ handleCommand runtime display command = do
         runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
       display $ show output
       pure ExitSuccess
+    Command.UserCreate input -> do
+      output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
+      display $ show output
+      pure ExitSuccess
     Command.SelectUser select -> do
       output <- runAppMSafe runtime $ S.dbSelect select
       display $ show output

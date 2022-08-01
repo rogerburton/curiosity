@@ -31,6 +31,7 @@ data Command =
     -- ^ Parse a single command.
   | State
     -- ^ Show the full state.
+  | UserCreate U.Signup
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
@@ -197,12 +198,11 @@ parserCreateUser = do
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   tosConsent <- A.switch
     (A.help "Indicate if the user being created consents to the TOS.")
-  return $ UpdateUser . U.UserCreate $ U.UserProfile
-    "USER-0" -- TODO
-    (U.Credentials username password)
-    "TODO"
+  return $ UserCreate $ U.Signup
+    username
+    password
     email
-    tosConsent
+    tosConsent -- TODO This doesn't seem to appear in --help.
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
