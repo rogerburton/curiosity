@@ -195,6 +195,7 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
 
 data UserErr = UserExists
+             | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
              deriving Show
@@ -202,12 +203,14 @@ data UserErr = UserExists
 instance Errs.IsRuntimeErr UserErr where
   errCode = errCode' . \case
     UserExists                  -> "USER_EXISTS"
+    UsernameBlocked             -> "USERNAME_BLOCKED"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
     UserExists                  -> HTTP.conflict409
+    UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
 
@@ -216,6 +219,10 @@ instance Errs.IsRuntimeErr UserErr where
       409
       "User exists"
       "A user with the same username or ID already exists."
+    UsernameBlocked -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+      409 -- TODO
+      "Username disallowed"
+      "Some usernames are not allowed. Please select another."
     UserNotFound msg -> msg
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
