@@ -11,6 +11,8 @@ title: Curiosity
 - Add a blocklist for usernames. This is interesting because it shows how to
   use hard-coded data both in some business-logic and show those same data in
   the documentation. See [PR-36](https://github.com/hypered/curiosity/pull/36).
+- The `smartcoop.sh` domain is now available in HTTPS. See
+  [PR-37](https://github.com/hypered/curiosity/pull/37).
 
 ## 2022-07-31
 
