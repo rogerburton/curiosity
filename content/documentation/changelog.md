@@ -4,7 +4,15 @@ title: Curiosity
 
 # Changelog
 
-## 2022-07-29
+## 2022-08-01
+
+- Fix the User Id generation, used in the signup form and the `cty user create`
+  command. See [PR-35](https://github.com/hypered/curiosity/pull/35).
+- Add a blocklist for usernames. This is interesting because it shows how to
+  use hard-coded data both in some business-logic and show those same data in
+  the documentation. See [PR-36](https://github.com/hypered/curiosity/pull/36).
+
+## 2022-07-31
 
 This is the initial entry in this changelog. This is mostly a setup phase where
 we tried to have a basis onto which we can implement future "business" feature
@@ -42,7 +50,8 @@ may become obsolete as the project evolves.
 - Basic user management
   - User sign up (username, password, email address). No validation yet.
     No confirmation email.
-  - User login. No logout yet.
+  - User login.
+  - User logout.
   - User profile page that shows the above information, plus a display name.
   - Edit user profile page. This actually only changes the password, where it
     should be the display name instead.
