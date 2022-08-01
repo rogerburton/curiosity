@@ -269,8 +269,7 @@ instance S.DBStorage AppM User.UserProfile where
         >>= either Errs.throwError' (pure . pure)
 
     User.UserCreateGeneratingUserId input -> do
-      newId <- User.genRandomUserId 10 -- TODO Generate deterministically within STM.
-      withRuntimeAtomically createUser (newId, input)
+      withRuntimeAtomically createUser input
         >>= either Errs.throwError' (pure . pure)
 
     User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
@@ -319,9 +318,10 @@ selectUserByUsername runtime username = do
 
 createUser
   :: Runtime
-  -> (User.UserId, User.Signup)
+  -> User.Signup
   -> STM (Either User.UserErr User.UserId)
-createUser runtime (newId, User.Signup {..}) = do
+createUser runtime User.Signup {..} = do
+  newId <- generateUserId runtime
   let newProfile = User.UserProfile newId
                                     (User.Credentials username password)
                                     "TODO"
@@ -348,6 +348,11 @@ createUserFull runtime newProfile = do
         modifyUsers runtime (newProfile :)
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
+
+generateUserId :: Runtime -> STM (User.UserId)
+generateUserId runtime = do
+  let nextUserIdTVar = Data._dbNextUserId $ _rDb runtime
+  STM.stateTVar nextUserIdTVar (\i -> (User.UserId $ "USER-" <> show i, succ i))
 
 modifyUsers :: Runtime -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
 modifyUsers runtime f = do

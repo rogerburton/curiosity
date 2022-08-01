@@ -20,7 +20,6 @@ module Curiosity.Data.User
   , userProfileEmailAddr
   , userTosConsent
   , UserId(..)
-  , genRandomUserId
   , UserName(..)
   , Password(..)
   -- * Export all DB ops.
@@ -42,7 +41,6 @@ import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant.Auth.Server           as SAuth
 import qualified Smart.Server.Page.Navbar      as Nav
-import qualified System.Random                 as Rand
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -162,18 +160,6 @@ newtype UserId = UserId Text
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "user-id" Text
-
--- | Randomly generated and character based user-id.
--- TODO Generate this sequentially instead.
-genRandomUserId :: forall m . MonadIO m => Int -> m UserId
-genRandomUserId len =
-  liftIO
-    $   UserId
-    .   T.pack
-    .   ("USER-" <>)
-    .   take (abs len)
-    .   Rand.randomRs ('0', '9')
-    <$> Rand.getStdGen
 
 instance Nav.IsNavbarContent UserProfile where
   navbarMarkup UserProfile {..} = do
