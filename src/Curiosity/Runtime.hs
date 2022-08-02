@@ -320,10 +320,7 @@ selectUserByUsername runtime username = do
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
 
-createUser
-  :: Runtime
-  -> User.Signup
-  -> STM (Either User.UserErr User.UserId)
+createUser :: Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
 createUser runtime User.Signup {..} = do
   newId <- generateUserId runtime
   let newProfile = User.UserProfile newId
@@ -335,22 +332,18 @@ createUser runtime User.Signup {..} = do
 
 createUserFull
   :: Runtime -> User.UserProfile -> STM (Either User.UserErr User.UserId)
-createUserFull runtime newProfile =
-  if username `elem` User.usernameBlocklist
-    then
-      pure . Left $ User.UsernameBlocked
-    else do
-      mprofile <- selectUserById runtime newProfileId
-      case mprofile of
-        Just profile -> existsErr
-        Nothing      -> createNew
+createUserFull runtime newProfile = if username `elem` User.usernameBlocklist
+  then pure . Left $ User.UsernameBlocked
+  else do
+    mprofile <- selectUserById runtime newProfileId
+    case mprofile of
+      Just profile -> existsErr
+      Nothing      -> createNew
  where
-  username = newProfile ^. User.userProfileCreds . User.userCredsName
+  username     = newProfile ^. User.userProfileCreds . User.userCredsName
   newProfileId = S.dbId newProfile
   createNew    = do
-    mprofile <- selectUserByUsername
-      runtime
-      username
+    mprofile <- selectUserByUsername runtime username
     case mprofile of
       Just profile -> existsErr
       Nothing      -> do

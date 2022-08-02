@@ -227,10 +227,11 @@ instance Errs.IsRuntimeErr UserErr where
       409
       "User exists"
       "A user with the same username or ID already exists."
-    UsernameBlocked -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
-      409 -- TODO
-      "Username disallowed"
-      "Some usernames are not allowed. Please select another."
+    UsernameBlocked ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409 -- TODO
+        "Username disallowed"
+        "Some usernames are not allowed. Please select another."
     UserNotFound msg -> msg
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
