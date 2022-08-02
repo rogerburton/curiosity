@@ -8,6 +8,7 @@ Description: User related datatypes
 -}
 module Curiosity.Data.User
   ( Signup(..)
+  , Login(..)
   , Credentials(..)
   , Update(..)
   , userCredsName
@@ -54,7 +55,8 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
--- | Represents the input data used for user registration.
+-- | Represents the input data used for user registration. This in effect is
+-- the operation to create a user.
 data Signup = Signup
   { username   :: UserName
   , password   :: Password
@@ -74,18 +76,16 @@ instance FromForm Signup where
           <$> parseMaybe "tos-consent" f
           )
 
--- | Represents user credentials. This is used both for user login and within
--- the application state.
-data Credentials = Credentials
-  { _userCredsName     :: UserName
-  , _userCredsPassword :: Password
+-- | Represents the input data to log in a user.
+data Login = Login
+  { _loginUsername :: UserName
+  , _loginPassword :: Password
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-instance FromForm Credentials where
-  fromForm f =
-    Credentials <$> parseUnique "username" f <*> parseUnique "password" f
+instance FromForm Login where
+  fromForm f = Login <$> parseUnique "username" f <*> parseUnique "password" f
 
 -- | Represents the input data to update a user profile.
 newtype Update = Update
@@ -107,6 +107,14 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   deriving anyclass (ToJSON, FromJSON)
 
 type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
+
+-- | Represents user credentials.
+data Credentials = Credentials
+  { _userCredsName     :: UserName
+  , _userCredsPassword :: Password
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName Text
