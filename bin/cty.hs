@@ -6,6 +6,7 @@ module Main
   ( main
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
@@ -102,9 +103,21 @@ run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarg
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.StateFileTarget path -> do
+      let handleError e
+            |
+              -- TODO What's the right way to pattern-match on the right type,
+              -- i.e. IOErr.
+              Errs.errCode e == "ERR.FILE_NOT_FOUND" = do
+              putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+              putStrLn @Text
+                "You may want to create a state file with `cty init`."
+              exitFailure
+            | otherwise = do
+              putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+              exitFailure
       runtime <-
         Rt.boot P.defaultConf { P._confDbFile = Just path }
-          >>= either throwIO pure
+          >>= either handleError pure
 
       exitCode <- Rt.handleCommand runtime putStrLn command
 
