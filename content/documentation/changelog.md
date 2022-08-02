@@ -4,6 +4,11 @@ title: Curiosity
 
 # Changelog
 
+## 2022-08-02
+
+- Expose the [Haddock documentation](/haddock/), add a favicon. See
+  [PR-41](https://github.com/hypered/curiosity/pull/41).
+
 ## 2022-08-01
 
 - Fix the User Id generation, used in the signup form and the `cty user create`
