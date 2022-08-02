@@ -308,7 +308,25 @@ profileView profile =
               keyValuePair @Text "Password" ""
               keyValuePair "Display name" (User._userProfileDisplayName profile)
               keyValuePair "Email address" (User._userProfileEmailAddr profile)
+              keyValuePair
+                "Email addr. verified"
+                (show $ User._userProfileEmailAddrVerified profile :: Text)
               keyValuePair "TOS consent" (User._userTosConsent profile)
+
+              keyValuePair
+                "Address"
+                (show $ User._userProfilePostalAddress profile :: Text)
+              keyValuePair
+                "Telephone number"
+                (show $ User._userProfileTelephoneNbr profile :: Text)
+              keyValuePair
+                "Addr. and tel. verified"
+                (show $ User._userProfileAddrAndTelVerified profile :: Text)
+
+              keyValuePair "EID" (show $ User._userProfileEId profile :: Text)
+              keyValuePair
+                "EID verified"
+                (show $ User._userProfileEIdVerified profile :: Text)
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =

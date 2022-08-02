@@ -96,17 +96,29 @@ newtype Update = Update
 instance FromForm Update where
   fromForm f = Update <$> parseMaybe "password" f
 
+
+--------------------------------------------------------------------------------
+type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
+
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
-  { _userProfileId          :: UserId
-  , _userProfileCreds       :: creds -- ^ Users credentials
-  , _userProfileDisplayName :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr   :: userEmailAddr -- ^ User's email address
-  , _userTosConsent         :: tosConsent
+  { _userProfileId            :: UserId
+  , _userProfileCreds         :: creds -- ^ Users credentials
+  , _userProfileDisplayName   :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr     :: userEmailAddr -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userTosConsent           :: tosConsent
+
+    -- For Completion-1 level
+  , _userProfilePostalAddress :: Maybe Text -- ^ Non-structured for now.
+  , _userProfileTelephoneNbr  :: Maybe Text
+  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
+
+    -- For Completion-2 level
+  , _userProfileEId           :: Maybe Text -- TODO Not sure what data this is.
+  , _userProfileEIdVerified :: Maybe Text -- TODO Date.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
-
-type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 -- | Represents user credentials.
 data Credentials = Credentials

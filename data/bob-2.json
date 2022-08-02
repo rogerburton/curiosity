@@ -1,0 +1,16 @@
+{
+  "_userProfileId": "USER-2",
+  "_userProfileCreds": {
+    "_userCredsName": "bob",
+    "_userCredsPassword": "secret"
+  },
+  "_userProfileEmailAddr": "bob@example.com",
+  "_userProfileEmailAddrVerified": "2022-08-02",
+  "_userProfileDisplayName": "Bob",
+  "_userTosConsent": true,
+  "_userProfilePostalAddress": "Some street 1",
+  "_userProfileTelephoneNbr": "(+32) 0000 00 00 00",
+  "_userProfileAddrAndTelVerified": "2022-08-02",
+  "_userProfileEId": "xxxx",
+  "_userProfileEIdVerified": "2022-08-02"
+}

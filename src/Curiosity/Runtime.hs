@@ -327,7 +327,13 @@ createUser runtime User.Signup {..} = do
                                     (User.Credentials username password)
                                     "TODO"
                                     email
+                                    Nothing
                                     tosConsent
+                                    Nothing
+                                    Nothing
+                                    Nothing
+                                    Nothing
+                                    Nothing
   createUserFull runtime newProfile
 
 createUserFull
