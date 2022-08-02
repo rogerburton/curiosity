@@ -5,9 +5,7 @@
 --
 --   nc -U curiosity.sock
 
-import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Command             as Command
-import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
