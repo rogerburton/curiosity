@@ -63,16 +63,18 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFil
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
-run (Command.CommandWithTarget (Command.Run conf scriptPath) (Command.StateFileTarget path))
-  = do
-    runtime <- Rt.boot conf >>= either throwIO pure
-    let handleExceptions = (`catch` P.shutdown runtime . Just)
-    handleExceptions $ do
-      interpret runtime scriptPath
-      P.shutdown runtime Nothing
+run (Command.CommandWithTarget (Command.Run conf scriptPath) target) =
+  case target of
+    Command.MemoryTarget -> do
+      handleRun P.defaultConf scriptPath
+    Command.StateFileTarget path -> do
+      handleRun P.defaultConf { P._confDbFile = Just path } scriptPath
+    Command.UnixDomainTarget path -> do
+      putStrLn @Text "TODO"
+      exitFailure
 
-run (Command.CommandWithTarget (Command.Parse confParser) _)
-  = case confParser of
+run (Command.CommandWithTarget (Command.Parse confParser) _) =
+  case confParser of
     Command.ConfCommand command -> do
       let result =
             A.execParserPure A.defaultPrefs Command.parserInfo
@@ -106,9 +108,43 @@ run (Command.CommandWithTarget command target) = do
       handleCommand P.defaultConf command
     Command.StateFileTarget path -> do
       handleCommand P.defaultConf { P._confDbFile = Just path } command
-
     Command.UnixDomainTarget path -> do
       client path command
+
+
+--------------------------------------------------------------------------------
+handleRun conf scriptPath = do
+  runtime <- Rt.boot conf >>= either throwIO pure
+  let handleExceptions = (`catch` P.shutdown runtime . Just)
+  handleExceptions $ do
+    interpret runtime scriptPath
+    Rt.powerdown runtime
+    exitSuccess
+
+interpret :: Rt.Runtime -> FilePath -> IO ()
+interpret runtime path = do
+  content <- readFile path
+  loop $ T.lines content
+ where
+  loop []            = pure ()
+  loop (line : rest) = case T.words line of
+    []       -> loop rest
+    ["quit"] -> pure ()
+    input    -> do
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo
+            $ map T.unpack input
+      case result of
+        A.Success command -> do
+          Rt.handleCommand runtime output' command
+          loop rest
+        A.Failure err -> do
+          output' $ show err
+          exitFailure
+        A.CompletionInvoked _ -> do
+          output' "Shouldn't happen"
+          exitFailure
+
+  output' = putStrLn . T.unpack
 
 
 --------------------------------------------------------------------------------
@@ -180,30 +216,3 @@ repl runtime = HL.runInputT HL.defaultSettings loop
   prompt  = "> "
 
   output' = HL.outputStrLn . T.unpack
-
-
---------------------------------------------------------------------------------
-interpret :: Rt.Runtime -> FilePath -> IO ()
-interpret runtime path = do
-  content <- readFile path
-  loop $ T.lines content
- where
-  loop []            = pure ()
-  loop (line : rest) = case T.words line of
-    []       -> loop rest
-    ["quit"] -> pure ()
-    input    -> do
-      let result = A.execParserPure A.defaultPrefs Command.parserInfo
-            $ map T.unpack input
-      case result of
-        A.Success command -> do
-          Rt.handleCommand runtime output' command
-          loop rest
-        A.Failure err -> do
-          output' $ show err
-          exitFailure
-        A.CompletionInvoked _ -> do
-          output' "Shouldn't happen"
-          exitFailure
-
-  output' = putStrLn . T.unpack
