@@ -71,7 +71,7 @@ run (Command.CommandWithTarget (Command.Run conf scriptPath) (Command.StateFileT
       interpret runtime scriptPath
       P.shutdown runtime Nothing
 
-run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarget path))
+run (Command.CommandWithTarget (Command.Parse confParser) _)
   = case confParser of
     Command.ConfCommand command -> do
       let result =
