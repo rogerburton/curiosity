@@ -239,8 +239,12 @@ handleCommand runtime display command = do
         Left err -> display (show err) >> pure (ExitFailure 1)
     Command.CreateUser input -> do
       output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
-      display $ show output
-      pure ExitSuccess
+      case output of
+        Right muid -> do
+          case muid of
+            Right (User.UserId uid) -> display $ "User created: " <> uid
+          pure ExitSuccess
+        Left err -> display (show err) >> pure (ExitFailure 1)
     Command.SelectUser select -> do
       output <- runAppMSafe runtime $ S.dbSelect select
       display $ show output
