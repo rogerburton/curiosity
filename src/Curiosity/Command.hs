@@ -53,7 +53,7 @@ data ParseConf =
 data CommandWithTarget = CommandWithTarget Command CommandTarget
   deriving Show
 
-data CommandTarget = StateFileTarget FilePath | UnixDomainTarget FilePath
+data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
   deriving Show
 
 
@@ -81,7 +81,10 @@ parserInfoWithTarget =
  where
   parser' = do
     target <-
-      StateFileTarget
+      (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
+        "Don't use a state file or a UNIX-domain socket."
+      )
+      <|> StateFileTarget
       <$> (  A.strOption
           $  A.short 's'
           <> A.long "state"
