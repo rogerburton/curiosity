@@ -218,7 +218,7 @@ data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
-             deriving Show
+             deriving (Exception, Show)
 
 instance Errs.IsRuntimeErr UserErr where
   errCode = errCode' . \case
