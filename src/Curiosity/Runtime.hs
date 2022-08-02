@@ -242,13 +242,24 @@ handleCommand runtime display command = do
       case output of
         Right muid -> do
           case muid of
-            Right (User.UserId uid) -> display $ "User created: " <> uid
-          pure ExitSuccess
+            Right (User.UserId uid) -> do
+              display $ "User created: " <> uid
+              pure ExitSuccess
+            Left err -> display (show err) >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
-    Command.SelectUser select -> do
-      output <- runAppMSafe runtime $ S.dbSelect select
-      display $ show output
-      pure ExitSuccess
+    Command.SelectUser useHs uid -> do
+      output <- runAppMSafe runtime $ withRuntimeAtomically selectUserById uid
+      case output of
+        Right mprofile -> do
+          case mprofile of
+            Just value -> do
+              let value' = if useHs
+                    then show value
+                    else LT.toStrict (Aeson.encodeToLazyText value)
+              display value'
+              pure ExitSuccess
+            Nothing -> display "No such user." >> pure (ExitFailure 1)
+        Left err -> display (show err) >> pure (ExitFailure 1)
     Command.UpdateUser update -> do
       output <- runAppMSafe runtime $ S.dbUpdate update
       display $ show output
@@ -311,8 +322,7 @@ instance S.DBStorage AppM User.UserProfile where
         >>= either Errs.throwError' (pure . pure)
 
     User.SelectUserById id ->
-      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
-        ((== id) . S.dbId)
+      toList <$> withRuntimeAtomically selectUserById id
 
     User.SelectUserByUserName username ->
       toList <$> withRuntimeAtomically selectUserByUsername username
