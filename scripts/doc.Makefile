@@ -6,6 +6,7 @@ TARGETS := $(addprefix _site/, $(HTML_FILES:content/%=%))
 .PHONY: all
 all: $(TARGETS) \
 	man \
+	_site/favicon.ico \
 	_site/robots.txt _site/humans.txt _site/.well-known/security.txt \
 	_site/documentation/clis/curiosity.7.html \
 	_site/documentation/clis/cty.1.html
@@ -41,6 +42,9 @@ _site/documentation/clis/%.7.html: %.7
 
 %.7.gz: %.7
 	gzip --keep $<
+
+_site/favicon.ico: content/favicon.ico
+	cp $< $@
 
 _site/robots.txt: content/robots.txt
 	cp $< $@
