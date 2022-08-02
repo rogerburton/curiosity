@@ -302,28 +302,13 @@ profileView profile =
         H.dl
           ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
           $ do
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Username"
-                H.dd
-                  ! A.class_ "c-key-value-item__value"
-                  $ ( H.toHtml
-                    . User._userCredsName
-                    . User._userProfileCreds
-                    $ profile
-                    )
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Password"
-                H.dd ! A.class_ "c-key-value-item__value" $ ""
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Display name"
-                H.dd
-                  ! A.class_ "c-key-value-item__value"
-                  $ (H.toHtml . User._userProfileDisplayName $ profile)
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Email address"
-                H.dd
-                  ! A.class_ "c-key-value-item__value"
-                  $ (H.toHtml . User._userProfileEmailAddr $ profile)
+              keyValuePair
+                "Username"
+                (User._userCredsName . User._userProfileCreds $ profile)
+              keyValuePair @Text "Password" ""
+              keyValuePair "Display name" (User._userProfileDisplayName profile)
+              keyValuePair "Email address" (User._userProfileEmailAddr profile)
+              keyValuePair "TOS consent" (User._userTosConsent profile)
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =
@@ -364,23 +349,13 @@ contractCreate1Confirm =
         H.dl
           ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
           $ do
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Worker"
-                H.dd ! A.class_ "c-key-value-item__value" $ "Manfred"
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Work setting"
-                H.dd
-                  ! A.class_ "c-key-value-item__value"
-                  $ "The work is mainly performed in places and at times freely chosen"
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Compensation budget"
-                H.dd ! A.class_ "c-key-value-item__value" $ "1000.00 EUR"
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Project"
-                H.dd ! A.class_ "c-key-value-item__value" $ "Unspecified"
-              H.div ! A.class_ "c-key-value-item" $ do
-                H.dt ! A.class_ "c-key-value-item__key" $ "Description"
-                H.dd ! A.class_ "c-key-value-item__value" $ "Some description."
+              keyValuePair @Text "Worker" "Manfred"
+              keyValuePair @Text
+                "Work setting"
+                "The work is mainly performed in places and at times freely chosen"
+              keyValuePair @Text "Compensation budget" "1000.00 EUR"
+              keyValuePair @Text "Project" "Unspecified"
+              keyValuePair @Text "Description" "Some description."
 
 
 data ProfileSaveConfirmPage = ProfileSaveSuccess
@@ -393,3 +368,10 @@ instance H.ToMarkup ProfileSaveConfirmPage where
     ProfileSaveFailure mmsg -> do
       H.text "We had a problem saving your data."
       maybe mempty (H.text . mappend "Reason: ") mmsg
+
+
+--------------------------------------------------------------------------------
+keyValuePair :: H.ToMarkup a => Text -> a -> H.Html
+keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
+  H.dt ! A.class_ "c-key-value-item__key" $ H.toHtml key
+  H.dd ! A.class_ "c-key-value-item__value" $ H.toHtml value
