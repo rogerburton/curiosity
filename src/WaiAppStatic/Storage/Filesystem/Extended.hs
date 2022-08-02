@@ -88,6 +88,7 @@ webAppLookup hashFunc prefix pieces = fileHelperLR hashFunc fp lastPiece
     = (init pieces, unsafeToPiece "index.html")
     | otherwise
     = let lastP = case fromPiece (last pieces) of
+            s | T.isSuffixOf ".ico" s -> last pieces
             s | T.isSuffixOf ".txt" s -> last pieces
             s                         -> unsafeToPiece $ s <> ".html"
       in  (init pieces, lastP)

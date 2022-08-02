@@ -18,3 +18,9 @@ for local development and the virtual machine available at
 The build system used for Curiosity is [Nix](https://nixos.org/). It ensures
 that the complete system, or its different parts, can be built reliably from
 source.
+
+When the image is built for a local KVM, its ports 80 and 22 are forwarded to
+the host ports 8180 and 8122.
+
+When the machine is built for DigitalOcean, it uses Let's encrypt to get a
+HTTPS certificate.

@@ -9,6 +9,8 @@
           proxyPass = "http://127.0.0.1:9000";
           extraConfig = "ssi on;";
         };
+        # TODO How to avoid hard-coding this 0.1.0.0 path ?
+        "/haddock/".alias = (import ../.).haddock + "/share/doc/curiosity-0.1.0.0/html/";
       };
     };
   };
