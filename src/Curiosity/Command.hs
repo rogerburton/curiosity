@@ -31,7 +31,7 @@ data Command =
     -- ^ Parse a single command.
   | State
     -- ^ Show the full state.
-  | UserCreate U.Signup
+  | CreateUser U.Signup
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
@@ -198,7 +198,7 @@ parserCreateUser = do
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   tosConsent <- A.switch
     (A.help "Indicate if the user being created consents to the TOS.")
-  return $ UserCreate $ U.Signup
+  return $ CreateUser $ U.Signup
     username
     password
     email

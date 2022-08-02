@@ -229,7 +229,7 @@ handleCommand runtime display command = do
         runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
       display $ show output
       pure ExitSuccess
-    Command.UserCreate input -> do
+    Command.CreateUser input -> do
       output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
       display $ show output
       pure ExitSuccess
