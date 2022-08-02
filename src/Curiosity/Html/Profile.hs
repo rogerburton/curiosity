@@ -311,7 +311,7 @@ profileView profile =
               keyValuePair
                 "Email addr. verified"
                 (show $ User._userProfileEmailAddrVerified profile :: Text)
-              keyValuePair "TOS consent" (User._userTosConsent profile)
+              keyValuePair "TOS consent" (User._userProfileTosConsent profile)
 
               keyValuePair
                 "Address"

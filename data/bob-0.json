@@ -6,5 +6,5 @@
   },
   "_userProfileEmailAddr": "bob@example.com",
   "_userProfileDisplayName": "Bob",
-  "_userTosConsent": true
+  "_userProfileTosConsent": true
 }

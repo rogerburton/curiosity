@@ -19,7 +19,7 @@ module Curiosity.Data.User
   , userProfileId
   , userProfileDisplayName
   , userProfileEmailAddr
-  , userTosConsent
+  , userProfileTosConsent
   , UserId(..)
   , UserName(..)
   , Password(..)
@@ -106,7 +106,7 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   , _userProfileDisplayName   :: userDisplayName -- ^ User's human friendly name
   , _userProfileEmailAddr     :: userEmailAddr -- ^ User's email address
   , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
-  , _userTosConsent           :: tosConsent
+  , _userProfileTosConsent           :: tosConsent
 
     -- For Completion-1 level
   , _userProfilePostalAddress :: Maybe Text -- ^ Non-structured for now.
