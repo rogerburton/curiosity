@@ -11,6 +11,7 @@ title: Curiosity
 - [Command-line interfaces](/documentation/clis)
 - [Deployment](/documentation/deployment)
 - [Forms](/documentation/forms)
+- [Library documentation](/documentation/library)
 - [Man pages](/documentation/man-pages)
 - [Messages](/documentation/messages)
 - [Objects](/documentation/objects)
