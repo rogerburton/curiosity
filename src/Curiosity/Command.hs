@@ -195,8 +195,10 @@ parserCreateUser = do
   password   <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   tosConsent <- A.switch
-    (A.help "Indicate if the user being created consents to the TOS.")
-  return $ CreateUser $ U.Signup username password email tosConsent -- TODO This doesn't seem to appear in --help.
+    (  A.long "accept-tos"
+    <> A.help "Indicate if the user being created consents to the TOS."
+    )
+  return $ CreateUser $ U.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
