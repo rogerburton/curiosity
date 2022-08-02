@@ -63,12 +63,12 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFil
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
-run (Command.CommandWithTarget (Command.Run conf) (Command.StateFileTarget path))
+run (Command.CommandWithTarget (Command.Run conf scriptPath) (Command.StateFileTarget path))
   = do
     runtime <- Rt.boot conf >>= either throwIO pure
     let handleExceptions = (`catch` P.shutdown runtime . Just)
     handleExceptions $ do
-      interpret runtime "scenarios/example.txt"
+      interpret runtime scriptPath
       P.shutdown runtime Nothing
 
 run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarget path))

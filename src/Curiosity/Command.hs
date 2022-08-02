@@ -25,7 +25,7 @@ data Command =
     -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
     -- ^ Run an HTTP server.
-  | Run P.Conf
+  | Run P.Conf FilePath
     -- ^ Interpret a script.
   | Parse ParseConf
     -- ^ Parse a single command.
@@ -155,7 +155,9 @@ parserServe :: A.Parser Command
 parserServe = Serve <$> P.confParser <*> P.serverParser
 
 parserRun :: A.Parser Command
-parserRun = Run <$> P.confParser
+parserRun = Run <$> P.confParser <*> A.argument
+  A.str
+  (A.metavar "FILE" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserFileName)
