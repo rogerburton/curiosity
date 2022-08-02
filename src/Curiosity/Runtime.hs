@@ -40,9 +40,11 @@ import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
+import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
@@ -224,11 +226,17 @@ handleCommand
   :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
 handleCommand runtime display command = do
   case command of
-    Command.State -> do
+    Command.State useHs -> do
       output <-
         runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
-      display $ show output
-      pure ExitSuccess
+      case output of
+        Right value -> do
+          let value' = if useHs
+                then show value
+                else LT.toStrict (Aeson.encodeToLazyText value)
+          display value'
+          pure ExitSuccess
+        Left err -> display (show err) >> pure (ExitFailure 1)
     Command.CreateUser input -> do
       output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
       display $ show output

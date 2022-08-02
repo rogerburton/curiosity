@@ -29,8 +29,8 @@ data Command =
     -- ^ Interpret a script.
   | Parse ParseConf
     -- ^ Parse a single command.
-  | State
-    -- ^ Show the full state.
+  | State Bool
+    -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateUser U.Signup
   | SelectUser (S.DBSelect U.UserProfile)
   | UpdateUser (S.DBUpdate U.UserProfile)
@@ -111,9 +111,7 @@ parser =
 
       <> A.command
            "repl"
-           ( A.info (parserRepl <**> A.helper)
-           $ A.progDesc "Start a REPL"
-           )
+           (A.info (parserRepl <**> A.helper) $ A.progDesc "Start a REPL")
 
       <> A.command
            "serve"
@@ -123,8 +121,7 @@ parser =
 
       <> A.command
            "run"
-           ( A.info (parserRun <**> A.helper)
-           $ A.progDesc "Interpret a script"
+           (A.info (parserRun <**> A.helper) $ A.progDesc "Interpret a script"
            )
 
       <> A.command
@@ -176,7 +173,8 @@ parserFileName = A.argument (A.eitherReader f)
   f s   = Right $ ConfFileName s
 
 parserState :: A.Parser Command
-parserState = pure State
+parserState = State <$> A.switch
+  (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
@@ -198,11 +196,7 @@ parserCreateUser = do
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   tosConsent <- A.switch
     (A.help "Indicate if the user being created consents to the TOS.")
-  return $ CreateUser $ U.Signup
-    username
-    password
-    email
-    tosConsent -- TODO This doesn't seem to appear in --help.
+  return $ CreateUser $ U.Signup username password email tosConsent -- TODO This doesn't seem to appear in --help.
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument

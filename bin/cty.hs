@@ -115,6 +115,8 @@ run (Command.CommandWithTarget command target) = do
     Command.UnixDomainTarget path -> do
       client path command
 
+
+--------------------------------------------------------------------------------
 client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
@@ -128,9 +130,9 @@ client path command = do
   exitSuccess
 
 commandToString = \case
-  Command.Init  -> undefined -- error "Can't send `init` to a server."
-  Command.State -> "state"
-  _             -> undefined -- error "Unimplemented"
+  Command.Init        -> undefined -- error "Can't send `init` to a server."
+  Command.State useHs -> "state" <> if useHs then " --hs" else ""
+  _                   -> undefined -- error "Unimplemented"
 
 
 --------------------------------------------------------------------------------
