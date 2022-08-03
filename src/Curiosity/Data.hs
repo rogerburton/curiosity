@@ -44,6 +44,7 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
 -- | Hask database type: used for starting the system, values reside in @Hask@ (thus `Identity`)
 type HaskDb runtime = Db Identity runtime
 
+deriving instance Eq (HaskDb runtime)
 deriving instance Show (HaskDb runtime)
 deriving instance Generic (HaskDb runtime)
 deriving anyclass instance ToJSON (HaskDb runtime)
