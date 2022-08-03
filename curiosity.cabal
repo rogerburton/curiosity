@@ -146,27 +146,16 @@ executable cty-sock
   ghc-options:
     -threaded
 
--- test-suite curiosity-test
-
---   import:
---        common-dependencies
---      , lang-settings
---      , common-extensions
-
---   -- merged with `common-build-depends` which is imported.
---   -- borrowed from https://github.com/centralapp/termigrator/pull/2/files#diff-1248d02c5f3dd87de97e3ff52a6d0169R82
---   build-depends:
---       QuickCheck
---     , hspec
---     , curiosity
-
---   other-modules:
---      Curiosity.Data.UserSpec
---      Curiosity.Data.TodoSpec
---      Curiosity.DataSpec
---      Curiosity.Data.Shared
-
---   type: exitcode-stdio-1.0
---   main-is: Spec.hs
---   hs-source-dirs:
---       test
+test-suite curiosity-tests
+  import: common-dependencies, lang-settings, common-extensions
+  build-depends:
+      curiosity
+    , hspec
+    , QuickCheck
+  other-modules:
+      Curiosity.DataSpec
+    , Curiosity.RuntimeSpec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      tests
