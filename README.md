@@ -144,6 +144,20 @@ Right (UsersVisualised [UserProfile {_userCreds = UserCreds {_userCredsId = User
 
 ```
 
+# Docker image
+
+A Docker image can be built to experiment with the `cty` program, and have
+access to man pages. By default, running the image will run Bash.
+
+```
+$ nix-build -A docker
+$ docker load < result
+$ docker run --privileged -it curiosity:vsj9an994jjrw47kv9fj0icjs2f6xq6r
+```
+
+Note: the image tag will be different as it depends on the actual image
+content.
+
 # Virtual machine images
 
 ## QEMU
