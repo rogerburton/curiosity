@@ -6,6 +6,7 @@ module Main
   ( main
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Parse               as P
@@ -62,16 +63,18 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFil
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
-run (Command.CommandWithTarget (Command.Run conf) (Command.StateFileTarget path))
-  = do
-    runtime <- Rt.boot conf >>= either throwIO pure
-    let handleExceptions = (`catch` P.shutdown runtime . Just)
-    handleExceptions $ do
-      interpret runtime "scenarios/example.txt"
-      P.shutdown runtime Nothing
+run (Command.CommandWithTarget (Command.Run conf scriptPath) target) =
+  case target of
+    Command.MemoryTarget -> do
+      handleRun P.defaultConf scriptPath
+    Command.StateFileTarget path -> do
+      handleRun P.defaultConf { P._confDbFile = Just path } scriptPath
+    Command.UnixDomainTarget path -> do
+      putStrLn @Text "TODO"
+      exitFailure
 
-run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarget path))
-  = case confParser of
+run (Command.CommandWithTarget (Command.Parse confParser) _) =
+  case confParser of
     Command.ConfCommand command -> do
       let result =
             A.execParserPure A.defaultPrefs Command.parserInfo
@@ -101,20 +104,72 @@ run (Command.CommandWithTarget (Command.Parse confParser) (Command.StateFileTarg
 
 run (Command.CommandWithTarget command target) = do
   case target of
+    Command.MemoryTarget -> do
+      handleCommand P.defaultConf command
     Command.StateFileTarget path -> do
-      runtime <-
-        Rt.boot P.defaultConf { P._confDbFile = Just path }
-          >>= either throwIO pure
-
-      exitCode <- Rt.handleCommand runtime putStrLn command
-
-      Rt.powerdown runtime
-      -- TODO shutdown runtime, loggers, save state, ...
-      exitWith exitCode
-
+      handleCommand P.defaultConf { P._confDbFile = Just path } command
     Command.UnixDomainTarget path -> do
       client path command
 
+
+--------------------------------------------------------------------------------
+handleRun conf scriptPath = do
+  runtime <- Rt.boot conf >>= either throwIO pure
+  let handleExceptions = (`catch` P.shutdown runtime . Just)
+  handleExceptions $ do
+    interpret runtime scriptPath
+    Rt.powerdown runtime
+    exitSuccess
+
+interpret :: Rt.Runtime -> FilePath -> IO ()
+interpret runtime path = do
+  content <- readFile path
+  loop $ T.lines content
+ where
+  loop []            = pure ()
+  loop (line : rest) = case T.words line of
+    []       -> loop rest
+    ["quit"] -> pure ()
+    input    -> do
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo
+            $ map T.unpack input
+      case result of
+        A.Success command -> do
+          Rt.handleCommand runtime output' command
+          loop rest
+        A.Failure err -> do
+          output' $ show err
+          exitFailure
+        A.CompletionInvoked _ -> do
+          output' "Shouldn't happen"
+          exitFailure
+
+  output' = putStrLn . T.unpack
+
+
+--------------------------------------------------------------------------------
+handleCommand conf command = do
+  let handleError e
+        |
+          -- TODO What's the right way to pattern-match on the right type,
+          -- i.e. IOErr.
+          Errs.errCode e == "ERR.FILE_NOT_FOUND" = do
+          putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+          putStrLn @Text "You may want to create a state file with `cty init`."
+          exitFailure
+        | otherwise = do
+          putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+          exitFailure
+  runtime  <- Rt.boot conf >>= either handleError pure
+
+  exitCode <- Rt.handleCommand runtime putStrLn command
+
+  Rt.powerdown runtime
+  -- TODO shutdown runtime, loggers, save state, ...
+  exitWith exitCode
+
+
+--------------------------------------------------------------------------------
 client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
@@ -128,9 +183,9 @@ client path command = do
   exitSuccess
 
 commandToString = \case
-  Command.Init  -> undefined -- error "Can't send `init` to a server."
-  Command.State -> "state"
-  _             -> undefined -- error "Unimplemented"
+  Command.Init        -> undefined -- error "Can't send `init` to a server."
+  Command.State useHs -> "state" <> if useHs then " --hs" else ""
+  _                   -> undefined -- error "Unimplemented"
 
 
 --------------------------------------------------------------------------------
@@ -161,30 +216,3 @@ repl runtime = HL.runInputT HL.defaultSettings loop
   prompt  = "> "
 
   output' = HL.outputStrLn . T.unpack
-
-
---------------------------------------------------------------------------------
-interpret :: Rt.Runtime -> FilePath -> IO ()
-interpret runtime path = do
-  content <- readFile path
-  loop $ T.lines content
- where
-  loop []            = pure ()
-  loop (line : rest) = case T.words line of
-    []       -> loop rest
-    ["quit"] -> pure ()
-    input    -> do
-      let result = A.execParserPure A.defaultPrefs Command.parserInfo
-            $ map T.unpack input
-      case result of
-        A.Success command -> do
-          Rt.handleCommand runtime output' command
-          loop rest
-        A.Failure err -> do
-          output' $ show err
-          exitFailure
-        A.CompletionInvoked _ -> do
-          output' "Shouldn't happen"
-          exitFailure
-
-  output' = putStrLn . T.unpack

@@ -25,14 +25,15 @@ data Command =
     -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
     -- ^ Run an HTTP server.
-  | Run P.Conf
+  | Run P.Conf FilePath
     -- ^ Interpret a script.
   | Parse ParseConf
     -- ^ Parse a single command.
-  | State
-    -- ^ Show the full state.
-  | UserCreate U.Signup
-  | SelectUser (S.DBSelect U.UserProfile)
+  | State Bool
+    -- ^ Show the full state. If True, use Haskell format instead of JSON.
+  | CreateUser U.Signup
+  | SelectUser Bool U.UserId
+    -- ^ Show a give user. If True, use Haskell format instead of JSON.
   | UpdateUser (S.DBUpdate U.UserProfile)
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
@@ -52,7 +53,7 @@ data ParseConf =
 data CommandWithTarget = CommandWithTarget Command CommandTarget
   deriving Show
 
-data CommandTarget = StateFileTarget FilePath | UnixDomainTarget FilePath
+data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
   deriving Show
 
 
@@ -80,7 +81,10 @@ parserInfoWithTarget =
  where
   parser' = do
     target <-
-      StateFileTarget
+      (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
+        "Don't use a state file or a UNIX-domain socket."
+      )
+      <|> StateFileTarget
       <$> (  A.strOption
           $  A.short 's'
           <> A.long "state"
@@ -111,9 +115,7 @@ parser =
 
       <> A.command
            "repl"
-           ( A.info (parserRepl <**> A.helper)
-           $ A.progDesc "Start a REPL"
-           )
+           (A.info (parserRepl <**> A.helper) $ A.progDesc "Start a REPL")
 
       <> A.command
            "serve"
@@ -123,8 +125,7 @@ parser =
 
       <> A.command
            "run"
-           ( A.info (parserRun <**> A.helper)
-           $ A.progDesc "Interpret a script"
+           (A.info (parserRun <**> A.helper) $ A.progDesc "Interpret a script"
            )
 
       <> A.command
@@ -157,7 +158,9 @@ parserServe :: A.Parser Command
 parserServe = Serve <$> P.confParser <*> P.serverParser
 
 parserRun :: A.Parser Command
-parserRun = Run <$> P.confParser
+parserRun = Run <$> P.confParser <*> A.argument
+  A.str
+  (A.metavar "FILE" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserFileName)
@@ -176,7 +179,8 @@ parserFileName = A.argument (A.eitherReader f)
   f s   = Right $ ConfFileName s
 
 parserState :: A.Parser Command
-parserState = pure State
+parserState = State <$> A.switch
+  (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
@@ -197,12 +201,10 @@ parserCreateUser = do
   password   <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
   tosConsent <- A.switch
-    (A.help "Indicate if the user being created consents to the TOS.")
-  return $ UserCreate $ U.Signup
-    username
-    password
-    email
-    tosConsent -- TODO This doesn't seem to appear in --help.
+    (  A.long "accept-tos"
+    <> A.help "Indicate if the user being created consents to the TOS."
+    )
+  return $ CreateUser $ U.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
@@ -210,9 +212,11 @@ parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
   (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserGetUser :: A.Parser Command
-parserGetUser = SelectUser . U.SelectUserById . U.UserId <$> A.argument
-  A.str
-  (A.metavar "USER-ID" <> A.help "A user ID")
+parserGetUser =
+  SelectUser
+    <$> A.switch
+          (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
+    <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserShowId :: A.Parser Command
 parserShowId =

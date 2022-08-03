@@ -101,21 +101,21 @@ instance FromForm Update where
 type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
-  { _userProfileId            :: UserId
-  , _userProfileCreds         :: creds -- ^ Users credentials
-  , _userProfileDisplayName   :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr     :: userEmailAddr -- ^ User's email address
-  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
-  , _userProfileTosConsent           :: tosConsent
+  { _userProfileId                 :: UserId
+  , _userProfileCreds              :: creds -- ^ Users credentials
+  , _userProfileDisplayName        :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr          :: userEmailAddr -- ^ User's email address
+  , _userProfileEmailAddrVerified  :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileTosConsent         :: tosConsent
 
     -- For Completion-1 level
-  , _userProfilePostalAddress :: Maybe Text -- ^ Non-structured for now.
-  , _userProfileTelephoneNbr  :: Maybe Text
+  , _userProfilePostalAddress      :: Maybe Text -- ^ Non-structured for now.
+  , _userProfileTelephoneNbr       :: Maybe Text
   , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
 
     -- For Completion-2 level
-  , _userProfileEId           :: Maybe Text -- TODO Not sure what data this is.
-  , _userProfileEIdVerified :: Maybe Text -- TODO Date.
+  , _userProfileEId                :: Maybe Text -- TODO Not sure what data this is.
+  , _userProfileEIdVerified        :: Maybe Text -- TODO Date.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -218,7 +218,7 @@ data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
-             deriving Show
+             deriving (Exception, Show)
 
 instance Errs.IsRuntimeErr UserErr where
   errCode = errCode' . \case

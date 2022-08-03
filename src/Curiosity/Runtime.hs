@@ -40,9 +40,11 @@ import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
+import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
@@ -224,19 +226,40 @@ handleCommand
   :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
 handleCommand runtime display command = do
   case command of
-    Command.State -> do
+    Command.State useHs -> do
       output <-
         runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
-      display $ show output
-      pure ExitSuccess
-    Command.UserCreate input -> do
+      case output of
+        Right value -> do
+          let value' = if useHs
+                then show value
+                else LT.toStrict (Aeson.encodeToLazyText value)
+          display value'
+          pure ExitSuccess
+        Left err -> display (show err) >> pure (ExitFailure 1)
+    Command.CreateUser input -> do
       output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
-      display $ show output
-      pure ExitSuccess
-    Command.SelectUser select -> do
-      output <- runAppMSafe runtime $ S.dbSelect select
-      display $ show output
-      pure ExitSuccess
+      case output of
+        Right muid -> do
+          case muid of
+            Right (User.UserId uid) -> do
+              display $ "User created: " <> uid
+              pure ExitSuccess
+            Left err -> display (show err) >> pure (ExitFailure 1)
+        Left err -> display (show err) >> pure (ExitFailure 1)
+    Command.SelectUser useHs uid -> do
+      output <- runAppMSafe runtime $ withRuntimeAtomically selectUserById uid
+      case output of
+        Right mprofile -> do
+          case mprofile of
+            Just value -> do
+              let value' = if useHs
+                    then show value
+                    else LT.toStrict (Aeson.encodeToLazyText value)
+              display value'
+              pure ExitSuccess
+            Nothing -> display "No such user." >> pure (ExitFailure 1)
+        Left err -> display (show err) >> pure (ExitFailure 1)
     Command.UpdateUser update -> do
       output <- runAppMSafe runtime $ S.dbUpdate update
       display $ show output
@@ -299,8 +322,7 @@ instance S.DBStorage AppM User.UserProfile where
         >>= either Errs.throwError' (pure . pure)
 
     User.SelectUserById id ->
-      withUserStorage $ liftIO . STM.readTVarIO >=> pure . filter
-        ((== id) . S.dbId)
+      toList <$> withRuntimeAtomically selectUserById id
 
     User.SelectUserByUserName username ->
       toList <$> withRuntimeAtomically selectUserByUsername username
@@ -322,19 +344,24 @@ selectUserByUsername runtime username = do
 
 createUser :: Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
 createUser runtime User.Signup {..} = do
-  newId <- generateUserId runtime
-  let newProfile = User.UserProfile newId
-                                    (User.Credentials username password)
-                                    "TODO"
-                                    email
-                                    Nothing
-                                    tosConsent
-                                    Nothing
-                                    Nothing
-                                    Nothing
-                                    Nothing
-                                    Nothing
-  createUserFull runtime newProfile
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateUserId runtime
+    let newProfile = User.UserProfile newId
+                                      (User.Credentials username password)
+                                      "TODO"
+                                      email
+                                      Nothing
+                                      tosConsent
+                                      Nothing
+                                      Nothing
+                                      Nothing
+                                      Nothing
+                                      Nothing
+    -- We fail the transaction if createUserFull returns an error,
+    -- so that we don't increment _dbNextUserId.
+    createUserFull runtime newProfile >>= either STM.throwSTM pure
 
 createUserFull
   :: Runtime -> User.UserProfile -> STM (Either User.UserErr User.UserId)
