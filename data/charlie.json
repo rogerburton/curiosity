@@ -1,9 +1,10 @@
 {
-  "_userProfileId": "USER-2",
+  "_userProfileId": "USER-3",
   "_userProfileCreds": {
     "_userCredsName": "charlie",
     "_userCredsPassword": "secret"
   },
   "_userProfileEmailAddr": "charlie@example.com",
-  "_userProfileDisplayName": "Charlie"
+  "_userProfileDisplayName": "Charlie",
+  "_userProfileTosConsent": false
 }

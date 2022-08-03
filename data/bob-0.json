@@ -1,0 +1,10 @@
+{
+  "_userProfileId": "USER-2",
+  "_userProfileCreds": {
+    "_userCredsName": "bob",
+    "_userCredsPassword": "secret"
+  },
+  "_userProfileEmailAddr": "bob@example.com",
+  "_userProfileDisplayName": "Bob",
+  "_userProfileTosConsent": true
+}

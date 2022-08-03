@@ -68,15 +68,4 @@ repl runtime conn = do
         A.Failure err -> print err
         A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
 
-      output <- Rt.runAppMSafe runtime $ S.dbUpdate
-          (User.UserCreate $ User.UserProfile
-            "USER-0"
-            (User.Credentials "alice" "pass")
-            "Alice"
-            "alice@example.com"
-            True
-          )
-
-      print output
-
       repl runtime conn

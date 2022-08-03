@@ -35,8 +35,8 @@ import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Profile        as Pages
-import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Parse               as Command
+import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
@@ -90,7 +90,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "state.json" :> Get '[JSON] (HaskDb Rt.Runtime)
 
              :<|> "echo" :> "login"
-                  :> ReqBody '[FormUrlEncoded] User.Credentials
+                  :> ReqBody '[FormUrlEncoded] User.Login
                   :> Post '[B.HTML] Login.ResultPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
@@ -234,8 +234,8 @@ echoSignup input = pure $ Signup.Success $ show input
 
 --------------------------------------------------------------------------------
 partialUsernameBlocklist :: ServerC m => m H.Html
-partialUsernameBlocklist = pure $
-  H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
+partialUsernameBlocklist =
+  pure . H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
 
 partialUsernameBlocklistAsJson :: ServerC m => m [Text]
 partialUsernameBlocklistAsJson = pure $ map show User.usernameBlocklist
@@ -247,7 +247,7 @@ showLoginPage = pure $ Login.Page "/a/login"
 documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
-echoLogin :: ServerC m => User.Credentials -> m Login.ResultPage
+echoLogin :: ServerC m => User.Login -> m Login.ResultPage
 echoLogin input = pure $ Login.Success $ show input
 
 
@@ -258,7 +258,7 @@ type Public =    "a" :> "signup"
                  :> ReqBody '[FormUrlEncoded] User.Signup
                  :> Post '[B.HTML] Signup.SignupResultPage
             :<|> "a" :> "login"
-                 :> ReqBody '[FormUrlEncoded] User.Credentials
+                 :> ReqBody '[FormUrlEncoded] User.Login
                  :> Verb 'POST 303 '[JSON] ( Headers CAuth.PostAuthHeaders
                                               NoContent
                                             )
@@ -296,16 +296,18 @@ handleLogin
    . ServerC m
   => Command.ServerConf
   -> SAuth.JWTSettings
-  -> User.Credentials
+  -> User.Login
   -> m (Headers CAuth.PostAuthHeaders NoContent)
 handleLogin conf jwtSettings input =
   ML.localEnv (<> "HTTP" <> "Login")
     $   do
           ML.info
             $  "Logging in user: "
-            <> show (User._userCredsName input)
+            <> show (User._loginUsername input)
             <> "..."
-          Rt.withRuntimeAtomically Rt.checkCredentials input
+          let credentials = User.Credentials (User._loginUsername input)
+                                             (User._loginPassword input)
+          Rt.withRuntimeAtomically Rt.checkCredentials credentials
     >>= \case
           Right u -> do
             ML.info "Found user, applying authentication cookies..."

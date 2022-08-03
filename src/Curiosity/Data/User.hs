@@ -8,6 +8,7 @@ Description: User related datatypes
 -}
 module Curiosity.Data.User
   ( Signup(..)
+  , Login(..)
   , Credentials(..)
   , Update(..)
   , userCredsName
@@ -18,7 +19,7 @@ module Curiosity.Data.User
   , userProfileId
   , userProfileDisplayName
   , userProfileEmailAddr
-  , userTosConsent
+  , userProfileTosConsent
   , UserId(..)
   , UserName(..)
   , Password(..)
@@ -54,7 +55,8 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
--- | Represents the input data used for user registration.
+-- | Represents the input data used for user registration. This in effect is
+-- the operation to create a user.
 data Signup = Signup
   { username   :: UserName
   , password   :: Password
@@ -74,18 +76,16 @@ instance FromForm Signup where
           <$> parseMaybe "tos-consent" f
           )
 
--- | Represents user credentials. This is used both for user login and within
--- the application state.
-data Credentials = Credentials
-  { _userCredsName     :: UserName
-  , _userCredsPassword :: Password
+-- | Represents the input data to log in a user.
+data Login = Login
+  { _loginUsername :: UserName
+  , _loginPassword :: Password
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-instance FromForm Credentials where
-  fromForm f =
-    Credentials <$> parseUnique "username" f <*> parseUnique "password" f
+instance FromForm Login where
+  fromForm f = Login <$> parseUnique "username" f <*> parseUnique "password" f
 
 -- | Represents the input data to update a user profile.
 newtype Update = Update
@@ -96,17 +96,37 @@ newtype Update = Update
 instance FromForm Update where
   fromForm f = Update <$> parseMaybe "password" f
 
+
+--------------------------------------------------------------------------------
+type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
+
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
-  { _userProfileId          :: UserId
-  , _userProfileCreds       :: creds -- ^ Users credentials
-  , _userProfileDisplayName :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr   :: userEmailAddr -- ^ User's email address
-  , _userTosConsent         :: tosConsent
+  { _userProfileId            :: UserId
+  , _userProfileCreds         :: creds -- ^ Users credentials
+  , _userProfileDisplayName   :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr     :: userEmailAddr -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileTosConsent           :: tosConsent
+
+    -- For Completion-1 level
+  , _userProfilePostalAddress :: Maybe Text -- ^ Non-structured for now.
+  , _userProfileTelephoneNbr  :: Maybe Text
+  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
+
+    -- For Completion-2 level
+  , _userProfileEId           :: Maybe Text -- TODO Not sure what data this is.
+  , _userProfileEIdVerified :: Maybe Text -- TODO Date.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
+-- | Represents user credentials.
+data Credentials = Credentials
+  { _userCredsName     :: UserName
+  , _userCredsPassword :: Password
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName Text
@@ -219,10 +239,11 @@ instance Errs.IsRuntimeErr UserErr where
       409
       "User exists"
       "A user with the same username or ID already exists."
-    UsernameBlocked -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
-      409 -- TODO
-      "Username disallowed"
-      "Some usernames are not allowed. Please select another."
+    UsernameBlocked ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409 -- TODO
+        "Username disallowed"
+        "Some usernames are not allowed. Please select another."
     UserNotFound msg -> msg
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage

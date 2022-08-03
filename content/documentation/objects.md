@@ -4,11 +4,7 @@ title: Curiosity
 
 # Objects
 
-[User profile](/views/profile/alice.json) — [JSON](/data/alice.json)
+[User profile](/documentation/objects/users)
 
 :   A user profile represents both user data used by Smart and user data
     displayed to other members or the public.
-
-# See also
-
-- [Sitemap](/documentation/sitemap)
