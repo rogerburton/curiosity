@@ -38,6 +38,22 @@ demonstrate and explore the features of the application.
 used by `cty` itself. E.g. `cty state` typed in a shell, is similar to `state`
 typed in the Curiosity REPL.
 
+# Tests
+
+Tests covering (partially) the library can be run by entering the Nix shell and
+using `cabal`:
+
+```
+$ nix-shell
+$ cabal test --test-show-details=direct --test-option=--format=checks
+```
+
+The same thing can be accomplished with a convenience script:
+`scripts/run-tests.sh`, which takes care of entering the Nix shell.
+
+The test suite uses `hspec`, so its [command-line
+options](https://hspec.github.io/options.html) apply.
+
 # Running
 
 It is possible to load the code in GHCi (but this exposes the Parse module,
