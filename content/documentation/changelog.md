@@ -4,6 +4,21 @@ title: Curiosity
 
 # Changelog
 
+## 2022-08-06
+
+- Introduce a `Login` data type, instead of re-using the `Credentials` one. The
+  user profile has been enriched with some fields. Those are supposed to be
+  checkd or verified, leading to different access rights. They are visible in the
+  user profile view, and additional example data are provided. See
+  [PR-42](https://github.com/hypered/curiosity/pull/42) and a [new
+  documentation page](/documentation/objects/users).
+- Streamline some `cty` usage: some commands have nicer outputs or error
+  reporting, and now support an explicit `--memory` option to not read or write
+  any file, or talk to a UNIX-domain socket. See
+  [PR-43](https://github.com/hypered/curiosity/pull/43).
+- Beginning of a test suite for the library code. See
+  [PR-44](https://github.com/hypered/curiosity/pull/44).
+
 ## 2022-08-02
 
 - Expose the [Haddock documentation](/haddock/), add a favicon. See
