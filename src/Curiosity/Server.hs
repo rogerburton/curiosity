@@ -25,6 +25,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
@@ -146,9 +147,12 @@ serverT conf jwtS root dataDir =
 type ServerC m
   = ( MonadMask m
     , ML.MonadAppNameLogMulti m
-    , S.DBStorage m User.UserProfile
+    , S.DBStorage m STM User.UserProfile
+    , S.DBTransaction m STM
     , MonadReader Rt.Runtime m
     , MonadIO m
+    , Show (S.DBError m STM User.UserProfile)
+    , S.Db m STM User.UserProfile ~ Data.StmDb Rt.Runtime
     )
 
 
@@ -272,12 +276,18 @@ publicT
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
 
 handleSignup
-  :: forall m . ServerC m => User.Signup -> m Signup.SignupResultPage
+  :: forall m
+   . (ServerC m, Show (S.DBError m STM User.UserProfile))
+  => User.Signup
+  -> m Signup.SignupResultPage
 handleSignup input@User.Signup {..} =
   ML.localEnv (<> "HTTP" <> "Signup")
     $   do
           ML.info $ "Signing up new user: " <> show username <> "..."
-          Rt.withRuntimeAtomically Rt.createUser input
+          db <- asks Rt._rDb
+          S.liftTxn @m @STM
+            $ S.dbUpdate @m db (User.UserCreateGeneratingUserId input)
+          -- Rt.withRuntimeAtomically Rt.createUser input
     >>= \case
           Right uid -> do
             ML.info
@@ -307,9 +317,9 @@ handleLogin conf jwtSettings input =
             <> "..."
           let credentials = User.Credentials (User._loginUsername input)
                                              (User._loginPassword input)
-          Rt.withRuntimeAtomically Rt.checkCredentials credentials
+          S.liftTxn @m @STM (Rt.checkCredentials undefined credentials)
     >>= \case
-          Right u -> do
+          Right (Just u) -> do
             ML.info "Found user, applying authentication cookies..."
             -- TODO I think jwtSettings could be retrieved with
             -- Servant.Server.getContetEntry. This would avoid threading
@@ -330,11 +340,14 @@ handleLogin conf jwtSettings input =
               Just applyCookies -> do
                 ML.info "Cookies applied. Sending success result."
                 pure . addHeader @"Location" "/" $ applyCookies NoContent
-          Left err -> do
-            ML.info
-              $  "Incorrect username or password. Sending failure result: "
-              <> show err
-            Errs.throwError' err
+          Right Nothing -> reportErr User.IncorrectUsernameOrPassword
+          Left  err     -> reportErr err
+ where
+  reportErr err = do
+    ML.info
+      $  "Incorrect username or password. Sending failure result: "
+      <> show err
+    Errs.throwError' err
 
 
 --------------------------------------------------------------------------------
@@ -396,19 +409,21 @@ handleUserUpdate
            Pages.ProfileSaveConfirmPage
        )
 handleUserUpdate User.Update {..} profile = case _editPassword of
-  Just newPass ->
+  Just newPass -> do
     let updatedProfile =
           profile
             &  User.userProfileCreds
             .  User.userCredsPassword
             %~ (`fromMaybe` _editPassword)
-    in  S.dbUpdate (User.UserPasswordUpdate (S.dbId profile) newPass)
-          <&> headMay
-          <&> SS.P.AuthdPage updatedProfile
-          .   \case
-                Nothing -> Pages.ProfileSaveFailure
-                  $ Just "Empty list of affected User IDs on update."
-                Just{} -> Pages.ProfileSaveSuccess
+    db   <- asks Rt._rDb
+    eIds <- S.liftTxn
+      (S.dbUpdate @m @STM db (User.UserPasswordUpdate (S.dbId profile) newPass))
+
+    let page = case eIds of
+          Right (Right [_]) -> Pages.ProfileSaveSuccess
+          _ -> Pages.ProfileSaveFailure (Just "Cannot update the user.")
+    pure $ SS.P.AuthdPage updatedProfile page
+
   Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
     "Nothing to update."
 
@@ -462,13 +477,16 @@ withMaybeUser
   -> (User.UserProfile -> m a)
   -> m a
 withMaybeUser authResult a f = case authResult of
-  SAuth.Authenticated userId ->
-    S.dbSelect (User.SelectUserById userId) <&> headMay >>= \case
-      Nothing -> do
-        ML.warning
-          "Cookie-based authentication succeeded, but the user ID is not found."
-        authFailedErr $ "No user found with ID " <> show userId
-      Just userProfile -> f userProfile
+  SAuth.Authenticated userId -> do
+    db <- asks Rt._rDb
+    S.liftTxn (S.dbSelect @m @STM db (User.SelectUserById userId))
+      <&> (preview $ _Right . _head)
+      >>= \case
+            Nothing -> do
+              ML.warning
+                "Cookie-based authentication succeeded, but the user ID is not found."
+              authFailedErr $ "No user found with ID " <> show userId
+            Just userProfile -> f userProfile
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
 

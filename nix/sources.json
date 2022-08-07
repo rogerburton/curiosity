@@ -6,9 +6,9 @@
         "type": "git"
     },
     "commence": {
-        "branch": "main",
+        "branch": "asheshambasta/feature/db-storage-monadic-revamp",
         "repo": "git@github.com:hypered/commence.git",
-        "rev": "9d7898b9a9df1ea119a6e8d8b3e6d0962d1e1347",
+        "rev": "c0a0cc7761f900fc983fdfce20c6ea8aacaa9a0d",
         "type": "git"
     },
     "design-hs": {
