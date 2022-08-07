@@ -97,7 +97,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Post '[B.HTML] Signup.ResultPage
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [Text]
+             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
@@ -237,8 +237,8 @@ partialUsernameBlocklist :: ServerC m => m H.Html
 partialUsernameBlocklist =
   pure . H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
 
-partialUsernameBlocklistAsJson :: ServerC m => m [Text]
-partialUsernameBlocklistAsJson = pure $ map show User.usernameBlocklist
+partialUsernameBlocklistAsJson :: ServerC m => m [User.UserName]
+partialUsernameBlocklistAsJson = pure User.usernameBlocklist
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
