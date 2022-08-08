@@ -31,6 +31,8 @@ module Curiosity.Data.User
   , UserId(..)
   , UserName(..)
   , Password(..)
+  , Predicate(..)
+  , applyPredicate
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -231,6 +233,13 @@ instance Storage.DBStorageOps UserProfile where
     -- | Select a user with `UserName`.
     | SelectUserByUserName UserName
     deriving (Show, Eq)
+
+-- | Predicates to filter users.
+data Predicate = PredicateEmailAddrToVerify
+  deriving Show
+
+applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
+  isNothing _userProfileEmailAddrVerified
 
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.

@@ -261,6 +261,17 @@ handleCommand runtime display command = do
               pure ExitSuccess
             Nothing -> display "No such user." >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
+    Command.FilterUsers predicate -> do
+      output <- runAppMSafe runtime
+        $ withRuntimeAtomically filterUsers predicate
+      case output of
+        Right profiles -> do
+          let f User.UserProfile {..} =
+                let User.UserId   i = _userProfileId
+                    User.UserName n = User._userCredsName _userProfileCreds
+                in  putStrLn $ i <> " " <> n
+          mapM_ f profiles
+          pure ExitSuccess
     Command.UpdateUser update -> do
       output <- runAppMSafe runtime $ S.dbUpdate update
       display $ show output
@@ -342,6 +353,12 @@ selectUserByUsername runtime username = do
   users' <- STM.readTVar usersTVar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
+
+filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers runtime predicate = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  pure $ filter (User.applyPredicate predicate) users'
 
 createUser :: Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
 createUser runtime User.Signup {..} = do

@@ -127,6 +127,16 @@ run (Command.CommandWithTarget (Command.Parse confParser) _) =
       print content
       exitSuccess
 
+run (Command.CommandWithTarget (Command.ViewQueue name) target) = do
+  case target of
+    Command.MemoryTarget -> do
+      handleViewQueue P.defaultConf name
+    Command.StateFileTarget path -> do
+      handleViewQueue P.defaultConf { P._confDbFile = Just path } name
+    Command.UnixDomainTarget path -> do
+      putStrLn @Text "TODO"
+      exitFailure
+
 run (Command.CommandWithTarget (Command.ShowId i) target) = do
   case target of
     Command.MemoryTarget -> do
@@ -180,6 +190,19 @@ interpret runtime path = do
           exitFailure
 
   output' = putStrLn . T.unpack
+
+
+--------------------------------------------------------------------------------
+handleViewQueue conf name = do
+  case name of
+    "user-email-addr-to-verify" -> do
+      handleCommand conf (Command.FilterUsers User.PredicateEmailAddrToVerify)
+    "" -> do
+      putStrLn @Text "Please provide a queue name."
+      exitFailure
+    _ -> do
+      putStrLn $ "Unknown queue name " <> name <> "."
+      exitFailure
 
 
 --------------------------------------------------------------------------------

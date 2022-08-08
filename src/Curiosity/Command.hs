@@ -35,7 +35,11 @@ data Command =
   | CreateUser U.Signup
   | SelectUser Bool U.UserId
     -- ^ Show a give user. If True, use Haskell format instead of JSON.
+  | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
+  | ViewQueue Text
+    -- ^ View queue. The queues can be filters applied to objects, not
+    -- necessarily explicit list in database.
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
@@ -150,6 +154,12 @@ parser =
            ( A.info (parserUser <**> A.helper)
            $ A.progDesc "User-related commands"
            )
+
+      <> A.command
+           "queue"
+           ( A.info (parserQueue <**> A.helper)
+           $ A.progDesc "Display a queue's content"
+           )
       )
     <|> parserShowId
 
@@ -236,6 +246,10 @@ parserGetUser =
     <$> A.switch
           (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
     <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+
+parserQueue :: A.Parser Command
+parserQueue =
+  ViewQueue <$> A.argument A.str (A.metavar "QUEUE" <> A.help "Queue name")
 
 parserShowId :: A.Parser Command
 parserShowId =
