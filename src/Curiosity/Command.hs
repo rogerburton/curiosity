@@ -37,6 +37,8 @@ data Command =
     -- ^ Show a give user. If True, use Haskell format instead of JSON.
   | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
+  | SetUserEmailAddrAsVerified U.UserId
+    -- ^ High-level operations on users.
   | ViewQueue Text
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -222,6 +224,11 @@ parserUser = A.subparser
   <> A.command
        "get"
        (A.info (parserGetUser <**> A.helper) $ A.progDesc "Select a user")
+  <> A.command
+       "do"
+       ( A.info (parserUserLifeCycle <**> A.helper)
+       $ A.progDesc "Perform a high-level operation on a user"
+       )
   )
 
 parserCreateUser :: A.Parser Command
@@ -246,6 +253,16 @@ parserGetUser =
     <$> A.switch
           (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
     <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+
+parserUserLifeCycle :: A.Parser Command
+parserUserLifeCycle = A.subparser $ A.command
+  "set-email-addr-as-verified"
+  ( A.info (p <**> A.helper)
+  $ A.progDesc "Perform a high-level operation on a user"
+  )
+ where
+  p = SetUserEmailAddrAsVerified
+    <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
 
 parserQueue :: A.Parser Command
 parserQueue =

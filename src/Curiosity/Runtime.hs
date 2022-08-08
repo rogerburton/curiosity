@@ -276,6 +276,15 @@ handleCommand runtime display command = do
       output <- runAppMSafe runtime $ S.dbUpdate update
       display $ show output
       pure ExitSuccess
+    Command.SetUserEmailAddrAsVerified uid -> do
+      output <- runAppMSafe runtime
+        $ withRuntimeAtomically setUserEmailAddrAsVerified uid
+      case output of
+        Right (Right ()) -> do
+          display "User successfully updated."
+          pure ExitSuccess
+        Right (Left err) -> display (show err) >> pure (ExitFailure 1)
+        Left  err        -> display (show err) >> pure (ExitFailure 1)
     _ -> do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
@@ -409,6 +418,24 @@ modifyUsers :: Runtime -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
 modifyUsers runtime f = do
   let usersTVar = Data._dbUserProfiles $ _rDb runtime
   STM.modifyTVar usersTVar f
+
+setUserEmailAddrAsVerified
+  :: Runtime -> User.UserId -> STM (Either User.UserErr ())
+setUserEmailAddrAsVerified runtime uid = do
+  mprofile <- selectUserById runtime uid
+  case mprofile of
+    Just User.UserProfile {..} -> case _userProfileEmailAddrVerified of
+      Nothing -> do
+        let replaceOlder users =
+              [ if S.dbId u == uid
+                  then u { User._userProfileEmailAddrVerified = Just "TODO" }
+                  else u
+              | u <- users
+              ]
+        modifyUsers runtime replaceOlder
+        pure $ Right ()
+      Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
+    Nothing -> pure . Left $ User.UserNotFound "TODO"
 
 checkCredentials
   :: Runtime -> User.Credentials -> STM (Either User.UserErr User.UserProfile)

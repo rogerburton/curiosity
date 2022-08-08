@@ -245,6 +245,7 @@ data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
+             | EmailAddrAlreadyVerified
              deriving (Eq, Exception, Show)
 
 instance Errs.IsRuntimeErr UserErr where
@@ -253,6 +254,7 @@ instance Errs.IsRuntimeErr UserErr where
     UsernameBlocked             -> "USERNAME_BLOCKED"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
+    EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
@@ -260,6 +262,7 @@ instance Errs.IsRuntimeErr UserErr where
     UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
+    EmailAddrAlreadyVerified    -> HTTP.conflict409
 
   userMessage = Just . \case
     UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -277,6 +280,11 @@ instance Errs.IsRuntimeErr UserErr where
         401
         "Wrong credentials"
         "The supplied username or password is incorrect."
+    EmailAddrAlreadyVerified ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409
+        "Life-cycle error"
+        "The user email address is already verified."
 
 
 --------------------------------------------------------------------------------
