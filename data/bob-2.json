@@ -8,9 +8,13 @@
   "_userProfileEmailAddrVerified": "2022-08-02",
   "_userProfileDisplayName": "Bob",
   "_userProfileTosConsent": true,
-  "_userProfilePostalAddress": "Some street 1",
-  "_userProfileTelephoneNbr": "(+32) 0000 00 00 00",
-  "_userProfileAddrAndTelVerified": "2022-08-02",
-  "_userProfileEId": "xxxx",
-  "_userProfileEIdVerified": "2022-08-02"
+  "_userProfileCompletion1": {
+    "_userProfilePostalAddress": "Some street 1",
+    "_userProfileTelephoneNbr": "(+32) 0000 00 00 00",
+    "_userProfileAddrAndTelVerified": "2022-08-02"
+  },
+  "_userProfileCompletion2": {
+    "_userProfileEId": "xxxx",
+    "_userProfileEIdVerified": "2022-08-02"
+  }
 }

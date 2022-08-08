@@ -15,6 +15,8 @@ module Curiosity.Data.User
   , userCredsPassword
   , UserProfile'(..)
   , UserProfile
+  , UserCompletion1(..)
+  , UserCompletion2(..)
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
@@ -107,21 +109,14 @@ instance FromForm Update where
 type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
-  { _userProfileId                 :: UserId
-  , _userProfileCreds              :: creds -- ^ Users credentials
-  , _userProfileDisplayName        :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr          :: userEmailAddr -- ^ User's email address
-  , _userProfileEmailAddrVerified  :: Maybe Text -- ^ TODO Last date it was checked.
-  , _userProfileTosConsent         :: tosConsent
-
-    -- For Completion-1 level
-  , _userProfilePostalAddress      :: Maybe Text -- ^ Non-structured for now.
-  , _userProfileTelephoneNbr       :: Maybe Text
-  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
-
-    -- For Completion-2 level
-  , _userProfileEId                :: Maybe Text -- TODO Not sure what data this is.
-  , _userProfileEIdVerified        :: Maybe Text -- TODO Date.
+  { _userProfileId                :: UserId
+  , _userProfileCreds             :: creds -- ^ Users credentials
+  , _userProfileDisplayName       :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr         :: userEmailAddr -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileTosConsent        :: tosConsent
+  , _userProfileCompletion1       :: UserCompletion1
+  , _userProfileCompletion2       :: UserCompletion2
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -130,6 +125,23 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
 data Credentials = Credentials
   { _userCredsName     :: UserName
   , _userCredsPassword :: Password
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- For Completion-1 level
+data UserCompletion1 = UserCompletion1
+  { _userProfilePostalAddress      :: Maybe Text -- ^ Non-structured for now.
+  , _userProfileTelephoneNbr       :: Maybe Text
+  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- For Completion-2 level
+data UserCompletion2 = UserCompletion2
+  { _userProfileEId         :: Maybe Text -- TODO Not sure what data this is.
+  , _userProfileEIdVerified :: Maybe Text -- TODO Date.
   }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -257,6 +269,10 @@ instance Errs.IsRuntimeErr UserErr where
         "Wrong credentials"
         "The supplied username or password is incorrect."
 
+
+--------------------------------------------------------------------------------
+makeLenses ''UserCompletion2
+makeLenses ''UserCompletion1
 makeLenses ''Credentials
 makeLenses ''UserProfile'
 

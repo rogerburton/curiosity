@@ -315,18 +315,40 @@ profileView profile =
 
               keyValuePair
                 "Address"
-                (show $ User._userProfilePostalAddress profile :: Text)
+                (show
+                . User._userProfilePostalAddress
+                . User._userProfileCompletion1
+                $ profile :: Text
+                )
               keyValuePair
                 "Telephone number"
-                (show $ User._userProfileTelephoneNbr profile :: Text)
+                (show
+                . User._userProfileTelephoneNbr
+                . User._userProfileCompletion1
+                $ profile :: Text
+                )
               keyValuePair
                 "Addr. and tel. verified"
-                (show $ User._userProfileAddrAndTelVerified profile :: Text)
+                (show
+                . User._userProfileAddrAndTelVerified
+                . User._userProfileCompletion1
+                $ profile :: Text
+                )
 
-              keyValuePair "EID" (show $ User._userProfileEId profile :: Text)
+              keyValuePair
+                "EID"
+                (show
+                . User._userProfileEId
+                . User._userProfileCompletion2
+                $ profile :: Text
+                )
               keyValuePair
                 "EID verified"
-                (show $ User._userProfileEIdVerified profile :: Text)
+                (show
+                . User._userProfileEIdVerified
+                . User._userProfileCompletion2
+                $ profile :: Text
+                )
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =

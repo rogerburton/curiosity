@@ -349,17 +349,15 @@ createUser runtime User.Signup {..} = do
  where
   transaction = do
     newId <- generateUserId runtime
-    let newProfile = User.UserProfile newId
-                                      (User.Credentials username password)
-                                      "TODO"
-                                      email
-                                      Nothing
-                                      tosConsent
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
+    let newProfile = User.UserProfile
+          newId
+          (User.Credentials username password)
+          "TODO"
+          email
+          Nothing
+          tosConsent
+          (User.UserCompletion1 Nothing Nothing Nothing)
+          (User.UserCompletion2 Nothing Nothing)
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     createUserFull runtime newProfile >>= either STM.throwSTM pure
