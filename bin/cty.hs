@@ -127,6 +127,16 @@ run (Command.CommandWithTarget (Command.Parse confParser) _) =
       print content
       exitSuccess
 
+run (Command.CommandWithTarget (Command.ShowId i) target) = do
+  case target of
+    Command.MemoryTarget -> do
+      handleShowId P.defaultConf i
+    Command.StateFileTarget path -> do
+      handleShowId P.defaultConf { P._confDbFile = Just path } i
+    Command.UnixDomainTarget path -> do
+      putStrLn @Text "TODO"
+      exitFailure
+
 run (Command.CommandWithTarget command target) = do
   case target of
     Command.MemoryTarget -> do
@@ -173,18 +183,19 @@ interpret runtime path = do
 
 
 --------------------------------------------------------------------------------
+handleShowId conf i = do
+  case T.splitOn "-" i of
+    "USER" : _ -> do
+      handleCommand conf (Command.SelectUser False $ User.UserId i)
+    prefix : _ -> do
+      putStrLn $ "Unknown ID prefix " <> prefix <> "."
+      exitFailure
+    [] -> do
+      putStrLn @Text "Please provide an ID."
+      exitFailure
+
+--------------------------------------------------------------------------------
 handleCommand conf command = do
-  let handleError e
-        |
-          -- TODO What's the right way to pattern-match on the right type,
-          -- i.e. IOErr.
-          Errs.errCode e == "ERR.FILE_NOT_FOUND" = do
-          putStrLn (fromMaybe "Error." $ Errs.userMessage e)
-          putStrLn @Text "You may want to create a state file with `cty init`."
-          exitFailure
-        | otherwise = do
-          putStrLn (fromMaybe "Error." $ Errs.userMessage e)
-          exitFailure
   runtime  <- Rt.boot conf >>= either handleError pure
 
   exitCode <- Rt.handleCommand runtime putStrLn command
@@ -192,6 +203,18 @@ handleCommand conf command = do
   Rt.powerdown runtime
   -- TODO shutdown runtime, loggers, save state, ...
   exitWith exitCode
+
+handleError e
+  |
+    -- TODO What's the right way to pattern-match on the right type,
+    -- i.e. IOErr.
+    Errs.errCode e == "ERR.FILE_NOT_FOUND" = do
+    putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+    putStrLn @Text "You may want to create a state file with `cty init`."
+    exitFailure
+  | otherwise = do
+    putStrLn (fromMaybe "Error." $ Errs.userMessage e)
+    exitFailure
 
 
 --------------------------------------------------------------------------------
