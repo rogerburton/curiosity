@@ -9,12 +9,15 @@ module Main
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
+import qualified Data.Aeson                    as Aeson
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as T
 import           Network.Socket
 import           Network.Socket.ByteString      ( recv
                                                 , send
@@ -90,6 +93,28 @@ run (Command.CommandWithTarget (Command.Parse confParser) _) =
         A.CompletionInvoked _ -> do
           print @IO @Text "Shouldn't happen"
           exitFailure
+
+    Command.ParseObject typ fileName -> do
+      content <- readFile fileName
+      case typ of
+        Command.ParseState -> do
+          let result = Aeson.eitherDecodeStrict (T.encodeUtf8 content)
+          case result of
+            Right (value :: Data.HaskDb Rt.Runtime) -> do
+              print value
+              exitSuccess
+            Left err -> do
+              print err
+              exitFailure
+        Command.ParseUser -> do
+          let result = Aeson.eitherDecodeStrict (T.encodeUtf8 content)
+          case result of
+            Right (value :: User.UserProfile) -> do
+              print value
+              exitSuccess
+            Left err -> do
+              print err
+              exitFailure
 
     -- TODO We need a parser for multiple commands separated by newlines.
     Command.ConfFileName fileName -> do

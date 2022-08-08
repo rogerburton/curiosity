@@ -5,6 +5,7 @@ module Curiosity.Command
   , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
+  , ObjectType(..)
   , parserInfo
   , parserInfoWithTarget
   ) where
@@ -43,6 +44,10 @@ data ParseConf =
     ConfCommand Text
   | ConfFileName FilePath
   | ConfStdin
+  | ParseObject ObjectType FilePath
+  deriving Show
+
+data ObjectType = ParseState | ParseUser
   deriving Show
 
 -- | The same commands, defined above, can be used within the UNIX-domain
@@ -163,7 +168,7 @@ parserRun = Run <$> P.confParser <*> A.argument
   (A.metavar "FILE" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
-parserParse = Parse <$> (parserCommand <|> parserFileName)
+parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
 
 parserCommand :: A.Parser ParseConf
 parserCommand = ConfCommand <$> A.strOption
@@ -177,6 +182,20 @@ parserFileName = A.argument (A.eitherReader f)
  where
   f "-" = Right ConfStdin
   f s   = Right $ ConfFileName s
+
+parserObject :: A.Parser ParseConf
+parserObject =
+  ParseObject
+    <$> A.option
+          (A.eitherReader f)
+          (A.long "object" <> A.metavar "TYPE" <> A.help
+            "Type of the object to parse."
+          )
+    <*> A.argument A.str (A.metavar "FILE" <> A.help "Object to parse.")
+ where
+  f "state" = Right ParseState
+  f "user"  = Right ParseUser
+  f _       = Left "Unrecognized object type."
 
 parserState :: A.Parser Command
 parserState = State <$> A.switch
