@@ -20,6 +20,12 @@ module Curiosity.Data.User
   , userProfileDisplayName
   , userProfileEmailAddr
   , userProfileTosConsent
+  , userProfileAddrAndTelVerified
+  , userProfileEId
+  , userProfileEIdVerified
+  , userProfileEmailAddrVerified
+  , userProfilePostalAddress
+  , userProfileTelephoneNbr
   , UserId(..)
   , UserName(..)
   , Password(..)
