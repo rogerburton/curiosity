@@ -10,6 +10,7 @@ module Curiosity.Parse
   , mkLoggingConf
   , confParser
   , serverParser
+  , defaultServerConf
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -70,7 +71,7 @@ confParser = do
   _confDbFile <- dbFileParser
   pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-                 _confLogging = defaultLoggingConf, .. }
+              _confLogging = defaultLoggingConf, .. }
 
 serverParser :: A.Parser ServerConf
 serverParser = do
@@ -104,6 +105,19 @@ serverParser = do
     , _serverMkJwtSettings = SAuth.defaultJWTSettings
     , ..
     }
+
+defaultServerConf :: ServerConf
+defaultServerConf = ServerConf
+  { _serverCookie        = SAuth.defaultCookieSettings
+                             { SAuth.cookieIsSecure    = SAuth.NotSecure
+                             , SAuth.cookieXsrfSetting = Nothing
+                             , SAuth.cookieSameSite    = SAuth.SameSiteStrict
+                             }
+  , _serverMkJwtSettings = SAuth.defaultJWTSettings
+  , _serverPort          = 9000
+  , _serverStaticDir     = "./_site/"
+  , _serverDataDir       = "./data/"
+  }
 
 
 --------------------------------------------------------------------------------

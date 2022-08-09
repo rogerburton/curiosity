@@ -20,7 +20,9 @@ import qualified Options.Applicative           as A
 -- | Describes the command available from the command-line with `cty`, or
 -- within the UNIX-domain socket server, `cty-sock`, or the `cty-repl-2` REPL.
 data Command =
-    Init
+    Layout
+    -- ^ Display the routing layout of the web server.
+  | Init
     -- ^ Initialise a new, empty state file.
   | Repl P.Conf
     -- ^ Run a REPL.
@@ -119,6 +121,12 @@ parser :: A.Parser Command
 parser =
   A.subparser
       (  A.command
+          "layout"
+          ( A.info (parserLayout <**> A.helper)
+          $ A.progDesc "Display the routing layout of the web server"
+          )
+
+      <> A.command
           "init"
           ( A.info (parserInit <**> A.helper)
           $ A.progDesc "Initialise a new, empty state file"
@@ -164,6 +172,9 @@ parser =
            )
       )
     <|> parserShowId
+
+parserLayout :: A.Parser Command
+parserLayout = pure Layout
 
 parserInit :: A.Parser Command
 parserInit = pure Init

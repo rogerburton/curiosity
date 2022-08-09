@@ -13,6 +13,7 @@ module Curiosity.Server
     -- * Top level server types.
   , serverT
   , serve
+  , routingLayout
   , run
 
     -- * Type-aliases for convenience
@@ -201,6 +202,18 @@ serve handlerNatTrans conf ctx jwtS root dataDir =
  where
   appProxy      = Proxy @App
   settingsProxy = Proxy @ServerSettings
+
+routingLayout :: forall m . MonadIO m => m Text
+routingLayout = do
+  let Command.ServerConf {..} = Command.defaultServerConf
+  jwk <- liftIO $ SAuth.generateKey
+  let jwtSettings = _serverMkJwtSettings jwk
+  let ctx =
+        _serverCookie
+          Server.:. jwtSettings
+          Server.:. errorFormatters
+          Server.:. Server.EmptyContext
+  pure $ layoutWithContext (Proxy @App) ctx
 
 
 --------------------------------------------------------------------------------

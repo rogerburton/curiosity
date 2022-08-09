@@ -13,6 +13,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
+import qualified Curiosity.Server              as Srv
 import qualified Data.Aeson                    as Aeson
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
@@ -34,6 +35,10 @@ main = A.execParser Command.parserInfoWithTarget >>= run
 
 --------------------------------------------------------------------------------
 run :: Command.CommandWithTarget -> IO ExitCode
+run (Command.CommandWithTarget Command.Layout _) = do
+  Srv.routingLayout >>= putStrLn
+  exitSuccess
+
 run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
   do
     exists <- liftIO $ doesFileExist path
