@@ -123,7 +123,7 @@ serverT
   -> FilePath
   -> ServerT App m
 serverT conf jwtS root dataDir =
-  showLandingPage
+  showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage
@@ -224,13 +224,13 @@ routingLayout = do
 --------------------------------------------------------------------------------
 -- | Show the landing page when the user is not logged in, or the welcome page
 -- when the user is logged in.
-showLandingPage
+showHomePage
   :: ServerC m
   => SAuth.AuthResult User.UserId
   -> m (PageEither Pages.LandingPage Pages.WelcomePage)
      -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
      -- to not have the automatic heading.
-showLandingPage authResult = withMaybeUser
+showHomePage authResult = withMaybeUser
   authResult
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\userProfile -> pure $ SS.P.PageR Pages.WelcomePage)
