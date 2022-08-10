@@ -20,6 +20,7 @@ module Curiosity.Runtime
   , withRuntimeAtomically
   -- * High-level operations
   , selectUserById
+  , selectUserByUsername
   , createUser
   , checkCredentials
   -- * Servant compat
@@ -287,8 +288,7 @@ handleCommand runtime display user command = do
             if b
               then setUserEmailAddrAsVerified runtime input
               else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
-      output <- runAppMSafe runtime
-        $ withRuntimeAtomically transaction uid
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
       case output of
         Right (Right ()) -> do
           display "User successfully updated."
@@ -301,20 +301,24 @@ handleCommand runtime display user command = do
 
 canPerform runtime user command = case command of
   Command.SetUserEmailAddrAsVerified _ -> do
-      output <- selectUserById runtime user
-      case output of
-        Just User.UserProfile {..} -> pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
-        _ -> pure False
+    output <- selectUserById runtime user
+    case output of
+      Just User.UserProfile {..} ->
+        pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+      _ -> pure False
 
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.
 interpret
-  :: Data.HaskDb Runtime -> User.UserId -> [Command.Command] -> IO [Data.HaskDb Runtime]
+  :: Data.HaskDb Runtime
+  -> User.UserId
+  -> [Command.Command]
+  -> IO [Data.HaskDb Runtime]
 interpret = loop []
  where
   -- TODO Maybe it would be more efficient to thread a runtime instate of a
   -- state (that needs to be "booted" over and over again).
-  loop acc _  _ []                  = pure $ reverse acc
+  loop acc _  _    []               = pure $ reverse acc
   loop acc st user (command : rest) = do
     runtime <- boot' st "/tmp/curiosity-xxx.log"
     handleCommand runtime display user command

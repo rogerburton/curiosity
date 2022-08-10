@@ -108,8 +108,8 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "data" :> Raw
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
-             :<|> "alice" :> Get '[B.HTML] H.Html
-             :<|> "alice+" :> Get '[B.HTML] H.Html
+             :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -393,7 +393,7 @@ handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
   (Command._serverCookie conf)
   NoContent
 
-showProfilePage profile = pure $ Pages.ProfileView profile
+showProfilePage profile = pure $ Pages.ProfileView profile True
 
 showProfileAsJson
   :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
@@ -439,7 +439,7 @@ documentEditProfilePage = do
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
-  pure $ Pages.ProfileView profile
+  pure $ Pages.ProfileView profile True
 
 
 --------------------------------------------------------------------------------
@@ -489,6 +489,38 @@ withMaybeUser authResult a f = case authResult of
       Just userProfile -> f userProfile
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
+
+-- | Run a handler, ensuring a user profile can be extracted from the
+-- authentication result, or throw an error.
+withUserFromUsername
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserProfile -> m a)
+  -> m a
+withUserFromUsername username f = withMaybeUserFromUsername
+  username
+  (noSuchUserErr . show)
+  f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting a user profile, or a normal handler,
+-- depending on if a user profile can be queried using the supplied username or
+-- not.
+withMaybeUserFromUsername
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserName -> m a)
+  -> (User.UserProfile -> m a)
+  -> m a
+withMaybeUserFromUsername username a f = do
+  mprofile <- Rt.withRuntimeAtomically Rt.selectUserByUsername username
+  case mprofile of
+    Just userProfile -> f userProfile
+    Nothing          -> a username
 
 
 --------------------------------------------------------------------------------
@@ -543,13 +575,16 @@ errorFormatters = defaultErrorFormatters
 --------------------------------------------------------------------------------
 -- | Serve the pages under a namespace. TODO Currently the namespace is
 -- hard-coded to "alice"
-serveNamespace :: ServerC m => User.UserName -> m H.Html
-serveNamespace username =
-  pure . H.toHtml @Text $ "Public profile: " <> show username
+serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
+serveNamespace username = withUserFromUsername
+  username
+  (\profile -> pure $ Pages.PublicProfileView profile)
 
-serveNamespaceDocumentation :: ServerC m => User.UserName -> m H.Html
-serveNamespaceDocumentation username =
-  pure . H.toHtml @Text $ "Profile documentation: " <> show username
+serveNamespaceDocumentation
+  :: ServerC m => User.UserName -> m Pages.ProfileView
+serveNamespaceDocumentation username = withUserFromUsername
+  username
+  (\profile -> pure $ Pages.ProfileView profile False)
 
 
 --------------------------------------------------------------------------------
