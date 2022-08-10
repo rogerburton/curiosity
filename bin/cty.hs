@@ -200,14 +200,8 @@ interpret runtime user path = do
 --------------------------------------------------------------------------------
 handleViewQueue conf user name = do
   case name of
-    "user-email-addr-to-verify" -> do
+    Command.EmailAddrToVerify -> do
       handleCommand conf user (Command.FilterUsers User.PredicateEmailAddrToVerify)
-    "" -> do
-      putStrLn @Text "Please provide a queue name."
-      exitFailure
-    _ -> do
-      putStrLn $ "Unknown queue name " <> name <> "."
-      exitFailure
 
 
 --------------------------------------------------------------------------------

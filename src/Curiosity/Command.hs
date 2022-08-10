@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 module Curiosity.Command
   ( Command(..)
+  , QueueName(..)
   , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
@@ -41,12 +42,15 @@ data Command =
   | UpdateUser (S.DBUpdate U.UserProfile)
   | SetUserEmailAddrAsVerified U.UserId
     -- ^ High-level operations on users.
-  | ViewQueue Text
+  | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
+
+data QueueName = EmailAddrToVerify
+  deriving (Eq, Show)
 
 data ParseConf =
     ConfCommand Text
@@ -284,9 +288,28 @@ parserUserLifeCycle = A.subparser $ A.command
   p = SetUserEmailAddrAsVerified
     <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
 
+-- TODO I'm using subcommands to have all queue names appear in `--help` but
+-- the word COMMAND seems wrong:
+--
+--     cty queue --help
+--     Usage: <interactive> queue COMMAND
+--       Display a queue's content
+--
+--     Available options:
+--       -h,--help                Show this help text
+--
+--     Available commands:
+--       user-email-addr-to-verify
 parserQueue :: A.Parser Command
-parserQueue =
-  ViewQueue <$> A.argument A.str (A.metavar "QUEUE" <> A.help "Queue name")
+parserQueue = A.subparser $ A.command
+  "user-email-addr-to-verify"
+  ( A.info (p <**> A.helper)
+  $ A.progDesc "Show users with an email address that need verification. \
+      \Use `cty user do set-email-addr-as-verified` to mark an email address \
+      \as verified."
+  )
+ where
+  p = pure $ ViewQueue EmailAddrToVerify
 
 parserShowId :: A.Parser Command
 parserShowId =
