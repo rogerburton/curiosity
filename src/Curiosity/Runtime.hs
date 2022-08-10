@@ -19,8 +19,10 @@ module Curiosity.Runtime
   , runAppMSafe
   , withRuntimeAtomically
   -- * High-level operations
+  , canPerform
   , selectUserById
   , selectUserByUsername
+  , filterUsers
   , createUser
   , checkCredentials
   -- * Servant compat

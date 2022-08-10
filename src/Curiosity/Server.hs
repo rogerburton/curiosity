@@ -26,6 +26,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Command             as Command
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
@@ -233,7 +234,20 @@ showHomePage
 showHomePage authResult = withMaybeUser
   authResult
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
-  (\userProfile -> pure $ SS.P.PageR Pages.WelcomePage)
+  (\userProfile -> do
+    runtime <- ask
+    b       <- liftIO $ atomically $ Rt.canPerform
+      runtime
+      (User._userProfileId userProfile)
+      (Command.SetUserEmailAddrAsVerified "TODO") -- TODO User ID is ignored.
+    profiles <- if b
+      then
+        Just
+          <$> Rt.withRuntimeAtomically Rt.filterUsers
+                                       User.PredicateEmailAddrToVerify
+      else pure Nothing
+    pure . SS.P.PageR $ Pages.WelcomePage userProfile profiles
+  )
 
 
 --------------------------------------------------------------------------------
