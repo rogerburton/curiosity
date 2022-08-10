@@ -35,11 +35,11 @@ main = A.execParser Command.parserInfoWithTarget >>= run
 
 --------------------------------------------------------------------------------
 run :: Command.CommandWithTarget -> IO ExitCode
-run (Command.CommandWithTarget Command.Layout _) = do
+run (Command.CommandWithTarget Command.Layout _ _) = do
   Srv.routingLayout >>= putStrLn
   exitSuccess
 
-run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
+run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
   do
     exists <- liftIO $ doesFileExist path
     if exists
@@ -56,32 +56,32 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path)) =
             exitSuccess
           )
 
-run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path))
+run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path) user)
   = do
     runtime <- Rt.boot conf >>= either throwIO pure
     let handleExceptions = (`catch` P.shutdown runtime . Just)
     handleExceptions $ do
-      repl runtime
+      repl runtime user
       P.shutdown runtime Nothing
 
-run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFileTarget path))
+run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFileTarget path) _)
   = do
     runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
     P.startServer serverConf runtime >>= P.endServer _rLoggers
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
-run (Command.CommandWithTarget (Command.Run conf scriptPath) target) =
+run (Command.CommandWithTarget (Command.Run conf scriptPath) target user) =
   case target of
     Command.MemoryTarget -> do
-      handleRun P.defaultConf scriptPath
+      handleRun P.defaultConf user scriptPath
     Command.StateFileTarget path -> do
-      handleRun P.defaultConf { P._confDbFile = Just path } scriptPath
+      handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath
     Command.UnixDomainTarget path -> do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget (Command.Parse confParser) _) =
+run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
   case confParser of
     Command.ConfCommand command -> do
       let result =
@@ -132,47 +132,47 @@ run (Command.CommandWithTarget (Command.Parse confParser) _) =
       print content
       exitSuccess
 
-run (Command.CommandWithTarget (Command.ViewQueue name) target) = do
+run (Command.CommandWithTarget (Command.ViewQueue name) target user) = do
   case target of
     Command.MemoryTarget -> do
-      handleViewQueue P.defaultConf name
+      handleViewQueue P.defaultConf user name
     Command.StateFileTarget path -> do
-      handleViewQueue P.defaultConf { P._confDbFile = Just path } name
+      handleViewQueue P.defaultConf { P._confDbFile = Just path } user name
     Command.UnixDomainTarget path -> do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget (Command.ShowId i) target) = do
+run (Command.CommandWithTarget (Command.ShowId i) target user) = do
   case target of
     Command.MemoryTarget -> do
-      handleShowId P.defaultConf i
+      handleShowId P.defaultConf user i
     Command.StateFileTarget path -> do
-      handleShowId P.defaultConf { P._confDbFile = Just path } i
+      handleShowId P.defaultConf { P._confDbFile = Just path } user i
     Command.UnixDomainTarget path -> do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget command target) = do
+run (Command.CommandWithTarget command target user) = do
   case target of
     Command.MemoryTarget -> do
-      handleCommand P.defaultConf command
+      handleCommand P.defaultConf user command
     Command.StateFileTarget path -> do
-      handleCommand P.defaultConf { P._confDbFile = Just path } command
+      handleCommand P.defaultConf { P._confDbFile = Just path } user command
     Command.UnixDomainTarget path -> do
       client path command
 
 
 --------------------------------------------------------------------------------
-handleRun conf scriptPath = do
+handleRun conf user scriptPath = do
   runtime <- Rt.boot conf >>= either throwIO pure
   let handleExceptions = (`catch` P.shutdown runtime . Just)
   handleExceptions $ do
-    interpret runtime scriptPath
+    interpret runtime user scriptPath
     Rt.powerdown runtime
     exitSuccess
 
-interpret :: Rt.Runtime -> FilePath -> IO ()
-interpret runtime path = do
+interpret :: Rt.Runtime -> User.UserId -> FilePath -> IO ()
+interpret runtime user path = do
   content <- readFile path
   loop $ T.lines content
  where
@@ -185,7 +185,7 @@ interpret runtime path = do
             $ map T.unpack input
       case result of
         A.Success command -> do
-          Rt.handleCommand runtime output' command
+          Rt.handleCommand runtime output' user command
           loop rest
         A.Failure err -> do
           output' $ show err
@@ -198,10 +198,10 @@ interpret runtime path = do
 
 
 --------------------------------------------------------------------------------
-handleViewQueue conf name = do
+handleViewQueue conf user name = do
   case name of
     "user-email-addr-to-verify" -> do
-      handleCommand conf (Command.FilterUsers User.PredicateEmailAddrToVerify)
+      handleCommand conf user (Command.FilterUsers User.PredicateEmailAddrToVerify)
     "" -> do
       putStrLn @Text "Please provide a queue name."
       exitFailure
@@ -211,10 +211,10 @@ handleViewQueue conf name = do
 
 
 --------------------------------------------------------------------------------
-handleShowId conf i = do
+handleShowId conf user i = do
   case T.splitOn "-" i of
     "USER" : _ -> do
-      handleCommand conf (Command.SelectUser False $ User.UserId i)
+      handleCommand conf user (Command.SelectUser False $ User.UserId i)
     prefix : _ -> do
       putStrLn $ "Unknown ID prefix " <> prefix <> "."
       exitFailure
@@ -223,10 +223,10 @@ handleShowId conf i = do
       exitFailure
 
 --------------------------------------------------------------------------------
-handleCommand conf command = do
+handleCommand conf user command = do
   runtime  <- Rt.boot conf >>= either handleError pure
 
-  exitCode <- Rt.handleCommand runtime putStrLn command
+  exitCode <- Rt.handleCommand runtime putStrLn user command
 
   Rt.powerdown runtime
   -- TODO shutdown runtime, loggers, save state, ...
@@ -265,8 +265,8 @@ commandToString = \case
 
 
 --------------------------------------------------------------------------------
-repl :: Rt.Runtime -> IO ()
-repl runtime = HL.runInputT HL.defaultSettings loop
+repl :: Rt.Runtime -> User.UserId -> IO ()
+repl runtime user = HL.runInputT HL.defaultSettings loop
  where
   loop = HL.getInputLine prompt >>= \case
     Nothing     -> output' ""
@@ -283,7 +283,7 @@ repl runtime = HL.runInputT HL.defaultSettings loop
               $ T.pack input
       case result of
         A.Success command ->
-          Rt.handleCommand runtime output' command >> pure ()
+          Rt.handleCommand runtime output' user command >> pure ()
         A.Failure           err -> output' $ show err
         A.CompletionInvoked _   -> output' "Shouldn't happen"
 

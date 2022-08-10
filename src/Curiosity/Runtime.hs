@@ -224,8 +224,13 @@ instance ML.MonadAppNameLogMulti AppM where
 -- provide some flexibility, so this function can be used in both `cty` and
 -- `cty repl`.
 handleCommand
-  :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
-handleCommand runtime display command = do
+  :: MonadIO m
+  => Runtime
+  -> (Text -> m ())
+  -> User.UserId -- ^ The user performing the command.
+  -> Command.Command
+  -> m ExitCode
+handleCommand runtime display user command = do
   case command of
     Command.State useHs -> do
       output <-
@@ -277,8 +282,13 @@ handleCommand runtime display command = do
       display $ show output
       pure ExitSuccess
     Command.SetUserEmailAddrAsVerified uid -> do
+      let transaction runtime input = do
+            b <- canPerform runtime user command
+            if b
+              then setUserEmailAddrAsVerified runtime input
+              else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
       output <- runAppMSafe runtime
-        $ withRuntimeAtomically setUserEmailAddrAsVerified uid
+        $ withRuntimeAtomically transaction uid
       case output of
         Right (Right ()) -> do
           display "User successfully updated."
@@ -289,20 +299,27 @@ handleCommand runtime display command = do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
 
+canPerform runtime user command = case command of
+  Command.SetUserEmailAddrAsVerified _ -> do
+      output <- selectUserById runtime user
+      case output of
+        Just User.UserProfile {..} -> pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+        _ -> pure False
+
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.
 interpret
-  :: Data.HaskDb Runtime -> [Command.Command] -> IO [Data.HaskDb Runtime]
+  :: Data.HaskDb Runtime -> User.UserId -> [Command.Command] -> IO [Data.HaskDb Runtime]
 interpret = loop []
  where
   -- TODO Maybe it would be more efficient to thread a runtime instate of a
   -- state (that needs to be "booted" over and over again).
-  loop acc _  []               = pure $ reverse acc
-  loop acc st (command : rest) = do
+  loop acc _  _ []                  = pure $ reverse acc
+  loop acc st user (command : rest) = do
     runtime <- boot' st "/tmp/curiosity-xxx.log"
-    handleCommand runtime display command
+    handleCommand runtime display user command
     st' <- Data.readFullStmDbInHask $ _rDb runtime
-    loop (st' : acc) st' rest
+    loop (st' : acc) st' user rest
   display = putStrLn -- TODO Accumulate in a list, so it can be returned.
                      -- TODO Is is possible to also log to a list ?
 
@@ -384,6 +401,8 @@ createUser runtime User.Signup {..} = do
           tosConsent
           (User.UserCompletion1 Nothing Nothing Nothing)
           (User.UserCompletion2 Nothing Nothing)
+          -- The very first user has plenty of rights:
+          (if newId == "USER-1" then [User.CanVerifyEmailAddr] else [])
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     createUserFull runtime newProfile >>= either STM.throwSTM pure

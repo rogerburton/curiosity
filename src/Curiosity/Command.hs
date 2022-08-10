@@ -62,8 +62,10 @@ data ObjectType = ParseState | ParseUser
 -- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
 -- In the later case, a user might want to direct the command-line tool to
 -- interact with a server, or a local state file. This data type is meant to
--- augment the above commands with such options.
-data CommandWithTarget = CommandWithTarget Command CommandTarget
+-- augment the above commands with such options. In addition, the command is
+-- supposed to be performed by the given user. This is to be set by SSH's
+-- ForceCommand.
+data CommandWithTarget = CommandWithTarget Command CommandTarget U.UserId
   deriving Show
 
 data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
@@ -93,6 +95,13 @@ parserInfoWithTarget =
         \a state file."
  where
   parser' = do
+    user <-
+      (  A.strOption
+      $  A.short 'u'
+      <> A.long "user"
+      <> A.help "A user ID performing this command."
+      <> A.metavar "USER-ID"
+      )
     target <-
       (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
         "Don't use a state file or a UNIX-domain socket."
@@ -113,7 +122,7 @@ parserInfoWithTarget =
           <> A.metavar "FILEPATH"
           )
     command <- parser
-    return $ CommandWithTarget command target
+    return $ CommandWithTarget command target user
 
 
 --------------------------------------------------------------------------------
@@ -127,10 +136,10 @@ parser =
           )
 
       <> A.command
-          "init"
-          ( A.info (parserInit <**> A.helper)
-          $ A.progDesc "Initialise a new, empty state file"
-          )
+           "init"
+           ( A.info (parserInit <**> A.helper)
+           $ A.progDesc "Initialise a new, empty state file"
+           )
 
       <> A.command
            "repl"

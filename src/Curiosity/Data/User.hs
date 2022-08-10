@@ -17,6 +17,7 @@ module Curiosity.Data.User
   , UserProfile
   , UserCompletion1(..)
   , UserCompletion2(..)
+  , AccessRight(..)
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
@@ -119,6 +120,7 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   , _userProfileTosConsent        :: tosConsent
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
+  , _userProfileRights            :: [AccessRight]
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -145,6 +147,11 @@ data UserCompletion2 = UserCompletion2
   { _userProfileEId         :: Maybe Text -- TODO Not sure what data this is.
   , _userProfileEIdVerified :: Maybe Text -- TODO Date.
   }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- Enable/disable some accesses.
+data AccessRight = CanVerifyEmailAddr
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -235,17 +242,21 @@ instance Storage.DBStorageOps UserProfile where
     deriving (Show, Eq)
 
 -- | Predicates to filter users.
-data Predicate = PredicateEmailAddrToVerify
+data Predicate = PredicateEmailAddrToVerify | PredicateHas AccessRight
   deriving Show
 
 applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
   isNothing _userProfileEmailAddrVerified
+
+applyPredicate (PredicateHas a) UserProfile {..} =
+  a `elem` _userProfileRights
 
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
              | EmailAddrAlreadyVerified
+             | MissingRight AccessRight
              deriving (Eq, Exception, Show)
 
 instance Errs.IsRuntimeErr UserErr where
@@ -255,6 +266,7 @@ instance Errs.IsRuntimeErr UserErr where
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
+    MissingRight a              -> "MISSING_RIGHT_" <> "TODO"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
@@ -263,6 +275,7 @@ instance Errs.IsRuntimeErr UserErr where
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
     EmailAddrAlreadyVerified    -> HTTP.conflict409
+    MissingRight _              -> HTTP.unauthorized401
 
   userMessage = Just . \case
     UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -285,6 +298,11 @@ instance Errs.IsRuntimeErr UserErr where
         409
         "Life-cycle error"
         "The user email address is already verified."
+    MissingRight a ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        401
+        "Unauthorized action" $
+        "The user has not the required access right " <> show a
 
 
 --------------------------------------------------------------------------------
