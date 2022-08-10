@@ -107,6 +107,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Private
              :<|> "data" :> Raw
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
+             -- TODO Make a single handler for any namespace:
+             :<|> "alice" :> Get '[B.HTML] H.Html
+             :<|> "alice+" :> Get '[B.HTML] H.Html
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -138,6 +141,8 @@ serverT conf jwtS root dataDir =
     :<|> privateT conf
     :<|> serveData dataDir
     :<|> serveErrors
+    :<|> serveNamespace "alice"
+    :<|> serveNamespaceDocumentation "alice"
     :<|> serveDocumentation root
 
 
@@ -533,6 +538,18 @@ serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
 
 errorFormatters :: Server.ErrorFormatters
 errorFormatters = defaultErrorFormatters
+
+
+--------------------------------------------------------------------------------
+-- | Serve the pages under a namespace. TODO Currently the namespace is
+-- hard-coded to "alice"
+serveNamespace :: ServerC m => User.UserName -> m H.Html
+serveNamespace username =
+  pure . H.toHtml @Text $ "Public profile: " <> show username
+
+serveNamespaceDocumentation :: ServerC m => User.UserName -> m H.Html
+serveNamespaceDocumentation username =
+  pure . H.toHtml @Text $ "Profile documentation: " <> show username
 
 
 --------------------------------------------------------------------------------
