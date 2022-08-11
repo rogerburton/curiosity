@@ -20,9 +20,7 @@ spec :: Spec
 spec = do
   describe "UserProfile JSON parser" $ do
     let go (filename, username) = it ("Parses " <> filename) $ do
-          content <- readFile $ "data/" </> filename
-          let Right (result :: User.UserProfile) =
-                Aeson.eitherDecodeStrict (T.encodeUtf8 content)
+          Right (result :: User.UserProfile) <- parseFile $ "data/" </> filename
           User._userProfileDisplayName result `shouldBe` username
     mapM_
       go
@@ -64,7 +62,22 @@ spec = do
             )
             `shouldThrow` (== ExitSuccess)
 
-          content <- readFile stateFile
-          let Right value = Aeson.eitherDecodeStrict (T.encodeUtf8 content)
+          Right value <- parseFile stateFile
           value `shouldBe` state
-    mapM_ go [("init", Data.emptyHask)]
+
+    malice <- runIO $ parseFile "data/alice.json"
+    case malice of
+      Right alice -> do
+        let aliceState =
+              Data.emptyHask { Data._dbUserProfiles = Identity [alice] }
+        mapM_ go
+              [("init", Data.emptyHask)
+          -- TODO:
+          -- , ("user create alice secret alice@example.com", aliceState)
+                                       ]
+
+
+--------------------------------------------------------------------------------
+parseFile path = do
+  content <- readFile path
+  pure $ Aeson.eitherDecodeStrict (T.encodeUtf8 content)
