@@ -5,6 +5,7 @@ module CuriositySpec
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Run                 as Run
 import qualified Data.Aeson                    as Aeson
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -49,12 +50,21 @@ spec = do
 
   describe "Command-line interface execution" $ do
     let go (arguments, state) = it ("Runs '" <> T.unpack arguments <> "'") $ do
+          stateFile <- pure "/tmp/curiosity-test-state.json"
+
           let A.Success command =
                 A.execParserPure A.defaultPrefs Command.parserInfo
                   $ map T.unpack
                   $ words arguments
-          -- Command.run command
-          content <- readFile "state.json"
+
+          (Run.run $ Command.CommandWithTarget
+              command
+              (Command.StateFileTarget stateFile)
+              (Command.User $ User.UserName "alice")
+            )
+            `shouldThrow` (== ExitSuccess)
+
+          content <- readFile stateFile
           let Right value = Aeson.eitherDecodeStrict (T.encodeUtf8 content)
           value `shouldBe` state
     mapM_ go [("init", Data.emptyHask)]

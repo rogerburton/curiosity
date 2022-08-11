@@ -87,6 +87,7 @@ library
   exposed-modules:
     Curiosity.Command
     Curiosity.Data
+    Curiosity.Run
     Curiosity.Runtime
     Curiosity.Data.Todo
     Curiosity.Data.User
@@ -110,7 +111,9 @@ library
     , directory 
     , fast-logger
     , filepath
+    , haskeline
     , memory
+    , network
     , optparse-applicative
     , unix-compat
     , wai-app-static
@@ -125,9 +128,7 @@ executable cty
     , curiosity
     , directory
     , fast-logger
-    , haskeline
     , optparse-applicative
-    , network
   hs-source-dirs: bin
   ghc-options:
     -threaded
