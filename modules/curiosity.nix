@@ -5,6 +5,7 @@
     script = ''
       # TODO system is meaningless for now.
       ${(import ../.).binaries}/bin/cty \
+        --memory \
         --user system \
         serve \
         --server-port 9000 \

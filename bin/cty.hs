@@ -70,12 +70,14 @@ run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path
       repl runtime user
       P.shutdown runtime Nothing
 
-run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFileTarget path) _)
-  = do
-    runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
-    P.startServer serverConf runtime >>= P.endServer _rLoggers
-    mPowerdownErrs <- Rt.powerdown runtime
-    maybe exitSuccess throwIO mPowerdownErrs
+run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) =
+  case target of
+    Command.MemoryTarget -> handleServe conf serverConf
+    Command.StateFileTarget path ->
+      handleServe conf { P._confDbFile = Just path } serverConf
+    Command.UnixDomainTarget path -> do
+      putStrLn @Text "TODO"
+      exitFailure
 
 run (Command.CommandWithTarget (Command.Run conf scriptPath) target (Command.User user))
   = case target of
@@ -171,6 +173,16 @@ run (Command.CommandWithTarget command target (Command.User user)) = do
 
 
 --------------------------------------------------------------------------------
+handleServe :: P.Conf -> P.ServerConf -> IO ExitCode
+handleServe conf serverConf = do
+  runtime@Rt.Runtime {..} <- Rt.boot conf >>= either throwIO pure
+  P.startServer serverConf runtime >>= P.endServer _rLoggers
+  mPowerdownErrs <- Rt.powerdown runtime
+  maybe exitSuccess throwIO mPowerdownErrs
+
+
+--------------------------------------------------------------------------------
+handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
 handleRun conf user scriptPath = do
   runtime <- Rt.boot conf >>= either throwIO pure
   let handleExceptions = (`catch` P.shutdown runtime . Just)
