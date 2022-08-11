@@ -1,6 +1,6 @@
 { config, lib, pkgs, ... }:
 {
-  systemd.services.app = {
+  systemd.services.curiosity = {
     wantedBy = [ "multi-user.target" ];
     script = ''
       # TODO system is meaningless for now.
