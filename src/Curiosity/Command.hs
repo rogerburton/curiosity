@@ -49,6 +49,10 @@ data Command =
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
   | ViewQueues Queues
+  | Step
+    -- ^ Execute the next automated action when using stepped (non-wallclock)
+    -- mode, or mixed-mode, or the next automated action when the automation is
+    -- "disabled".
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
@@ -117,7 +121,9 @@ parserInfoWithTarget =
       $  A.short 'u'
       <> A.long "user"
       <> A.value UserFromLogin
-      <> A.help "A username performing this command."
+      <> A.help
+           "A username performing this command. If not given, the username is \
+           \the current UNIX login name."
       <> A.metavar "USERNAME"
     target <-
       (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
@@ -201,6 +207,12 @@ parser =
            "queues"
            ( A.info (parserQueues <**> A.helper)
            $ A.progDesc "Display all queues content"
+           )
+
+      <> A.command
+           "step"
+           ( A.info (pure Step <**> A.helper)
+           $ A.progDesc "Run the next automated action"
            )
       )
     <|> parserShowId

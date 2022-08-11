@@ -297,6 +297,15 @@ handleCommand runtime display user command = do
           pure ExitSuccess
         Right (Left err) -> display (show err) >> pure (ExitFailure 1)
         Left  err        -> display (show err) >> pure (ExitFailure 1)
+    Command.Step -> do
+      let transaction rt _ = do
+            users <- filterUsers rt User.PredicateEmailAddrToVerify
+            mapM (setUserEmailAddrAsVerified rt . User._userProfileId) users
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
+      case output of
+        Right outputs -> do
+          mapM_ (display . show) outputs
+          return $ ExitFailure 1
     _ -> do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
