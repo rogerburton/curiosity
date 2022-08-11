@@ -151,10 +151,13 @@ test-suite curiosity-tests
   import: common-dependencies, lang-settings, common-extensions
   build-depends:
       curiosity
+    , directory
+    , filepath
     , hspec
     , QuickCheck
   other-modules:
-      Curiosity.DataSpec
+      CuriositySpec
+    , Curiosity.DataSpec
     , Curiosity.RuntimeSpec
   type: exitcode-stdio-1.0
   main-is: Spec.hs
