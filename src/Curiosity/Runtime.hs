@@ -230,7 +230,7 @@ handleCommand
   :: MonadIO m
   => Runtime
   -> (Text -> m ())
-  -> User.UserId -- ^ The user performing the command.
+  -> User.UserName -- ^ The user performing the command.
   -> Command.Command
   -> m ExitCode
 handleCommand runtime display user command = do
@@ -285,10 +285,10 @@ handleCommand runtime display user command = do
       display $ show output
       pure ExitSuccess
     Command.SetUserEmailAddrAsVerified uid -> do
-      let transaction runtime input = do
-            b <- canPerform runtime user command
+      let transaction rt input = do
+            b <- canPerform rt user command
             if b
-              then setUserEmailAddrAsVerified runtime input
+              then setUserEmailAddrAsVerified rt input
               else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
       output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
       case output of
@@ -303,7 +303,7 @@ handleCommand runtime display user command = do
 
 canPerform runtime user command = case command of
   Command.SetUserEmailAddrAsVerified _ -> do
-    output <- selectUserById runtime user
+    output <- selectUserByUsername runtime user
     case output of
       Just User.UserProfile {..} ->
         pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
@@ -313,7 +313,7 @@ canPerform runtime user command = case command of
 -- new (intermediate and final) states.
 interpret
   :: Data.HaskDb Runtime
-  -> User.UserId
+  -> User.UserName
   -> [Command.Command]
   -> IO [Data.HaskDb Runtime]
 interpret = loop []

@@ -3,7 +3,10 @@
   systemd.services.app = {
     wantedBy = [ "multi-user.target" ];
     script = ''
-      ${(import ../.).binaries}/bin/cty --user TODO serve \
+      # TODO system is meaningless for now.
+      ${(import ../.).binaries}/bin/cty \
+        --user system \
+        serve \
         --server-port 9000 \
         --static-dir ${(import ../.).content} \
         --data-dir ${(import ../.).data}

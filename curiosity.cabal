@@ -75,6 +75,7 @@ common common-dependencies
     , blaze-markup
     , design-hs-lib
     , aeson
+    , unix
   -- mixins: design-hs-lib hiding (Prelude)
   --       -- since cabal mixins are a half baked feature, hiding one module means hiding every other module.
   --       -- And then we have to explicity specify another mixin to be able to the modules we never intended to hide.

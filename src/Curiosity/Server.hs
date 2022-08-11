@@ -238,7 +238,7 @@ showHomePage authResult = withMaybeUser
     runtime <- ask
     b       <- liftIO $ atomically $ Rt.canPerform
       runtime
-      (User._userProfileId userProfile)
+      (User._userCredsName $ User._userProfileCreds userProfile)
       (Command.SetUserEmailAddrAsVerified "TODO") -- TODO User ID is ignored.
     profiles <- if b
       then

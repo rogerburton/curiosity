@@ -26,6 +26,7 @@ import           Network.Socket.ByteString      ( recv
 import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
 import           System.Directory               ( doesFileExist )
+import           System.Posix.User              ( getLoginName )
 
 
 --------------------------------------------------------------------------------
@@ -35,6 +36,11 @@ main = A.execParser Command.parserInfoWithTarget >>= run
 
 --------------------------------------------------------------------------------
 run :: Command.CommandWithTarget -> IO ExitCode
+-- Convert UserFromLogin to User.
+run (Command.CommandWithTarget command target Command.UserFromLogin) = do
+  login <- User.UserName . T.pack <$> getLoginName
+  run (Command.CommandWithTarget command target $ Command.User login)
+
 run (Command.CommandWithTarget Command.Layout _ _) = do
   Srv.routingLayout >>= putStrLn
   exitSuccess
@@ -56,7 +62,7 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
             exitSuccess
           )
 
-run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path) user)
+run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path) (Command.User user))
   = do
     runtime <- Rt.boot conf >>= either throwIO pure
     let handleExceptions = (`catch` P.shutdown runtime . Just)
@@ -71,8 +77,8 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) (Command.StateFil
     mPowerdownErrs <- Rt.powerdown runtime
     maybe exitSuccess throwIO mPowerdownErrs
 
-run (Command.CommandWithTarget (Command.Run conf scriptPath) target user) =
-  case target of
+run (Command.CommandWithTarget (Command.Run conf scriptPath) target (Command.User user))
+  = case target of
     Command.MemoryTarget -> do
       handleRun P.defaultConf user scriptPath
     Command.StateFileTarget path -> do
@@ -132,27 +138,29 @@ run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
       print content
       exitSuccess
 
-run (Command.CommandWithTarget (Command.ViewQueue name) target user) = do
-  case target of
-    Command.MemoryTarget -> do
-      handleViewQueue P.defaultConf user name
-    Command.StateFileTarget path -> do
-      handleViewQueue P.defaultConf { P._confDbFile = Just path } user name
-    Command.UnixDomainTarget path -> do
-      putStrLn @Text "TODO"
-      exitFailure
+run (Command.CommandWithTarget (Command.ViewQueue name) target (Command.User user))
+  = do
+    case target of
+      Command.MemoryTarget -> do
+        handleViewQueue P.defaultConf user name
+      Command.StateFileTarget path -> do
+        handleViewQueue P.defaultConf { P._confDbFile = Just path } user name
+      Command.UnixDomainTarget path -> do
+        putStrLn @Text "TODO"
+        exitFailure
 
-run (Command.CommandWithTarget (Command.ShowId i) target user) = do
-  case target of
-    Command.MemoryTarget -> do
-      handleShowId P.defaultConf user i
-    Command.StateFileTarget path -> do
-      handleShowId P.defaultConf { P._confDbFile = Just path } user i
-    Command.UnixDomainTarget path -> do
-      putStrLn @Text "TODO"
-      exitFailure
+run (Command.CommandWithTarget (Command.ShowId i) target (Command.User user)) =
+  do
+    case target of
+      Command.MemoryTarget -> do
+        handleShowId P.defaultConf user i
+      Command.StateFileTarget path -> do
+        handleShowId P.defaultConf { P._confDbFile = Just path } user i
+      Command.UnixDomainTarget path -> do
+        putStrLn @Text "TODO"
+        exitFailure
 
-run (Command.CommandWithTarget command target user) = do
+run (Command.CommandWithTarget command target (Command.User user)) = do
   case target of
     Command.MemoryTarget -> do
       handleCommand P.defaultConf user command
@@ -171,7 +179,7 @@ handleRun conf user scriptPath = do
     Rt.powerdown runtime
     exitSuccess
 
-interpret :: Rt.Runtime -> User.UserId -> FilePath -> IO ()
+interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
 interpret runtime user path = do
   content <- readFile path
   loop $ T.lines content
@@ -201,7 +209,9 @@ interpret runtime user path = do
 handleViewQueue conf user name = do
   case name of
     Command.EmailAddrToVerify -> do
-      handleCommand conf user (Command.FilterUsers User.PredicateEmailAddrToVerify)
+      handleCommand conf
+                    user
+                    (Command.FilterUsers User.PredicateEmailAddrToVerify)
 
 
 --------------------------------------------------------------------------------
@@ -259,7 +269,7 @@ commandToString = \case
 
 
 --------------------------------------------------------------------------------
-repl :: Rt.Runtime -> User.UserId -> IO ()
+repl :: Rt.Runtime -> User.UserName -> IO ()
 repl runtime user = HL.runInputT HL.defaultSettings loop
  where
   loop = HL.getInputLine prompt >>= \case

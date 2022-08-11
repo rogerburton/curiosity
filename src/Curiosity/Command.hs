@@ -6,6 +6,7 @@ module Curiosity.Command
   , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
+  , CommandUser(..)
   , ObjectType(..)
   , parserInfo
   , parserInfoWithTarget
@@ -14,6 +15,7 @@ module Curiosity.Command
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.User           as U
 import qualified Curiosity.Parse               as P
+import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 
 
@@ -69,10 +71,16 @@ data ObjectType = ParseState | ParseUser
 -- augment the above commands with such options. In addition, the command is
 -- supposed to be performed by the given user. This is to be set by SSH's
 -- ForceCommand.
-data CommandWithTarget = CommandWithTarget Command CommandTarget U.UserId
+data CommandWithTarget = CommandWithTarget Command CommandTarget CommandUser
   deriving Show
 
 data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
+  deriving Show
+
+-- Running a command can be done by passing explicitely a user (this is
+-- intended to be used behind SSH, or possibly when administring the system)
+-- or, for convenience, by taking the UNIX login from the current session.
+data CommandUser = UserFromLogin | User U.UserName
   deriving Show
 
 
@@ -100,12 +108,12 @@ parserInfoWithTarget =
  where
   parser' = do
     user <-
-      (  A.strOption
+      A.option (A.eitherReader (Right . User . U.UserName . T.pack))
       $  A.short 'u'
       <> A.long "user"
-      <> A.help "A user ID performing this command."
-      <> A.metavar "USER-ID"
-      )
+      <> A.value UserFromLogin
+      <> A.help "A username performing this command."
+      <> A.metavar "USERNAME"
     target <-
       (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
         "Don't use a state file or a UNIX-domain socket."
@@ -304,12 +312,12 @@ parserQueue :: A.Parser Command
 parserQueue = A.subparser $ A.command
   "user-email-addr-to-verify"
   ( A.info (p <**> A.helper)
-  $ A.progDesc "Show users with an email address that need verification. \
+  $ A.progDesc
+      "Show users with an email address that need verification. \
       \Use `cty user do set-email-addr-as-verified` to mark an email address \
       \as verified."
   )
- where
-  p = pure $ ViewQueue EmailAddrToVerify
+  where p = pure $ ViewQueue EmailAddrToVerify
 
 parserShowId :: A.Parser Command
 parserShowId =
