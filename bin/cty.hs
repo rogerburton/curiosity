@@ -151,6 +151,17 @@ run (Command.CommandWithTarget (Command.ViewQueue name) target (Command.User use
         putStrLn @Text "TODO"
         exitFailure
 
+run (Command.CommandWithTarget (Command.ViewQueues queues) target (Command.User user))
+  = do
+    case target of
+      Command.MemoryTarget -> do
+        handleViewQueues P.defaultConf user queues
+      Command.StateFileTarget path -> do
+        handleViewQueues P.defaultConf { P._confDbFile = Just path } user queues
+      Command.UnixDomainTarget path -> do
+        putStrLn @Text "TODO"
+        exitFailure
+
 run (Command.CommandWithTarget (Command.ShowId i) target (Command.User user)) =
   do
     case target of
@@ -221,9 +232,19 @@ interpret runtime user path = do
 handleViewQueue conf user name = do
   case name of
     Command.EmailAddrToVerify -> do
+      putStrLn @Text "Email addresses to verify:"
       handleCommand conf
                     user
                     (Command.FilterUsers User.PredicateEmailAddrToVerify)
+
+
+--------------------------------------------------------------------------------
+handleViewQueues conf user queues = do
+  case queues of
+    Command.CurrentUserQueues -> do
+      -- TODO Check first if the user has the necessary rights to handle this
+      -- queue.
+      handleViewQueue conf user Command.EmailAddrToVerify
 
 
 --------------------------------------------------------------------------------

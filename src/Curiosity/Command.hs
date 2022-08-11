@@ -3,6 +3,7 @@
 module Curiosity.Command
   ( Command(..)
   , QueueName(..)
+  , Queues(..)
   , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
@@ -47,11 +48,15 @@ data Command =
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
+  | ViewQueues Queues
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving Show
 
 data QueueName = EmailAddrToVerify
+  deriving (Eq, Show)
+
+data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues U.UserName
   deriving (Eq, Show)
 
 data ParseConf =
@@ -191,6 +196,12 @@ parser =
            ( A.info (parserQueue <**> A.helper)
            $ A.progDesc "Display a queue's content"
            )
+
+      <> A.command
+           "queues"
+           ( A.info (parserQueues <**> A.helper)
+           $ A.progDesc "Display all queues content"
+           )
       )
     <|> parserShowId
 
@@ -318,6 +329,32 @@ parserQueue = A.subparser $ A.command
       \as verified."
   )
   where p = pure $ ViewQueue EmailAddrToVerify
+
+parserQueues :: A.Parser Command
+parserQueues =
+  ViewQueues
+    <$> (   (A.flag' CurrentUserQueues $ A.long "current-user" <> A.help
+              "Display the queues of the current user. This is the default."
+            )
+        <|> (A.flag' AllQueues $ A.long "all" <> A.help
+              "Display all the queues of the system."
+            )
+        <|> (  A.flag' AutomatedQueues
+            $  A.long "automated"
+            <> A.help
+                 "Display the queues that can be handled automatically by the system."
+            )
+        <|> (A.flag' ManualQueues $ A.long "manual" <> A.help
+              "Display the queues that can be handled by users."
+            )
+        <|> (  A.option
+                (A.eitherReader (Right . UserQueues . U.UserName . T.pack))
+            $  A.long "from"
+            <> A.value CurrentUserQueues
+            <> A.help "Display the queues of the give user."
+            <> A.metavar "USERNAME"
+            )
+        )
 
 parserShowId :: A.Parser Command
 parserShowId =

@@ -277,7 +277,7 @@ handleCommand runtime display user command = do
           let f User.UserProfile {..} =
                 let User.UserId   i = _userProfileId
                     User.UserName n = User._userCredsName _userProfileCreds
-                in  putStrLn $ i <> " " <> n
+                in  putStrLn $ "  " <> i <> " " <> n
           mapM_ f profiles
           pure ExitSuccess
     Command.UpdateUser update -> do
