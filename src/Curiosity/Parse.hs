@@ -32,6 +32,10 @@ data Conf = Conf
     -- written to it.
   }
 
+instance Eq Conf where
+  -- TODO This should be automatically derived: see to fix ML.LoggingConf.
+  a == b = _confDbFile a == _confDbFile b
+
 instance Show Conf
 
 makeLenses ''Conf
@@ -46,6 +50,19 @@ data ServerConf = ServerConf
   , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
     -- ^ JWK settings to use, depending on the key employed.
   }
+
+instance Eq ServerConf where
+  -- TODO This should be automatically derived: see to fix _serverMkJwtSettings.
+  a == b =
+    _serverPort b
+      == _serverPort b
+      && _serverStaticDir a
+      == _serverStaticDir b
+      && _serverDataDir a
+      == _serverDataDir b
+      && _serverCookie a
+      == _serverCookie b
+
 
 instance Show ServerConf
 

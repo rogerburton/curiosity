@@ -55,7 +55,7 @@ data Command =
     -- "disabled".
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
-  deriving Show
+  deriving (Eq, Show)
 
 data QueueName = EmailAddrToVerify
   deriving (Eq, Show)
@@ -68,10 +68,10 @@ data ParseConf =
   | ConfFileName FilePath
   | ConfStdin
   | ParseObject ObjectType FilePath
-  deriving Show
+  deriving (Eq, Show)
 
 data ObjectType = ParseState | ParseUser
-  deriving Show
+  deriving (Eq, Show)
 
 -- | The same commands, defined above, can be used within the UNIX-domain
 -- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
@@ -81,16 +81,16 @@ data ObjectType = ParseState | ParseUser
 -- supposed to be performed by the given user. This is to be set by SSH's
 -- ForceCommand.
 data CommandWithTarget = CommandWithTarget Command CommandTarget CommandUser
-  deriving Show
+  deriving (Eq, Show)
 
 data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
-  deriving Show
+  deriving (Eq, Show)
 
 -- Running a command can be done by passing explicitely a user (this is
 -- intended to be used behind SSH, or possibly when administring the system)
 -- or, for convenience, by taking the UNIX login from the current session.
 data CommandUser = UserFromLogin | User U.UserName
-  deriving Show
+  deriving (Eq, Show)
 
 
 --------------------------------------------------------------------------------

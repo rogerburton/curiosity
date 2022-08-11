@@ -243,13 +243,12 @@ instance Storage.DBStorageOps UserProfile where
 
 -- | Predicates to filter users.
 data Predicate = PredicateEmailAddrToVerify | PredicateHas AccessRight
-  deriving Show
+  deriving (Eq, Show)
 
 applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
   isNothing _userProfileEmailAddrVerified
 
-applyPredicate (PredicateHas a) UserProfile {..} =
-  a `elem` _userProfileRights
+applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
@@ -299,10 +298,12 @@ instance Errs.IsRuntimeErr UserErr where
         "Life-cycle error"
         "The user email address is already verified."
     MissingRight a ->
-      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
-        401
-        "Unauthorized action" $
-        "The user has not the required access right " <> show a
+      LT.toStrict
+        .  renderMarkup
+        .  H.toMarkup
+        $  Pages.ErrorPage 401 "Unauthorized action"
+        $  "The user has not the required access right "
+        <> show a
 
 
 --------------------------------------------------------------------------------

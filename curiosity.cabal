@@ -154,6 +154,7 @@ test-suite curiosity-tests
     , directory
     , filepath
     , hspec
+    , optparse-applicative
     , QuickCheck
   other-modules:
       CuriositySpec
