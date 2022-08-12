@@ -33,12 +33,11 @@ nixpkgs.dockerTools.buildImage {
   config = {
     Cmd = [
       "${bash-wrapper}/bin/bash-wrapper"
-      # "${binaries}/bin/cty" "serve"
-      # "--static-dir" "${(import ../.).content}"
-      # "--data-dir" "${(import ../.).data}"
     ];
     Env = [
         "MANPATH=${man-pages}/share/man"
+        "CURIOSITY_STATIC_DIR=${(import ../.).content}"
+        "CURIOSITY_DATA_DIR=${(import ../.).data}"
     ];
     ExposedPorts = {
       "9000/tcp" = {};
