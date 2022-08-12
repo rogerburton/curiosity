@@ -43,9 +43,15 @@ in rec
                   # to set MANPATH below.
                   # I guess it would work if it was packaged with the binaries.
       ];
+      # Setting the CURIOSITY_STATIC_DIR and CURIOSITY_DATA_DIR is not strictly
+      # necessary as this shell is usually run from the source repository, and
+      # the default paths will work (provided the _site/ directory has been
+      # built. But this makes the shell usable even without those conditions.
       shellHook = ''
         source <(cty             --bash-completion-script `which cty`)
         source <(cty-sock        --bash-completion-script `which cty-sock`)
+        export CURIOSITY_STATIC_DIR=${content}
+        export CURIOSITY_DATA_DIR=${data}
         export MANPATH=${man-pages}/share/man
       '';
     };
