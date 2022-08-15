@@ -91,7 +91,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
              :<|> "state" :> Get '[B.HTML] Login.ResultPage -- TODO Proper type.
-             :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls, 'JP.CleanupFieldNames] (HaskDb Rt.Runtime))
+             :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
@@ -568,12 +568,7 @@ showState = do
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.
 showStateAsJson
-  :: ServerC m
-  => m
-       ( JP.PrettyJSON
-           '[ 'JP.DropNulls , 'JP.CleanupFieldNames]
-           (HaskDb Rt.Runtime)
-       )
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 showStateAsJson = do
   stmDb <- asks Rt._rDb
   db    <- readFullStmDbInHask stmDb
