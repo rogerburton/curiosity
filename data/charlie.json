@@ -6,5 +6,8 @@
   },
   "_userProfileEmailAddr": "charlie@example.com",
   "_userProfileDisplayName": "Charlie",
-  "_userProfileTosConsent": false
+  "_userProfileTosConsent": false,
+  "_userProfileCompletion1": {},
+  "_userProfileCompletion2": {},
+  "_userProfileRights": []
 }

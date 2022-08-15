@@ -13,6 +13,7 @@ module Curiosity.Server
     -- * Top level server types.
   , serverT
   , serve
+  , routingLayout
   , run
 
     -- * Type-aliases for convenience
@@ -25,6 +26,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
@@ -98,7 +100,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Post '[B.HTML] Signup.ResultPage
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [Text]
+             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
@@ -107,6 +109,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Private
              :<|> "data" :> Raw
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
+             -- TODO Make a single handler for any namespace:
+             :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -120,7 +125,7 @@ serverT
   -> FilePath
   -> ServerT App m
 serverT conf jwtS root dataDir =
-  showLandingPage
+  showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage
@@ -138,6 +143,8 @@ serverT conf jwtS root dataDir =
     :<|> privateT conf
     :<|> serveData dataDir
     :<|> serveErrors
+    :<|> serveNamespace "alice"
+    :<|> serveNamespaceDocumentation "alice"
     :<|> serveDocumentation root
 
 
@@ -206,20 +213,45 @@ serve handlerNatTrans conf ctx jwtS root dataDir =
   appProxy      = Proxy @App
   settingsProxy = Proxy @ServerSettings
 
+routingLayout :: forall m . MonadIO m => m Text
+routingLayout = do
+  let Command.ServerConf {..} = Command.defaultServerConf
+  jwk <- liftIO $ SAuth.generateKey
+  let jwtSettings = _serverMkJwtSettings jwk
+  let ctx =
+        _serverCookie
+          Server.:. jwtSettings
+          Server.:. errorFormatters
+          Server.:. Server.EmptyContext
+  pure $ layoutWithContext (Proxy @App) ctx
+
 
 --------------------------------------------------------------------------------
 -- | Show the landing page when the user is not logged in, or the welcome page
 -- when the user is logged in.
-showLandingPage
+showHomePage
   :: ServerC m
   => SAuth.AuthResult User.UserId
   -> m (PageEither Pages.LandingPage Pages.WelcomePage)
      -- We don't use SS.P.Public Void, nor SS.P.Public 'Authd UserProfile
      -- to not have the automatic heading.
-showLandingPage authResult = withMaybeUser
+showHomePage authResult = withMaybeUser
   authResult
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
-  (\userProfile -> pure $ SS.P.PageR Pages.WelcomePage)
+  (\userProfile -> do
+    Rt.Runtime {..} <- ask
+    b               <- liftIO $ atomically $ Rt.canPerform
+      _rDb
+      (User._userCredsName $ User._userProfileCreds userProfile)
+      (Command.SetUserEmailAddrAsVerified "TODO") -- TODO User ID is ignored.
+    profiles <- if b
+      then
+        Just
+          <$> Rt.withRuntimeAtomically Rt.filterUsers
+                                       User.PredicateEmailAddrToVerify
+      else pure Nothing
+    pure . SS.P.PageR $ Pages.WelcomePage userProfile profiles
+  )
 
 
 --------------------------------------------------------------------------------
@@ -241,8 +273,8 @@ partialUsernameBlocklist :: ServerC m => m H.Html
 partialUsernameBlocklist =
   pure . H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
 
-partialUsernameBlocklistAsJson :: ServerC m => m [Text]
-partialUsernameBlocklistAsJson = pure $ map show User.usernameBlocklist
+partialUsernameBlocklistAsJson :: ServerC m => m [User.UserName]
+partialUsernameBlocklistAsJson = pure User.usernameBlocklist
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
@@ -389,7 +421,7 @@ handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
   (Command._serverCookie conf)
   NoContent
 
-showProfilePage profile = pure $ Pages.ProfileView profile
+showProfilePage profile = pure $ Pages.ProfileView profile True
 
 showProfileAsJson
   :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
@@ -437,7 +469,7 @@ documentEditProfilePage = do
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
-  pure $ Pages.ProfileView profile
+  pure $ Pages.ProfileView profile True
 
 
 --------------------------------------------------------------------------------
@@ -491,6 +523,39 @@ withMaybeUser authResult a f = case authResult of
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
 
+-- | Run a handler, ensuring a user profile can be extracted from the
+-- authentication result, or throw an error.
+withUserFromUsername
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserProfile -> m a)
+  -> m a
+withUserFromUsername username f = withMaybeUserFromUsername
+  username
+  (noSuchUserErr . show)
+  f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting a user profile, or a normal handler,
+-- depending on if a user profile can be queried using the supplied username or
+-- not.
+withMaybeUserFromUsername
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserName -> m a)
+  -> (User.UserProfile -> m a)
+  -> m a
+withMaybeUserFromUsername username a f = do
+  mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsername . Rt._rDb)
+                                       username
+  case mprofile of
+    Just userProfile -> f userProfile
+    Nothing          -> a username
+
 
 --------------------------------------------------------------------------------
 showState :: ServerC m => m Login.ResultPage
@@ -539,6 +604,21 @@ serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
 
 errorFormatters :: Server.ErrorFormatters
 errorFormatters = defaultErrorFormatters
+
+
+--------------------------------------------------------------------------------
+-- | Serve the pages under a namespace. TODO Currently the namespace is
+-- hard-coded to "alice"
+serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
+serveNamespace username = withUserFromUsername
+  username
+  (\profile -> pure $ Pages.PublicProfileView profile)
+
+serveNamespaceDocumentation
+  :: ServerC m => User.UserName -> m Pages.ProfileView
+serveNamespaceDocumentation username = withUserFromUsername
+  username
+  (\profile -> pure $ Pages.ProfileView profile False)
 
 
 --------------------------------------------------------------------------------

@@ -20,7 +20,10 @@ module Curiosity.Runtime
   , runAppMSafe
   , withRuntimeAtomically
   -- * High-level operations
+  , canPerform
   , selectUserById
+  , selectUserByUsername
+  , filterUsers
   , createUser
   , checkCredentials
   -- * Servant compat
@@ -223,8 +226,13 @@ instance ML.MonadAppNameLogMulti AppM where
 -- provide some flexibility, so this function can be used in both `cty` and
 -- `cty repl`.
 handleCommand
-  :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
-handleCommand runtime@Runtime {..} display command = do
+  :: MonadIO m
+  => Runtime
+  -> (Text -> m ())
+  -> User.UserName -- ^ The user performing the command.
+  -> Command.Command
+  -> m ExitCode
+handleCommand runtime@Runtime {..} display user command = do
   case command of
     Command.State useHs -> do
       output <-
@@ -264,7 +272,17 @@ handleCommand runtime@Runtime {..} display command = do
               pure ExitSuccess
             Nothing -> display "No such user." >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
-
+    Command.FilterUsers predicate -> do
+      output <- runAppMSafe runtime
+        $ withRuntimeAtomically filterUsers predicate
+      case output of
+        Right profiles -> do
+          let f User.UserProfile {..} =
+                let User.UserId   i = _userProfileId
+                    User.UserName n = User._userCredsName _userProfileCreds
+                in  putStrLn $ "  " <> i <> " " <> n
+          mapM_ f profiles
+          pure ExitSuccess
     Command.UpdateUser update -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
@@ -272,24 +290,55 @@ handleCommand runtime@Runtime {..} display command = do
           update
       display $ show output
       pure ExitSuccess
+    Command.SetUserEmailAddrAsVerified uid -> do
+      let transaction rt input = do
+            b <- canPerform (rt ^. rDb) user command
+            if b
+              then setUserEmailAddrAsVerified (rt ^. rDb) input
+              else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
+      case output of
+        Right (Right ()) -> do
+          display "User successfully updated."
+          pure ExitSuccess
+        Right (Left err) -> display (show err) >> pure (ExitFailure 1)
+        Left  err        -> display (show err) >> pure (ExitFailure 1)
+    Command.Step -> do
+      let transaction rt _ = do
+            users <- filterUsers rt User.PredicateEmailAddrToVerify
+            mapM (setUserEmailAddrAsVerified _rDb . User._userProfileId) users
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
+      either (putStrLn . Errs.displayErr) (mapM_ (display . show)) output
+        $> ExitFailure 1
     _ -> do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
 
+canPerform db user command = case command of
+  Command.SetUserEmailAddrAsVerified _ -> do
+    output <- selectUserByUsername db user
+    case output of
+      Just User.UserProfile {..} ->
+        pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+      _ -> pure False
+
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.
 interpret
-  :: Data.HaskDb Runtime -> [Command.Command] -> IO [Data.HaskDb Runtime]
+  :: Data.HaskDb Runtime
+  -> User.UserName
+  -> [Command.Command]
+  -> IO [Data.HaskDb Runtime]
 interpret = loop []
  where
   -- TODO Maybe it would be more efficient to thread a runtime instate of a
   -- state (that needs to be "booted" over and over again).
-  loop acc _  []               = pure $ reverse acc
-  loop acc st (command : rest) = do
+  loop acc _  _    []               = pure $ reverse acc
+  loop acc st user (command : rest) = do
     runtime <- boot' st "/tmp/curiosity-xxx.log"
-    handleCommand runtime display command
+    handleCommand runtime display user command
     st' <- Data.readFullStmDbInHask $ _rDb runtime
-    loop (st' : acc) st' rest
+    loop (st' : acc) st' user rest
   display = putStrLn -- TODO Accumulate in a list, so it can be returned.
                      -- TODO Is is possible to also log to a list ?
 
@@ -350,37 +399,50 @@ selectUserById db id = do
   STM.readTVar usersTVar <&> find ((== id) . S.dbId)
 
 selectUserByUsername
-  :: Data.StmDb Runtime -> User.UserName -> STM (Maybe User.UserProfile)
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserName
+  -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
   let usersTVar = Data._dbUserProfiles db
   users' <- STM.readTVar usersTVar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
 
+filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers runtime predicate = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  pure $ filter (User.applyPredicate predicate) users'
+
 createUser
-  :: Data.StmDb Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.Signup
+  -> STM (Either User.UserErr User.UserId)
 createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateUserId db
-    let newProfile = User.UserProfile newId
-                                      (User.Credentials username password)
-                                      "TODO"
-                                      email
-                                      Nothing
-                                      tosConsent
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
+    let newProfile = User.UserProfile
+          newId
+          (User.Credentials username password)
+          "TODO"
+          email
+          Nothing
+          tosConsent
+          (User.UserCompletion1 Nothing Nothing Nothing)
+          (User.UserCompletion2 Nothing Nothing)
+          -- The very first user has plenty of rights:
+          (if newId == "USER-1" then [User.CanVerifyEmailAddr] else [])
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     createUserFull db newProfile >>= either STM.throwSTM pure
 
 createUserFull
-  :: Data.StmDb Runtime
+  :: forall runtime
+   . Data.StmDb runtime
   -> User.UserProfile
   -> STM (Either User.UserErr User.UserId)
 createUserFull db newProfile = if username `elem` User.usernameBlocklist
@@ -408,10 +470,33 @@ generateUserId db = do
   STM.stateTVar nextUserIdTVar (\i -> (User.UserId $ "USER-" <> show i, succ i))
 
 modifyUsers
-  :: Data.StmDb Runtime -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
-modifyUsers db f = do
-  let usersTVar = Data._dbUserProfiles db
-  STM.modifyTVar usersTVar f
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([User.UserProfile] -> [User.UserProfile])
+  -> STM ()
+modifyUsers db f =
+  let usersTVar = Data._dbUserProfiles db in STM.modifyTVar usersTVar f
+
+setUserEmailAddrAsVerified
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserId
+  -> STM (Either User.UserErr ())
+setUserEmailAddrAsVerified db uid = do
+  mprofile <- selectUserById db uid
+  case mprofile of
+    Just User.UserProfile {..} -> case _userProfileEmailAddrVerified of
+      Nothing -> do
+        let replaceOlder users =
+              [ if S.dbId u == uid
+                  then u { User._userProfileEmailAddrVerified = Just "TODO" }
+                  else u
+              | u <- users
+              ]
+        modifyUsers db replaceOlder
+        pure $ Right ()
+      Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
+    Nothing -> pure . Left $ User.UserNotFound "TODO"
 
 checkCredentials
   :: Data.StmDb Runtime -> User.Credentials -> STM (Maybe User.UserProfile)

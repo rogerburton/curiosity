@@ -31,7 +31,7 @@ in
   services.getty.autologinUser = lib.mkDefault "root";
 
   imports = [
-    ../modules/app.nix
+    ../modules/curiosity.nix
     ../modules/nginx.nix
   ];
 

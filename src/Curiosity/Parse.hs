@@ -10,6 +10,7 @@ module Curiosity.Parse
   , mkLoggingConf
   , confParser
   , serverParser
+  , defaultServerConf
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -31,6 +32,10 @@ data Conf = Conf
     -- written to it.
   }
 
+instance Eq Conf where
+  -- TODO This should be automatically derived: see to fix ML.LoggingConf.
+  a == b = _confDbFile a == _confDbFile b
+
 instance Show Conf
 
 makeLenses ''Conf
@@ -45,6 +50,19 @@ data ServerConf = ServerConf
   , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
     -- ^ JWK settings to use, depending on the key employed.
   }
+
+instance Eq ServerConf where
+  -- TODO This should be automatically derived: see to fix _serverMkJwtSettings.
+  a == b =
+    _serverPort b
+      == _serverPort b
+      && _serverStaticDir a
+      == _serverStaticDir b
+      && _serverDataDir a
+      == _serverDataDir b
+      && _serverCookie a
+      == _serverCookie b
+
 
 instance Show ServerConf
 
@@ -70,7 +88,7 @@ confParser = do
   _confDbFile <- dbFileParser
   pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-                 _confLogging = defaultLoggingConf, .. }
+              _confLogging = defaultLoggingConf, .. }
 
 serverParser :: A.Parser ServerConf
 serverParser = do
@@ -104,6 +122,19 @@ serverParser = do
     , _serverMkJwtSettings = SAuth.defaultJWTSettings
     , ..
     }
+
+defaultServerConf :: ServerConf
+defaultServerConf = ServerConf
+  { _serverCookie        = SAuth.defaultCookieSettings
+                             { SAuth.cookieIsSecure    = SAuth.NotSecure
+                             , SAuth.cookieXsrfSetting = Nothing
+                             , SAuth.cookieSameSite    = SAuth.SameSiteStrict
+                             }
+  , _serverMkJwtSettings = SAuth.defaultJWTSettings
+  , _serverPort          = 9000
+  , _serverStaticDir     = "./_site/"
+  , _serverDataDir       = "./data/"
+  }
 
 
 --------------------------------------------------------------------------------
