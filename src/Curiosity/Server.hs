@@ -317,7 +317,8 @@ handleLogin conf jwtSettings input =
             <> "..."
           let credentials = User.Credentials (User._loginUsername input)
                                              (User._loginPassword input)
-          S.liftTxn @m @STM (Rt.checkCredentials undefined credentials)
+          db <- asks Rt._rDb
+          S.liftTxn @m @STM (Rt.checkCredentials db credentials)
     >>= \case
           Right (Just u) -> do
             ML.info "Found user, applying authentication cookies..."

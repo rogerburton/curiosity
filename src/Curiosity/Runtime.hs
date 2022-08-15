@@ -294,7 +294,11 @@ interpret = loop []
                      -- TODO Is is possible to also log to a list ?
 
 instance S.DBTransaction AppM STM where
-  liftTxn = liftIO . fmap (first Errs.RuntimeException) . try @SomeException .  STM.atomically
+  liftTxn =
+    liftIO
+      . fmap (first Errs.RuntimeException)
+      . try @SomeException
+      . STM.atomically
 
 --------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
@@ -355,11 +359,11 @@ selectUserByUsername db username = do
 
 createUser
   :: Data.StmDb Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
-createUser runtime User.Signup {..} = do
+createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- undefined
+    newId <- generateUserId db
     let newProfile = User.UserProfile newId
                                       (User.Credentials username password)
                                       "TODO"
@@ -373,7 +377,7 @@ createUser runtime User.Signup {..} = do
                                       Nothing
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
-    createUserFull runtime newProfile >>= either STM.throwSTM pure
+    createUserFull db newProfile >>= either STM.throwSTM pure
 
 createUserFull
   :: Data.StmDb Runtime
@@ -398,9 +402,9 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
-generateUserId :: Runtime -> STM (User.UserId)
-generateUserId runtime = do
-  let nextUserIdTVar = Data._dbNextUserId $ _rDb runtime
+generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
+generateUserId db = do
+  let nextUserIdTVar = Data._dbNextUserId db
   STM.stateTVar nextUserIdTVar (\i -> (User.UserId $ "USER-" <> show i, succ i))
 
 modifyUsers
@@ -428,8 +432,6 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
 userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
-
-withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
 
 --------------------------------------------------------------------------------
 newtype IOErr = FileDoesntExistErr FilePath
