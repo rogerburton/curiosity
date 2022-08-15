@@ -252,7 +252,7 @@ documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
 echoLogin :: ServerC m => User.Login -> m Login.ResultPage
-echoLogin input = pure $ Login.Success $ show input
+echoLogin = pure . Login.Success . show
 
 
 --------------------------------------------------------------------------------
