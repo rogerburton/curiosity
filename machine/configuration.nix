@@ -38,6 +38,7 @@ in
   environment.systemPackages = [
     (import ../.).binaries
     (import ../.).man-pages # TODO Man pages should come with .binaries ?
+    pkgs.jq
   ];
 
   # Output to stderr, otherwise this confuses nix-copy-closure during
