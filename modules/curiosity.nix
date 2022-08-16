@@ -8,9 +8,10 @@
         --memory \
         --user system \
         serve \
-        --server-port 9000 \
+        --server-port 9100 \
         --static-dir ${(import ../.).content} \
-        --data-dir ${(import ../.).data}
+        --data-dir ${(import ../.).data} \
+        --log /tmp/curiosity.log
     '';
   };
 }
