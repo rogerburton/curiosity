@@ -2,11 +2,11 @@
 {
   services.nginx = {
     enable = true;
-    virtualHosts."smartcoop.sh" = {
+    virtualHosts."play.smartcoop.sh" = {
       locations = {
-        "/".proxyPass = "http://127.0.0.1:9100";
+        "/".proxyPass = "http://127.0.0.1:9000";
         "/documentation" = {
-          proxyPass = "http://127.0.0.1:9100";
+          proxyPass = "http://127.0.0.1:9000";
           extraConfig = "ssi on;";
         };
         # TODO How to avoid hard-coding this 0.1.0.0 path ?
