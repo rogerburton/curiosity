@@ -15,6 +15,9 @@ module Curiosity.Data.User
   , userCredsPassword
   , UserProfile'(..)
   , UserProfile
+  , UserCompletion1(..)
+  , UserCompletion2(..)
+  , AccessRight(..)
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
@@ -29,6 +32,8 @@ module Curiosity.Data.User
   , UserId(..)
   , UserName(..)
   , Password(..)
+  , Predicate(..)
+  , applyPredicate
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -107,21 +112,15 @@ instance FromForm Update where
 type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
-  { _userProfileId                 :: UserId
-  , _userProfileCreds              :: creds -- ^ Users credentials
-  , _userProfileDisplayName        :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr          :: userEmailAddr -- ^ User's email address
-  , _userProfileEmailAddrVerified  :: Maybe Text -- ^ TODO Last date it was checked.
-  , _userProfileTosConsent         :: tosConsent
-
-    -- For Completion-1 level
-  , _userProfilePostalAddress      :: Maybe Text -- ^ Non-structured for now.
-  , _userProfileTelephoneNbr       :: Maybe Text
-  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
-
-    -- For Completion-2 level
-  , _userProfileEId                :: Maybe Text -- TODO Not sure what data this is.
-  , _userProfileEIdVerified        :: Maybe Text -- TODO Date.
+  { _userProfileId                :: UserId
+  , _userProfileCreds             :: creds -- ^ Users credentials
+  , _userProfileDisplayName       :: userDisplayName -- ^ User's human friendly name
+  , _userProfileEmailAddr         :: userEmailAddr -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileTosConsent        :: tosConsent
+  , _userProfileCompletion1       :: UserCompletion1
+  , _userProfileCompletion2       :: UserCompletion2
+  , _userProfileRights            :: [AccessRight]
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -131,6 +130,28 @@ data Credentials = Credentials
   { _userCredsName     :: UserName
   , _userCredsPassword :: Password
   }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- For Completion-1 level
+data UserCompletion1 = UserCompletion1
+  { _userProfilePostalAddress      :: Maybe Text -- ^ Non-structured for now.
+  , _userProfileTelephoneNbr       :: Maybe Text
+  , _userProfileAddrAndTelVerified :: Maybe Text -- TODO Date.
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- For Completion-2 level
+data UserCompletion2 = UserCompletion2
+  { _userProfileEId         :: Maybe Text -- TODO Not sure what data this is.
+  , _userProfileEIdVerified :: Maybe Text -- TODO Date.
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- Enable/disable some accesses.
+data AccessRight = CanVerifyEmailAddr
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -220,10 +241,21 @@ instance Storage.DBStorageOps UserProfile where
     | SelectUserByUserName UserName
     deriving (Show, Eq)
 
+-- | Predicates to filter users.
+data Predicate = PredicateEmailAddrToVerify | PredicateHas AccessRight
+  deriving (Eq, Show)
+
+applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
+  isNothing _userProfileEmailAddrVerified
+
+applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
+
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text
              | IncorrectUsernameOrPassword
+             | EmailAddrAlreadyVerified
+             | MissingRight AccessRight
              deriving (Eq, Exception, Show)
 
 instance Errs.IsRuntimeErr UserErr where
@@ -232,6 +264,8 @@ instance Errs.IsRuntimeErr UserErr where
     UsernameBlocked             -> "USERNAME_BLOCKED"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
+    EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
+    MissingRight a              -> "MISSING_RIGHT_" <> "TODO"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
@@ -239,6 +273,8 @@ instance Errs.IsRuntimeErr UserErr where
     UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
+    EmailAddrAlreadyVerified    -> HTTP.conflict409
+    MissingRight _              -> HTTP.unauthorized401
 
   userMessage = Just . \case
     UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -256,7 +292,23 @@ instance Errs.IsRuntimeErr UserErr where
         401
         "Wrong credentials"
         "The supplied username or password is incorrect."
+    EmailAddrAlreadyVerified ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409
+        "Life-cycle error"
+        "The user email address is already verified."
+    MissingRight a ->
+      LT.toStrict
+        .  renderMarkup
+        .  H.toMarkup
+        $  Pages.ErrorPage 401 "Unauthorized action"
+        $  "The user has not the required access right "
+        <> show a
 
+
+--------------------------------------------------------------------------------
+makeLenses ''UserCompletion2
+makeLenses ''UserCompletion1
 makeLenses ''Credentials
 makeLenses ''UserProfile'
 

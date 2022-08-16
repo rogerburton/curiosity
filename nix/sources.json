@@ -8,7 +8,7 @@
     "commence": {
         "branch": "main",
         "repo": "git@github.com:hypered/commence.git",
-        "rev": "9d7898b9a9df1ea119a6e8d8b3e6d0962d1e1347",
+        "rev": "660595245e76db6b6d5bae971525ea77224b1162",
         "type": "git"
     },
     "design-hs": {

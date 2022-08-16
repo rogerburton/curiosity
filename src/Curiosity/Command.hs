@@ -2,9 +2,13 @@
 {-# LANGUAGE DataKinds #-}
 module Curiosity.Command
   ( Command(..)
+  , QueueName(..)
+  , Queues(..)
   , ParseConf(..)
   , CommandWithTarget(..)
   , CommandTarget(..)
+  , CommandUser(..)
+  , ObjectType(..)
   , parserInfo
   , parserInfoWithTarget
   ) where
@@ -12,6 +16,7 @@ module Curiosity.Command
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.User           as U
 import qualified Curiosity.Parse               as P
+import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
 
 
@@ -19,7 +24,9 @@ import qualified Options.Applicative           as A
 -- | Describes the command available from the command-line with `cty`, or
 -- within the UNIX-domain socket server, `cty-sock`, or the `cty-repl-2` REPL.
 data Command =
-    Init
+    Layout
+    -- ^ Display the routing layout of the web server.
+  | Init
     -- ^ Initialise a new, empty state file.
   | Repl P.Conf
     -- ^ Run a REPL.
@@ -34,27 +41,56 @@ data Command =
   | CreateUser U.Signup
   | SelectUser Bool U.UserId
     -- ^ Show a give user. If True, use Haskell format instead of JSON.
+  | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
+  | SetUserEmailAddrAsVerified U.UserId
+    -- ^ High-level operations on users.
+  | ViewQueue QueueName
+    -- ^ View queue. The queues can be filters applied to objects, not
+    -- necessarily explicit list in database.
+  | ViewQueues Queues
+  | Step
+    -- ^ Execute the next automated action when using stepped (non-wallclock)
+    -- mode, or mixed-mode, or the next automated action when the automation is
+    -- "disabled".
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
-  deriving Show
+  deriving (Eq, Show)
+
+data QueueName = EmailAddrToVerify
+  deriving (Eq, Show)
+
+data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues U.UserName
+  deriving (Eq, Show)
 
 data ParseConf =
     ConfCommand Text
   | ConfFileName FilePath
   | ConfStdin
-  deriving Show
+  | ParseObject ObjectType FilePath
+  deriving (Eq, Show)
+
+data ObjectType = ParseState | ParseUser
+  deriving (Eq, Show)
 
 -- | The same commands, defined above, can be used within the UNIX-domain
 -- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
 -- In the later case, a user might want to direct the command-line tool to
 -- interact with a server, or a local state file. This data type is meant to
--- augment the above commands with such options.
-data CommandWithTarget = CommandWithTarget Command CommandTarget
-  deriving Show
+-- augment the above commands with such options. In addition, the command is
+-- supposed to be performed by the given user. This is to be set by SSH's
+-- ForceCommand.
+data CommandWithTarget = CommandWithTarget Command CommandTarget CommandUser
+  deriving (Eq, Show)
 
 data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget FilePath
-  deriving Show
+  deriving (Eq, Show)
+
+-- Running a command can be done by passing explicitely a user (this is
+-- intended to be used behind SSH, or possibly when administring the system)
+-- or, for convenience, by taking the UNIX login from the current session.
+data CommandUser = UserFromLogin | User U.UserName
+  deriving (Eq, Show)
 
 
 --------------------------------------------------------------------------------
@@ -80,6 +116,15 @@ parserInfoWithTarget =
         \a state file."
  where
   parser' = do
+    user <-
+      A.option (A.eitherReader (Right . User . U.UserName . T.pack))
+      $  A.short 'u'
+      <> A.long "user"
+      <> A.value UserFromLogin
+      <> A.help
+           "A username performing this command. If not given, the username is \
+           \the current UNIX login name."
+      <> A.metavar "USERNAME"
     target <-
       (A.flag' MemoryTarget $ A.short 'm' <> A.long "memory" <> A.help
         "Don't use a state file or a UNIX-domain socket."
@@ -100,7 +145,7 @@ parserInfoWithTarget =
           <> A.metavar "FILEPATH"
           )
     command <- parser
-    return $ CommandWithTarget command target
+    return $ CommandWithTarget command target user
 
 
 --------------------------------------------------------------------------------
@@ -108,10 +153,16 @@ parser :: A.Parser Command
 parser =
   A.subparser
       (  A.command
-          "init"
-          ( A.info (parserInit <**> A.helper)
-          $ A.progDesc "Initialise a new, empty state file"
+          "layout"
+          ( A.info (parserLayout <**> A.helper)
+          $ A.progDesc "Display the routing layout of the web server"
           )
+
+      <> A.command
+           "init"
+           ( A.info (parserInit <**> A.helper)
+           $ A.progDesc "Initialise a new, empty state file"
+           )
 
       <> A.command
            "repl"
@@ -145,8 +196,29 @@ parser =
            ( A.info (parserUser <**> A.helper)
            $ A.progDesc "User-related commands"
            )
+
+      <> A.command
+           "queue"
+           ( A.info (parserQueue <**> A.helper)
+           $ A.progDesc "Display a queue's content"
+           )
+
+      <> A.command
+           "queues"
+           ( A.info (parserQueues <**> A.helper)
+           $ A.progDesc "Display all queues content"
+           )
+
+      <> A.command
+           "step"
+           ( A.info (pure Step <**> A.helper)
+           $ A.progDesc "Run the next automated action"
+           )
       )
     <|> parserShowId
+
+parserLayout :: A.Parser Command
+parserLayout = pure Layout
 
 parserInit :: A.Parser Command
 parserInit = pure Init
@@ -163,7 +235,7 @@ parserRun = Run <$> P.confParser <*> A.argument
   (A.metavar "FILE" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
-parserParse = Parse <$> (parserCommand <|> parserFileName)
+parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
 
 parserCommand :: A.Parser ParseConf
 parserCommand = ConfCommand <$> A.strOption
@@ -177,6 +249,20 @@ parserFileName = A.argument (A.eitherReader f)
  where
   f "-" = Right ConfStdin
   f s   = Right $ ConfFileName s
+
+parserObject :: A.Parser ParseConf
+parserObject =
+  ParseObject
+    <$> A.option
+          (A.eitherReader f)
+          (A.long "object" <> A.metavar "TYPE" <> A.help
+            "Type of the object to parse."
+          )
+    <*> A.argument A.str (A.metavar "FILE" <> A.help "Object to parse.")
+ where
+  f "state" = Right ParseState
+  f "user"  = Right ParseUser
+  f _       = Left "Unrecognized object type."
 
 parserState :: A.Parser Command
 parserState = State <$> A.switch
@@ -193,6 +279,11 @@ parserUser = A.subparser
   <> A.command
        "get"
        (A.info (parserGetUser <**> A.helper) $ A.progDesc "Select a user")
+  <> A.command
+       "do"
+       ( A.info (parserUserLifeCycle <**> A.helper)
+       $ A.progDesc "Perform a high-level operation on a user"
+       )
   )
 
 parserCreateUser :: A.Parser Command
@@ -217,6 +308,65 @@ parserGetUser =
     <$> A.switch
           (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
     <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+
+parserUserLifeCycle :: A.Parser Command
+parserUserLifeCycle = A.subparser $ A.command
+  "set-email-addr-as-verified"
+  ( A.info (p <**> A.helper)
+  $ A.progDesc "Perform a high-level operation on a user"
+  )
+ where
+  p = SetUserEmailAddrAsVerified
+    <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+
+-- TODO I'm using subcommands to have all queue names appear in `--help` but
+-- the word COMMAND seems wrong:
+--
+--     cty queue --help
+--     Usage: <interactive> queue COMMAND
+--       Display a queue's content
+--
+--     Available options:
+--       -h,--help                Show this help text
+--
+--     Available commands:
+--       user-email-addr-to-verify
+parserQueue :: A.Parser Command
+parserQueue = A.subparser $ A.command
+  "user-email-addr-to-verify"
+  ( A.info (p <**> A.helper)
+  $ A.progDesc
+      "Show users with an email address that need verification. \
+      \Use `cty user do set-email-addr-as-verified` to mark an email address \
+      \as verified."
+  )
+  where p = pure $ ViewQueue EmailAddrToVerify
+
+parserQueues :: A.Parser Command
+parserQueues =
+  ViewQueues
+    <$> (   (A.flag' CurrentUserQueues $ A.long "current-user" <> A.help
+              "Display the queues of the current user. This is the default."
+            )
+        <|> (A.flag' AllQueues $ A.long "all" <> A.help
+              "Display all the queues of the system."
+            )
+        <|> (  A.flag' AutomatedQueues
+            $  A.long "automated"
+            <> A.help
+                 "Display the queues that can be handled automatically by the system."
+            )
+        <|> (A.flag' ManualQueues $ A.long "manual" <> A.help
+              "Display the queues that can be handled by users."
+            )
+        <|> (  A.option
+                (A.eitherReader (Right . UserQueues . U.UserName . T.pack))
+            $  A.long "from"
+            <> A.value CurrentUserQueues
+            <> A.help "Display the queues of the give user."
+            <> A.metavar "USERNAME"
+            )
+        )
 
 parserShowId :: A.Parser Command
 parserShowId =

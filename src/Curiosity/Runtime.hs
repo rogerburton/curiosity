@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
@@ -19,7 +20,10 @@ module Curiosity.Runtime
   , runAppMSafe
   , withRuntimeAtomically
   -- * High-level operations
+  , canPerform
   , selectUserById
+  , selectUserByUsername
+  , filterUsers
   , createUser
   , checkCredentials
   -- * Servant compat
@@ -38,12 +42,10 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 )
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
-import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
-import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
@@ -224,8 +226,13 @@ instance ML.MonadAppNameLogMulti AppM where
 -- provide some flexibility, so this function can be used in both `cty` and
 -- `cty repl`.
 handleCommand
-  :: MonadIO m => Runtime -> (Text -> m ()) -> Command.Command -> m ExitCode
-handleCommand runtime display command = do
+  :: MonadIO m
+  => Runtime
+  -> (Text -> m ())
+  -> User.UserName -- ^ The user performing the command.
+  -> Command.Command
+  -> m ExitCode
+handleCommand runtime@Runtime {..} display user command = do
   case command of
     Command.State useHs -> do
       output <-
@@ -239,7 +246,9 @@ handleCommand runtime display command = do
           pure ExitSuccess
         Left err -> display (show err) >> pure (ExitFailure 1)
     Command.CreateUser input -> do
-      output <- runAppMSafe runtime $ withRuntimeAtomically createUser input
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createUser
+        _rDb
+        input
       case output of
         Right muid -> do
           case muid of
@@ -249,7 +258,9 @@ handleCommand runtime display command = do
             Left err -> display (show err) >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
     Command.SelectUser useHs uid -> do
-      output <- runAppMSafe runtime $ withRuntimeAtomically selectUserById uid
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ selectUserById
+        _rDb
+        uid
       case output of
         Right mprofile -> do
           case mprofile of
@@ -261,115 +272,183 @@ handleCommand runtime display command = do
               pure ExitSuccess
             Nothing -> display "No such user." >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
+    Command.FilterUsers predicate -> do
+      output <- runAppMSafe runtime
+        $ withRuntimeAtomically filterUsers predicate
+      case output of
+        Right profiles -> do
+          let f User.UserProfile {..} =
+                let User.UserId   i = _userProfileId
+                    User.UserName n = User._userCredsName _userProfileCreds
+                in  putStrLn $ "  " <> i <> " " <> n
+          mapM_ f profiles
+          pure ExitSuccess
     Command.UpdateUser update -> do
-      output <- runAppMSafe runtime $ S.dbUpdate update
+      output <-
+        runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
+          _rDb
+          update
       display $ show output
       pure ExitSuccess
+    Command.SetUserEmailAddrAsVerified uid -> do
+      let transaction rt input = do
+            b <- canPerform (rt ^. rDb) user command
+            if b
+              then setUserEmailAddrAsVerified (rt ^. rDb) input
+              else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
+      case output of
+        Right (Right ()) -> do
+          display "User successfully updated."
+          pure ExitSuccess
+        Right (Left err) -> display (show err) >> pure (ExitFailure 1)
+        Left  err        -> display (show err) >> pure (ExitFailure 1)
+    Command.Step -> do
+      let transaction rt _ = do
+            users <- filterUsers rt User.PredicateEmailAddrToVerify
+            mapM (setUserEmailAddrAsVerified _rDb . User._userProfileId) users
+      output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
+      either (putStrLn . Errs.displayErr) (mapM_ (display . show)) output
+        $> ExitFailure 1
     _ -> do
       display $ "Unhandled command " <> show command
       return $ ExitFailure 1
 
+canPerform db user command = case command of
+  Command.SetUserEmailAddrAsVerified _ -> do
+    output <- selectUserByUsername db user
+    case output of
+      Just User.UserProfile {..} ->
+        pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+      _ -> pure False
+
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.
 interpret
-  :: Data.HaskDb Runtime -> [Command.Command] -> IO [Data.HaskDb Runtime]
+  :: Data.HaskDb Runtime
+  -> User.UserName
+  -> [Command.Command]
+  -> IO [Data.HaskDb Runtime]
 interpret = loop []
  where
   -- TODO Maybe it would be more efficient to thread a runtime instate of a
   -- state (that needs to be "booted" over and over again).
-  loop acc _  []               = pure $ reverse acc
-  loop acc st (command : rest) = do
+  loop acc _  _    []               = pure $ reverse acc
+  loop acc st user (command : rest) = do
     runtime <- boot' st "/tmp/curiosity-xxx.log"
-    handleCommand runtime display command
+    handleCommand runtime display user command
     st' <- Data.readFullStmDbInHask $ _rDb runtime
-    loop (st' : acc) st' rest
+    loop (st' : acc) st' user rest
   display = putStrLn -- TODO Accumulate in a list, so it can be returned.
                      -- TODO Is is possible to also log to a list ?
 
+instance S.DBTransaction AppM STM where
+  liftTxn =
+    liftIO
+      . fmap (first Errs.RuntimeException)
+      . try @SomeException
+      . STM.atomically
 
 --------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
-instance S.DBStorage AppM User.UserProfile where
-  dbUpdate = \case
+instance S.DBStorage AppM STM User.UserProfile where
 
-    User.UserCreate input ->
-      withRuntimeAtomically createUserFull input
-        >>= either Errs.throwError' (pure . pure)
+  type Db AppM STM User.UserProfile = Data.StmDb Runtime
 
-    User.UserCreateGeneratingUserId input -> do
-      withRuntimeAtomically createUser input
-        >>= either Errs.throwError' (pure . pure)
+  type DBError AppM STM User.UserProfile = User.UserErr
 
-    User.UserDelete id -> onUserIdExists id (userNotFound $ show id) deleteUser
+  dbUpdate db@Data.Db {..} = \case
+
+    User.UserCreate input -> second pure <$> createUserFull db input
+
+    User.UserCreateGeneratingUserId input ->
+      second pure <$> createUser db input
+
+    User.UserDelete id ->
+      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
+        (pure . userNotFound $ show id)
+        (fmap Right . deleteUser)
      where
       deleteUser _ =
-        withUserStorage $ modifyUserProfiles id (filter $ (/= id) . S.dbId)
+        modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
 
-    User.UserPasswordUpdate id newPass -> onUserIdExists
-      id
-      (userNotFound $ show id)
-      updateUser
+    User.UserPasswordUpdate id newPass ->
+      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
+        (pure . userNotFound $ show id)
+        (fmap Right . updateUser)
      where
-      updateUser _ = withUserStorage $ modifyUserProfiles id replaceOlder
+      updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
       setPassword =
         set (User.userProfileCreds . User.userCredsPassword) newPass
       replaceOlder users =
         [ if S.dbId u == id then setPassword u else u | u <- users ]
 
-  dbSelect = \case
+  dbSelect db = \case
 
-    User.UserLoginWithUserName input -> do
-      withRuntimeAtomically checkCredentials input
-        >>= either Errs.throwError' (pure . pure)
+    User.UserLoginWithUserName input -> toList <$> checkCredentials db input
 
-    User.SelectUserById id ->
-      toList <$> withRuntimeAtomically selectUserById id
+    User.SelectUserById        id    -> toList <$> selectUserById db id
 
     User.SelectUserByUserName username ->
-      toList <$> withRuntimeAtomically selectUserByUsername username
+      toList <$> selectUserByUsername db username
 
-modifyUserProfiles id f userProfiles =
-  liftIO $ STM.atomically (STM.modifyTVar userProfiles f) $> [id]
+modifyUserProfiles id f userProfiles = STM.modifyTVar userProfiles f $> [id]
 
-selectUserById runtime id = do
-  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+selectUserById db id = do
+  let usersTVar = Data._dbUserProfiles db
   STM.readTVar usersTVar <&> find ((== id) . S.dbId)
 
 selectUserByUsername
-  :: Runtime -> User.UserName -> STM (Maybe User.UserProfile)
-selectUserByUsername runtime username = do
-  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserName
+  -> STM (Maybe User.UserProfile)
+selectUserByUsername db username = do
+  let usersTVar = Data._dbUserProfiles db
   users' <- STM.readTVar usersTVar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
 
-createUser :: Runtime -> User.Signup -> STM (Either User.UserErr User.UserId)
-createUser runtime User.Signup {..} = do
+filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers runtime predicate = do
+  let usersTVar = Data._dbUserProfiles $ _rDb runtime
+  users' <- STM.readTVar usersTVar
+  pure $ filter (User.applyPredicate predicate) users'
+
+createUser
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.Signup
+  -> STM (Either User.UserErr User.UserId)
+createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateUserId runtime
-    let newProfile = User.UserProfile newId
-                                      (User.Credentials username password)
-                                      "TODO"
-                                      email
-                                      Nothing
-                                      tosConsent
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
-                                      Nothing
+    newId <- generateUserId db
+    let newProfile = User.UserProfile
+          newId
+          (User.Credentials username password)
+          "TODO"
+          email
+          Nothing
+          tosConsent
+          (User.UserCompletion1 Nothing Nothing Nothing)
+          (User.UserCompletion2 Nothing Nothing)
+          -- The very first user has plenty of rights:
+          (if newId == "USER-1" then [User.CanVerifyEmailAddr] else [])
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
-    createUserFull runtime newProfile >>= either STM.throwSTM pure
+    createUserFull db newProfile >>= either STM.throwSTM pure
 
 createUserFull
-  :: Runtime -> User.UserProfile -> STM (Either User.UserErr User.UserId)
-createUserFull runtime newProfile = if username `elem` User.usernameBlocklist
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserProfile
+  -> STM (Either User.UserErr User.UserId)
+createUserFull db newProfile = if username `elem` User.usernameBlocklist
   then pure . Left $ User.UsernameBlocked
   else do
-    mprofile <- selectUserById runtime newProfileId
+    mprofile <- selectUserById db newProfileId
     case mprofile of
       Just profile -> existsErr
       Nothing      -> createNew
@@ -377,32 +456,56 @@ createUserFull runtime newProfile = if username `elem` User.usernameBlocklist
   username     = newProfile ^. User.userProfileCreds . User.userCredsName
   newProfileId = S.dbId newProfile
   createNew    = do
-    mprofile <- selectUserByUsername runtime username
+    mprofile <- selectUserByUsername db username
     case mprofile of
       Just profile -> existsErr
       Nothing      -> do
-        modifyUsers runtime (newProfile :)
+        modifyUsers db (newProfile :)
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
-generateUserId :: Runtime -> STM (User.UserId)
-generateUserId runtime = do
-  let nextUserIdTVar = Data._dbNextUserId $ _rDb runtime
+generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
+generateUserId db = do
+  let nextUserIdTVar = Data._dbNextUserId db
   STM.stateTVar nextUserIdTVar (\i -> (User.UserId $ "USER-" <> show i, succ i))
 
-modifyUsers :: Runtime -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
-modifyUsers runtime f = do
-  let usersTVar = Data._dbUserProfiles $ _rDb runtime
-  STM.modifyTVar usersTVar f
+modifyUsers
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([User.UserProfile] -> [User.UserProfile])
+  -> STM ()
+modifyUsers db f =
+  let usersTVar = Data._dbUserProfiles db in STM.modifyTVar usersTVar f
+
+setUserEmailAddrAsVerified
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserId
+  -> STM (Either User.UserErr ())
+setUserEmailAddrAsVerified db uid = do
+  mprofile <- selectUserById db uid
+  case mprofile of
+    Just User.UserProfile {..} -> case _userProfileEmailAddrVerified of
+      Nothing -> do
+        let replaceOlder users =
+              [ if S.dbId u == uid
+                  then u { User._userProfileEmailAddrVerified = Just "TODO" }
+                  else u
+              | u <- users
+              ]
+        modifyUsers db replaceOlder
+        pure $ Right ()
+      Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
+    Nothing -> pure . Left $ User.UserNotFound "TODO"
 
 checkCredentials
-  :: Runtime -> User.Credentials -> STM (Either User.UserErr User.UserProfile)
-checkCredentials runtime User.Credentials {..} = do
-  mprofile <- selectUserByUsername runtime _userCredsName
+  :: Data.StmDb Runtime -> User.Credentials -> STM (Maybe User.UserProfile)
+checkCredentials db User.Credentials {..} = do
+  mprofile <- selectUserByUsername db _userCredsName
   case mprofile of
     Just profile | checkPassword profile _userCredsPassword ->
-      pure $ Right profile
-    _ -> pure $ Left User.IncorrectUsernameOrPassword
+      pure $ Just profile
+    _ -> pure Nothing
 
 -- TODO Use constant-time string comparison.
 checkPassword :: User.UserProfile -> User.Password -> Bool
@@ -411,125 +514,9 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
   User.Password storedPass =
     profile ^. User.userProfileCreds . User.userCredsPassword
 
-onUserIdExists id onNone onExisting =
-  S.dbSelect (User.SelectUserById id) <&> headMay >>= maybe onNone onExisting
-
-userNotFound =
-  Errs.throwError' . User.UserNotFound . mappend "User not found: "
+userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
-
-withUserStorage f = asks (Data._dbUserProfiles . _rDb) >>= f
-
-
---------------------------------------------------------------------------------
-instance S.DBStorage AppM Todo.TodoList where
-
-  dbUpdate = \case
-    Todo.AddItem id item -> onTodoListExists id
-                                             (todoListNotFound id)
-                                             modifyList
-
-     where
-      modifyList list' =
-        let newList =
-              list' { Todo._todoListItems = item : Todo._todoListItems list' }
-        in  replaceTodoList newList $> [id]
-
-    Todo.DeleteItem id itemName -> onTodoListExists id
-                                                    (todoListNotFound id)
-                                                    modifyList
-     where
-      modifyList list' =
-        let newList = list'
-              { Todo._todoListItems = filter
-                                        ((/= itemName) . Todo._todoItemName)
-                                        (Todo._todoListItems list')
-              }
-        in  replaceTodoList newList $> [id]
-
-    Todo.MarkItem id itemName itemState -> onTodoListExists
-      id
-      (todoListNotFound id)
-      modifyList
-     where
-      modifyList list' =
-        let
-          newList = list'
-            { Todo._todoListItems = fmap replaceItem (Todo._todoListItems list')
-            }
-          replaceItem item@Todo.TodoListItem {..}
-            | _todoItemName == itemName = item { Todo._todoItemState = itemState
-                                               }
-            | otherwise = item
-        in
-          replaceTodoList newList $> [id]
-
-    Todo.DeleteList id -> withTodoStorage $ \todoStm -> do
-      todos <- liftIO . STM.readTVarIO $ todoStm
-      let existing = find ((== id) . S.dbId) todos
-      if isNothing existing
-        then todoListNotFound id
-        else
-          liftIO
-              ( STM.atomically
-              $ STM.modifyTVar' todoStm (filter $ (/= id) . S.dbId)
-              )
-            $> [id]
-    Todo.AddUsersToList id users -> onTodoListExists id
-                                                     (todoListNotFound id)
-                                                     modifyList
-     where
-      modifyList list' =
-        let newList =
-              list' & Todo.todoListUsers %~ L.nub . mappend (toList users)
-        in  replaceTodoList newList $> [id]
-    Todo.RemoveUsersFromList id users -> onTodoListExists
-      id
-      (todoListNotFound id)
-      modifyList
-     where
-      modifyList list' =
-        let newList = list' & Todo.todoListUsers %~ (L.\\ (toList users))
-        in  replaceTodoList newList $> [id]
-
-    Todo.CreateList newList -> withTodoStorage $ \todoStm -> do
-      todos <- liftIO . STM.readTVarIO $ todoStm
-      let existing = find ((== newId) . S.dbId) todos
-          newId    = S.dbId newList
-      if isJust existing
-        then existsErr newId
-        else
-          liftIO (STM.atomically $ STM.modifyTVar' todoStm (newList :))
-            $> [newId]
-      where existsErr = Errs.throwError' . Todo.TodoListExists
-
-  dbSelect = \case
-    Todo.SelectTodoListById id -> filtStoredTodos $ (== id) . S.dbId
-    Todo.SelectTodoListsByPendingItems ->
-      filtStoredTodos
-        $ any ((== Todo.TodoListItemPending) . Todo._todoItemState)
-        . Todo._todoListItems
-    Todo.SelectTodoListsByUser userId ->
-      filtStoredTodos $ elem userId . Todo._todoListUsers
-
-withTodoStorage f = asks (Data._dbTodos . _rDb) >>= f
-filtStoredTodos f =
-  withTodoStorage $ liftIO . STM.readTVarIO >=> pure . filter f
-
-onTodoListExists id onNone onExisting =
-  S.dbSelect (Todo.SelectTodoListById id)
-    <&> headMay
-    >>= maybe onNone onExisting
-
-todoListNotFound = Errs.throwError' . Todo.TodoListNotFound . show
-
-replaceTodoList newList =
-  let replaceList list' | S.dbId list' == S.dbId newList = newList
-                        | otherwise                      = list'
-  in  withTodoStorage $ \stmLists ->
-        liftIO . STM.atomically $ STM.modifyTVar' stmLists $ fmap replaceList
-
 
 --------------------------------------------------------------------------------
 newtype IOErr = FileDoesntExistErr FilePath

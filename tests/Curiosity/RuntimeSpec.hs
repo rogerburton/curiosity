@@ -25,22 +25,25 @@ spec = do
       -- Which is indeed related to logging, which I'd like to remove from
       -- these tests / runtime.
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-2.log"
-      muser <- atomically $ selectUserById runtime "USER-1"
+      let db = _rDb runtime
+      muser <- atomically $ selectUserById db "USER-1"
 
       muser `shouldBe` Nothing
 
     it "Adding a user, returns a user." $ do
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-3.log"
-      let input = Signup "alice" "secret" "alice@example.com" True
-      Right uid <- atomically $ createUser runtime input
-      Just profile <- atomically $ selectUserById runtime uid
+      let db = _rDb runtime
+          input = Signup "alice" "secret" "alice@example.com" True
+      Right uid <- atomically $ createUser db input
+      Just profile <- atomically $ selectUserById db uid
 
       uid `shouldBe` "USER-1"
       _userProfileId profile `shouldBe` uid
 
     it "Blocklisted username cannot be used." $ do
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-4.log"
-      let input = Signup "smartcoop" "secret" "smartcoop@example.com" True
-      muser <- atomically $ createUser runtime input
+      let db = _rDb runtime
+          input = Signup "smartcoop" "secret" "smartcoop@example.com" True
+      muser <- atomically $ createUser db input
 
       muser `shouldBe` Left UsernameBlocked

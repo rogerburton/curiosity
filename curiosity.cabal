@@ -75,6 +75,7 @@ common common-dependencies
     , blaze-markup
     , design-hs-lib
     , aeson
+    , unix
   -- mixins: design-hs-lib hiding (Prelude)
   --       -- since cabal mixins are a half baked feature, hiding one module means hiding every other module.
   --       -- And then we have to explicity specify another mixin to be able to the modules we never intended to hide.
@@ -86,6 +87,7 @@ library
   exposed-modules:
     Curiosity.Command
     Curiosity.Data
+    Curiosity.Run
     Curiosity.Runtime
     Curiosity.Data.Todo
     Curiosity.Data.User
@@ -109,7 +111,9 @@ library
     , directory 
     , fast-logger
     , filepath
+    , haskeline
     , memory
+    , network
     , optparse-applicative
     , unix-compat
     , wai-app-static
@@ -124,9 +128,7 @@ executable cty
     , curiosity
     , directory
     , fast-logger
-    , haskeline
     , optparse-applicative
-    , network
   hs-source-dirs: bin
   ghc-options:
     -threaded
@@ -150,10 +152,14 @@ test-suite curiosity-tests
   import: common-dependencies, lang-settings, common-extensions
   build-depends:
       curiosity
+    , directory
+    , filepath
     , hspec
+    , optparse-applicative
     , QuickCheck
   other-modules:
-      Curiosity.DataSpec
+      CuriositySpec
+    , Curiosity.DataSpec
     , Curiosity.RuntimeSpec
   type: exitcode-stdio-1.0
   main-is: Spec.hs
