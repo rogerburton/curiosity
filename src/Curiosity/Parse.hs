@@ -72,7 +72,7 @@ defaultConf =
   let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
 
 defaultLoggingConf :: ML.LoggingConf
-defaultLoggingConf = mkLoggingConf "/tmp/curiosity.log"
+defaultLoggingConf = mkLoggingConf "./curiosity.log"
 
 mkLoggingConf :: FilePath -> ML.LoggingConf
 mkLoggingConf path =
@@ -86,9 +86,16 @@ flspec path = FL.FileLogSpec path 5000 0
 confParser :: A.Parser Conf
 confParser = do
   _confDbFile <- dbFileParser
+  _confLogFile <- A.strOption
+    (  A.long "log"
+    <> A.value "./curiosity.log"
+    <> A.metavar "PATH"
+    <> A.help
+         "A file where to write logs."
+    )
   pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-              _confLogging = defaultLoggingConf, .. }
+              _confLogging = mkLoggingConf _confLogFile, .. }
 
 serverParser :: A.Parser ServerConf
 serverParser = do
