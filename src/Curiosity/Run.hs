@@ -23,6 +23,7 @@ import           Network.Socket.ByteString      ( recv
 import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
 import           System.Directory               ( doesFileExist )
+import           System.Environment             ( lookupEnv )
 import           System.Posix.User              ( getLoginName )
 
 
@@ -62,11 +63,21 @@ run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path
       repl runtime user
       P.shutdown runtime Nothing
 
-run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) =
+run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
+  -- Allow to set the static and data directories through environment
+  -- variable. This is useful to bake the correct values in a Docker image
+  -- or a virtual machine image, instead of having the user provide them.
+  mstaticDir <- lookupEnv "CURIOSITY_STATIC_DIR"
+  mdataDir   <- lookupEnv "CURIOSITY_DATA_DIR"
+  let serverConf' =
+        maybe identity (\a c -> c { P._serverDataDir = a }) mdataDir
+          . maybe identity (\a c -> c { P._serverStaticDir = a }) mstaticDir
+          $ serverConf
+
   case target of
-    Command.MemoryTarget -> handleServe conf serverConf
+    Command.MemoryTarget -> handleServe conf serverConf'
     Command.StateFileTarget path ->
-      handleServe conf { P._confDbFile = Just path } serverConf
+      handleServe conf { P._confDbFile = Just path } serverConf'
     Command.UnixDomainTarget path -> do
       putStrLn @Text "TODO"
       exitFailure
