@@ -4,6 +4,29 @@ title: Curiosity
 
 # Changelog
 
+## 2022-08-16
+
+- Various elements usually required of any business application:
+  - Add a simple "right" to user profiles to allow to "verify" email addresses.
+    Without the right, the user cannot do the operation.
+  - Start the concept of "queues", where actions waiting to be taken, either by
+    users or by the system can be seen.
+  - Add an operation to run the waiting actions.
+  - Improve some `cty` aspects.
+  - The above is mostly done on the CLI level, except for `/` route, now
+    demonstrating the waiting actions (user email verification for now).
+  - Add public profile view, and an "introspection" view.
+  - See [PR-50](https://github.com/hypered/curiosity/pull/50/).
+- Improve JSON generation by hiding null fields. See
+  [PR-46](https://github.com/hypered/curiosity/pull/46).
+- Improve the handling of data store transactions. See
+  [PR-47](https://github.com/hypered/curiosity/pull/47).
+- Improve build times by better filtering what is source code or not. See
+  [PR-48](https://github.com/hypered/curiosity/pull/48).
+- Offer a Docker image. See
+  [PR-49](https://github.com/hypered/curiosity/pull/49).
+
+
 ## 2022-08-06
 
 - Introduce a `Login` data type, instead of re-using the `Credentials` one. The
