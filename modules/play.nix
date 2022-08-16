@@ -3,6 +3,8 @@
   services.nginx = {
     enable = true;
     virtualHosts."play.smartcoop.sh" = {
+      forceSSL = true;
+      enableACME = true;
       locations = {
         "/".proxyPass = "http://127.0.0.1:9000";
         "/documentation" = {
@@ -13,5 +15,9 @@
         "/haddock/".alias = (import ../.).haddock + "/share/doc/curiosity-0.1.0.0/html/";
       };
     };
+  };
+
+  security.acme.certs = {
+    "play.smartcoop.sh".email = "noteed@gmail.com";
   };
 }
