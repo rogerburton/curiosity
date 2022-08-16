@@ -78,3 +78,13 @@ The third way Curiosity can be tried is through a Docker image. This
 environment is similar to the running development environment. It has also
 access to man pages or Bash completion, but the later are not enabled
 automatically.
+
+## Environment variables
+
+When running `cty serve`, the location of the documentation and the example
+data files must be known by the application in order to serve them. Those
+locations can be passed by using the `--static-dir` and `--data-dir`
+command-line options. For convenience, the above environments contain two
+environment variables, `CURIOSITY_STATIC_DIR` and `CURIOSITY_DATA_DIR` that are
+set to the right values. Those environment variables take precedence over the
+command-line options.
