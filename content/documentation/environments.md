@@ -12,6 +12,10 @@ or operating such programs require additions. For instance it is necessary to
 provide documentation, and we suggest using a reverse-proxy such as Nginx to
 expose Curiosity to the internet.
 
+In addition of a development environment, Curiosity can be exercised through
+three possible environments: a `nix-shell` -based environment, a virtual
+machine image, or a Docker image.
+
 ## Development environment
 
 Curiosity is developed using the [Nix package
@@ -44,6 +48,15 @@ Again, this runs a Bash shell, configured in a very specific way. It offers the
 `cty` binary, but also access to man pages and Bash completion. It is also
 configured such that `cty serve` knows by default where to find some resource
 directories (documentation and example data files).
+
+It is possible to enter the same shell without cloning the Git repository by
+directly executing:
+
+```
+$ nix-shell \
+  https://github.com/hypered/curiosity/archive/refs/heads/main.tar.gz \
+  -A shell
+```
 
 ## Virtual machine image
 
