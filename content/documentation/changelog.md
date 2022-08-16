@@ -4,6 +4,44 @@ title: Curiosity
 
 # Changelog
 
+## 2022-08-16
+
+- Various elements usually required of any business application:
+  - Add a simple "right" to user profiles to allow to "verify" email addresses.
+    Without the right, the user cannot do the operation.
+  - Start the concept of "queues", where actions waiting to be taken, either by
+    users or by the system can be seen.
+  - Add an operation to run the waiting actions.
+  - Improve some `cty` aspects.
+  - The above is mostly done on the CLI level, except for `/` route, now
+    demonstrating the waiting actions (user email verification for now).
+  - Add public profile view, and an "introspection" view.
+  - See [PR-50](https://github.com/hypered/curiosity/pull/50/).
+- Improve JSON generation by hiding null fields. See
+  [PR-46](https://github.com/hypered/curiosity/pull/46).
+- Improve the handling of data store transactions. See
+  [PR-47](https://github.com/hypered/curiosity/pull/47).
+- Improve build times by better filtering what is source code or not. See
+  [PR-48](https://github.com/hypered/curiosity/pull/48).
+- Offer a Docker image. See
+  [PR-49](https://github.com/hypered/curiosity/pull/49).
+
+
+## 2022-08-06
+
+- Introduce a `Login` data type, instead of re-using the `Credentials` one. The
+  user profile has been enriched with some fields. Those are supposed to be
+  checkd or verified, leading to different access rights. They are visible in the
+  user profile view, and additional example data are provided. See
+  [PR-42](https://github.com/hypered/curiosity/pull/42) and a [new
+  documentation page](/documentation/objects/users).
+- Streamline some `cty` usage: some commands have nicer outputs or error
+  reporting, and now support an explicit `--memory` option to not read or write
+  any file, or talk to a UNIX-domain socket. See
+  [PR-43](https://github.com/hypered/curiosity/pull/43).
+- Beginning of a test suite for the library code. See
+  [PR-44](https://github.com/hypered/curiosity/pull/44).
+
 ## 2022-08-02
 
 - Expose the [Haddock documentation](/haddock/), add a favicon. See
