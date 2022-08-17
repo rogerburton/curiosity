@@ -220,18 +220,22 @@ handleRun conf user scriptPath = do
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
 interpret runtime user path = do
   content <- readFile path
-  loop . zip [1 ..] $ T.lines content
+  loop user . zip [1 ..] $ T.lines content
  where
-  loop []                  = pure ()
-  loop ((ln, line) : rest) = do
+  loop _     []                  = pure ()
+  loop user' ((ln, line) : rest) = do
     let (prefix, comment) = T.breakOn "#" line
     case T.words prefix of
-      []        -> loop rest
+      []        -> loop user' rest
       ["reset"] -> do
         output' $ show ln <> ": " <> prefix
         output' "Resetting to the empty state."
         Rt.reset runtime
-        loop rest
+        loop user' rest
+      ["as", username] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Modifiying default user."
+        loop (User.UserName username) rest
       ["quit"] -> do
         output' $ show ln <> ": " <> prefix
         output' "Exiting."
@@ -241,8 +245,8 @@ interpret runtime user path = do
               $ map T.unpack input
         case result of
           A.Success command -> do
-            Rt.handleCommand runtime output' user command
-            loop rest
+            Rt.handleCommand runtime output' user' command
+            loop user' rest
           A.Failure err -> do
             output' $ show err
             exitFailure
