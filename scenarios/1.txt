@@ -1,0 +1,15 @@
+# This shows that the first user can verify an email address, but not the
+# second user.
+
+reset
+as alice
+user create alice secret alice@example.com --accept-tos
+user create bob secret bob@example.com --accept-tos
+user do set-email-addr-as-verified USER-2  # Will succeed.
+user do set-email-addr-as-verified USER-2  # This is already done.
+
+reset
+as bob
+user create alice secret alice@example.com --accept-tos
+user create bob secret bob@example.com --accept-tos
+user do set-email-addr-as-verified USER-2  # Will fail: missing right.
