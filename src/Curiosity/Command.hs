@@ -40,7 +40,7 @@ data Command =
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateUser U.Signup
   | SelectUser Bool U.UserId Bool
-    -- ^ Show a give user. If True, use Haskell format instead of JSON. If
+    -- ^ Show a given user. If True, use Haskell format instead of JSON. If
     -- True, show only the user ID and username.
   | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
@@ -199,6 +199,12 @@ parser =
            )
 
       <> A.command
+           "users"
+           ( A.info (parserUsers <**> A.helper)
+           $ A.progDesc "Users-related commands"
+           )
+
+      <> A.command
            "queue"
            ( A.info (parserQueue <**> A.helper)
            $ A.progDesc "Display a queue's content"
@@ -286,6 +292,18 @@ parserUser = A.subparser
        $ A.progDesc "Perform a high-level operation on a user"
        )
   )
+
+parserUsers :: A.Parser Command
+parserUsers = do
+  predicate <-
+    (A.flag' U.PredicateEmailAddrToVerify $ A.long "email-addr-to-verify" <> A.help
+      "Show users with an email address to verify."
+    )
+    <|>
+    (A.flag' (U.PredicateHas U.CanVerifyEmailAddr) $ A.long "can-verify-email-addr" <> A.help
+      "Show users with the right to verify email addresses."
+    )
+  return $ FilterUsers predicate
 
 parserCreateUser :: A.Parser Command
 parserCreateUser = do
