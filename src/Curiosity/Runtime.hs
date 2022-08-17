@@ -257,7 +257,7 @@ handleCommand runtime@Runtime {..} display user command = do
               pure ExitSuccess
             Left err -> display (show err) >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
-    Command.SelectUser useHs uid -> do
+    Command.SelectUser useHs uid short -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ selectUserById
         _rDb
         uid
@@ -268,7 +268,14 @@ handleCommand runtime@Runtime {..} display user command = do
               let value' = if useHs
                     then show value
                     else LT.toStrict (Aeson.encodeToLazyText value)
-              display value'
+              if short
+                then
+                  display
+                  $  User.unUserId (User._userProfileId value)
+                  <> " "
+                  <> User.unUserName
+                       (User._userCredsName $ User._userProfileCreds value)
+                else display value'
               pure ExitSuccess
             Nothing -> display "No such user." >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)

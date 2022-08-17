@@ -39,8 +39,9 @@ data Command =
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateUser U.Signup
-  | SelectUser Bool U.UserId
-    -- ^ Show a give user. If True, use Haskell format instead of JSON.
+  | SelectUser Bool U.UserId Bool
+    -- ^ Show a give user. If True, use Haskell format instead of JSON. If
+    -- True, show only the user ID and username.
   | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
   | SetUserEmailAddrAsVerified U.UserId
@@ -308,6 +309,7 @@ parserGetUser =
     <$> A.switch
           (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
     <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+    <*> A.switch (A.long "short" <> A.help "Show only the ID and username.")
 
 parserUserLifeCycle :: A.Parser Command
 parserUserLifeCycle = A.subparser $ A.command

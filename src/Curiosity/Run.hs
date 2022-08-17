@@ -220,9 +220,9 @@ handleRun conf user scriptPath = do
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
 interpret runtime user path = do
   content <- readFile path
-  loop . zip [1..] $ T.lines content
+  loop . zip [1 ..] $ T.lines content
  where
-  loop []            = pure ()
+  loop []                  = pure ()
   loop ((ln, line) : rest) = do
     let (prefix, comment) = T.breakOn "#" line
     case T.words prefix of
@@ -230,7 +230,7 @@ interpret runtime user path = do
       ["quit"] -> do
         output' $ show ln <> ": " <> prefix
         output' "Exiting."
-      input    -> do
+      input -> do
         output' $ show ln <> ": " <> prefix
         let result = A.execParserPure A.defaultPrefs Command.parserInfo
               $ map T.unpack input
@@ -271,7 +271,7 @@ handleViewQueues conf user queues = do
 handleShowId conf user i = do
   case T.splitOn "-" i of
     "USER" : _ -> do
-      handleCommand conf user (Command.SelectUser False $ User.UserId i)
+      handleCommand conf user (Command.SelectUser False (User.UserId i) False)
     prefix : _ -> do
       putStrLn $ "Unknown ID prefix " <> prefix <> "."
       exitFailure

@@ -156,7 +156,7 @@ data AccessRight = CanVerifyEmailAddr
   deriving anyclass (ToJSON, FromJSON)
 
 -- | The username is an identifier (i.e. it is unique).
-newtype UserName = UserName Text
+newtype UserName = UserName { unUserName :: Text }
                  deriving ( Eq
                           , Show
                           , IsString
@@ -199,7 +199,7 @@ newtype Password = Password (Secret.Secret '[ 'Secret.ToJSONExp] Text)
                  deriving FromForm via W.Wrapped "password" Text
 
 -- | Record ID of the form USER-xxx.
-newtype UserId = UserId Text
+newtype UserId = UserId { unUserId :: Text }
                deriving (Eq, Show, SAuth.ToJWT, SAuth.FromJWT)
                deriving ( IsString
                         , FromJSON
