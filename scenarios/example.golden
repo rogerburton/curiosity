@@ -1,0 +1,8 @@
+1: state
+{"_dbNextUserId":1,"_dbTodos":[],"_dbUserProfiles":[]}
+2: user get USER-1 --short
+No such user.
+3: user create alice secret alice@example.com
+User created: USER-1
+4: user get USER-1 --short
+USER-1 alice

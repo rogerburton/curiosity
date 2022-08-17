@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TupleSections #-}
 module Curiosity.Run
   ( run
+  , interpret'
   ) where
 
 import qualified Commence.Runtime.Errors       as Errs
@@ -14,6 +16,7 @@ import qualified Curiosity.Server              as Srv
 import qualified Data.Aeson                    as Aeson
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
+import           Data.List                      ( last )
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import           Network.Socket
@@ -213,48 +216,55 @@ handleRun conf user scriptPath = do
   runtime <- Rt.boot conf >>= either throwIO pure
   let handleExceptions = (`catch` P.shutdown runtime . Just)
   handleExceptions $ do
-    interpret runtime user scriptPath
+    code <- interpret runtime user scriptPath
     Rt.powerdown runtime
-    exitSuccess
+    exitWith code
 
-interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
+interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
 interpret runtime user path = do
+  (_, output) <- interpret' runtime user path
+  let len     = length $ takeWhile ((== ExitSuccess) . fst) output
+      output' = take (len + 1) output
+  mapM_ (putStrLn . snd) output'
+  pure $ fst . last $ (ExitSuccess, "") : output'
+
+interpret'
+  :: Rt.Runtime
+  -> User.UserName
+  -> FilePath
+  -> IO (User.UserName, [(ExitCode, Text)])
+interpret' runtime user path = do
   content <- readFile path
-  loop user . zip [1 ..] $ T.lines content
+  foldlM loop (user, []) $ zip [1 :: Int ..] (T.lines content)
  where
-  loop _     []                  = pure ()
-  loop user' ((ln, line) : rest) = do
+  loop (user', acc) (ln, line) = do
     let (prefix, comment) = T.breakOn "#" line
-    case T.words prefix of
-      []        -> loop user' rest
+        separated = T.words prefix
+        grouped = T.unwords separated
+    case separated of
+      []        -> pure (user', acc)
       ["reset"] -> do
-        output' $ show ln <> ": " <> prefix
-        output' "Resetting to the empty state."
+        let output =
+              [show ln <> ": " <> grouped, "Resetting to the empty state."]
         Rt.reset runtime
-        loop user' rest
+        pure (user', acc ++ map (ExitSuccess, ) output)
       ["as", username] -> do
-        output' $ show ln <> ": " <> prefix
-        output' "Modifiying default user."
-        loop (User.UserName username) rest
+        let output = [show ln <> ": " <> grouped, "Modifiying default user."]
+        pure (User.UserName username, acc ++ map (ExitSuccess, ) output)
       ["quit"] -> do
-        output' $ show ln <> ": " <> prefix
-        output' "Exiting."
+        let output = [show ln <> ": " <> grouped, "Exiting."]
+        pure (user', acc ++ map (ExitSuccess, ) output)
       input -> do
-        output' $ show ln <> ": " <> prefix
-        let result = A.execParserPure A.defaultPrefs Command.parserInfo
+        let output_ = [show ln <> ": " <> grouped]
+            result  = A.execParserPure A.defaultPrefs Command.parserInfo
               $ map T.unpack input
         case result of
           A.Success command -> do
-            Rt.handleCommand runtime output' user' command
-            loop user' rest
-          A.Failure err -> do
-            output' $ show err
-            exitFailure
-          A.CompletionInvoked _ -> do
-            output' "Shouldn't happen"
-            exitFailure
-
-  output' = putStrLn . T.unpack
+            (_, output) <- Rt.handleCommand runtime user' command
+            pure (user', acc ++ map (ExitSuccess, ) (output_ ++ output))
+          A.Failure err -> pure (user', acc ++ [(ExitFailure 1, show err)])
+          A.CompletionInvoked _ ->
+            pure (user', acc ++ [(ExitFailure 1, "Shouldn't happen")])
 
 
 --------------------------------------------------------------------------------
@@ -290,9 +300,10 @@ handleShowId conf user i = do
 
 --------------------------------------------------------------------------------
 handleCommand conf user command = do
-  runtime  <- Rt.boot conf >>= either handleError pure
+  runtime            <- Rt.boot conf >>= either handleError pure
 
-  exitCode <- Rt.handleCommand runtime putStrLn user command
+  (exitCode, output) <- Rt.handleCommand runtime user command
+  mapM_ putStrLn output
 
   Rt.powerdown runtime
   -- TODO shutdown runtime, loggers, save state, ...
@@ -348,8 +359,9 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
               $ words
               $ T.pack input
       case result of
-        A.Success command ->
-          Rt.handleCommand runtime output' user command >> pure ()
+        A.Success command -> do
+          (_, output) <- Rt.handleCommand runtime user command
+          mapM_ output' output
         A.Failure           err -> output' $ show err
         A.CompletionInvoked _   -> output' "Shouldn't happen"
 
