@@ -226,7 +226,12 @@ interpret runtime user path = do
   loop ((ln, line) : rest) = do
     let (prefix, comment) = T.breakOn "#" line
     case T.words prefix of
-      []       -> loop rest
+      []        -> loop rest
+      ["reset"] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Resetting to the empty state."
+        Rt.reset runtime
+        loop rest
       ["quit"] -> do
         output' $ show ln <> ": " <> prefix
         output' "Exiting."

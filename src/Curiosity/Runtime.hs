@@ -11,6 +11,7 @@ module Curiosity.Runtime
   , AppM(..)
   , boot
   , boot'
+  , reset
   , handleCommand
   , powerdown
   , readDb
@@ -117,6 +118,10 @@ boot' db logsPath = do
   _rDb      <- Data.instantiateStmDb db
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
   pure $ Runtime { .. }
+
+-- | Reset the database to the empty state
+reset runtime = do
+  Data.resetStmDb $ _rDb runtime
 
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
