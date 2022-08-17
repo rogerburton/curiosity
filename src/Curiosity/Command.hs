@@ -239,7 +239,7 @@ parserServe = Serve <$> P.confParser <*> P.serverParser
 parserRun :: A.Parser Command
 parserRun = Run <$> P.confParser <*> A.argument
   A.str
-  (A.metavar "FILE" <> A.help "Script to run.")
+  (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
