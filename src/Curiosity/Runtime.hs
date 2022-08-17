@@ -213,7 +213,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -292,7 +292,7 @@ handleCommand runtime@Runtime {..} display user command = do
           let f User.UserProfile {..} =
                 let User.UserId   i = _userProfileId
                     User.UserName n = User._userCredsName _userProfileCreds
-                in  putStrLn $ "  " <> i <> " " <> n
+                in  putStrLn $ i <> " " <> n
           mapM_ f profiles
           pure ExitSuccess
     Command.UpdateUser update -> do
@@ -472,7 +472,7 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
     case mprofile of
       Just profile -> existsErr
       Nothing      -> do
-        modifyUsers db (newProfile :)
+        modifyUsers db (++ [newProfile])
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
