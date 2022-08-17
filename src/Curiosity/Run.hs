@@ -220,25 +220,30 @@ handleRun conf user scriptPath = do
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
 interpret runtime user path = do
   content <- readFile path
-  loop $ T.lines content
+  loop . zip [1..] $ T.lines content
  where
   loop []            = pure ()
-  loop (line : rest) = case T.words line of
-    []       -> loop rest
-    ["quit"] -> pure ()
-    input    -> do
-      let result = A.execParserPure A.defaultPrefs Command.parserInfo
-            $ map T.unpack input
-      case result of
-        A.Success command -> do
-          Rt.handleCommand runtime output' user command
-          loop rest
-        A.Failure err -> do
-          output' $ show err
-          exitFailure
-        A.CompletionInvoked _ -> do
-          output' "Shouldn't happen"
-          exitFailure
+  loop ((ln, line) : rest) = do
+    let (prefix, comment) = T.breakOn "#" line
+    case T.words prefix of
+      []       -> loop rest
+      ["quit"] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Exiting."
+      input    -> do
+        output' $ show ln <> ": " <> prefix
+        let result = A.execParserPure A.defaultPrefs Command.parserInfo
+              $ map T.unpack input
+        case result of
+          A.Success command -> do
+            Rt.handleCommand runtime output' user command
+            loop rest
+          A.Failure err -> do
+            output' $ show err
+            exitFailure
+          A.CompletionInvoked _ -> do
+            output' "Shouldn't happen"
+            exitFailure
 
   output' = putStrLn . T.unpack
 
