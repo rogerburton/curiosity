@@ -87,9 +87,8 @@ library
   exposed-modules:
     Curiosity.Command
     Curiosity.Data
-    Curiosity.Run
-    Curiosity.Runtime
     Curiosity.Data.Business
+    Curiosity.Data.Invoice
     Curiosity.Data.Legal
     Curiosity.Data.User
     Curiosity.Form.Login
@@ -101,6 +100,8 @@ library
     Curiosity.Html.Profile
     Curiosity.Parse
     Curiosity.Process
+    Curiosity.Run
+    Curiosity.Runtime
     Curiosity.Server
     Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended

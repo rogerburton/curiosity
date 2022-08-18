@@ -24,6 +24,7 @@ module Curiosity.Data
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
@@ -45,6 +46,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbLegalEntities    :: datastore [Legal.Entity]
   , _dbNextUserId       :: datastore Int
   , _dbUserProfiles     :: datastore [User.UserProfile]
+  , _dbNextInvoiceId    :: datastore Int
+  , _dbInvoices         :: datastore [Invoice.Invoice]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -62,7 +65,11 @@ type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
-emptyHask = Db (pure 1) (pure mempty) (pure 1) (pure mempty) (pure 1) (pure mempty)
+emptyHask = Db
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -73,6 +80,8 @@ instantiateStmDb Db
   , _dbLegalEntities    = Identity seedLegalEntities
   , _dbNextUserId       = Identity seedNextUserId
   , _dbUserProfiles     = Identity seedProfiles
+  , _dbNextInvoiceId    = Identity seedNextInvoiceId
+  , _dbInvoices         = Identity seedInvoices
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -84,6 +93,8 @@ instantiateStmDb Db
     _dbLegalEntities    <- STM.newTVar seedLegalEntities
     _dbNextUserId       <- STM.newTVar seedNextUserId
     _dbUserProfiles     <- STM.newTVar seedProfiles
+    _dbNextInvoiceId    <- STM.newTVar seedNextInvoiceId
+    _dbInvoices         <- STM.newTVar seedInvoices
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -118,6 +129,8 @@ readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
   _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
   _dbNextUserId       <- pure <$> STM.readTVar (_dbNextUserId stmDb)
   _dbUserProfiles     <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbNextInvoiceId    <- pure <$> STM.readTVar (_dbNextInvoiceId stmDb)
+  _dbInvoices         <- pure <$> STM.readTVar (_dbInvoices stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the

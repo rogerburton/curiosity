@@ -48,6 +48,7 @@ data Command =
   | UpdateUser (S.DBUpdate User.UserProfile)
   | SetUserEmailAddrAsVerified User.UserId
     -- ^ High-level operations on users.
+  | CreateInvoice
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -197,13 +198,13 @@ parser =
       <> A.command
            "business"
            ( A.info (parserBusiness <**> A.helper)
-           $ A.progDesc "Commands related to business entitties"
+           $ A.progDesc "Commands related to business entities"
            )
 
       <> A.command
            "legal"
            ( A.info (parserLegal <**> A.helper)
-           $ A.progDesc "Commands related to legal entitties"
+           $ A.progDesc "Commands related to legal entities"
            )
 
       <> A.command
@@ -216,6 +217,12 @@ parser =
            "users"
            ( A.info (parserUsers <**> A.helper)
            $ A.progDesc "Users-related commands"
+           )
+
+      <> A.command
+           "invoice"
+           ( A.info (parserInvoice <**> A.helper)
+           $ A.progDesc "Commands related to invoices"
            )
 
       <> A.command
@@ -377,6 +384,16 @@ parserUserLifeCycle = A.subparser $ A.command
   $ A.progDesc "Perform a high-level operation on a user"
   )
   where p = SetUserEmailAddrAsVerified <$> argumentUserId
+
+parserInvoice :: A.Parser Command
+parserInvoice = A.subparser $ A.command
+  "create"
+  ( A.info (parserCreateInvoice <**> A.helper)
+  $ A.progDesc "Create a new invoice"
+  )
+
+parserCreateInvoice :: A.Parser Command
+parserCreateInvoice = pure CreateInvoice
 
 -- TODO I'm using subcommands to have all queue names appear in `--help` but
 -- the word COMMAND seems wrong:

@@ -44,6 +44,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
@@ -330,6 +331,16 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["User successfully updated."])
         Right (Left err) -> pure (ExitFailure 1, [show err])
         Left  err        -> pure (ExitFailure 1, [show err])
+    Command.CreateInvoice -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createInvoice
+        _rDb
+      case output of
+        Right mid -> do
+          case mid of
+            Right (Invoice.InvoiceId id) -> do
+              pure (ExitSuccess, ["Invoice created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
@@ -445,6 +456,43 @@ modifyLegalEntities
   -> STM ()
 modifyLegalEntities db f =
   let tvar = Data._dbLegalEntities db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+createInvoice
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either Invoice.Err Invoice.InvoiceId)
+createInvoice db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateInvoiceId db
+    let new = Invoice.Invoice newId
+    createInvoiceFull db new >>= either STM.throwSTM pure
+
+createInvoiceFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Invoice.Invoice
+  -> STM (Either Invoice.Err Invoice.InvoiceId)
+createInvoiceFull db new = do
+  modifyInvoices db (++ [new])
+  pure . Right $ Invoice._entityId new
+
+generateInvoiceId
+  :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
+generateInvoiceId db = do
+  let tvar = Data._dbNextInvoiceId db
+  STM.stateTVar tvar (\i -> (Invoice.InvoiceId $ "INV-" <> show i, succ i))
+
+modifyInvoices
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Invoice.Invoice] -> [Invoice.Invoice])
+  -> STM ()
+modifyInvoices db f =
+  let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------
