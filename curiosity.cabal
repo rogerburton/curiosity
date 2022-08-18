@@ -88,6 +88,7 @@ library
     Curiosity.Command
     Curiosity.Data
     Curiosity.Data.Business
+    Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
     Curiosity.Data.User

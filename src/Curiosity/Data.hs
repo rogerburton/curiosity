@@ -24,6 +24,7 @@ module Curiosity.Data
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
@@ -48,6 +49,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbUserProfiles     :: datastore [User.UserProfile]
   , _dbNextInvoiceId    :: datastore Int
   , _dbInvoices         :: datastore [Invoice.Invoice]
+  , _dbNextEmploymentId :: datastore Int
+  , _dbEmployments      :: datastore [Employment.Contract]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -70,6 +73,7 @@ emptyHask = Db
   (pure 1) (pure mempty)
   (pure 1) (pure mempty)
   (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -82,6 +86,8 @@ instantiateStmDb Db
   , _dbUserProfiles     = Identity seedProfiles
   , _dbNextInvoiceId    = Identity seedNextInvoiceId
   , _dbInvoices         = Identity seedInvoices
+  , _dbNextEmploymentId = Identity seedNextEmploymentId
+  , _dbEmployments      = Identity seedEmployments
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -95,6 +101,8 @@ instantiateStmDb Db
     _dbUserProfiles     <- STM.newTVar seedProfiles
     _dbNextInvoiceId    <- STM.newTVar seedNextInvoiceId
     _dbInvoices         <- STM.newTVar seedInvoices
+    _dbNextEmploymentId <- STM.newTVar seedNextEmploymentId
+    _dbEmployments      <- STM.newTVar seedEmployments
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -131,6 +139,8 @@ readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
   _dbUserProfiles     <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
   _dbNextInvoiceId    <- pure <$> STM.readTVar (_dbNextInvoiceId stmDb)
   _dbInvoices         <- pure <$> STM.readTVar (_dbInvoices stmDb)
+  _dbNextEmploymentId <- pure <$> STM.readTVar (_dbNextEmploymentId stmDb)
+  _dbEmployments      <- pure <$> STM.readTVar (_dbEmployments stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the

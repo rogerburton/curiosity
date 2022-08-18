@@ -48,6 +48,7 @@ data Command =
   | UpdateUser (S.DBUpdate User.UserProfile)
   | SetUserEmailAddrAsVerified User.UserId
     -- ^ High-level operations on users.
+  | CreateEmployment
   | CreateInvoice
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
@@ -220,6 +221,12 @@ parser =
            )
 
       <> A.command
+           "employment"
+           ( A.info (parserEmployment <**> A.helper)
+           $ A.progDesc "Commands related to employment contracts"
+           )
+
+      <> A.command
            "invoice"
            ( A.info (parserInvoice <**> A.helper)
            $ A.progDesc "Commands related to invoices"
@@ -384,6 +391,16 @@ parserUserLifeCycle = A.subparser $ A.command
   $ A.progDesc "Perform a high-level operation on a user"
   )
   where p = SetUserEmailAddrAsVerified <$> argumentUserId
+
+parserEmployment :: A.Parser Command
+parserEmployment = A.subparser $ A.command
+  "create"
+  ( A.info (parserCreateEmployment <**> A.helper)
+  $ A.progDesc "Create a new employment contract"
+  )
+
+parserCreateEmployment :: A.Parser Command
+parserCreateEmployment = pure CreateEmployment
 
 parserInvoice :: A.Parser Command
 parserInvoice = A.subparser $ A.command
