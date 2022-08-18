@@ -23,7 +23,6 @@ module Curiosity.Data
 
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
-import qualified Curiosity.Data.Todo           as Todo
 import qualified Curiosity.Data.User           as U
 import           Data.Aeson
 import qualified Data.Text                     as T
@@ -40,7 +39,6 @@ a container type of the database.
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextUserId   :: datastore Int
   , _dbUserProfiles :: datastore [U.UserProfile]
-  , _dbTodos        :: datastore [Todo.TodoList]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -58,18 +56,17 @@ type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
-emptyHask = Db (pure 1) (pure mempty) (pure mempty)
+emptyHask = Db (pure 1) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos }
+instantiateStmDb Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
     _dbNextUserId   <- STM.newTVar seedNextUserId
     _dbUserProfiles <- STM.newTVar seedProfiles
-    _dbTodos        <- STM.newTVar seedTodos
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -82,9 +79,8 @@ resetStmDb
 resetStmDb stmDb = liftIO . STM.atomically $ do
   STM.writeTVar (_dbNextUserId stmDb) seedNextUserId
   STM.writeTVar (_dbUserProfiles stmDb) seedProfiles
-  STM.writeTVar (_dbTodos stmDb) seedTodos
  where
-  Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos } = emptyHask
+  Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHaskFromRuntime
@@ -101,7 +97,6 @@ readFullStmDbInHask
 readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
   _dbNextUserId   <- pure <$> STM.readTVar (_dbNextUserId stmDb)
   _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-  _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
