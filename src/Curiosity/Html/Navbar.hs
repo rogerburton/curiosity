@@ -18,6 +18,7 @@ userEntry = UserEntry userEntries NoAvatarImage
 
 userEntries =
   [ SubEntry "Settings" "/settings/profile" False
+  , Divider
   -- TODO: change to `POST` in the future. 
-  , SubEntry "Logout"   "/a/logout"         False
+  , SubEntry "Sign out"   "/a/logout"       False
   ]
