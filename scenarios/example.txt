@@ -1,4 +1,3 @@
-state
 user get USER-1 --short
 user create alice secret alice@example.com
 user get USER-1 --short

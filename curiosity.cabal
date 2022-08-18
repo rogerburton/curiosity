@@ -89,6 +89,8 @@ library
     Curiosity.Data
     Curiosity.Run
     Curiosity.Runtime
+    Curiosity.Data.Business
+    Curiosity.Data.Legal
     Curiosity.Data.User
     Curiosity.Form.Login
     Curiosity.Form.Signup
