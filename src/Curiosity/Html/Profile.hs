@@ -10,7 +10,7 @@ module Curiosity.Html.Profile
   ) where
 
 import qualified Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( exampleNavbarAlt )
+import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
@@ -36,7 +36,12 @@ instance H.ToMarkup ProfilePage where
       $ H.div
       ! A.class_ "c-app-layout"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
           H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileForm
             profile
             submitUrl
@@ -244,7 +249,12 @@ instance H.ToMarkup ProfileView where
       $ H.div
       ! A.class_ "c-app-layout"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
           H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileView
             profile
             hasEditButton
@@ -339,7 +349,12 @@ instance H.ToMarkup PublicProfileView where
       $ H.div
       ! A.class_ "c-app-layout"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
           H.main
             ! A.class_ "u-maximize-width u-scroll-wrapper"
             $ publicProfileView profile

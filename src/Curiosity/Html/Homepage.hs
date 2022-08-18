@@ -7,7 +7,7 @@ module Curiosity.Html.Homepage
   ) where
 
 import           Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( exampleNavbarAlt )
+import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import qualified Text.Blaze.Html5              as H
@@ -32,7 +32,12 @@ instance H.ToMarkup WelcomePage where
       $ H.div
       ! A.class_ "c-app-layout"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds welcomePageUser
           H.body $ do
             case welcomePageEmailAddrToVerify of
               Just profiles -> do

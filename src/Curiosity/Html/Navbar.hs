@@ -3,22 +3,26 @@ Module: Curiosity.Html.Navbar
 Description: A navigation bar for Curiosity.
 -}
 module Curiosity.Html.Navbar
-  ( exampleNavbarAlt
+  ( navbar
   ) where
 
 import           Smart.Html.Avatar
-import           Smart.Html.Navbar
+import qualified Smart.Html.Navbar             as Navbar
 
 
 --------------------------------------------------------------------------------
-exampleNavbarAlt :: Navbar
-exampleNavbarAlt = Navbar [] [userEntry]
+navbar :: Text -> Navbar.Navbar
+navbar name = Navbar.Navbar [] [userEntry name]
 
-userEntry = UserEntry userEntries NoAvatarImage
+userEntry :: Text -> Navbar.RightEntry
+userEntry name = Navbar.UserEntry (userEntries name) NoAvatarImage
 
-userEntries =
-  [ SubEntry "Settings" "/settings/profile" False
-  , Divider
+userEntries :: Text -> [Navbar.SubEntry]
+userEntries name =
+  [ Navbar.SignedInAs name
+  , Navbar.Divider
+  , Navbar.SubEntry "Settings" "/settings/profile" False
+  , Navbar.Divider
   -- TODO: change to `POST` in the future. 
-  , SubEntry "Sign out"   "/a/logout"       False
+  , Navbar.SubEntry "Sign out" "/a/logout" False
   ]
