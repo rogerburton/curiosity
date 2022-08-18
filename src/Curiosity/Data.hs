@@ -23,7 +23,7 @@ module Curiosity.Data
 
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
-import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
@@ -38,7 +38,7 @@ a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextUserId   :: datastore Int
-  , _dbUserProfiles :: datastore [U.UserProfile]
+  , _dbUserProfiles :: datastore [User.UserProfile]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@

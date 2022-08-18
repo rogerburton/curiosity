@@ -14,7 +14,7 @@ module Curiosity.Command
   ) where
 
 import qualified Commence.Runtime.Storage      as S
-import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Data.Text                     as T
 import qualified Options.Applicative           as A
@@ -38,13 +38,13 @@ data Command =
     -- ^ Parse a single command.
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
-  | CreateUser U.Signup
-  | SelectUser Bool U.UserId Bool
+  | CreateUser User.Signup
+  | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
     -- True, show only the user ID and username.
-  | FilterUsers U.Predicate
-  | UpdateUser (S.DBUpdate U.UserProfile)
-  | SetUserEmailAddrAsVerified U.UserId
+  | FilterUsers User.Predicate
+  | UpdateUser (S.DBUpdate User.UserProfile)
+  | SetUserEmailAddrAsVerified User.UserId
     -- ^ High-level operations on users.
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
@@ -61,7 +61,7 @@ data Command =
 data QueueName = EmailAddrToVerify
   deriving (Eq, Show)
 
-data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues U.UserName
+data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues User.UserName
   deriving (Eq, Show)
 
 data ParseConf =
@@ -90,7 +90,7 @@ data CommandTarget = MemoryTarget | StateFileTarget FilePath | UnixDomainTarget 
 -- Running a command can be done by passing explicitely a user (this is
 -- intended to be used behind SSH, or possibly when administring the system)
 -- or, for convenience, by taking the UNIX login from the current session.
-data CommandUser = UserFromLogin | User U.UserName
+data CommandUser = UserFromLogin | User User.UserName
   deriving (Eq, Show)
 
 
@@ -118,7 +118,7 @@ parserInfoWithTarget =
  where
   parser' = do
     user <-
-      A.option (A.eitherReader (Right . User . U.UserName . T.pack))
+      A.option (A.eitherReader (Right . User . User.UserName . T.pack))
       $  A.short 'u'
       <> A.long "user"
       <> A.value UserFromLogin
@@ -296,11 +296,11 @@ parserUser = A.subparser
 parserUsers :: A.Parser Command
 parserUsers = do
   predicate <-
-    (  A.flag' U.PredicateEmailAddrToVerify
+    (  A.flag' User.PredicateEmailAddrToVerify
       $  A.long "email-addr-to-verify"
       <> A.help "Show users with an email address to verify."
       )
-      <|> (  A.flag' (U.PredicateHas U.CanVerifyEmailAddr)
+      <|> (  A.flag' (User.PredicateHas User.CanVerifyEmailAddr)
           $  A.long "can-verify-email-addr"
           <> A.help "Show users with the right to verify email addresses."
           )
@@ -315,10 +315,10 @@ parserCreateUser = do
     (  A.long "accept-tos"
     <> A.help "Indicate if the user being created consents to the TOS."
     )
-  return $ CreateUser $ U.Signup username password email tosConsent
+  return $ CreateUser $ User.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
-parserDeleteUser = UpdateUser . U.UserDelete <$> argumentUserId
+parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId
 
 parserGetUser :: A.Parser Command
 parserGetUser =
@@ -328,7 +328,7 @@ parserGetUser =
     <*> argumentUserId
     <*> A.switch (A.long "short" <> A.help "Show only the ID and username.")
 
-argumentUserId = U.UserId <$> A.argument A.str metavarUserId
+argumentUserId = User.UserId <$> A.argument A.str metavarUserId
 
 metavarUserId = A.metavar "USER-ID" <> A.completer complete <> A.help
   "A user ID"
@@ -385,7 +385,7 @@ parserQueues =
               "Display the queues that can be handled by users."
             )
         <|> (  A.option
-                (A.eitherReader (Right . UserQueues . U.UserName . T.pack))
+                (A.eitherReader (Right . UserQueues . User.UserName . T.pack))
             $  A.long "from"
             <> A.value CurrentUserQueues
             <> A.help "Display the queues of the give user."
