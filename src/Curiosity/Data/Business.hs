@@ -7,6 +7,7 @@ Description: Business entities related datatypes
 module Curiosity.Data.Business
   ( Entity(..)
   , BusinessId(..)
+  , Err(..)
   ) where
 
 import qualified Commence.Types.Wrapped        as W
@@ -32,3 +33,6 @@ newtype BusinessId = BusinessId { unBusinessId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "business-id" Text
+
+data Err = Err
+  deriving (Eq, Exception, Show)

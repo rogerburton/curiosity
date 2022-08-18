@@ -38,6 +38,8 @@ data Command =
     -- ^ Parse a single command.
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
+  | CreateBusinessEntity
+  | CreateLegalEntity
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -193,6 +195,18 @@ parser =
            )
 
       <> A.command
+           "business"
+           ( A.info (parserBusiness <**> A.helper)
+           $ A.progDesc "Commands related to business entitties"
+           )
+
+      <> A.command
+           "legal"
+           ( A.info (parserLegal <**> A.helper)
+           $ A.progDesc "Commands related to legal entitties"
+           )
+
+      <> A.command
            "user"
            ( A.info (parserUser <**> A.helper)
            $ A.progDesc "User-related commands"
@@ -274,6 +288,26 @@ parserObject =
 parserState :: A.Parser Command
 parserState = State <$> A.switch
   (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
+
+parserBusiness :: A.Parser Command
+parserBusiness = A.subparser $ A.command
+  "create"
+  ( A.info (parserCreateBusinessEntity <**> A.helper)
+  $ A.progDesc "Create a new business entity"
+  )
+
+parserCreateBusinessEntity :: A.Parser Command
+parserCreateBusinessEntity = pure CreateBusinessEntity
+
+parserLegal :: A.Parser Command
+parserLegal = A.subparser $ A.command
+  "create"
+  ( A.info (parserCreateLegalEntity <**> A.helper)
+  $ A.progDesc "Create a new legal entity"
+  )
+
+parserCreateLegalEntity :: A.Parser Command
+parserCreateLegalEntity = pure CreateLegalEntity
 
 parserUser :: A.Parser Command
 parserUser = A.subparser

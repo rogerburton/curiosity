@@ -7,6 +7,7 @@ Description: Legal entities related datatypes
 module Curiosity.Data.Legal
   ( Entity(..)
   , LegalId(..)
+  , Err(..)
   ) where
 
 import qualified Commence.Types.Wrapped        as W
@@ -32,3 +33,6 @@ newtype LegalId = LegalId { unLegalId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "legal-id" Text
+
+data Err = Err
+  deriving (Eq, Exception, Show)
