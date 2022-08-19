@@ -31,10 +31,10 @@ data ProfilePage = ProfilePage
 
 instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
           H.header
             $ H.toMarkup
@@ -42,7 +42,7 @@ instance H.ToMarkup ProfilePage where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileForm
+          H.main ! A.class_ "u-maximize-width" $ profileForm
             profile
             submitUrl
 
@@ -244,10 +244,10 @@ data ProfileView = ProfileView
 
 instance H.ToMarkup ProfileView where
   toMarkup (ProfileView profile hasEditButton) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
           H.header
             $ H.toMarkup
@@ -255,7 +255,7 @@ instance H.ToMarkup ProfileView where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileView
+          H.main ! A.class_ "u-maximize-width" $ profileView
             profile
             hasEditButton
 
@@ -344,10 +344,10 @@ data PublicProfileView = PublicProfileView
 
 instance H.ToMarkup PublicProfileView where
   toMarkup (PublicProfileView profile) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
           H.header
             $ H.toMarkup
@@ -356,7 +356,7 @@ instance H.ToMarkup PublicProfileView where
             . User._userCredsName
             $ User._userProfileCreds profile
           H.main
-            ! A.class_ "u-maximize-width u-scroll-wrapper"
+            ! A.class_ "u-maximize-width"
             $ publicProfileView profile
 
 publicProfileView profile =
