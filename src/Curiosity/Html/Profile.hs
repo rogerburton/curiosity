@@ -12,7 +12,9 @@ module Curiosity.Html.Profile
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
+import           Smart.Html.Layout
 import qualified Smart.Html.Render             as Render
+import           Smart.Html.SideMenu            ( SideMenu(..), SideMenuItem(..) )
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
                                                 , svgIconEdit
@@ -255,9 +257,15 @@ instance H.ToMarkup ProfileView where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ profileView
-            profile
-            hasEditButton
+          withSideMenuFullScroll menu $ profileView profile hasEditButton
+
+menu :: SideMenu
+menu =
+  SideMenuWithActive
+    []
+    ( SideMenuItem "User profile" "/settings/profile" )
+    [ SideMenuItem "Dummy" "/settings/dummy"
+    ]
 
 profileView profile hasEditButton =
   container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
