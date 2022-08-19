@@ -2,6 +2,7 @@
 {
   services.nginx = {
     enable = true;
+    recommendedGzipSettings = true;
     virtualHosts."smartcoop.sh" = {
       locations = {
         "/".proxyPass = "http://127.0.0.1:9100";
