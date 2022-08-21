@@ -45,6 +45,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
@@ -445,9 +446,11 @@ createBusinessFull db new = do
 
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
-generateBusinessId db = do
-  let tvar = Data._dbNextBusinessId db
-  STM.stateTVar tvar (\i -> (Business.BusinessId $ "BENT-" <> show i, succ i))
+generateBusinessId Data.Db {..} =
+  Business.BusinessId
+    .   mappend "BENT-"
+    .   show
+    <$> C.currentCounterBumping _dbNextBusinessId
 
 modifyBusinessEntities
   :: forall runtime

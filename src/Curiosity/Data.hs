@@ -22,6 +22,7 @@ module Curiosity.Data
   , deserialiseDb
   ) where
 
+import Curiosity.Data.Counter as C
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business
@@ -42,7 +43,7 @@ Additionally, we want to parameterise over a @runtime@ type parameter. This is
 a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
-  { _dbNextBusinessId   :: datastore Int
+  { _dbNextBusinessId   :: C.CounterValue datastore Int
   , _dbBusinessEntities :: datastore [Business.Entity]
   , _dbNextLegalId      :: datastore Int
   , _dbLegalEntities    :: datastore [Legal.Entity]
@@ -79,7 +80,7 @@ emptyHask = Db
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db
-  { _dbNextBusinessId   = Identity seedNextBusinessId
+  { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId) 
   , _dbBusinessEntities = Identity seedBusinessEntities
   , _dbNextLegalId      = Identity seedNextLegalId
   , _dbLegalEntities    = Identity seedLegalEntities
@@ -94,7 +95,7 @@ instantiateStmDb Db
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
-    _dbNextBusinessId   <- STM.newTVar seedNextBusinessId
+    _dbNextBusinessId   <- C.initialCounter seedNextBusinessId  
     _dbBusinessEntities <- STM.newTVar seedBusinessEntities
     _dbNextLegalId      <- STM.newTVar seedNextLegalId
     _dbLegalEntities    <- STM.newTVar seedLegalEntities
@@ -134,7 +135,7 @@ readFullStmDbInHask
 readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
 
 readFullStmDbInHask' stmDb = do
-  _dbNextBusinessId   <- pure <$> STM.readTVar (_dbNextBusinessId stmDb)
+  _dbNextBusinessId   <- pure <$> C.currentCounter (_dbNextBusinessId stmDb)
   _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
   _dbNextLegalId      <- pure <$> STM.readTVar (_dbNextLegalId stmDb)
   _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
