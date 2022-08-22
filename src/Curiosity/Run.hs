@@ -100,8 +100,8 @@ run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
     Command.ConfCommand command -> do
       let result =
             A.execParserPure A.defaultPrefs Command.parserInfo
-              . map T.unpack
-              $ T.words command
+              $   T.unpack
+              <$> T.words command
       case result of
         A.Success x -> do
           print x
@@ -239,8 +239,8 @@ interpret' runtime user path = do
  where
   loop (user', acc) (ln, line) = do
     let (prefix, comment) = T.breakOn "#" line
-        separated = T.words prefix
-        grouped = T.unwords separated
+        separated         = T.words prefix
+        grouped           = T.unwords separated
     case separated of
       []        -> pure (user', acc)
       ["reset"] -> do
@@ -256,8 +256,10 @@ interpret' runtime user path = do
         pure (user', acc ++ map (ExitSuccess, ) output)
       input -> do
         let output_ = [show ln <> ": " <> grouped]
-            result  = A.execParserPure A.defaultPrefs Command.parserInfo
-              $ map T.unpack input
+            result =
+              A.execParserPure A.defaultPrefs Command.parserInfo
+                $   T.unpack
+                <$> input
         case result of
           A.Success command -> do
             (_, output) <- Rt.handleCommand runtime user' command
@@ -355,9 +357,8 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
     Just input  -> do
       let result =
             A.execParserPure A.defaultPrefs Command.parserInfo
-              $ map T.unpack
-              $ words
-              $ T.pack input
+              $   T.unpack
+              <$> (words $ T.pack input)
       case result of
         A.Success command -> do
           (_, output) <- Rt.handleCommand runtime user command

@@ -36,8 +36,8 @@ spec = do
           it ("Parses '" <> T.unpack arguments <> "'") $ do
             let A.Success x =
                   A.execParserPure A.defaultPrefs Command.parserInfo
-                    $ map T.unpack
-                    $ words arguments
+                    $   T.unpack
+                    <$> words arguments
             x `shouldBe` command
     mapM_
       go
@@ -52,8 +52,8 @@ spec = do
 
           let A.Success command =
                 A.execParserPure A.defaultPrefs Command.parserInfo
-                  $ map T.unpack
-                  $ words arguments
+                  $   T.unpack
+                  <$> words arguments
 
           (Run.run $ Command.CommandWithTarget
               command
