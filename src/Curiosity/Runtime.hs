@@ -11,6 +11,7 @@ module Curiosity.Runtime
   , AppM(..)
   , boot
   , boot'
+  , reset
   , handleCommand
   , powerdown
   , readDb
@@ -118,6 +119,10 @@ boot' db logsPath = do
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
   pure $ Runtime { .. }
 
+-- | Reset the database to the empty state
+reset runtime = do
+  Data.resetStmDb $ _rDb runtime
+
 -- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
 powerdown runtime@Runtime {..} = do
@@ -208,7 +213,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -257,7 +262,7 @@ handleCommand runtime@Runtime {..} display user command = do
               pure ExitSuccess
             Left err -> display (show err) >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
-    Command.SelectUser useHs uid -> do
+    Command.SelectUser useHs uid short -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ selectUserById
         _rDb
         uid
@@ -268,7 +273,14 @@ handleCommand runtime@Runtime {..} display user command = do
               let value' = if useHs
                     then show value
                     else LT.toStrict (Aeson.encodeToLazyText value)
-              display value'
+              if short
+                then
+                  display
+                  $  User.unUserId (User._userProfileId value)
+                  <> " "
+                  <> User.unUserName
+                       (User._userCredsName $ User._userProfileCreds value)
+                else display value'
               pure ExitSuccess
             Nothing -> display "No such user." >> pure (ExitFailure 1)
         Left err -> display (show err) >> pure (ExitFailure 1)
@@ -280,7 +292,7 @@ handleCommand runtime@Runtime {..} display user command = do
           let f User.UserProfile {..} =
                 let User.UserId   i = _userProfileId
                     User.UserName n = User._userCredsName _userProfileCreds
-                in  putStrLn $ "  " <> i <> " " <> n
+                in  putStrLn $ i <> " " <> n
           mapM_ f profiles
           pure ExitSuccess
     Command.UpdateUser update -> do
@@ -460,7 +472,7 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
     case mprofile of
       Just profile -> existsErr
       Nothing      -> do
-        modifyUsers db (newProfile :)
+        modifyUsers db (++ [newProfile])
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 

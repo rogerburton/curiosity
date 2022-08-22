@@ -39,8 +39,9 @@ data Command =
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateUser U.Signup
-  | SelectUser Bool U.UserId
-    -- ^ Show a give user. If True, use Haskell format instead of JSON.
+  | SelectUser Bool U.UserId Bool
+    -- ^ Show a given user. If True, use Haskell format instead of JSON. If
+    -- True, show only the user ID and username.
   | FilterUsers U.Predicate
   | UpdateUser (S.DBUpdate U.UserProfile)
   | SetUserEmailAddrAsVerified U.UserId
@@ -198,6 +199,12 @@ parser =
            )
 
       <> A.command
+           "users"
+           ( A.info (parserUsers <**> A.helper)
+           $ A.progDesc "Users-related commands"
+           )
+
+      <> A.command
            "queue"
            ( A.info (parserQueue <**> A.helper)
            $ A.progDesc "Display a queue's content"
@@ -232,7 +239,7 @@ parserServe = Serve <$> P.confParser <*> P.serverParser
 parserRun :: A.Parser Command
 parserRun = Run <$> P.confParser <*> A.argument
   A.str
-  (A.metavar "FILE" <> A.help "Script to run.")
+  (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
@@ -286,6 +293,19 @@ parserUser = A.subparser
        )
   )
 
+parserUsers :: A.Parser Command
+parserUsers = do
+  predicate <-
+    (  A.flag' U.PredicateEmailAddrToVerify
+      $  A.long "email-addr-to-verify"
+      <> A.help "Show users with an email address to verify."
+      )
+      <|> (  A.flag' (U.PredicateHas U.CanVerifyEmailAddr)
+          $  A.long "can-verify-email-addr"
+          <> A.help "Show users with the right to verify email addresses."
+          )
+  return $ FilterUsers predicate
+
 parserCreateUser :: A.Parser Command
 parserCreateUser = do
   username   <- A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
@@ -298,16 +318,23 @@ parserCreateUser = do
   return $ CreateUser $ U.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
-parserDeleteUser = UpdateUser . U.UserDelete . U.UserId <$> A.argument
-  A.str
-  (A.metavar "USER-ID" <> A.help "A user ID")
+parserDeleteUser = UpdateUser . U.UserDelete <$> argumentUserId
 
 parserGetUser :: A.Parser Command
 parserGetUser =
   SelectUser
     <$> A.switch
           (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
-    <*> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+    <*> argumentUserId
+    <*> A.switch (A.long "short" <> A.help "Show only the ID and username.")
+
+argumentUserId = U.UserId <$> A.argument A.str metavarUserId
+
+metavarUserId = A.metavar "USER-ID" <> A.completer complete <> A.help
+  "A user ID"
+  where complete = A.mkCompleter . const $ pure ["USER-", "USER-1", "USER-2"]
+        -- TODO I'd like to lookup IDs in the state, but here we don't know
+        -- where the state is (it depends on other command-line options).
 
 parserUserLifeCycle :: A.Parser Command
 parserUserLifeCycle = A.subparser $ A.command
@@ -315,9 +342,7 @@ parserUserLifeCycle = A.subparser $ A.command
   ( A.info (p <**> A.helper)
   $ A.progDesc "Perform a high-level operation on a user"
   )
- where
-  p = SetUserEmailAddrAsVerified
-    <$> A.argument A.str (A.metavar "USER-ID" <> A.help "A user ID")
+  where p = SetUserEmailAddrAsVerified <$> argumentUserId
 
 -- TODO I'm using subcommands to have all queue names appear in `--help` but
 -- the word COMMAND seems wrong:

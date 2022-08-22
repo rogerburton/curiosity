@@ -220,25 +220,39 @@ handleRun conf user scriptPath = do
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ()
 interpret runtime user path = do
   content <- readFile path
-  loop $ T.lines content
+  loop user . zip [1 ..] $ T.lines content
  where
-  loop []            = pure ()
-  loop (line : rest) = case T.words line of
-    []       -> loop rest
-    ["quit"] -> pure ()
-    input    -> do
-      let result = A.execParserPure A.defaultPrefs Command.parserInfo
-            $ map T.unpack input
-      case result of
-        A.Success command -> do
-          Rt.handleCommand runtime output' user command
-          loop rest
-        A.Failure err -> do
-          output' $ show err
-          exitFailure
-        A.CompletionInvoked _ -> do
-          output' "Shouldn't happen"
-          exitFailure
+  loop _     []                  = pure ()
+  loop user' ((ln, line) : rest) = do
+    let (prefix, comment) = T.breakOn "#" line
+    case T.words prefix of
+      []        -> loop user' rest
+      ["reset"] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Resetting to the empty state."
+        Rt.reset runtime
+        loop user' rest
+      ["as", username] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Modifiying default user."
+        loop (User.UserName username) rest
+      ["quit"] -> do
+        output' $ show ln <> ": " <> prefix
+        output' "Exiting."
+      input -> do
+        output' $ show ln <> ": " <> prefix
+        let result = A.execParserPure A.defaultPrefs Command.parserInfo
+              $ map T.unpack input
+        case result of
+          A.Success command -> do
+            Rt.handleCommand runtime output' user' command
+            loop user' rest
+          A.Failure err -> do
+            output' $ show err
+            exitFailure
+          A.CompletionInvoked _ -> do
+            output' "Shouldn't happen"
+            exitFailure
 
   output' = putStrLn . T.unpack
 
@@ -266,7 +280,7 @@ handleViewQueues conf user queues = do
 handleShowId conf user i = do
   case T.splitOn "-" i of
     "USER" : _ -> do
-      handleCommand conf user (Command.SelectUser False $ User.UserId i)
+      handleCommand conf user (Command.SelectUser False (User.UserId i) False)
     prefix : _ -> do
       putStrLn $ "Unknown ID prefix " <> prefix <> "."
       exitFailure

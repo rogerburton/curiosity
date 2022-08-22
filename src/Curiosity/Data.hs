@@ -8,10 +8,11 @@ module Curiosity.Data
   , HaskDb
   -- * Constraints
   , RuntimeHasStmDb(..)
-  -- * Instantiating databases. 
+  -- * Instantiating databases.
   , emptyHask
   , instantiateStmDb
   , instantiateEmptyStmDb
+  , resetStmDb
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
@@ -28,11 +29,13 @@ import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
 
-{- | The central database. The product type contains all values and is parameterised by @datastore@. The @datastore@ can be the layer
-dealing with storage. When it is @Identity@, it just means the data is stored as is. It can, however, also be an `STM.TVar` if the datastore is to be
-STM based. 
+{- | The central database. The product type contains all values and is
+parameterised by @datastore@. The @datastore@ can be the layer dealing with
+storage. When it is @Identity@, it just means the data is stored as is. It can,
+however, also be an `STM.TVar` if the datastore is to be STM based.
 
-Additionally, we want to parameterise over a @runtime@ type parameter. This is a container type of the database. 
+Additionally, we want to parameterise over a @runtime@ type parameter. This is
+a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextUserId   :: datastore Int
@@ -40,7 +43,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbTodos        :: datastore [Todo.TodoList]
   }
 
--- | Hask database type: used for starting the system, values reside in @Hask@ (thus `Identity`)
+-- | Hask database type: used for starting the system, values reside in @Hask@
+-- (thus `Identity`)
 type HaskDb runtime = Db Identity runtime
 
 deriving instance Eq (HaskDb runtime)
@@ -49,7 +53,7 @@ deriving instance Generic (HaskDb runtime)
 deriving anyclass instance ToJSON (HaskDb runtime)
 deriving anyclass instance FromJSON (HaskDb runtime)
 
--- | Stm database type, used for live example applications, values reside in @STM@  
+-- | Stm database type, used for live example applications, values reside in @STM@
 type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
@@ -71,6 +75,17 @@ instantiateStmDb Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles =
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
 
+-- | Reset all values of the `Db` product type from `STM.STM` to the empty
+-- state.
+resetStmDb
+  :: forall runtime m . MonadIO m => StmDb runtime -> m ()
+resetStmDb stmDb = liftIO . STM.atomically $ do
+  STM.writeTVar (_dbNextUserId stmDb) seedNextUserId
+  STM.writeTVar (_dbUserProfiles stmDb) seedProfiles
+  STM.writeTVar (_dbTodos stmDb) seedTodos
+ where
+  Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles, _dbTodos = Identity seedTodos } = emptyHask
+
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHaskFromRuntime
   :: forall runtime m
@@ -89,11 +104,12 @@ readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
   _dbTodos        <- pure <$> STM.readTVar (_dbTodos stmDb)
   pure Db { .. }
 
+{- | Provides us with the ability to constrain on a larger product-type (the
+@runtime@) to contain, in some form or another, a value of the `StmDb`, which
+can be accessed from the @runtime@.
 
-{- | Provides us with the ability to constrain on a larger product-type (the @runtime@) to contain, in some form or another, a value
-of the `StmDb`, which can be accessed from the @runtime@.
-
-This solves cyclic imports, without caring about the concrete @runtime@ types, we can just rely on the constraints. 
+This solves cyclic imports, without caring about the concrete @runtime@ types,
+we can just rely on the constraints.
 -}
 class RuntimeHasStmDb runtime where
   stmDbFromRuntime :: runtime -> StmDb runtime
@@ -110,12 +126,12 @@ instance E.IsRuntimeErr DbErr where
   userMessage = Just . \case
     DbDecodeFailed msg -> msg
 
--- | Write an entire db state to bytes. 
+-- | Write an entire db state to bytes.
 serialiseDb :: forall runtime . HaskDb runtime -> LByteString
 serialiseDb = encode
 {-# INLINE serialiseDb #-}
 
--- | Read an entire db state from bytes. 
+-- | Read an entire db state from bytes.
 deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
 deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
 {-# INLINE deserialiseDb #-}
