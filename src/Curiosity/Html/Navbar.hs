@@ -12,7 +12,7 @@ import qualified Smart.Html.Navbar             as Navbar
 
 --------------------------------------------------------------------------------
 navbar :: Text -> Navbar.Navbar
-navbar name = Navbar.Navbar [] [userEntry name]
+navbar name = Navbar.Navbar [] [helpEntry, userEntry name]
 
 userEntry :: Text -> Navbar.RightEntry
 userEntry name = Navbar.UserEntry (userEntries name) NoAvatarImage
@@ -26,3 +26,9 @@ userEntries name =
   -- TODO: change to `POST` in the future. 
   , Navbar.SubEntry "Sign out" "/a/logout" False
   ]
+
+helpEntry :: Navbar.RightEntry
+helpEntry = Navbar.HelpEntry helpEntries
+
+helpEntries :: [Navbar.SubEntry]
+helpEntries = [Navbar.SubEntry "Documentation" "/documentation" False]
