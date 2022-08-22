@@ -8,11 +8,12 @@ module Curiosity.Html.Navbar
 
 import           Smart.Html.Avatar
 import qualified Smart.Html.Navbar             as Navbar
+import           Smart.Html.Shared.Html.Icons
 
 
 --------------------------------------------------------------------------------
 navbar :: Text -> Navbar.Navbar
-navbar name = Navbar.Navbar [] [helpEntry, userEntry name]
+navbar name = Navbar.Navbar [] [helpEntry, plusEntry, userEntry name]
 
 userEntry :: Text -> Navbar.RightEntry
 userEntry name = Navbar.UserEntry (userEntries name) NoAvatarImage
@@ -28,7 +29,19 @@ userEntries name =
   ]
 
 helpEntry :: Navbar.RightEntry
-helpEntry = Navbar.HelpEntry helpEntries
+helpEntry = Navbar.IconEntry divIconCircleHelp helpEntries
 
 helpEntries :: [Navbar.SubEntry]
 helpEntries = [Navbar.SubEntry "Documentation" "/documentation" False]
+
+plusEntry :: Navbar.RightEntry
+plusEntry = Navbar.IconEntry divIconAdd plusEntries
+
+plusEntries :: [Navbar.SubEntry]
+plusEntries =
+  [ Navbar.SubEntry "New invoice" "#" False
+  , Navbar.SubEntry "New contract" "#" False
+  , Navbar.Divider
+  , Navbar.SubEntry "New business entity" "#" False
+  , Navbar.SubEntry "New legal entity" "#" False
+  ]
