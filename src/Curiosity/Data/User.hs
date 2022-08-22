@@ -31,6 +31,7 @@ module Curiosity.Data.User
   , userProfileTelephoneNbr
   , UserId(..)
   , UserName(..)
+  , UserEmailAddr(..)
   , Password(..)
   , Predicate(..)
   , applyPredicate
