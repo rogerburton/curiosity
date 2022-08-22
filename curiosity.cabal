@@ -165,3 +165,18 @@ test-suite curiosity-tests
   main-is: Spec.hs
   hs-source-dirs:
       tests
+
+test-suite curiosity-scenarios
+  import: common-dependencies, lang-settings, common-extensions
+  build-depends:
+      bytestring
+    , curiosity
+    , filepath
+    , Glob
+    , lens
+    , tasty
+    , tasty-silver
+  type: exitcode-stdio-1.0
+  main-is: run-scenarios.hs
+  hs-source-dirs:
+      tests

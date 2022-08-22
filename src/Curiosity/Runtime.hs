@@ -227,17 +227,15 @@ instance ML.MonadAppNameLogMulti AppM where
 
 
 --------------------------------------------------------------------------------
--- | Handle a single command. The @display@ function and the return type
--- provide some flexibility, so this function can be used in both `cty` and
--- `cty repl`.
+-- | Handle a single command. The return type provides some flexibility, so
+-- this function can be used in both `cty` and `cty repl`.
 handleCommand
   :: MonadIO m
   => Runtime
-  -> (Text -> m ())
   -> User.UserName -- ^ The user performing the command.
   -> Command.Command
-  -> m ExitCode
-handleCommand runtime@Runtime {..} display user command = do
+  -> m (ExitCode, [Text])
+handleCommand runtime@Runtime {..} user command = do
   case command of
     Command.State useHs -> do
       output <-
@@ -247,9 +245,8 @@ handleCommand runtime@Runtime {..} display user command = do
           let value' = if useHs
                 then show value
                 else LT.toStrict (Aeson.encodeToLazyText value)
-          display value'
-          pure ExitSuccess
-        Left err -> display (show err) >> pure (ExitFailure 1)
+          pure (ExitSuccess, [value'])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createUser
         _rDb
@@ -258,10 +255,9 @@ handleCommand runtime@Runtime {..} display user command = do
         Right muid -> do
           case muid of
             Right (User.UserId uid) -> do
-              display $ "User created: " <> uid
-              pure ExitSuccess
-            Left err -> display (show err) >> pure (ExitFailure 1)
-        Left err -> display (show err) >> pure (ExitFailure 1)
+              pure (ExitSuccess, ["User created: " <> uid])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.SelectUser useHs uid short -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ selectUserById
         _rDb
@@ -274,16 +270,17 @@ handleCommand runtime@Runtime {..} display user command = do
                     then show value
                     else LT.toStrict (Aeson.encodeToLazyText value)
               if short
-                then
-                  display
-                  $  User.unUserId (User._userProfileId value)
-                  <> " "
-                  <> User.unUserName
-                       (User._userCredsName $ User._userProfileCreds value)
-                else display value'
-              pure ExitSuccess
-            Nothing -> display "No such user." >> pure (ExitFailure 1)
-        Left err -> display (show err) >> pure (ExitFailure 1)
+                then pure
+                  ( ExitSuccess
+                  , [ User.unUserId (User._userProfileId value)
+                      <> " "
+                      <> User.unUserName
+                           (User._userCredsName $ User._userProfileCreds value)
+                    ]
+                  )
+                else pure (ExitSuccess, [value'])
+            Nothing -> pure (ExitFailure 1, ["No such user."])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.FilterUsers predicate -> do
       output <- runAppMSafe runtime
         $ withRuntimeAtomically filterUsers predicate
@@ -292,16 +289,14 @@ handleCommand runtime@Runtime {..} display user command = do
           let f User.UserProfile {..} =
                 let User.UserId   i = _userProfileId
                     User.UserName n = User._userCredsName _userProfileCreds
-                in  putStrLn $ i <> " " <> n
-          mapM_ f profiles
-          pure ExitSuccess
+                in  i <> " " <> n
+          pure (ExitSuccess, map f profiles)
     Command.UpdateUser update -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
           _rDb
           update
-      display $ show output
-      pure ExitSuccess
+      pure (ExitSuccess, [show output])
     Command.SetUserEmailAddrAsVerified uid -> do
       let transaction rt input = do
             b <- canPerform (rt ^. rDb) user command
@@ -311,20 +306,19 @@ handleCommand runtime@Runtime {..} display user command = do
       output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
       case output of
         Right (Right ()) -> do
-          display "User successfully updated."
-          pure ExitSuccess
-        Right (Left err) -> display (show err) >> pure (ExitFailure 1)
-        Left  err        -> display (show err) >> pure (ExitFailure 1)
+          pure (ExitSuccess, ["User successfully updated."])
+        Right (Left err) -> pure (ExitFailure 1, [show err])
+        Left  err        -> pure (ExitFailure 1, [show err])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
             mapM (setUserEmailAddrAsVerified _rDb . User._userProfileId) users
       output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
-      either (putStrLn . Errs.displayErr) (mapM_ (display . show)) output
-        $> ExitFailure 1
+      case output of
+        Right x   -> pure (ExitSuccess, map show x)
+        Left  err -> pure (ExitFailure 1, [Errs.displayErr err])
     _ -> do
-      display $ "Unhandled command " <> show command
-      return $ ExitFailure 1
+      pure (ExitFailure 1, ["Unhandled command " <> show command])
 
 canPerform db user command = case command of
   Command.SetUserEmailAddrAsVerified _ -> do
@@ -340,18 +334,17 @@ interpret
   :: Data.HaskDb Runtime
   -> User.UserName
   -> [Command.Command]
-  -> IO [Data.HaskDb Runtime]
+  -> IO [(ExitCode, [Text], Data.HaskDb Runtime)]
 interpret = loop []
  where
   -- TODO Maybe it would be more efficient to thread a runtime instate of a
   -- state (that needs to be "booted" over and over again).
   loop acc _  _    []               = pure $ reverse acc
   loop acc st user (command : rest) = do
-    runtime <- boot' st "/tmp/curiosity-xxx.log"
-    handleCommand runtime display user command
-    st' <- Data.readFullStmDbInHask $ _rDb runtime
-    loop (st' : acc) st' user rest
-  display = putStrLn -- TODO Accumulate in a list, so it can be returned.
+    runtime        <- boot' st "/tmp/curiosity-xxx.log"
+    (code, output) <- handleCommand runtime user command
+    st'            <- Data.readFullStmDbInHask $ _rDb runtime
+    loop ((code, output, st') : acc) st' user rest
                      -- TODO Is is possible to also log to a list ?
 
 instance S.DBTransaction AppM STM where

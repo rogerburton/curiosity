@@ -1,0 +1,8 @@
+1: reset
+Resetting to the empty state.
+3: user create alice secret alice@example.com --accept-tos
+User created: USER-1
+4: user get USER-1 --short
+USER-1 alice
+5: quit
+Exiting.
