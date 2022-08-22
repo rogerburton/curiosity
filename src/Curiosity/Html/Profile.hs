@@ -10,9 +10,11 @@ module Curiosity.Html.Profile
   ) where
 
 import qualified Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( exampleNavbarAlt )
+import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
+import           Smart.Html.Layout
 import qualified Smart.Html.Render             as Render
+import           Smart.Html.SideMenu            ( SideMenu(..), SideMenuItem(..) )
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
                                                 , svgIconEdit
@@ -31,13 +33,18 @@ data ProfilePage = ProfilePage
 
 instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
-          H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileForm
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
+          H.main ! A.class_ "u-maximize-width" $ profileForm
             profile
             submitUrl
 
@@ -239,15 +246,26 @@ data ProfileView = ProfileView
 
 instance H.ToMarkup ProfileView where
   toMarkup (ProfileView profile hasEditButton) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
-          H.main ! A.class_ "u-maximize-width u-scroll-wrapper" $ profileView
-            profile
-            hasEditButton
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
+          withSideMenuFullScroll menu $ profileView profile hasEditButton
+
+menu :: SideMenu
+menu =
+  SideMenuWithActive
+    []
+    ( SideMenuItem "User profile" "/settings/profile" )
+    [ SideMenuItem "Dummy" "/settings/dummy"
+    ]
 
 profileView profile hasEditButton =
   container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
@@ -334,14 +352,19 @@ data PublicProfileView = PublicProfileView
 
 instance H.ToMarkup PublicProfileView where
   toMarkup (PublicProfileView profile) =
-    Render.renderCanvas
+    Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
-      ! A.class_ "c-app-layout"
+      ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header $ H.toMarkup exampleNavbarAlt
+          H.header
+            $ H.toMarkup
+            . navbar
+            . User.unUserName
+            . User._userCredsName
+            $ User._userProfileCreds profile
           H.main
-            ! A.class_ "u-maximize-width u-scroll-wrapper"
+            ! A.class_ "u-maximize-width"
             $ publicProfileView profile
 
 publicProfileView profile =

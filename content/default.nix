@@ -17,6 +17,8 @@ in
 
       make -f scripts/doc.Makefile
       mv _site $out
+
+      cp -r ${(import ../.).static} $out/static
     '';
   };
 

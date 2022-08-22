@@ -32,15 +32,16 @@ import           Data.List                      ( init
 import qualified Data.Text                     as T
 import qualified Network.Wai                   as Wai
 import           Prelude                 hiding ( hash )
-import           System.FilePath                ( (</>) )
+import           System.FilePath                ( (</>)
+                                                , takeExtension
+                                                )
 import           System.PosixCompat.Files       ( fileSize
                                                 , getFileStatus
                                                 , isRegularFile
                                                 , modificationTime
                                                 )
 import           WaiAppStatic.Storage.Filesystem
-                                                ( ETagLookup
-                                                )
+                                                ( ETagLookup )
 import           WaiAppStatic.Types             ( File(..)
                                                 , LookupResult(..)
                                                 , Piece(..)
@@ -89,10 +90,22 @@ webAppLookup hashFunc prefix pieces = fileHelperLR hashFunc fp lastPiece
     = (init pieces, unsafeToPiece "index.html")
     | otherwise
     = let lastP = case fromPiece (last pieces) of
-            s | T.isSuffixOf ".ico" s -> last pieces
-            s | T.isSuffixOf ".txt" s -> last pieces
-            s                         -> unsafeToPiece $ s <> ".html"
+            s | takeExtension (T.unpack s) `elem` extensions -> last pieces
+            s -> unsafeToPiece $ s <> ".html"
       in  (init pieces, lastP)
+  extensions =
+    [ ".css"
+    , ".ico"
+    , ".jpg"
+    , ".js"
+    , ".otf"
+    , ".png"
+    , ".ttf"
+    , ".svg"
+    , ".txt"
+    , ".woff"
+    , ".woff2"
+    ]
 
 -- | Convenience wrapper for @fileHelper@.
 fileHelperLR
