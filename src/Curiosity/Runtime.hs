@@ -43,6 +43,10 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 )
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Employment     as Employment
+import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
@@ -247,6 +251,25 @@ handleCommand runtime@Runtime {..} user command = do
                 else LT.toStrict (Aeson.encodeToLazyText value)
           pure (ExitSuccess, [value'])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.CreateBusinessEntity -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createBusiness
+        _rDb
+      case output of
+        Right mid -> do
+          case mid of
+            Right (Business.BusinessId id) -> do
+              pure (ExitSuccess, ["Business entity created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.CreateLegalEntity -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal _rDb
+      case output of
+        Right mid -> do
+          case mid of
+            Right (Legal.LegalId id) -> do
+              pure (ExitSuccess, ["Legal entity created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createUser
         _rDb
@@ -309,6 +332,26 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["User successfully updated."])
         Right (Left err) -> pure (ExitFailure 1, [show err])
         Left  err        -> pure (ExitFailure 1, [show err])
+    Command.CreateEmployment -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createEmployment
+        _rDb
+      case output of
+        Right mid -> do
+          case mid of
+            Right (Employment.ContractId id) -> do
+              pure (ExitSuccess, ["Employment contract created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.CreateInvoice -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createInvoice
+        _rDb
+      case output of
+        Right mid -> do
+          case mid of
+            Right (Invoice.InvoiceId id) -> do
+              pure (ExitSuccess, ["Invoice created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
@@ -353,6 +396,152 @@ instance S.DBTransaction AppM STM where
       . fmap (first Errs.RuntimeException)
       . try @SomeException
       . STM.atomically
+
+
+--------------------------------------------------------------------------------
+createBusiness
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either Business.Err Business.BusinessId)
+createBusiness db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateBusinessId db
+    let new = Business.Entity newId
+    createBusinessFull db new >>= either STM.throwSTM pure
+
+createBusinessFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Business.Entity
+  -> STM (Either Business.Err Business.BusinessId)
+createBusinessFull db new = do
+  modifyBusinessEntities db (++ [new])
+  pure . Right $ Business._entityId new
+
+generateBusinessId
+  :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
+generateBusinessId db = do
+  let tvar = Data._dbNextBusinessId db
+  STM.stateTVar tvar (\i -> (Business.BusinessId $ "BENT-" <> show i, succ i))
+
+modifyBusinessEntities
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Business.Entity] -> [Business.Entity])
+  -> STM ()
+modifyBusinessEntities db f =
+  let tvar = Data._dbBusinessEntities db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+createLegal
+  :: forall runtime . Data.StmDb runtime -> STM (Either Legal.Err Legal.LegalId)
+createLegal db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateLegalId db
+    let new = Legal.Entity newId
+    createLegalFull db new >>= either STM.throwSTM pure
+
+createLegalFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Legal.Entity
+  -> STM (Either Legal.Err Legal.LegalId)
+createLegalFull db new = do
+  modifyLegalEntities db (++ [new])
+  pure . Right $ Legal._entityId new
+
+generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.LegalId
+generateLegalId db = do
+  let tvar = Data._dbNextLegalId db
+  STM.stateTVar tvar (\i -> (Legal.LegalId $ "LENT-" <> show i, succ i))
+
+modifyLegalEntities
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Legal.Entity] -> [Legal.Entity])
+  -> STM ()
+modifyLegalEntities db f =
+  let tvar = Data._dbLegalEntities db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+createEmployment
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either Employment.Err Employment.ContractId)
+createEmployment db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateEmploymentId db
+    let new = Employment.Contract newId
+    createEmploymentFull db new >>= either STM.throwSTM pure
+
+createEmploymentFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Employment.Contract
+  -> STM (Either Employment.Err Employment.ContractId)
+createEmploymentFull db new = do
+  modifyEmployments db (++ [new])
+  pure . Right $ Employment._contractId new
+
+generateEmploymentId
+  :: forall runtime . Data.StmDb runtime -> STM Employment.ContractId
+generateEmploymentId db = do
+  let tvar = Data._dbNextEmploymentId db
+  STM.stateTVar tvar (\i -> (Employment.ContractId $ "EMP-" <> show i, succ i))
+
+modifyEmployments
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Employment.Contract] -> [Employment.Contract])
+  -> STM ()
+modifyEmployments db f =
+  let tvar = Data._dbEmployments db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+createInvoice
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either Invoice.Err Invoice.InvoiceId)
+createInvoice db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateInvoiceId db
+    let new = Invoice.Invoice newId
+    createInvoiceFull db new >>= either STM.throwSTM pure
+
+createInvoiceFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Invoice.Invoice
+  -> STM (Either Invoice.Err Invoice.InvoiceId)
+createInvoiceFull db new = do
+  modifyInvoices db (++ [new])
+  pure . Right $ Invoice._entityId new
+
+generateInvoiceId
+  :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
+generateInvoiceId db = do
+  let tvar = Data._dbNextInvoiceId db
+  STM.stateTVar tvar (\i -> (Invoice.InvoiceId $ "INV-" <> show i, succ i))
+
+modifyInvoices
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Invoice.Invoice] -> [Invoice.Invoice])
+  -> STM ()
+modifyInvoices db f =
+  let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
+
 
 --------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)

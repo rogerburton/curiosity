@@ -23,7 +23,11 @@ module Curiosity.Data
 
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
-import qualified Curiosity.Data.User           as U
+import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Employment     as Employment
+import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
@@ -37,8 +41,16 @@ Additionally, we want to parameterise over a @runtime@ type parameter. This is
 a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
-  { _dbNextUserId   :: datastore Int
-  , _dbUserProfiles :: datastore [U.UserProfile]
+  { _dbNextBusinessId   :: datastore Int
+  , _dbBusinessEntities :: datastore [Business.Entity]
+  , _dbNextLegalId      :: datastore Int
+  , _dbLegalEntities    :: datastore [Legal.Entity]
+  , _dbNextUserId       :: datastore Int
+  , _dbUserProfiles     :: datastore [User.UserProfile]
+  , _dbNextInvoiceId    :: datastore Int
+  , _dbInvoices         :: datastore [Invoice.Invoice]
+  , _dbNextEmploymentId :: datastore Int
+  , _dbEmployments      :: datastore [Employment.Contract]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -56,17 +68,41 @@ type StmDb runtime = Db STM.TVar runtime
 
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
-emptyHask = Db (pure 1) (pure mempty)
+emptyHask = Db
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
+  (pure 1) (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles }
+instantiateStmDb Db
+  { _dbNextBusinessId   = Identity seedNextBusinessId
+  , _dbBusinessEntities = Identity seedBusinessEntities
+  , _dbNextLegalId      = Identity seedNextLegalId
+  , _dbLegalEntities    = Identity seedLegalEntities
+  , _dbNextUserId       = Identity seedNextUserId
+  , _dbUserProfiles     = Identity seedProfiles
+  , _dbNextInvoiceId    = Identity seedNextInvoiceId
+  , _dbInvoices         = Identity seedInvoices
+  , _dbNextEmploymentId = Identity seedNextEmploymentId
+  , _dbEmployments      = Identity seedEmployments
+  }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
-    _dbNextUserId   <- STM.newTVar seedNextUserId
-    _dbUserProfiles <- STM.newTVar seedProfiles
+    _dbNextBusinessId   <- STM.newTVar seedNextBusinessId
+    _dbBusinessEntities <- STM.newTVar seedBusinessEntities
+    _dbNextLegalId      <- STM.newTVar seedNextLegalId
+    _dbLegalEntities    <- STM.newTVar seedLegalEntities
+    _dbNextUserId       <- STM.newTVar seedNextUserId
+    _dbUserProfiles     <- STM.newTVar seedProfiles
+    _dbNextInvoiceId    <- STM.newTVar seedNextInvoiceId
+    _dbInvoices         <- STM.newTVar seedInvoices
+    _dbNextEmploymentId <- STM.newTVar seedNextEmploymentId
+    _dbEmployments      <- STM.newTVar seedEmployments
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -95,8 +131,16 @@ readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
 readFullStmDbInHask
   :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
 readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
-  _dbNextUserId   <- pure <$> STM.readTVar (_dbNextUserId stmDb)
-  _dbUserProfiles <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbNextBusinessId   <- pure <$> STM.readTVar (_dbNextBusinessId stmDb)
+  _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
+  _dbNextLegalId      <- pure <$> STM.readTVar (_dbNextLegalId stmDb)
+  _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
+  _dbNextUserId       <- pure <$> STM.readTVar (_dbNextUserId stmDb)
+  _dbUserProfiles     <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbNextInvoiceId    <- pure <$> STM.readTVar (_dbNextInvoiceId stmDb)
+  _dbInvoices         <- pure <$> STM.readTVar (_dbInvoices stmDb)
+  _dbNextEmploymentId <- pure <$> STM.readTVar (_dbNextEmploymentId stmDb)
+  _dbEmployments      <- pure <$> STM.readTVar (_dbEmployments stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
