@@ -208,7 +208,7 @@ newtype UserId = UserId { unUserId :: Text }
                         , H.ToMarkup
                         , H.ToValue
                         ) via Text
-               deriving FromForm via W.Wrapped "user-id" Text
+               deriving (FromHttpApiData, FromForm) via W.Wrapped "user-id" Text
 
 instance Nav.IsNavbarContent UserProfile where
   navbarMarkup UserProfile {..} = do

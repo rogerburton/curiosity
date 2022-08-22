@@ -35,6 +35,7 @@ import           Curiosity.Data                 ( HaskDb
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
+import qualified Curiosity.Html.Action         as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
@@ -106,6 +107,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
+             :<|> "action" :> "set-email-addr-as-verified"
+                  :> Capture "username" User.UserName
+                  :> Get '[B.HTML] Pages.SetUserEmailAddrAsVerifiedPage
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
@@ -140,6 +144,7 @@ serverT conf jwtS root dataDir =
     :<|> partialUsernameBlocklistAsJson
     :<|> showLoginPage
     :<|> showSignupPage
+    :<|> showSetUserEmailAddrAsVerifiedPage
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
@@ -267,6 +272,13 @@ messageSignupSuccess = pure Signup.SignupSuccess
 
 echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
+
+
+--------------------------------------------------------------------------------
+showSetUserEmailAddrAsVerifiedPage
+  :: ServerC m => User.UserName -> m Pages.SetUserEmailAddrAsVerifiedPage
+showSetUserEmailAddrAsVerifiedPage username =
+  withUserFromUsername username (pure . Pages.SetUserEmailAddrAsVerifiedPage)
 
 
 --------------------------------------------------------------------------------
@@ -612,9 +624,8 @@ errorFormatters = defaultErrorFormatters
 -- | Serve the pages under a namespace. TODO Currently the namespace is
 -- hard-coded to "alice"
 serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
-serveNamespace username = withUserFromUsername
-  username
-  (\profile -> pure $ Pages.PublicProfileView profile)
+serveNamespace username =
+  withUserFromUsername username (pure . Pages.PublicProfileView)
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
