@@ -4,6 +4,86 @@ title: Curiosity
 
 # Changelog
 
+## 2022-08-23
+
+A regular user (by opposition to a system user) is now available in the
+virtual machine image.
+
+- The user has access to the Curiosity binaries, Bash completion and man
+  pages.
+- The default options for `cty serve` and the options for the `cty serve`
+  service are changed to no longer overlap (e.g. the default listen port is
+  9000, but the service is configured to use 9100).
+- There is now a `play.smartcoop.sh` domain, and Nginx is configured to
+  forward its requests to port 9000. I.e. when the user decides to run
+ `cty serve`, it's possible to access it on that new domain.
+- `jq` is also available to further process some `cty` output.
+- See [PR-52](https://github.com/hypered/curiosity/pull/52/) and following
+  commits.
+
+`cty run` and related commands are improved to be easier to use and more
+useful, in particular to write golden tests.
+
+- Scenarios can contain comments, starting with the `#` character.
+- The output of `cty run` now shows the input line numbers and the commands
+  being run.
+- `cty user get` accepts a `--short` option to make its output less verbose.
+- `cty run` understands a `reset` command, to make the state empty.
+- Internally, new users are appended at the end of the list of users (instead
+  of at the beginning).  This makes for a nicer default when displaying the
+state.
+- A new `cty users` command is added to filter users.
+- `cty run` understands an `as` command, to change the default user for the
+  next commands in the script.
+- Enable some completion: for the filenames for `cty run`, and for user IDs
+  (the later is really just a helper, and is not dependant on an actual state).
+- See [PR-53](https://github.com/hypered/curiosity/pull/53/).
+
+Introduce [golden
+testing](https://ro-che.info/articles/2017-12-04-golden-tests), based on the
+behavior of `cty run`.
+
+- The underlying code of `cty run` can be used with the `tasty-golden` library.
+- Scripts under the `scenarios/` directory now have an expected output (using
+  the `.golden` extension).
+- A new test program runs all scenarios, ensuring their output match the golden
+  files.
+- See [PR-54](https://github.com/hypered/curiosity/pull/54/).
+
+Add concepts of business entities, legal entities, invoices, and employment
+contract.
+
+- Those contain only an ID for now.
+- Commands to create instances of those concepts are added to `cty`, e.g.
+  `cty invoice`.
+- See [PR-56](https://github.com/hypered/curiosity/pull/56/).
+
+Various improvements to the web pages, before we can expose additional features
+already present in the CLI (e.g. set an email address as verified, or create a
+new invoice).
+
+- Add a dividing line in the user menu.
+- Show the logged in username in the user menu.
+- Fix the hamburger menu on the Markdown-based pages.
+- The whole settings pages (including the main navigation header) are
+  scrollable.
+- Rename "logout" to "sign out".
+- Add a side menu to the settings page.
+- Make the main navigation header mobile friendly.
+- See [PR-57](https://github.com/hypered/curiosity/pull/57/).
+
+Improve some metrics, as measured by [web.dev](https://web.dev/measure/). The
+first measures were 68, 93, 100, 85 (Performance, Accessibility, Best
+Practices, SEO). Now they are 97, 100, 100, 100.
+
+- Some static assets are now served directly by Nginx instead of its
+  `cty serve` backend.
+- Enable gzip compression.
+- Remove unused JS and CSS files.
+- Add a "description" meta tag and improve contrast of the footer link (this
+  improves the SEO score).
+- See also the previous PR.
+
 ## 2022-08-16
 
 - Various elements usually required of any business application:
