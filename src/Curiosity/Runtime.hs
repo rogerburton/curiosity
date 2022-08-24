@@ -327,9 +327,13 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SetUserEmailAddrAsVerified username -> do
       output <-
         runAppMSafe runtime
-        . liftIO
-        . STM.atomically
-        $ setUserEmailAddrAsVerifiedFull _rDb (user, username)
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile ->
+                setUserEmailAddrAsVerifiedFull _rDb (profile, username)
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
         Right (Right ()) -> do
           pure (ExitSuccess, ["User successfully updated."])
@@ -388,12 +392,8 @@ canPerform db user command = case command of
 canPerformByName :: Syntax.Name -> Bool
 canPerformByName name = name == 'User.SetUserEmailAddrAsVerified
 
-canPerformSetUserEmailAddrAsVerified db user = do
-  output <- selectUserByUsername db user
-  case output of
-    Just User.UserProfile {..} ->
-      pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
-    _ -> pure False
+canPerformSetUserEmailAddrAsVerified db User.UserProfile {..} =
+  pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
 
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.

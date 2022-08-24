@@ -266,7 +266,7 @@ applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
-             | UserNotFound Text
+             | UserNotFound Text -- Username or ID.
              | IncorrectUsernameOrPassword
              | EmailAddrAlreadyVerified
              | MissingRight AccessRight
@@ -300,7 +300,11 @@ instance Errs.IsRuntimeErr UserErr where
         409 -- TODO
         "Username disallowed"
         "Some usernames are not allowed. Please select another."
-    UserNotFound msg -> msg
+    UserNotFound msg ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        404
+        "User not found"
+        ("The supplied username or ID doesn't exist: " <> msg)
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
         401

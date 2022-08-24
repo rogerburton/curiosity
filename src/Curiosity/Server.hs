@@ -243,18 +243,18 @@ showHomePage
 showHomePage authResult = withMaybeUser
   authResult
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
-  (\userProfile -> do
+  (\profile -> do
     Rt.Runtime {..} <- ask
     b <- liftIO $ atomically $ Rt.canPerformSetUserEmailAddrAsVerified
       _rDb
-      (User._userCredsName $ User._userProfileCreds userProfile)
+      profile
     profiles <- if b
       then
         Just
           <$> Rt.withRuntimeAtomically Rt.filterUsers
                                        User.PredicateEmailAddrToVerify
       else pure Nothing
-    pure . SS.P.PageR $ Pages.WelcomePage userProfile profiles
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles
   )
 
 
@@ -488,13 +488,10 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
     db     <- asks Rt._rDb
     output <- liftIO $ atomically $ Rt.setUserEmailAddrAsVerifiedFull
       db
-      (user, username)
+      (profile, username)
     pure $ Pages.ActionResult "Set email address as verified" $ case output of
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
-  where user = User._userCredsName . User._userProfileCreds $ profile
-        -- TODO Since we have the profile, it's sad to pass the username
-        -- instead of the profile.
 
 documentEditProfilePage :: ServerC m => m Pages.ProfilePage
 documentEditProfilePage = do
