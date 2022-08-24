@@ -93,6 +93,7 @@ library
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
     Curiosity.Data.User
+    Curiosity.Dsl
     Curiosity.Form.Login
     Curiosity.Form.Signup
     Curiosity.Html.Action
