@@ -1,7 +1,7 @@
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 module Curiosity.Runtime
   ( IOErr(..)
   , Runtime(..)
@@ -22,8 +22,6 @@ module Curiosity.Runtime
   , withRuntimeAtomically
   -- * High-level operations
   , canPerform
-  , canPerformByName
-  , canPerformSetUserEmailAddrAsVerified
   , setUserEmailAddrAsVerifiedFull
   , selectUserById
   , selectUserByUsername
@@ -375,25 +373,24 @@ handleCommand runtime@Runtime {..} user command = do
     _ -> do
       pure (ExitFailure 1, ["Unhandled command " <> show command])
 
+setUserEmailAddrAsVerifiedFull
+  :: Data.StmDb runtime
+  -> (User.UserProfile, User.UserName)
+  -> STM (Either User.UserErr ())
 setUserEmailAddrAsVerifiedFull db (user, input) = transaction
  where
   transaction = do
-    b <- canPerformSetUserEmailAddrAsVerified db user
+    b <- canPerform 'User.SetUserEmailAddrAsVerified db user
     if b
       then setUserEmailAddrAsVerified db input
       else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
 
-canPerform db user command = case command of
-  Command.SetUserEmailAddrAsVerified _ ->
-    canPerformSetUserEmailAddrAsVerified db user
-
--- TODO The above function needs a Command.SetUserEmailAddrAsVerified value, which
--- means also passing a specific username, which is actually not needed. I'm wondering if doing the check using a name instead wouldn't be better. Here is an example:
-canPerformByName :: Syntax.Name -> Bool
-canPerformByName name = name == 'User.SetUserEmailAddrAsVerified
-
-canPerformSetUserEmailAddrAsVerified db User.UserProfile {..} =
-  pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+canPerform :: Syntax.Name -> Data.StmDb runtime -> User.UserProfile -> STM Bool
+canPerform action db User.UserProfile {..}
+  | action == 'User.SetUserEmailAddrAsVerified
+  = pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+  | otherwise
+  = pure False
 
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.

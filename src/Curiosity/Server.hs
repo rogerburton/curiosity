@@ -3,6 +3,7 @@
            , TypeOperators
 #-} -- Language extensions needed for servant.
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 {- |
 Module: Curiosity.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -245,7 +246,7 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
-    b <- liftIO $ atomically $ Rt.canPerformSetUserEmailAddrAsVerified
+    b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
       _rDb
       profile
     profiles <- if b
