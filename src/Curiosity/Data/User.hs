@@ -29,12 +29,16 @@ module Curiosity.Data.User
   , userProfileEmailAddrVerified
   , userProfilePostalAddress
   , userProfileTelephoneNbr
+  , userProfileCompletion1
+  , userProfileCompletion2
+  , userProfileRights
   , UserId(..)
   , UserName(..)
   , UserEmailAddr(..)
   , Password(..)
   , Predicate(..)
   , applyPredicate
+  , SetUserEmailAddrAsVerified(..)
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -210,6 +214,15 @@ newtype UserId = UserId { unUserId :: Text }
                         ) via Text
                deriving (FromHttpApiData, FromForm) via W.Wrapped "user-id" Text
 
+
+--------------------------------------------------------------------------------
+data SetUserEmailAddrAsVerified = SetUserEmailAddrAsVerified UserName
+
+instance FromForm SetUserEmailAddrAsVerified where
+  fromForm f = SetUserEmailAddrAsVerified <$> parseUnique "username" f
+
+
+--------------------------------------------------------------------------------
 instance Nav.IsNavbarContent UserProfile where
   navbarMarkup UserProfile {..} = do
     greeting

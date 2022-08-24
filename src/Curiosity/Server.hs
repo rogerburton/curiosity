@@ -27,7 +27,6 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
@@ -246,10 +245,9 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\userProfile -> do
     Rt.Runtime {..} <- ask
-    b               <- liftIO $ atomically $ Rt.canPerform
+    b <- liftIO $ atomically $ Rt.canPerformSetUserEmailAddrAsVerified
       _rDb
       (User._userCredsName $ User._userProfileCreds userProfile)
-      (Command.SetUserEmailAddrAsVerified "TODO") -- TODO User ID is ignored.
     profiles <- if b
       then
         Just
@@ -412,19 +410,25 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "logout" :> Verb 'GET 303 '[JSON] ( Headers CAuth.PostLogoutHeaders
                                                              NoContent
                                                             )
+             :<|> "a" :> "set-email-addr-as-verified"
+                   :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
+                   :> Post '[B.HTML] Pages.ActionResult
 
   )
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
 privateT conf authResult =
-  (withUser authResult showProfilePage)
-    :<|> (withUser authResult showProfileAsJson)
-    :<|> (withUser authResult showEditProfilePage)
-    :<|> (withUser authResult . handleUserUpdate)
-    :<|> (withUser authResult $ const (handleLogout conf))
+  let withUser' :: forall m a . ServerC m => (User.UserProfile -> m a) -> m a
+      withUser' = withUser authResult
+  in  (withUser' showProfilePage)
+        :<|> (withUser' showProfileAsJson)
+        :<|> (withUser' showEditProfilePage)
+        :<|> (withUser' . handleUserUpdate)
+        :<|> (withUser' $ const (handleLogout conf))
+        :<|> (withUser' . handleSetUserEmailAddrAsVerified)
 
 --------------------------------------------------------------------------------
--- | Handle a user's logout. 
+-- | Handle a user's logout.
 handleLogout
   :: forall m
    . ServerC m
@@ -472,6 +476,25 @@ handleUserUpdate User.Update {..} profile = case _editPassword of
 
   Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
     "Nothing to update."
+
+handleSetUserEmailAddrAsVerified
+  :: forall m
+   . ServerC m
+  => User.SetUserEmailAddrAsVerified
+  -> User.UserProfile
+  -> m Pages.ActionResult
+handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) profile
+  = do
+    db     <- asks Rt._rDb
+    output <- liftIO $ atomically $ Rt.setUserEmailAddrAsVerifiedFull
+      db
+      (user, username)
+    pure $ Pages.ActionResult "Set email address as verified" $ case output of
+      Right ()  -> "Success"
+      Left  err -> "Failure: " <> show err
+  where user = User._userCredsName . User._userProfileCreds $ profile
+        -- TODO Since we have the profile, it's sad to pass the username
+        -- instead of the profile.
 
 documentEditProfilePage :: ServerC m => m Pages.ProfilePage
 documentEditProfilePage = do

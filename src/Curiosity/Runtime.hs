@@ -22,6 +22,9 @@ module Curiosity.Runtime
   , withRuntimeAtomically
   -- * High-level operations
   , canPerform
+  , canPerformByName
+  , canPerformSetUserEmailAddrAsVerified
+  , setUserEmailAddrAsVerifiedFull
   , selectUserById
   , selectUserByUsername
   , filterUsers
@@ -53,6 +56,7 @@ import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
+import qualified Language.Haskell.TH.Syntax    as Syntax
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant
 import           System.Directory               ( doesFileExist )
@@ -320,13 +324,12 @@ handleCommand runtime@Runtime {..} user command = do
           _rDb
           update
       pure (ExitSuccess, [show output])
-    Command.SetUserEmailAddrAsVerified uid -> do
-      let transaction rt input = do
-            b <- canPerform (rt ^. rDb) user command
-            if b
-              then setUserEmailAddrAsVerified (rt ^. rDb) input
-              else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
-      output <- runAppMSafe runtime $ withRuntimeAtomically transaction uid
+    Command.SetUserEmailAddrAsVerified username -> do
+      output <-
+        runAppMSafe runtime
+        . liftIO
+        . STM.atomically
+        $ setUserEmailAddrAsVerifiedFull _rDb (user, username)
       case output of
         Right (Right ()) -> do
           pure (ExitSuccess, ["User successfully updated."])
@@ -355,7 +358,12 @@ handleCommand runtime@Runtime {..} user command = do
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
-            mapM (setUserEmailAddrAsVerified _rDb . User._userProfileId) users
+            mapM
+              ( setUserEmailAddrAsVerified _rDb
+              . User._userCredsName
+              . User._userProfileCreds
+              )
+              users
       output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
       case output of
         Right x   -> pure (ExitSuccess, map show x)
@@ -363,13 +371,29 @@ handleCommand runtime@Runtime {..} user command = do
     _ -> do
       pure (ExitFailure 1, ["Unhandled command " <> show command])
 
+setUserEmailAddrAsVerifiedFull db (user, input) = transaction
+ where
+  transaction = do
+    b <- canPerformSetUserEmailAddrAsVerified db user
+    if b
+      then setUserEmailAddrAsVerified db input
+      else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
+
 canPerform db user command = case command of
-  Command.SetUserEmailAddrAsVerified _ -> do
-    output <- selectUserByUsername db user
-    case output of
-      Just User.UserProfile {..} ->
-        pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
-      _ -> pure False
+  Command.SetUserEmailAddrAsVerified _ ->
+    canPerformSetUserEmailAddrAsVerified db user
+
+-- TODO The above function needs a Command.SetUserEmailAddrAsVerified value, which
+-- means also passing a specific username, which is actually not needed. I'm wondering if doing the check using a name instead wouldn't be better. Here is an example:
+canPerformByName :: Syntax.Name -> Bool
+canPerformByName name = name == 'User.SetUserEmailAddrAsVerified
+
+canPerformSetUserEmailAddrAsVerified db user = do
+  output <- selectUserByUsername db user
+  case output of
+    Just User.UserProfile {..} ->
+      pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
+    _ -> pure False
 
 -- | Given an initial state, applies a list of commands, returning the list of
 -- new (intermediate and final) states.
@@ -539,8 +563,7 @@ modifyInvoices
    . Data.StmDb runtime
   -> ([Invoice.Invoice] -> [Invoice.Invoice])
   -> STM ()
-modifyInvoices db f =
-  let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
+modifyInvoices db f = let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------
@@ -674,15 +697,15 @@ modifyUsers db f =
 setUserEmailAddrAsVerified
   :: forall runtime
    . Data.StmDb runtime
-  -> User.UserId
+  -> User.UserName
   -> STM (Either User.UserErr ())
-setUserEmailAddrAsVerified db uid = do
-  mprofile <- selectUserById db uid
+setUserEmailAddrAsVerified db username = do
+  mprofile <- selectUserByUsername db username
   case mprofile of
     Just User.UserProfile {..} -> case _userProfileEmailAddrVerified of
       Nothing -> do
         let replaceOlder users =
-              [ if S.dbId u == uid
+              [ if User._userCredsName (User._userProfileCreds u) == username
                   then u { User._userProfileEmailAddrVerified = Just "TODO" }
                   else u
               | u <- users
@@ -690,7 +713,7 @@ setUserEmailAddrAsVerified db uid = do
         modifyUsers db replaceOlder
         pure $ Right ()
       Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
-    Nothing -> pure . Left $ User.UserNotFound "TODO"
+    Nothing -> pure . Left $ User.UserNotFound $ User.unUserName username
 
 checkCredentials
   :: Data.StmDb Runtime -> User.Credentials -> STM (Maybe User.UserProfile)

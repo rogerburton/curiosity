@@ -9,7 +9,6 @@ module Curiosity.Html.Action
   ) where
 
 import           Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( navbar )
 import           Curiosity.Html.Profile         ( keyValuePair )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
