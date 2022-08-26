@@ -329,7 +329,7 @@ client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
   connect sock $ SockAddrUnix path
-  let command' = commandToString command
+  command' <- commandToString command
   send sock command'
   msg <- recv sock 1024
   let response = map B.unpack $ B.words msg -- TODO decodeUtf8
@@ -338,9 +338,13 @@ client path command = do
   exitSuccess
 
 commandToString = \case
-  Command.Init        -> undefined -- error "Can't send `init` to a server."
-  Command.State useHs -> "state" <> if useHs then " --hs" else ""
-  _                   -> undefined -- error "Unimplemented"
+  Command.Init        -> do
+    putStrLn @Text "Can't send `init` to a server."
+    exitFailure
+  Command.State useHs -> pure $ "state" <> if useHs then " --hs" else ""
+  _                   -> do
+    putStrLn @Text "Unimplemented"
+    exitFailure
 
 
 --------------------------------------------------------------------------------
