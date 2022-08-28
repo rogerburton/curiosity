@@ -447,10 +447,7 @@ createBusinessFull db new = do
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
 generateBusinessId Data.Db {..} =
-  Business.BusinessId
-    .   mappend "BENT-"
-    .   show
-    <$> C.currentCounterBumping _dbNextBusinessId
+  Business.BusinessId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
 
 modifyBusinessEntities
   :: forall runtime

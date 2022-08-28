@@ -80,7 +80,7 @@ emptyHask = Db
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db
-  { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId) 
+  { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
   , _dbBusinessEntities = Identity seedBusinessEntities
   , _dbNextLegalId      = Identity seedNextLegalId
   , _dbLegalEntities    = Identity seedLegalEntities
@@ -95,7 +95,7 @@ instantiateStmDb Db
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
-    _dbNextBusinessId   <- C.initialCounter seedNextBusinessId  
+    _dbNextBusinessId   <- C.newCounter seedNextBusinessId
     _dbBusinessEntities <- STM.newTVar seedBusinessEntities
     _dbNextLegalId      <- STM.newTVar seedNextLegalId
     _dbLegalEntities    <- STM.newTVar seedLegalEntities
@@ -135,7 +135,7 @@ readFullStmDbInHask
 readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
 
 readFullStmDbInHask' stmDb = do
-  _dbNextBusinessId   <- pure <$> C.currentCounter (_dbNextBusinessId stmDb)
+  _dbNextBusinessId   <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
   _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
   _dbNextLegalId      <- pure <$> STM.readTVar (_dbNextLegalId stmDb)
   _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)

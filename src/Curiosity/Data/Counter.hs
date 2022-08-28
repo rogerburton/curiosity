@@ -3,11 +3,19 @@
 module Curiosity.Data.Counter
   ( CounterValue(..)
   , Counter(..)
-  , currentCounterBumping
+  , CounterStep(..)
+  , bumpCounterPrefix
   ) where
 
 import qualified Control.Concurrent.STM        as STM
 import           Data.Aeson
+
+-- | Counter step: a principled datatype (vs. a bespoke pair) that stores the current and previous value of some count.
+data CounterStep count = CounterStep
+  { was :: count -- ^ Previous value.
+  , is  :: count -- ^ New value (stepped/bumped value). This is the value stored in the counter.
+  }
+  deriving (Eq, Show)
 
 newtype CounterValue (datastore :: Type -> Type) count = CounterValue { counterValue :: datastore count }
                                                        deriving (Eq, Show)
@@ -23,34 +31,42 @@ instance Applicative datastore => Applicative (CounterValue datastore) where
 class Counter count datastore m where
 
   -- | Generate the initial value of a counter.
-  initialCounter :: count ->  m (CounterValue datastore count)
+  newCounter :: count ->  m (CounterValue datastore count)
 
   -- | Generate the next value of a counter.
-  currentCounter :: CounterValue datastore count -> m count
+  readCounter :: CounterValue datastore count -> m count
 
-  -- | Store the new counter value. 
-  bumpCounter :: CounterValue datastore count -> m ()
+  -- | Bump the counter value, returning the value before and after the bump.
+  bumpCounter :: CounterValue datastore count -> m (CounterStep count)
 
 instance Enum count => Counter count STM.TVar STM.STM  where
 
-  initialCounter initCount = CounterValue <$> STM.newTVar initCount
+  newCounter initCount = CounterValue <$> STM.newTVar initCount
 
-  currentCounter (CounterValue countTvar) = STM.readTVar countTvar
+  readCounter (CounterValue countTvar) = STM.readTVar countTvar
 
-  bumpCounter (CounterValue countTvar) = STM.modifyTVar countTvar succ
+  bumpCounter ctr@(CounterValue countTvar) = do
+    was <- readCounter ctr
+    let is = succ was
+    STM.writeTVar countTvar is
+    pure CounterStep { .. }
 
--- | Since we're dealing with pure values, bumpCounter has no effect. 
+-- | Since we're dealing with pure values, bumpCounter has no effect.
 instance Enum count => Counter count Identity Identity where
-  initialCounter initCount = pure $ CounterValue . Identity $ initCount
-  currentCounter (CounterValue (Identity curValue)) = pure curValue
+
+  newCounter initCount = pure $ CounterValue . Identity $ initCount
+
+  readCounter (CounterValue (Identity curValue)) = pure curValue
+
   bumpCounter (CounterValue (Identity curValue)) =
-    pure (CounterValue (Identity $ succ curValue)) $> ()
+    pure CounterStep { was = curValue, is = succ curValue }
 
 -- | Get the current value of a counter bumping the value as we go.
-currentCounterBumping
+bumpCounterPrefix
   :: forall count m datastore
-   . (Counter count datastore m, Applicative m)
-  => CounterValue datastore count
-  -> m count
-currentCounterBumping ctr = currentCounter ctr <* bumpCounter ctr
+   . (Counter count datastore m, Applicative m, Show count)
+  => Text
+  -> CounterValue datastore count
+  -> m Text
+bumpCounterPrefix prefix ctr = bumpCounter ctr <&> mappend prefix . show . was
 
