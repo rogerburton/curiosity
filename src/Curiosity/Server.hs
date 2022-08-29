@@ -58,8 +58,10 @@ import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
+import Network.WebSockets.Connection
 import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
+import Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
@@ -138,6 +140,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              -- TODO Make a single handler for any namespace:
              :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
+             :<|> WebSocketApi
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
@@ -177,6 +180,7 @@ serverT conf jwtS root dataDir =
     :<|> serveErrors
     :<|> serveNamespace "alice"
     :<|> serveNamespaceDocumentation "alice"
+    :<|> websocket
     :<|> serveDocumentation root
 
 
@@ -681,6 +685,7 @@ showStateAsJson = do
 --------------------------------------------------------------------------------
 -- | Serve the static files for the documentation. This also provides a custom
 -- 404 fallback.
+-- serveDocumentation :: FilePath -> Tagged m Application
 serveDocumentation root = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings root)
@@ -734,6 +739,21 @@ serveNamespaceDocumentation
 serveNamespaceDocumentation username = withUserFromUsername
   username
   (\profile -> pure $ Pages.ProfileView profile Nothing)
+
+
+--------------------------------------------------------------------------------
+-- Accept websocket connections, and keep them alive. This is used by the
+-- `autoReload` element to cause a web page to auto-refresh when the connection
+-- is lost, e.g. when using ghcid to re-launch the server upon changes to the
+-- source code.
+type WebSocketApi = "ws" :> WebSocket
+
+websocket :: ServerC m => Connection -> m ()
+websocket con =
+  liftIO $ withPingThread con 30 (pure ()) $
+    liftIO . forM_ [1..] $ \i -> do
+      sendTextData con (show (i :: Int) :: Text)
+      threadDelay $ 60 * 1000000 -- 60 seconds
 
 
 --------------------------------------------------------------------------------
