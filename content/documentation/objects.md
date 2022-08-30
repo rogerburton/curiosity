@@ -25,3 +25,7 @@ title: Curiosity
 [Employment contract](/documentation/objects/contracts)
 
 :   An employment contract...
+
+[Invoice](/documentation/objects/invoices)
+
+:   An invoice...

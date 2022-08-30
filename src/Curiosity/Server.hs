@@ -40,6 +40,7 @@ import qualified Curiosity.Html.Business       as Pages
 import qualified Curiosity.Html.Employment     as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
+import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
 import qualified Curiosity.Html.Profile        as Pages
@@ -100,6 +101,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "views" :> "contract"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.ContractView
+             :<|> "views" :> "invoice"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.InvoiceView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -150,6 +154,7 @@ serverT conf jwtS root dataDir =
     :<|> documentEntityPage dataDir
     :<|> documentUnitPage dataDir
     :<|> documentContractPage dataDir
+    :<|> documentInvoicePage dataDir
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -539,10 +544,19 @@ documentUnitPage dataDir filename = do
 
 --------------------------------------------------------------------------------
 -- TODO Validate the filename (e.g. this can't be a path going up).
-documentContractPage :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
+documentContractPage
+  :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
 documentContractPage dataDir filename = do
   contract <- readJson $ dataDir </> filename
   pure $ Pages.ContractView contract True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentInvoicePage :: ServerC m => FilePath -> FilePath -> m Pages.InvoiceView
+documentInvoicePage dataDir filename = do
+  invoice <- readJson $ dataDir </> filename
+  pure $ Pages.InvoiceView invoice True
 
 
 --------------------------------------------------------------------------------
