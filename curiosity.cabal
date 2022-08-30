@@ -101,6 +101,7 @@ library
     Curiosity.Html.Errors
     Curiosity.Html.Homepage
     Curiosity.Html.LandingPage
+    Curiosity.Html.Legal
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
     Curiosity.Html.Profile

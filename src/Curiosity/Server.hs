@@ -40,6 +40,7 @@ import qualified Curiosity.Html.Business       as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
+import qualified Curiosity.Html.Legal          as Pages
 import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
@@ -89,6 +90,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.ProfileView
+             :<|> "views" :> "entity"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.EntityView
              :<|> "views" :> "unit"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.UnitView
@@ -139,6 +143,7 @@ serverT conf jwtS root dataDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage
     :<|> documentProfilePage dataDir
+    :<|> documentEntityPage dataDir
     :<|> documentUnitPage dataDir
     :<|> messageSignupSuccess
     :<|> showState
@@ -509,6 +514,14 @@ documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
   pure $ Pages.ProfileView profile True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
+documentEntityPage dataDir filename = do
+  entity <- readJson $ dataDir </> filename
+  pure $ Pages.EntityView entity True
 
 
 --------------------------------------------------------------------------------
