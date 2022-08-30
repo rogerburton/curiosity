@@ -9,6 +9,7 @@ module Curiosity.Html.Misc
   , containerLarge
   , keyValuePair
   , fullScroll
+  , inputText
   , submitButton
   ) where
 
@@ -57,6 +58,20 @@ fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
 
 
 --------------------------------------------------------------------------------
+inputText
+  :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html
+inputText label name mvalue mhelp = H.div ! A.class_ "o-form-group" $ do
+  H.label ! A.class_ "o-form-group__label" ! A.for name $ H.toHtml label
+  H.div
+    ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+    $ do
+        maybe identity (\value -> (! (A.value value))) mvalue
+          $ H.input
+          ! A.class_ "c-input"
+          ! A.id name
+          ! A.name name
+        maybe mempty ((H.p ! A.class_ "c-form-help-text") . H.text) mhelp
+
 submitButton :: H.AttributeValue -> Html -> Html
 submitButton submitUrl label =
   H.div

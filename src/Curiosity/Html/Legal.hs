@@ -109,40 +109,8 @@ entityCreationForm profile submitUrl = containerMedium $ do
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ H.form
     $ do
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "name"
-            $ "Registration name"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ H.input
-            ! A.class_ "c-input"
-            ! A.id "name"
-            ! A.name "name"
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "cbe-number"
-            $ "CBE number"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.input ! A.class_ "c-input" ! A.id "cbe-number" ! A.name
-                  "cbe-number"
-                H.p ! A.class_ "c-form-help-text" $ "Example: 100200300"
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "vat-number"
-            $ "VAT number"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.input ! A.class_ "c-input" ! A.id "vat-number" ! A.name
-                  "vat-number"
-                H.p ! A.class_ "c-form-help-text" $ "Example: BE0100200300"
+        inputText "Registration name" "name" Nothing Nothing
+        inputText "CBE number" "cbe-number" Nothing $ Just "Example: 100200300"
+        inputText "VAT number" "vat-number" Nothing
+          $ Just "Example: BE0100200300"
         submitButton submitUrl "Create new legal entity"

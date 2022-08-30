@@ -66,28 +66,16 @@ profileForm profile submitUrl = containerMedium $ do
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ H.form
     $ do
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "username"
-            $ "Username"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.input
-                  ! A.class_ "c-input"
-                  ! A.id "username"
-                  ! A.name "username"
-                  ! A.value
-                      ( H.toValue
-                      . User._userCredsName
-                      . User._userProfileCreds
-                      $ profile
-                      )
-                H.p
-                  ! A.class_ "c-form-help-text"
-                  $ "This is your public username"
+        inputText
+            "Username"
+            "username"
+            ( Just
+            . H.toValue
+            . User._userCredsName
+            . User._userProfileCreds
+            $ profile
+            )
+          $ Just "This is your public username"
         H.div ! A.class_ "o-form-group" $ do
           H.label
             ! A.class_ "o-form-group__label"
@@ -101,40 +89,14 @@ profileForm profile submitUrl = containerMedium $ do
             ! A.type_ "password"
             ! A.id "password"
             ! A.name "password"
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "display-name"
-            $ "Display name"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.input
-                  ! A.class_ "c-input"
-                  ! A.id "display-name"
-                  ! A.name "display-name"
-                  ! A.value (H.toValue . User._userProfileDisplayName $ profile)
-                H.p
-                  ! A.class_ "c-form-help-text"
-                  $ "This is the name that appears in e.g. your public profile"
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "email-addr"
-            $ "Email address"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.input
-                  ! A.class_ "c-input"
-                  ! A.id "email-addr"
-                  ! A.name "email-addr"
-                  ! A.value (H.toValue . User._userProfileEmailAddr $ profile)
-                H.p
-                  ! A.class_ "c-form-help-text"
-                  $ "Your email address is private"
+        inputText "Display name"
+                  "display-name"
+                  (Just . H.toValue . User._userProfileDisplayName $ profile)
+          $ Just "This is the name that appears in e.g. your public profile"
+        inputText "Email address"
+                  "email-addr"
+                  (Just . H.toValue . User._userProfileEmailAddr $ profile)
+          $ Just "Your email address is private"
         submitButton submitUrl "Update profile"
 
 -- Partial re-creation of
