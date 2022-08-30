@@ -47,18 +47,7 @@ contractView contract hasEditButton =
             $ H.h3
             ! A.class_ "c-h3 u-m-b-0"
             $ "Employment contract"
-          when hasEditButton
-            $ H.div
-            ! A.class_ "c-toolbar__right"
-            $ H.a
-            ! A.class_ "c-button c-button--secondary"
-            ! A.href "/settings/profile/edit"
-            $ H.span
-            ! A.class_ "c-button__content"
-            $ do
-                H.div ! A.class_ "o-svg-icon o-svg-icon-edit" $ H.toHtml
-                  svgIconEdit
-                H.span ! A.class_ "c-button__label" $ "Edit"
+          when hasEditButton $ editButton "#"
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do
