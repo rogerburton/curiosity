@@ -145,16 +145,4 @@ entityCreationForm profile submitUrl = containerMedium $ do
                 H.input ! A.class_ "c-input" ! A.id "vat-number" ! A.name
                   "vat-number"
                 H.p ! A.class_ "c-form-help-text" $ "Example: BE0100200300"
-        H.div
-          ! A.class_ "o-form-group"
-          $ H.div
-          ! A.class_ "u-spacer-left-auto"
-          $ H.button
-          ! A.class_ "c-button c-button--primary"
-          ! A.formaction (H.toValue submitUrl)
-          ! A.formmethod "POST"
-          $ H.span
-          ! A.class_ "c-button__content"
-          $ H.span
-          ! A.class_ "c-button__label"
-          $ "Create new legal entity"
+        submitButton submitUrl "Create new legal entity"

@@ -9,10 +9,13 @@ module Curiosity.Html.Misc
   , containerLarge
   , keyValuePair
   , fullScroll
+  , submitButton
   ) where
 
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!)
+                                                , Html
+                                                )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -51,3 +54,21 @@ keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
 -- TODO Move to Smart.Html.Layout.
 fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
   content
+
+
+--------------------------------------------------------------------------------
+submitButton :: H.AttributeValue -> Html -> Html
+submitButton submitUrl label =
+  H.div
+    ! A.class_ "o-form-group"
+    $ H.div
+    ! A.class_ "u-spacer-left-auto"
+    $ H.button
+    ! A.class_ "c-button c-button--primary"
+    ! A.formaction (H.toValue submitUrl)
+    ! A.formmethod "POST"
+    $ H.span
+    ! A.class_ "c-button__content"
+    $ H.span
+    ! A.class_ "c-button__label"
+    $ label
