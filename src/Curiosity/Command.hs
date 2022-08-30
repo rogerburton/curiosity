@@ -14,6 +14,7 @@ module Curiosity.Command
   ) where
 
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Data.Text                     as T
@@ -39,7 +40,7 @@ data Command =
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateBusinessEntity
-  | CreateLegalEntity
+  | CreateLegalEntity Legal.Create
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -150,7 +151,7 @@ parserInfoWithTarget =
           <> A.metavar "FILEPATH"
           )
     command <- parser
-    return $ CommandWithTarget command target user
+    pure $ CommandWithTarget command target user
 
 
 --------------------------------------------------------------------------------
@@ -321,7 +322,9 @@ parserLegal = A.subparser $ A.command
   )
 
 parserCreateLegalEntity :: A.Parser Command
-parserCreateLegalEntity = pure CreateLegalEntity
+parserCreateLegalEntity = do
+  name <- A.argument A.str (A.metavar "NAME" <> A.help "A registration name")
+  pure $ CreateLegalEntity $ Legal.Create name
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
@@ -352,7 +355,7 @@ parserUsers = do
           $  A.long "can-verify-email-addr"
           <> A.help "Show users with the right to verify email addresses."
           )
-  return $ FilterUsers predicate
+  pure $ FilterUsers predicate
 
 parserCreateUser :: A.Parser Command
 parserCreateUser = do
@@ -363,7 +366,7 @@ parserCreateUser = do
     (  A.long "accept-tos"
     <> A.help "Indicate if the user being created consents to the TOS."
     )
-  return $ CreateUser $ User.Signup username password email tosConsent
+  pure $ CreateUser $ User.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId

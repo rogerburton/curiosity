@@ -62,4 +62,5 @@ entityView entity hasEditButton =
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do
-          keyValuePair "ID" (Legal._entityId entity)
+          keyValuePair "ID"                (Legal._entityId entity)
+          keyValuePair "Registration name" (Legal._entityName entity)
