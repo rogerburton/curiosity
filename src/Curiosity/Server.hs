@@ -431,6 +431,9 @@ type Private = H.UserAuthentication :> (
                    :> Get '[JSON] User.UserProfile
              :<|>  "settings" :> "profile" :> "edit"
                    :> Get '[B.HTML] Pages.ProfilePage
+
+             :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
+
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
@@ -440,7 +443,6 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
                    :> Post '[B.HTML] Pages.ActionResult
-
   )
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
@@ -450,6 +452,7 @@ privateT conf authResult =
   in  (withUser' showProfilePage)
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
+        :<|> (withUser' showCreateEntityPage)
         :<|> (withUser' . handleUserUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
@@ -474,6 +477,13 @@ showProfileAsJson = pure
 showEditProfilePage profile =
   pure $ Pages.ProfilePage profile "/a/set-user-profile"
 
+showCreateEntityPage
+  :: ServerC m => User.UserProfile -> m Pages.CreateEntityPage
+showCreateEntityPage profile =
+  pure $ Pages.CreateEntityPage profile "/a/new-entity"
+
+
+--------------------------------------------------------------------------------
 handleUserUpdate
   :: forall m
    . ServerC m
