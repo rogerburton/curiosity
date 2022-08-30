@@ -64,3 +64,5 @@ entityView entity hasEditButton =
       $ do
           keyValuePair "ID"                (Legal._entityId entity)
           keyValuePair "Registration name" (Legal._entityName entity)
+          keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
+          keyValuePair "VAT number"        (Legal._entityVatNumber entity)

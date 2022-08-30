@@ -469,7 +469,7 @@ createLegal db Legal.Create {..} = do
  where
   transaction = do
     newId <- generateLegalId db
-    let new = Legal.Entity newId _createName
+    let new = Legal.Entity newId _createName _createCbeNumber _createVatNumber
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull

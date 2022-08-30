@@ -324,7 +324,15 @@ parserLegal = A.subparser $ A.command
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
   name <- A.argument A.str (A.metavar "NAME" <> A.help "A registration name")
-  pure $ CreateLegalEntity $ Legal.Create name
+  cbeNumber <- A.argument
+    A.str
+    (  A.metavar "CBE-NUMBER"
+    <> A.help "CBE number (without prefix or leading zero)"
+    )
+  vatNumber <- A.argument
+    A.str
+    (A.metavar "VAT-NUMER" <> A.help "VAT number (with prefix and leading zero")
+  pure $ CreateLegalEntity $ Legal.Create name cbeNumber vatNumber
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
