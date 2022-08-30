@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
@@ -48,9 +49,11 @@ import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
+                                                , Value
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -129,6 +132,8 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
+             :<|> "ubl" :> Capture "schema" Text
+                  :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
              :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
@@ -168,6 +173,7 @@ serverT conf jwtS root dataDir =
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
+    :<|> serveUBL dataDir
     :<|> serveErrors
     :<|> serveNamespace "alice"
     :<|> serveNamespaceDocumentation "alice"
@@ -683,6 +689,17 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 serveData path = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
+
+
+--------------------------------------------------------------------------------
+-- | Serve example data as UBL JSON files.
+-- `schema` can be for instance `"PartyLegalEntity"`.
+serveUBL dataDir "PartyLegalEntity" filename = do
+  value <- readJson $ dataDir </> filename
+  pure . Legal.toUBL $ value
+
+serveUBL _ schema _ =
+  Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack schema -- TODO Specific error.
 
 
 --------------------------------------------------------------------------------
