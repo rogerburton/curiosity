@@ -37,57 +37,35 @@ data ProfilePage = ProfilePage
 
 instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header
-            $ H.toMarkup
-            . navbar
-            . User.unUserName
-            . User._userCredsName
-            $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ profileForm profile submitUrl
-
-profileForm profile submitUrl = containerMedium $ do
-  title "User profile"
-  H.div
-    ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
-    $ H.form
-    $ do
-        inputText
-            "Username"
-            "username"
-            ( Just
-            . H.toValue
-            . User._userCredsName
-            . User._userProfileCreds
-            $ profile
-            )
-          $ Just "This is your public username"
-        H.div ! A.class_ "o-form-group" $ do
-          H.label
-            ! A.class_ "o-form-group__label"
-            ! A.for "password"
-            $ "Password"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ H.input
-            ! A.class_ "c-input"
-            ! A.type_ "password"
-            ! A.id "password"
-            ! A.name "password"
-        inputText "Display name"
-                  "display-name"
-                  (Just . H.toValue . User._userProfileDisplayName $ profile)
-          $ Just "This is the name that appears in e.g. your public profile"
-        inputText "Email address"
-                  "email-addr"
-                  (Just . H.toValue . User._userProfileEmailAddr $ profile)
-          $ Just "Your email address is private"
-        submitButton submitUrl "Update profile"
+    renderForm profile "User profile" $ do
+      inputText
+          "Username"
+          "username"
+          ( Just
+          . H.toValue
+          . User._userCredsName
+          . User._userProfileCreds
+          $ profile
+          )
+        $ Just "This is your public username"
+      H.div ! A.class_ "o-form-group" $ do
+        H.label ! A.class_ "o-form-group__label" ! A.for "password" $ "Password"
+        H.div
+          ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+          $ H.input
+          ! A.class_ "c-input"
+          ! A.type_ "password"
+          ! A.id "password"
+          ! A.name "password"
+      inputText "Display name"
+                "display-name"
+                (Just . H.toValue . User._userProfileDisplayName $ profile)
+        $ Just "This is the name that appears in e.g. your public profile"
+      inputText "Email address"
+                "email-addr"
+                (Just . H.toValue . User._userProfileEmailAddr $ profile)
+        $ Just "Your email address is private"
+      submitButton submitUrl "Update profile"
 
 -- Partial re-creation of
 -- https://design.smart.coop/prototypes/old-desk/contract-create-1.html

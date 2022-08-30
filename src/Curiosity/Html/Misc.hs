@@ -12,8 +12,15 @@ module Curiosity.Html.Misc
   , title
   , inputText
   , submitButton
+
+  -- Keep here:
+  , renderForm
   ) where
 
+import qualified Curiosity.Data.User           as User
+import           Curiosity.Html.Navbar          ( navbar )
+import qualified Smart.Html.Dsl                as Dsl
+import qualified Smart.Html.Render             as Render
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!)
                                                 , Html
@@ -56,6 +63,25 @@ keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
 -- TODO Move to Smart.Html.Layout.
 fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
   content
+
+renderForm :: User.UserProfile -> Text -> Html -> Html
+renderForm profile s content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        H.header
+          $ H.toMarkup
+          . navbar
+          . User.unUserName
+          . User._userCredsName
+          $ User._userProfileCreds profile
+        H.main ! A.class_ "u-maximize-width" $ containerMedium $ do
+          title s
+          H.div
+            ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
+            $ H.form content
 
 
 --------------------------------------------------------------------------------

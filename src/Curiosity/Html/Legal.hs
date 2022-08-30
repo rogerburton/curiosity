@@ -79,28 +79,8 @@ data CreateEntityPage = CreateEntityPage
 
 instance H.ToMarkup CreateEntityPage where
   toMarkup (CreateEntityPage profile submitUrl) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header
-            $ H.toMarkup
-            . navbar
-            . User.unUserName
-            . User._userCredsName
-            $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ entityCreationForm profile
-                                                                    submitUrl
-
-entityCreationForm profile submitUrl = containerMedium $ do
-  title "New legal entity"
-  H.div
-    ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
-    $ H.form
-    $ do
-        inputText "Registration name" "name" Nothing Nothing
-        inputText "CBE number" "cbe-number" Nothing $ Just "Example: 100200300"
-        inputText "VAT number" "vat-number" Nothing
-          $ Just "Example: BE0100200300"
-        submitButton submitUrl "Create new legal entity"
+    renderForm profile "New legal entity" $ do
+      inputText "Registration name" "name" Nothing Nothing
+      inputText "CBE number" "cbe-number" Nothing $ Just "Example: 100200300"
+      inputText "VAT number" "vat-number" Nothing $ Just "Example: BE0100200300"
+      submitButton submitUrl "Create new legal entity"
