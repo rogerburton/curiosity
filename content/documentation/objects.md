@@ -21,3 +21,7 @@ title: Curiosity
     business unit data displayed to other members or the public. They can be
     either a department from a Smart legal entity, or related to a member's
     project within Smart (what is called originally "Activité" in french).
+
+[Employment contract](/documentation/objects/contracts)
+
+:   An employment contract...

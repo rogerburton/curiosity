@@ -37,6 +37,7 @@ import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
 import qualified Curiosity.Html.Action         as Pages
 import qualified Curiosity.Html.Business       as Pages
+import qualified Curiosity.Html.Employment     as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
@@ -96,6 +97,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "views" :> "unit"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.UnitView
+             :<|> "views" :> "contract"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.ContractView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -145,6 +149,7 @@ serverT conf jwtS root dataDir =
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
     :<|> documentUnitPage dataDir
+    :<|> documentContractPage dataDir
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -530,6 +535,14 @@ documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
 documentUnitPage dataDir filename = do
   unit <- readJson $ dataDir </> filename
   pure $ Pages.UnitView unit True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentContractPage :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
+documentContractPage dataDir filename = do
+  contract <- readJson $ dataDir </> filename
+  pure $ Pages.ContractView contract True
 
 
 --------------------------------------------------------------------------------
