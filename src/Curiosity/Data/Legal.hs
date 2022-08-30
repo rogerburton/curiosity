@@ -8,10 +8,13 @@ module Curiosity.Data.Legal
   ( Entity(..)
   , LegalId(..)
   , Err(..)
+  , encodeUBL
+  , toUBL
   ) where
 
 import qualified Commence.Types.Wrapped        as W
 import           Data.Aeson
+import qualified Data.ByteString.Lazy          as LB
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..) )
 
@@ -36,3 +39,14 @@ newtype LegalId = LegalId { unLegalId :: Text }
 
 data Err = Err
   deriving (Eq, Exception, Show)
+
+
+--------------------------------------------------------------------------------
+encodeUBL :: Entity -> LB.ByteString
+encodeUBL = encode . toUBL
+
+toUBL :: Entity -> Value
+toUBL Entity {..} =
+  object
+    [ "CompanyID" .= _entityId
+    ]
