@@ -51,17 +51,7 @@ instance H.ToMarkup ProfilePage where
           H.main ! A.class_ "u-maximize-width" $ profileForm profile submitUrl
 
 profileForm profile submitUrl = containerMedium $ do
-  H.div
-    ! A.class_ "u-spacer-bottom-l"
-    $ H.div
-    ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
-    $ H.div
-    ! A.class_ "c-toolbar"
-    $ H.div
-    ! A.class_ "c-toolbar__left"
-    $ H.h3
-    ! A.class_ "c-h3 u-m-b-0"
-    $ "User profile"
+  title "User profile"
   H.div
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ H.form

@@ -94,17 +94,7 @@ instance H.ToMarkup CreateEntityPage where
                                                                     submitUrl
 
 entityCreationForm profile submitUrl = containerMedium $ do
-  H.div
-    ! A.class_ "u-spacer-bottom-l"
-    $ H.div
-    ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
-    $ H.div
-    ! A.class_ "c-toolbar"
-    $ H.div
-    ! A.class_ "c-toolbar__left"
-    $ H.h3
-    ! A.class_ "c-h3 u-m-b-0"
-    $ "New legal entity"
+  title "New legal entity"
   H.div
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ H.form
