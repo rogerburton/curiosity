@@ -97,9 +97,11 @@ library
     Curiosity.Form.Login
     Curiosity.Form.Signup
     Curiosity.Html.Action
+    Curiosity.Html.Business
     Curiosity.Html.Errors
     Curiosity.Html.Homepage
     Curiosity.Html.LandingPage
+    Curiosity.Html.Misc
     Curiosity.Html.Navbar
     Curiosity.Html.Profile
     Curiosity.Parse

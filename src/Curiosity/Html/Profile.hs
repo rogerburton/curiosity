@@ -11,6 +11,7 @@ module Curiosity.Html.Profile
   ) where
 
 import qualified Curiosity.Data.User           as User
+import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
@@ -49,7 +50,7 @@ instance H.ToMarkup ProfilePage where
             $ User._userProfileCreds profile
           H.main ! A.class_ "u-maximize-width" $ profileForm profile submitUrl
 
-profileForm profile submitUrl = container $ do
+profileForm profile submitUrl = containerMedium $ do
   H.div
     ! A.class_ "u-spacer-bottom-l"
     $ H.div
@@ -152,7 +153,7 @@ profileForm profile submitUrl = container $ do
 -- https://design.smart.coop/prototypes/old-desk/contract-create-1.html
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1 =
-  container
+  containerMedium
     $ H.div
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ do
@@ -266,7 +267,7 @@ menu = SideMenuWithActive []
                           [SideMenuItem "Dummy" "/settings/dummy"]
 
 profileView profile hasEditButton =
-  container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
+  containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
     H.div
       ! A.class_ "u-spacer-bottom-l"
       $ H.div
@@ -364,7 +365,7 @@ instance H.ToMarkup PublicProfileView where
           H.main ! A.class_ "u-maximize-width" $ publicProfileView profile
 
 publicProfileView profile =
-  container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
+  containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
     H.div
       ! A.class_ "u-spacer-bottom-l"
       $ H.div
@@ -389,38 +390,41 @@ publicProfileView profile =
           keyValuePair "Display name" (User._userProfileDisplayName profile)
 
 -- TODO Move to smart-design-hs and refactor.
-contractCreate1Confirm = container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-  H.div
-    ! A.class_ "u-spacer-bottom-l"
-    $ H.div
-    ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
-    $ H.div
-    ! A.class_ "c-toolbar"
-    $ do
-        H.div
-          ! A.class_ "c-toolbar__left"
-          $ H.h3
-          ! A.class_ "c-h3 u-m-b-0"
-          $ "General information"
-        H.div
-          ! A.class_ "c-toolbar__right"
-          $ H.a
-          ! A.class_ "c-button c-button--secondary"
-          ! A.href "#"
-          $ H.span
-          ! A.class_ "c-button__content"
-          $ do
-              H.div ! A.class_ "o-svg-icon o-svg-icon-edit" $ H.toHtml
-                svgIconEdit
-              H.span ! A.class_ "c-button__label" $ "Edit"
-  H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
-    keyValuePair @Text "Worker" "Manfred"
-    keyValuePair @Text
-      "Work setting"
-      "The work is mainly performed in places and at times freely chosen"
-    keyValuePair @Text "Compensation budget" "1000.00 EUR"
-    keyValuePair @Text "Project" "Unspecified"
-    keyValuePair @Text "Description" "Some description."
+contractCreate1Confirm =
+  containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
+    H.div
+      ! A.class_ "u-spacer-bottom-l"
+      $ H.div
+      ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
+      $ H.div
+      ! A.class_ "c-toolbar"
+      $ do
+          H.div
+            ! A.class_ "c-toolbar__left"
+            $ H.h3
+            ! A.class_ "c-h3 u-m-b-0"
+            $ "General information"
+          H.div
+            ! A.class_ "c-toolbar__right"
+            $ H.a
+            ! A.class_ "c-button c-button--secondary"
+            ! A.href "#"
+            $ H.span
+            ! A.class_ "c-button__content"
+            $ do
+                H.div ! A.class_ "o-svg-icon o-svg-icon-edit" $ H.toHtml
+                  svgIconEdit
+                H.span ! A.class_ "c-button__label" $ "Edit"
+    H.dl
+      ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+      $ do
+          keyValuePair @Text "Worker" "Manfred"
+          keyValuePair @Text
+            "Work setting"
+            "The work is mainly performed in places and at times freely chosen"
+          keyValuePair @Text "Compensation budget" "1000.00 EUR"
+          keyValuePair @Text "Project" "Unspecified"
+          keyValuePair @Text "Description" "Some description."
 
 
 data ProfileSaveConfirmPage = ProfileSaveSuccess
@@ -433,21 +437,3 @@ instance H.ToMarkup ProfileSaveConfirmPage where
     ProfileSaveFailure mmsg -> do
       H.text "We had a problem saving your data."
       maybe mempty (H.text . mappend "Reason: ") mmsg
-
-
---------------------------------------------------------------------------------
-container content =
-  H.div
-    ! A.class_ "u-scroll-wrapper-body"
-    $ H.div
-    ! A.class_ "o-container o-container--large"
-    $ H.div
-    ! A.class_ "o-container-vertical"
-    $ H.div
-    ! A.class_ "o-container o-container--medium"
-    $ content
-
-keyValuePair :: H.ToMarkup a => Text -> a -> H.Html
-keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
-  H.dt ! A.class_ "c-key-value-item__key" $ H.toHtml key
-  H.dd ! A.class_ "c-key-value-item__value" $ H.toHtml value

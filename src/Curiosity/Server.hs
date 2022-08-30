@@ -36,6 +36,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
 import qualified Curiosity.Html.Action         as Pages
+import qualified Curiosity.Html.Business       as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
@@ -88,6 +89,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.ProfileView
+             :<|> "views" :> "unit"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.UnitView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -135,6 +139,7 @@ serverT conf jwtS root dataDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage
     :<|> documentProfilePage dataDir
+    :<|> documentUnitPage dataDir
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -247,8 +252,8 @@ showHomePage authResult = withMaybeUser
   (\profile -> do
     Rt.Runtime {..} <- ask
     b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
-      _rDb
-      profile
+                                             _rDb
+                                             profile
     profiles <- if b
       then
         Just
@@ -504,6 +509,14 @@ documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
   pure $ Pages.ProfileView profile True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
+documentUnitPage dataDir filename = do
+  unit <- readJson $ dataDir </> filename
+  pure $ Pages.UnitView unit True
 
 
 --------------------------------------------------------------------------------
