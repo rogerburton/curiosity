@@ -12,6 +12,7 @@ module Curiosity.Html.Misc
 
   -- Form
   , title
+  , title'
   , inputText
   , submitButton
 
@@ -102,18 +103,23 @@ renderForm profile s content =
 
 --------------------------------------------------------------------------------
 title :: Text -> Html
-title s =
+title s = title' s Nothing
+
+title' :: Text -> Maybe H.AttributeValue -> Html
+title' s mEditButton =
   H.div
     ! A.class_ "u-spacer-bottom-l"
     $ H.div
     ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
     $ H.div
     ! A.class_ "c-toolbar"
-    $ H.div
-    ! A.class_ "c-toolbar__left"
-    $ H.h3
-    ! A.class_ "c-h3 u-m-b-0"
-    $ H.text s
+    $ do
+        H.div
+          ! A.class_ "c-toolbar__left"
+          $ H.h3
+          ! A.class_ "c-h3 u-m-b-0"
+          $ H.text s
+        maybe mempty editButton mEditButton
 
 inputText
   :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html

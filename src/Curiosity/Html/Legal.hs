@@ -30,19 +30,7 @@ instance H.ToMarkup EntityView where
 
 entityView entity hasEditButton =
   containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    H.div
-      ! A.class_ "u-spacer-bottom-l"
-      $ H.div
-      ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
-      $ H.div
-      ! A.class_ "c-toolbar"
-      $ do
-          H.div
-            ! A.class_ "c-toolbar__left"
-            $ H.h3
-            ! A.class_ "c-h3 u-m-b-0"
-            $ "Legal entity"
-          when hasEditButton $ editButton "#"
+    title' "Legal entity" (Just "#")
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do
