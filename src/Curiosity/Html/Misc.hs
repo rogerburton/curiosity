@@ -19,6 +19,7 @@ module Curiosity.Html.Misc
   , editButton
 
   -- Keep here:
+  , renderView
   , renderForm
   ) where
 
@@ -69,6 +70,15 @@ keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
 -- TODO Move to Smart.Html.Layout.
 fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
   content
+
+renderView content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        H.header $ H.toMarkup . navbar $ "TODO username"
+        fullScroll content
 
 renderForm :: User.UserProfile -> Text -> Html -> Html
 renderForm profile s content =

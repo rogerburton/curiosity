@@ -26,13 +26,7 @@ data EntityView = EntityView
 
 instance H.ToMarkup EntityView where
   toMarkup (EntityView entity hasEditButton) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header $ H.toMarkup . navbar $ "TODO username"
-          fullScroll $ entityView entity hasEditButton
+    renderView $ entityView entity hasEditButton
 
 entityView entity hasEditButton =
   containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do

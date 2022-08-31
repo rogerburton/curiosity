@@ -25,13 +25,7 @@ data UnitView = UnitView
 
 instance H.ToMarkup UnitView where
   toMarkup (UnitView unit hasEditButton) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header $ H.toMarkup . navbar $ "TODO Business unit name"
-          fullScroll $ unitView unit hasEditButton
+    renderView $ unitView unit hasEditButton
 
 unitView unit hasEditButton =
   containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do

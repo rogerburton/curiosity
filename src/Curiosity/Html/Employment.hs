@@ -25,13 +25,7 @@ data ContractView = ContractView
 
 instance H.ToMarkup ContractView where
   toMarkup (ContractView contract hasEditButton) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header $ H.toMarkup . navbar $ "TODO username"
-          fullScroll $ contractView contract hasEditButton
+    renderView $ contractView contract hasEditButton
 
 contractView contract hasEditButton =
   containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do

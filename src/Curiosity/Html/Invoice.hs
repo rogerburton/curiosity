@@ -25,13 +25,7 @@ data InvoiceView = InvoiceView
 
 instance H.ToMarkup InvoiceView where
   toMarkup (InvoiceView invoice hasEditButton) =
-    Render.renderCanvasFullScroll
-      . Dsl.SingletonCanvas
-      $ H.div
-      ! A.class_ "c-app-layout u-scroll-vertical"
-      $ do
-          H.header $ H.toMarkup . navbar $ "TODO username"
-          fullScroll $ invoiceView invoice hasEditButton
+    renderView $ invoiceView invoice hasEditButton
 
 invoiceView invoice hasEditButton =
   containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
