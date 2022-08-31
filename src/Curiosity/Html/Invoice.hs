@@ -27,10 +27,7 @@ instance H.ToMarkup InvoiceView where
   toMarkup (InvoiceView invoice hasEditButton) =
     renderView $ invoiceView invoice hasEditButton
 
-invoiceView invoice hasEditButton =
-  containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    title' "Invoice" (Just "#")
-    H.dl
-      ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
-      $ do
-          keyValuePair "ID" (Invoice._entityId invoice)
+invoiceView invoice hasEditButton = containerLarge $ do
+  title' "Invoice" (Just "#")
+  H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
+    keyValuePair "ID" (Invoice._entityId invoice)

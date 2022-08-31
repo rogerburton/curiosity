@@ -27,10 +27,7 @@ instance H.ToMarkup UnitView where
   toMarkup (UnitView unit hasEditButton) =
     renderView $ unitView unit hasEditButton
 
-unitView unit hasEditButton =
-  containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    title' "Business unit" (Just "#")
-    H.dl
-      ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
-      $ do
-          keyValuePair "ID" (Business._entityId unit)
+unitView unit hasEditButton = containerLarge $ do
+  title' "Business unit" (Just "#")
+  H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
+    keyValuePair "ID" (Business._entityId unit)

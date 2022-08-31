@@ -27,10 +27,7 @@ instance H.ToMarkup ContractView where
   toMarkup (ContractView contract hasEditButton) =
     renderView $ contractView contract hasEditButton
 
-contractView contract hasEditButton =
-  containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    title' "Employment contract" (Just "#")
-    H.dl
-      ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
-      $ do
-          keyValuePair "ID" (Employment._contractId contract)
+contractView contract hasEditButton = containerLarge $ do
+  title' "Employment contract" (Just "#")
+  H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
+    keyValuePair "ID" (Employment._contractId contract)

@@ -28,16 +28,13 @@ instance H.ToMarkup EntityView where
   toMarkup (EntityView entity hasEditButton) =
     renderView $ entityView entity hasEditButton
 
-entityView entity hasEditButton =
-  containerLarge $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    title' "Legal entity" (Just "#")
-    H.dl
-      ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
-      $ do
-          keyValuePair "ID"                (Legal._entityId entity)
-          keyValuePair "Registration name" (Legal._entityName entity)
-          keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
-          keyValuePair "VAT number"        (Legal._entityVatNumber entity)
+entityView entity hasEditButton = containerLarge $ do
+  title' "Legal entity" (Just "#")
+  H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
+    keyValuePair "ID"                (Legal._entityId entity)
+    keyValuePair "Registration name" (Legal._entityName entity)
+    keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
+    keyValuePair "VAT number"        (Legal._entityVatNumber entity)
 
 
 --------------------------------------------------------------------------------

@@ -60,6 +60,8 @@ containerLarge content =
     ! A.class_ "o-container o-container--large"
     $ H.div
     ! A.class_ "o-container-vertical"
+    $ H.div
+    ! A.class_ "u-spacer-bottom-xl"
     $ content
 
 keyValuePair :: H.ToMarkup a => Text -> a -> H.Html
