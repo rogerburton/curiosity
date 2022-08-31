@@ -160,7 +160,7 @@ contractCreate1 =
 
 data ProfileView = ProfileView
   { _profileViewUserProfile   :: User.UserProfile
-  , _profileViewHasEditButton :: Bool
+  , _profileViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup ProfileView where
@@ -185,19 +185,7 @@ menu = SideMenuWithActive []
 
 profileView profile hasEditButton =
   containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
-    H.div
-      ! A.class_ "u-spacer-bottom-l"
-      $ H.div
-      ! A.class_ "c-navbar c-navbar--unpadded c-navbar--bordered-bottom"
-      $ H.div
-      ! A.class_ "c-toolbar"
-      $ do
-          H.div
-            ! A.class_ "c-toolbar__left"
-            $ H.h3
-            ! A.class_ "c-h3 u-m-b-0"
-            $ "User profile"
-          when hasEditButton $ editButton "/settings/profile/edit"
+    title' "User profile" hasEditButton
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do

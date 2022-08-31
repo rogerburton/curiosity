@@ -20,7 +20,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 --------------------------------------------------------------------------------
 data ContractView = ContractView
   { _contractViewContract      :: Employment.Contract
-  , _contractViewHasEditButton :: Bool
+  , _contractViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup ContractView where
@@ -28,6 +28,6 @@ instance H.ToMarkup ContractView where
     renderView $ contractView contract hasEditButton
 
 contractView contract hasEditButton = containerLarge $ do
-  title' "Employment contract" (Just "#")
+  title' "Employment contract" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID" (Employment._contractId contract)

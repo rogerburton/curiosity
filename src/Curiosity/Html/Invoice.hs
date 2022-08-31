@@ -20,7 +20,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 --------------------------------------------------------------------------------
 data InvoiceView = InvoiceView
   { _invoiceViewInvoice       :: Invoice.Invoice
-  , _invoiceViewHasEditButton :: Bool
+  , _invoiceViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup InvoiceView where
@@ -28,6 +28,6 @@ instance H.ToMarkup InvoiceView where
     renderView $ invoiceView invoice hasEditButton
 
 invoiceView invoice hasEditButton = containerLarge $ do
-  title' "Invoice" (Just "#")
+  title' "Invoice" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID" (Invoice._entityId invoice)

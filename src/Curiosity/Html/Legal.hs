@@ -21,7 +21,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 --------------------------------------------------------------------------------
 data EntityView = EntityView
   { _entityViewEntity        :: Legal.Entity
-  , _entityViewHasEditButton :: Bool
+  , _entityViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup EntityView where
@@ -29,7 +29,7 @@ instance H.ToMarkup EntityView where
     renderView $ entityView entity hasEditButton
 
 entityView entity hasEditButton = containerLarge $ do
-  title' "Legal entity" (Just "#")
+  title' "Legal entity" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"                (Legal._entityId entity)
     keyValuePair "Registration name" (Legal._entityName entity)

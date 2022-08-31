@@ -468,7 +468,8 @@ handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
   (Command._serverCookie conf)
   NoContent
 
-showProfilePage profile = pure $ Pages.ProfileView profile True
+showProfilePage profile =
+  pure $ Pages.ProfileView profile (Just "/settings/profile/edit")
 
 showProfileAsJson
   :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
@@ -539,7 +540,7 @@ documentEditProfilePage = do
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
-  pure $ Pages.ProfileView profile True
+  pure $ Pages.ProfileView profile (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -547,7 +548,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView entity True
+  pure $ Pages.EntityView entity (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -555,7 +556,7 @@ documentEntityPage dataDir filename = do
 documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
 documentUnitPage dataDir filename = do
   unit <- readJson $ dataDir </> filename
-  pure $ Pages.UnitView unit True
+  pure $ Pages.UnitView unit (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -564,7 +565,7 @@ documentContractPage
   :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
 documentContractPage dataDir filename = do
   contract <- readJson $ dataDir </> filename
-  pure $ Pages.ContractView contract True
+  pure $ Pages.ContractView contract (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -572,7 +573,7 @@ documentContractPage dataDir filename = do
 documentInvoicePage :: ServerC m => FilePath -> FilePath -> m Pages.InvoiceView
 documentInvoicePage dataDir filename = do
   invoice <- readJson $ dataDir </> filename
-  pure $ Pages.InvoiceView invoice True
+  pure $ Pages.InvoiceView invoice (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -732,7 +733,7 @@ serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
 serveNamespaceDocumentation username = withUserFromUsername
   username
-  (\profile -> pure $ Pages.ProfileView profile False)
+  (\profile -> pure $ Pages.ProfileView profile Nothing)
 
 
 --------------------------------------------------------------------------------

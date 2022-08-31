@@ -20,7 +20,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 --------------------------------------------------------------------------------
 data UnitView = UnitView
   { _unitViewUnit          :: Business.Entity
-  , _unitViewHasEditButton :: Bool
+  , _unitViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup UnitView where
@@ -28,6 +28,6 @@ instance H.ToMarkup UnitView where
     renderView $ unitView unit hasEditButton
 
 unitView unit hasEditButton = containerLarge $ do
-  title' "Business unit" (Just "#")
+  title' "Business unit" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID" (Business._entityId unit)
