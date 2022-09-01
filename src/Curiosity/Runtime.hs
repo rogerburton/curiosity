@@ -263,8 +263,10 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Business entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
-    Command.CreateLegalEntity -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal _rDb
+    Command.CreateLegalEntity input -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal
+        _rDb
+        input
       case output of
         Right mid -> do
           case mid of
@@ -458,13 +460,16 @@ modifyBusinessEntities db f =
 
 --------------------------------------------------------------------------------
 createLegal
-  :: forall runtime . Data.StmDb runtime -> STM (Either Legal.Err Legal.LegalId)
-createLegal db = do
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Legal.Create
+  -> STM (Either Legal.Err Legal.LegalId)
+createLegal db Legal.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateLegalId db
-    let new = Legal.Entity newId
+    let new = Legal.Entity newId _createName _createCbeNumber _createVatNumber
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull

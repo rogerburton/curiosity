@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
@@ -48,9 +49,11 @@ import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
+                                                , Value
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
@@ -129,6 +132,8 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
+             :<|> "ubl" :> Capture "schema" Text
+                  :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
              :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
@@ -168,6 +173,7 @@ serverT conf jwtS root dataDir =
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
+    :<|> serveUBL dataDir
     :<|> serveErrors
     :<|> serveNamespace "alice"
     :<|> serveNamespaceDocumentation "alice"
@@ -425,6 +431,9 @@ type Private = H.UserAuthentication :> (
                    :> Get '[JSON] User.UserProfile
              :<|>  "settings" :> "profile" :> "edit"
                    :> Get '[B.HTML] Pages.ProfilePage
+
+             :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
+
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
                    :> H.PostUserPage Pages.ProfileSaveConfirmPage
@@ -434,7 +443,6 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
                    :> Post '[B.HTML] Pages.ActionResult
-
   )
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
@@ -444,6 +452,7 @@ privateT conf authResult =
   in  (withUser' showProfilePage)
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
+        :<|> (withUser' showCreateEntityPage)
         :<|> (withUser' . handleUserUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
@@ -459,7 +468,8 @@ handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
   (Command._serverCookie conf)
   NoContent
 
-showProfilePage profile = pure $ Pages.ProfileView profile True
+showProfilePage profile =
+  pure $ Pages.ProfileView profile (Just "/settings/profile/edit")
 
 showProfileAsJson
   :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
@@ -468,6 +478,13 @@ showProfileAsJson = pure
 showEditProfilePage profile =
   pure $ Pages.ProfilePage profile "/a/set-user-profile"
 
+showCreateEntityPage
+  :: ServerC m => User.UserProfile -> m Pages.CreateEntityPage
+showCreateEntityPage profile =
+  pure $ Pages.CreateEntityPage profile "/a/new-entity"
+
+
+--------------------------------------------------------------------------------
 handleUserUpdate
   :: forall m
    . ServerC m
@@ -523,7 +540,7 @@ documentEditProfilePage = do
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
-  pure $ Pages.ProfileView profile True
+  pure $ Pages.ProfileView profile (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -531,7 +548,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView entity True
+  pure $ Pages.EntityView entity (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -539,7 +556,7 @@ documentEntityPage dataDir filename = do
 documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
 documentUnitPage dataDir filename = do
   unit <- readJson $ dataDir </> filename
-  pure $ Pages.UnitView unit True
+  pure $ Pages.UnitView unit (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -548,7 +565,7 @@ documentContractPage
   :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
 documentContractPage dataDir filename = do
   contract <- readJson $ dataDir </> filename
-  pure $ Pages.ContractView contract True
+  pure $ Pages.ContractView contract (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -556,7 +573,7 @@ documentContractPage dataDir filename = do
 documentInvoicePage :: ServerC m => FilePath -> FilePath -> m Pages.InvoiceView
 documentInvoicePage dataDir filename = do
   invoice <- readJson $ dataDir </> filename
-  pure $ Pages.InvoiceView invoice True
+  pure $ Pages.InvoiceView invoice (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -686,6 +703,17 @@ serveData path = serveDirectoryWith settings
 
 
 --------------------------------------------------------------------------------
+-- | Serve example data as UBL JSON files.
+-- `schema` can be for instance `"PartyLegalEntity"`.
+serveUBL dataDir "PartyLegalEntity" filename = do
+  value <- readJson $ dataDir </> filename
+  pure . Legal.toUBL $ value
+
+serveUBL _ schema _ =
+  Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack schema -- TODO Specific error.
+
+
+--------------------------------------------------------------------------------
 -- | Serve errors intentionally. Only 500 for now.
 serveErrors :: ServerC m => m Text
 serveErrors = Errs.throwError' $ ServerErr "Intentional 500."
@@ -705,7 +733,7 @@ serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
 serveNamespaceDocumentation username = withUserFromUsername
   username
-  (\profile -> pure $ Pages.ProfileView profile False)
+  (\profile -> pure $ Pages.ProfileView profile Nothing)
 
 
 --------------------------------------------------------------------------------

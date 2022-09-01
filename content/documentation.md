@@ -18,6 +18,7 @@ title: Curiosity
 - [Objects](/documentation/objects)
 - [Sitemap](/documentation/sitemap)
 - [Source code](/documentation/source)
+- [UBL](/documentation/ubl)
 - [Validation rules](/documentation/validation)
 - [Views](/documentation/views)
 - [Virtual machine image](/documentation/machine)

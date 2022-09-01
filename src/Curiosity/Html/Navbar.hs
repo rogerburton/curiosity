@@ -43,5 +43,5 @@ plusEntries =
   , Navbar.SubEntry "New contract" "#" False
   , Navbar.Divider
   , Navbar.SubEntry "New business entity" "#" False
-  , Navbar.SubEntry "New legal entity" "#" False
+  , Navbar.SubEntry "New legal entity" "/new/entity" False
   ]
