@@ -41,7 +41,8 @@ common common-dependencies
 
     -- Our dependencies
     , commence-core
-    , commence-interactive-state 
+    , commence-interactive-state
+    , design-hs-lib
 
     -- control
     , stm
@@ -62,6 +63,7 @@ common common-dependencies
 
     -- Servant
     , servant
+    , servant-blaze
     , servant-server
     -- Authentication: use Jose based JWK settings as well.
     , servant-auth-server
@@ -69,12 +71,11 @@ common common-dependencies
     , wai
     , warp
 
-    , servant-blaze
+    , aeson
     , blaze
     , blaze-html
     , blaze-markup
-    , design-hs-lib
-    , aeson
+    , template-haskell
     , unix
   -- mixins: design-hs-lib hiding (Prelude)
   --       -- since cabal mixins are a half baked feature, hiding one module means hiding every other module.
@@ -94,6 +95,7 @@ library
     Curiosity.Data.User
     Curiosity.Form.Login
     Curiosity.Form.Signup
+    Curiosity.Html.Action
     Curiosity.Html.Errors
     Curiosity.Html.Homepage
     Curiosity.Html.LandingPage
@@ -109,9 +111,9 @@ library
   -- More dependencies only specific to the library
   build-depends:
       http-api-data
-    , bytestring 
+    , bytestring
     , cryptonite
-    , directory 
+    , directory
     , fast-logger
     , filepath
     , haskeline

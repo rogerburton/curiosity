@@ -3,6 +3,7 @@
            , TypeOperators
 #-} -- Language extensions needed for servant.
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 {- |
 Module: Curiosity.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -27,7 +28,6 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
@@ -35,6 +35,7 @@ import           Curiosity.Data                 ( HaskDb
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
+import qualified Curiosity.Html.Action         as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
@@ -106,6 +107,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
+             :<|> "action" :> "set-email-addr-as-verified"
+                  :> Capture "username" User.UserName
+                  :> Get '[B.HTML] Pages.SetUserEmailAddrAsVerifiedPage
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
@@ -140,6 +144,7 @@ serverT conf jwtS root dataDir =
     :<|> partialUsernameBlocklistAsJson
     :<|> showLoginPage
     :<|> showSignupPage
+    :<|> showSetUserEmailAddrAsVerifiedPage
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
@@ -239,19 +244,18 @@ showHomePage
 showHomePage authResult = withMaybeUser
   authResult
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
-  (\userProfile -> do
+  (\profile -> do
     Rt.Runtime {..} <- ask
-    b               <- liftIO $ atomically $ Rt.canPerform
+    b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
       _rDb
-      (User._userCredsName $ User._userProfileCreds userProfile)
-      (Command.SetUserEmailAddrAsVerified "TODO") -- TODO User ID is ignored.
+      profile
     profiles <- if b
       then
         Just
           <$> Rt.withRuntimeAtomically Rt.filterUsers
                                        User.PredicateEmailAddrToVerify
       else pure Nothing
-    pure . SS.P.PageR $ Pages.WelcomePage userProfile profiles
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles
   )
 
 
@@ -267,6 +271,13 @@ messageSignupSuccess = pure Signup.SignupSuccess
 
 echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
 echoSignup input = pure $ Signup.Success $ show input
+
+
+--------------------------------------------------------------------------------
+showSetUserEmailAddrAsVerifiedPage
+  :: ServerC m => User.UserName -> m Pages.SetUserEmailAddrAsVerifiedPage
+showSetUserEmailAddrAsVerifiedPage username =
+  withUserFromUsername username (pure . Pages.SetUserEmailAddrAsVerifiedPage)
 
 
 --------------------------------------------------------------------------------
@@ -400,19 +411,25 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "logout" :> Verb 'GET 303 '[JSON] ( Headers CAuth.PostLogoutHeaders
                                                              NoContent
                                                             )
+             :<|> "a" :> "set-email-addr-as-verified"
+                   :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
+                   :> Post '[B.HTML] Pages.ActionResult
 
   )
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
 privateT conf authResult =
-  (withUser authResult showProfilePage)
-    :<|> (withUser authResult showProfileAsJson)
-    :<|> (withUser authResult showEditProfilePage)
-    :<|> (withUser authResult . handleUserUpdate)
-    :<|> (withUser authResult $ const (handleLogout conf))
+  let withUser' :: forall m a . ServerC m => (User.UserProfile -> m a) -> m a
+      withUser' = withUser authResult
+  in  (withUser' showProfilePage)
+        :<|> (withUser' showProfileAsJson)
+        :<|> (withUser' showEditProfilePage)
+        :<|> (withUser' . handleUserUpdate)
+        :<|> (withUser' $ const (handleLogout conf))
+        :<|> (withUser' . handleSetUserEmailAddrAsVerified)
 
 --------------------------------------------------------------------------------
--- | Handle a user's logout. 
+-- | Handle a user's logout.
 handleLogout
   :: forall m
    . ServerC m
@@ -460,6 +477,22 @@ handleUserUpdate User.Update {..} profile = case _editPassword of
 
   Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
     "Nothing to update."
+
+handleSetUserEmailAddrAsVerified
+  :: forall m
+   . ServerC m
+  => User.SetUserEmailAddrAsVerified
+  -> User.UserProfile
+  -> m Pages.ActionResult
+handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) profile
+  = do
+    db     <- asks Rt._rDb
+    output <- liftIO $ atomically $ Rt.setUserEmailAddrAsVerifiedFull
+      db
+      (profile, username)
+    pure $ Pages.ActionResult "Set email address as verified" $ case output of
+      Right ()  -> "Success"
+      Left  err -> "Failure: " <> show err
 
 documentEditProfilePage :: ServerC m => m Pages.ProfilePage
 documentEditProfilePage = do
@@ -612,9 +645,8 @@ errorFormatters = defaultErrorFormatters
 -- | Serve the pages under a namespace. TODO Currently the namespace is
 -- hard-coded to "alice"
 serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
-serveNamespace username = withUserFromUsername
-  username
-  (\profile -> pure $ Pages.PublicProfileView profile)
+serveNamespace username =
+  withUserFromUsername username (pure . Pages.PublicProfileView)
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView

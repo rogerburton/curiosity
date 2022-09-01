@@ -46,7 +46,7 @@ data Command =
     -- True, show only the user ID and username.
   | FilterUsers User.Predicate
   | UpdateUser (S.DBUpdate User.UserProfile)
-  | SetUserEmailAddrAsVerified User.UserId
+  | SetUserEmailAddrAsVerified User.UserName
     -- ^ High-level operations on users.
   | CreateEmployment
   | CreateInvoice
@@ -384,13 +384,21 @@ metavarUserId = A.metavar "USER-ID" <> A.completer complete <> A.help
         -- TODO I'd like to lookup IDs in the state, but here we don't know
         -- where the state is (it depends on other command-line options).
 
+argumentUserName = User.UserName <$> A.argument A.str metavarUserName
+
+metavarUserName = A.metavar "USERNAME" <> A.completer complete <> A.help
+  "A username"
+  where complete = A.mkCompleter . const $ pure ["alice", "bob", "charlie"]
+        -- TODO I'd like to lookup usernames in the state, but here we don't
+        -- know where the state is (it depends on other command-line options).
+
 parserUserLifeCycle :: A.Parser Command
 parserUserLifeCycle = A.subparser $ A.command
   "set-email-addr-as-verified"
   ( A.info (p <**> A.helper)
   $ A.progDesc "Perform a high-level operation on a user"
   )
-  where p = SetUserEmailAddrAsVerified <$> argumentUserId
+  where p = SetUserEmailAddrAsVerified <$> argumentUserName
 
 parserEmployment :: A.Parser Command
 parserEmployment = A.subparser $ A.command

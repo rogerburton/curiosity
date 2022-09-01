@@ -7,6 +7,7 @@ module Curiosity.Html.Profile
   , ProfileView(..)
   , PublicProfileView(..)
   , ProfileSaveConfirmPage(..)
+  , keyValuePair -- TODO Move to Misc.
   ) where
 
 import qualified Curiosity.Data.User           as User
@@ -14,10 +15,12 @@ import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
 import qualified Smart.Html.Render             as Render
-import           Smart.Html.SideMenu            ( SideMenu(..), SideMenuItem(..) )
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
                                                 , svgIconEdit
+                                                )
+import           Smart.Html.SideMenu            ( SideMenu(..)
+                                                , SideMenuItem(..)
                                                 )
 import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
@@ -44,9 +47,7 @@ instance H.ToMarkup ProfilePage where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ profileForm
-            profile
-            submitUrl
+          H.main ! A.class_ "u-maximize-width" $ profileForm profile submitUrl
 
 profileForm profile submitUrl = container $ do
   H.div
@@ -260,12 +261,9 @@ instance H.ToMarkup ProfileView where
           withSideMenuFullScroll menu $ profileView profile hasEditButton
 
 menu :: SideMenu
-menu =
-  SideMenuWithActive
-    []
-    ( SideMenuItem "User profile" "/settings/profile" )
-    [ SideMenuItem "Dummy" "/settings/dummy"
-    ]
+menu = SideMenuWithActive []
+                          (SideMenuItem "User profile" "/settings/profile")
+                          [SideMenuItem "Dummy" "/settings/dummy"]
 
 profileView profile hasEditButton =
   container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
@@ -363,9 +361,7 @@ instance H.ToMarkup PublicProfileView where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          H.main
-            ! A.class_ "u-maximize-width"
-            $ publicProfileView profile
+          H.main ! A.class_ "u-maximize-width" $ publicProfileView profile
 
 publicProfileView profile =
   container $ H.div ! A.class_ "u-spacer-bottom-xl" $ do

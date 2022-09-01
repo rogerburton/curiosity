@@ -29,11 +29,16 @@ module Curiosity.Data.User
   , userProfileEmailAddrVerified
   , userProfilePostalAddress
   , userProfileTelephoneNbr
+  , userProfileCompletion1
+  , userProfileCompletion2
+  , userProfileRights
   , UserId(..)
   , UserName(..)
+  , UserEmailAddr(..)
   , Password(..)
   , Predicate(..)
   , applyPredicate
+  , SetUserEmailAddrAsVerified(..)
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -151,7 +156,7 @@ data UserCompletion2 = UserCompletion2
   deriving anyclass (ToJSON, FromJSON)
 
 -- Enable/disable some accesses.
-data AccessRight = CanVerifyEmailAddr
+data AccessRight = CanVerifyEmailAddr | CanDummy
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -207,8 +212,17 @@ newtype UserId = UserId { unUserId :: Text }
                         , H.ToMarkup
                         , H.ToValue
                         ) via Text
-               deriving FromForm via W.Wrapped "user-id" Text
+               deriving (FromHttpApiData, FromForm) via W.Wrapped "user-id" Text
 
+
+--------------------------------------------------------------------------------
+data SetUserEmailAddrAsVerified = SetUserEmailAddrAsVerified UserName
+
+instance FromForm SetUserEmailAddrAsVerified where
+  fromForm f = SetUserEmailAddrAsVerified <$> parseUnique "username" f
+
+
+--------------------------------------------------------------------------------
 instance Nav.IsNavbarContent UserProfile where
   navbarMarkup UserProfile {..} = do
     greeting
@@ -252,7 +266,7 @@ applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
 data UserErr = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
-             | UserNotFound Text
+             | UserNotFound Text -- Username or ID.
              | IncorrectUsernameOrPassword
              | EmailAddrAlreadyVerified
              | MissingRight AccessRight
@@ -286,7 +300,11 @@ instance Errs.IsRuntimeErr UserErr where
         409 -- TODO
         "Username disallowed"
         "Some usernames are not allowed. Please select another."
-    UserNotFound msg -> msg
+    UserNotFound msg ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        404
+        "User not found"
+        ("The supplied username or ID doesn't exist: " <> msg)
     IncorrectUsernameOrPassword ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
         401

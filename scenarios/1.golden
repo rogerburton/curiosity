@@ -6,9 +6,9 @@ Modifiying default user.
 User created: USER-1
 7: user create bob secret bob@example.com --accept-tos
 User created: USER-2
-8: user do set-email-addr-as-verified USER-2
+8: user do set-email-addr-as-verified bob
 User successfully updated.
-9: user do set-email-addr-as-verified USER-2
+9: user do set-email-addr-as-verified bob
 EmailAddrAlreadyVerified
 11: reset
 Resetting to the empty state.
@@ -18,5 +18,5 @@ Modifiying default user.
 User created: USER-1
 14: user create bob secret bob@example.com --accept-tos
 User created: USER-2
-15: user do set-email-addr-as-verified USER-2
+15: user do set-email-addr-as-verified alice
 MissingRight CanVerifyEmailAddr
