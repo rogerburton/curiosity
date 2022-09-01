@@ -36,9 +36,13 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
 import qualified Curiosity.Html.Action         as Pages
+import qualified Curiosity.Html.Business       as Pages
+import qualified Curiosity.Html.Employment     as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
+import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
+import qualified Curiosity.Html.Legal          as Pages
 import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
@@ -88,6 +92,18 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
                   :> Get '[B.HTML] Pages.ProfileView
+             :<|> "views" :> "entity"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.EntityView
+             :<|> "views" :> "unit"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.UnitView
+             :<|> "views" :> "contract"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.ContractView
+             :<|> "views" :> "invoice"
+                  :> Capture "filename" FilePath
+                  :> Get '[B.HTML] Pages.InvoiceView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
@@ -135,6 +151,10 @@ serverT conf jwtS root dataDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage
     :<|> documentProfilePage dataDir
+    :<|> documentEntityPage dataDir
+    :<|> documentUnitPage dataDir
+    :<|> documentContractPage dataDir
+    :<|> documentInvoicePage dataDir
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
@@ -247,8 +267,8 @@ showHomePage authResult = withMaybeUser
   (\profile -> do
     Rt.Runtime {..} <- ask
     b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
-      _rDb
-      profile
+                                             _rDb
+                                             profile
     profiles <- if b
       then
         Just
@@ -504,6 +524,39 @@ documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
   pure $ Pages.ProfileView profile True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
+documentEntityPage dataDir filename = do
+  entity <- readJson $ dataDir </> filename
+  pure $ Pages.EntityView entity True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
+documentUnitPage dataDir filename = do
+  unit <- readJson $ dataDir </> filename
+  pure $ Pages.UnitView unit True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentContractPage
+  :: ServerC m => FilePath -> FilePath -> m Pages.ContractView
+documentContractPage dataDir filename = do
+  contract <- readJson $ dataDir </> filename
+  pure $ Pages.ContractView contract True
+
+
+--------------------------------------------------------------------------------
+-- TODO Validate the filename (e.g. this can't be a path going up).
+documentInvoicePage :: ServerC m => FilePath -> FilePath -> m Pages.InvoiceView
+documentInvoicePage dataDir filename = do
+  invoice <- readJson $ dataDir </> filename
+  pure $ Pages.InvoiceView invoice True
 
 
 --------------------------------------------------------------------------------
