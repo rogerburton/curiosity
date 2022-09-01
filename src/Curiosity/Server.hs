@@ -437,6 +437,9 @@ type Private = H.UserAuthentication :> (
                    :> Get '[B.HTML] Pages.ProfilePage
 
              :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
+             :<|> "new" :> "unit" :> Get '[B.HTML] Pages.CreateUnitPage
+             :<|> "new" :> "contract" :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "new" :> "invoice" :> Get '[B.HTML] Pages.CreateInvoicePage
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
@@ -457,6 +460,9 @@ privateT conf authResult =
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
         :<|> (withUser' showCreateEntityPage)
+        :<|> (withUser' showCreateUnitPage)
+        :<|> (withUser' showCreateContractPage)
+        :<|> (withUser' showCreateInvoicePage)
         :<|> (withUser' . handleUserUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
@@ -486,6 +492,19 @@ showCreateEntityPage
   :: ServerC m => User.UserProfile -> m Pages.CreateEntityPage
 showCreateEntityPage profile =
   pure $ Pages.CreateEntityPage profile "/a/new-entity"
+
+showCreateUnitPage :: ServerC m => User.UserProfile -> m Pages.CreateUnitPage
+showCreateUnitPage profile = pure $ Pages.CreateUnitPage profile "/a/new-unit"
+
+showCreateContractPage
+  :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
+showCreateContractPage profile =
+  pure $ Pages.CreateContractPage profile "/a/new-contract"
+
+showCreateInvoicePage
+  :: ServerC m => User.UserProfile -> m Pages.CreateInvoicePage
+showCreateInvoicePage profile =
+  pure $ Pages.CreateInvoicePage profile "/a/new-invoice"
 
 
 --------------------------------------------------------------------------------
