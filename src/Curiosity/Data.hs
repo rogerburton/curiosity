@@ -16,6 +16,7 @@ module Curiosity.Data
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
+  , readFullStmDbInHask'
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
@@ -130,7 +131,9 @@ readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHask
   :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
-readFullStmDbInHask stmDb = liftIO . STM.atomically $ do
+readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
+
+readFullStmDbInHask' stmDb = do
   _dbNextBusinessId   <- pure <$> STM.readTVar (_dbNextBusinessId stmDb)
   _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
   _dbNextLegalId      <- pure <$> STM.readTVar (_dbNextLegalId stmDb)
