@@ -44,6 +44,7 @@ data CreateUnitPage = CreateUnitPage
 
 instance H.ToMarkup CreateUnitPage where
   toMarkup (CreateUnitPage profile submitUrl) =
-    renderForm profile "New business unit" $ do
+    renderForm profile $ groupLayout $ do
+      title "New business unit"
       inputText "Unit name" "name" Nothing Nothing
       submitButton submitUrl "Create new business unit"

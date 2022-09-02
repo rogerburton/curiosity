@@ -9,6 +9,8 @@ module Curiosity.Html.Misc
   , containerLarge
   , keyValuePair
   , fullScroll
+  , groupLayout
+  , panel
 
   -- Form
   , title
@@ -22,7 +24,7 @@ module Curiosity.Html.Misc
   -- Keep here:
   , renderView
   , renderForm
-
+  , renderFormLarge
   , autoReload
   ) where
 
@@ -85,24 +87,45 @@ renderView content =
         H.header $ H.toMarkup . navbar $ "TODO username"
         fullScroll content
 
-renderForm :: User.UserProfile -> Text -> Html -> Html
-renderForm profile s content =
+renderForm :: User.UserProfile -> Html -> Html
+renderForm profile content =
   Render.renderCanvasFullScroll
     . Dsl.SingletonCanvas
     $ H.div
     ! A.class_ "c-app-layout u-scroll-vertical"
     $ do
-        H.header
-          $ H.toMarkup
-          . navbar
-          . User.unUserName
-          . User._userCredsName
-          $ User._userProfileCreds profile
+        H.header $ navbar' profile
         H.main ! A.class_ "u-maximize-width" $ containerMedium $ do
-          title s
-          H.div
-            ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
-            $ H.form content
+          H.form $ content
+
+renderFormLarge :: User.UserProfile -> Html -> Html
+renderFormLarge profile content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        H.header $ navbar' profile
+        H.main ! A.class_ "u-maximize-width" $ containerLarge $ do
+          H.form $ content
+
+navbar' profile =
+  H.toMarkup
+    . navbar
+    . User.unUserName
+    . User._userCredsName
+    $ User._userProfileCreds profile
+
+panel s content = H.div ! A.class_ "c-panel u-spacer-bottom-l" $ do
+  H.div ! A.class_ "c-panel__header" $ H.h2 ! A.class_ "c-panel__title" $ H.text
+    s
+  H.div ! A.class_ "c-panel__body" $ groupLayout $ do
+    content
+
+groupLayout content =
+  H.div
+    ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
+    $ content
 
 
 --------------------------------------------------------------------------------
@@ -176,8 +199,9 @@ editButton lnk =
 -- thus add this element temporarily to a page when you're hacking at it using
 -- something like ghcid.
 {-# DEPRECATED autoReload "Use this only during interactive development" #-}
-autoReload = H.preEscapedText
-  "<script>\n\
+autoReload =
+  H.preEscapedText
+    "<script>\n\
   \function connect(isInitialConnection) {\n\
   \  // Create WebSocket connection.\n\
   \  var ws = new WebSocket('ws://' + location.host + '/ws');\n\

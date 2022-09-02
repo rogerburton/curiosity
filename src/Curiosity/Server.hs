@@ -93,6 +93,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
+             :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
 
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
@@ -158,6 +159,8 @@ serverT conf jwtS root dataDir =
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage
+    :<|> documentCreateContractPage
+
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
     :<|> documentUnitPage dataDir
@@ -558,6 +561,11 @@ documentEditProfilePage :: ServerC m => m Pages.ProfilePage
 documentEditProfilePage = do
   profile <- readJson "data/alice.json"
   pure $ Pages.ProfilePage profile "/echo/profile"
+
+documentCreateContractPage :: ServerC m => m Pages.CreateContractPage
+documentCreateContractPage = do
+  profile <- readJson "data/alice.json"
+  pure $ Pages.CreateContractPage profile "/echo/new-contract"
 
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView

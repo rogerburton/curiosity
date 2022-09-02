@@ -44,6 +44,7 @@ data CreateInvoicePage = CreateInvoicePage
 
 instance H.ToMarkup CreateInvoicePage where
   toMarkup (CreateInvoicePage profile submitUrl) =
-    renderForm profile "New invoice" $ do
+    renderForm profile $ groupLayout $ do
+      title "New invoice"
       inputText "Invoice name" "name" Nothing Nothing
       submitButton submitUrl "Create new invoice"

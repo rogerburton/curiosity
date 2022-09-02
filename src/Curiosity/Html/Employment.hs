@@ -12,6 +12,7 @@ import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
+import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconEdit )
 import qualified Text.Blaze.Html5              as H
@@ -44,6 +45,94 @@ data CreateContractPage = CreateContractPage
 
 instance H.ToMarkup CreateContractPage where
   toMarkup (CreateContractPage profile submitUrl) =
-    renderForm profile "New employment contract" $ do
-      inputText "Contract name" "name" Nothing Nothing
-      submitButton submitUrl "Create new employment contract"
+    renderFormLarge profile $ do
+      title "New employment contract"
+      panel "General information" $ do
+
+        -- TODO I guess this should be the real name ?
+        formKeyValue "Worker name" displayName
+        Misc.inputSelect_ "project"
+                          "Project"
+                          ["Select a project"]
+                          (Just "Enter an existing project or create new one")
+                          True
+        inputText "Purchase order" "po"   Nothing Nothing
+        inputText "Role"           "role" Nothing Nothing
+        inputText "Work type"      "type" Nothing Nothing
+        Misc.inputTextarea "description"
+                           "Description"
+                           6
+                           "Describe your work (minimum 10 characters)"
+                           True
+
+      panel "Location and dates" $ do
+        inputText "Work country" "country" Nothing Nothing
+        inputText "Work dates"   "dates"   Nothing Nothing
+
+      panel "Risks" $ groupRisks
+      panel "Invoicing" $ groupInvoicing
+      panel "Expenses" $ groupExpenses
+      panel "Employment type" $ groupEmployment
+
+      groupLayout $ submitButton submitUrl "Save changes"
+
+      autoReload
+   where
+    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
+
+groupRisks = H.div ! A.class_ "o-form-group" $ do
+  H.label ! A.class_ "o-form-group__label" $ "Work risks"
+  H.div
+    ! A.class_ "o-form-group__controls"
+    $ H.div
+    ! A.class_ "c-radio-group c-radio-group--inline"
+    $ do
+        H.div ! A.class_ "c-radio" $ H.label $ do
+          H.input ! A.type_ "radio" ! A.name "radio1"
+          "Without risks"
+        H.div ! A.class_ "c-radio" $ H.label $ do
+          H.input ! A.type_ "radio" ! A.name "radio1"
+          "With risks"
+        H.p ! A.class_ "c-form-help-text" $ do
+          "For your safety and your colleagues safety, if your role "
+          "involves risks, you have to select \"With risks\". "
+          H.a ! A.class_ "c-link" ! A.href "#" $ "Learn more about risks."
+
+groupInvoicing = do
+  inputText "Client" "client" Nothing Nothing
+  inputText "Amount" "amount" Nothing Nothing
+  inputText "VAT"    "vat"    Nothing Nothing
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" $ "Include VAT ?"
+    H.div
+      ! A.class_ "o-form-group__controls"
+      $ H.div
+      ! A.class_ "c-radio-group c-radio-group--inline"
+      $ do
+          H.div ! A.class_ "c-radio" $ H.label $ do
+            H.input ! A.type_ "radio" ! A.name "radio2"
+            "Include"
+          H.div ! A.class_ "c-radio" $ H.label $ do
+            H.input ! A.type_ "radio" ! A.name "radio2"
+            "Exclude"
+          H.p
+            ! A.class_ "c-form-help-text"
+            $ "Usually, business clients prefer to see amounts VAT excluded."
+  inputText "Down payment" "down-payment" Nothing Nothing
+
+groupExpenses = H.p ! A.class_ "c-form-help-text" $ do
+  "When using a project, you can choose to add expenses directly or later. "
+  H.a ! A.class_ "c-link" ! A.href "#" $ "Add an expense now."
+
+groupEmployment = do
+  inputText "Withholding tax"     "withholding-tax" Nothing Nothing
+  inputText "Student / au cachet" "TODO"            Nothing Nothing
+  inputText "Interim"             "interim"         Nothing Nothing
+
+formKeyValue :: Text -> Text -> H.Html
+formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
+  H.label ! A.class_ "o-form-group__label" $ H.text label
+  H.div
+    ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+    $ H.label
+    $ H.text value

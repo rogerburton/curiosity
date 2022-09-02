@@ -36,7 +36,8 @@ data ProfilePage = ProfilePage
 
 instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
-    renderForm profile "User profile" $ do
+    renderForm profile $ groupLayout $ do
+      title "User profile"
       inputText
           "Username"
           "username"

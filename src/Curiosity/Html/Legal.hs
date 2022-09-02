@@ -46,7 +46,8 @@ data CreateEntityPage = CreateEntityPage
 
 instance H.ToMarkup CreateEntityPage where
   toMarkup (CreateEntityPage profile submitUrl) =
-    renderForm profile "New legal entity" $ do
+    renderForm profile $ groupLayout $ do
+      title "New legal entity"
       inputText "Registration name" "name" Nothing Nothing
       inputText "CBE number" "cbe-number" Nothing $ Just "Example: 100200300"
       inputText "VAT number" "vat-number" Nothing $ Just "Example: BE0100200300"
