@@ -45,6 +45,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
@@ -445,9 +446,8 @@ createBusinessFull db new = do
 
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
-generateBusinessId db = do
-  let tvar = Data._dbNextBusinessId db
-  STM.stateTVar tvar (\i -> (Business.BusinessId $ "BENT-" <> show i, succ i))
+generateBusinessId Data.Db {..} =
+  Business.BusinessId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
 
 modifyBusinessEntities
   :: forall runtime
@@ -482,9 +482,8 @@ createLegalFull db new = do
   pure . Right $ Legal._entityId new
 
 generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.LegalId
-generateLegalId db = do
-  let tvar = Data._dbNextLegalId db
-  STM.stateTVar tvar (\i -> (Legal.LegalId $ "LENT-" <> show i, succ i))
+generateLegalId Data.Db {..} =
+  Legal.LegalId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
 
 modifyLegalEntities
   :: forall runtime
@@ -519,9 +518,8 @@ createEmploymentFull db new = do
 
 generateEmploymentId
   :: forall runtime . Data.StmDb runtime -> STM Employment.ContractId
-generateEmploymentId db = do
-  let tvar = Data._dbNextEmploymentId db
-  STM.stateTVar tvar (\i -> (Employment.ContractId $ "EMP-" <> show i, succ i))
+generateEmploymentId Data.Db {..} =
+  Employment.ContractId <$> C.bumpCounterPrefix "EMP-" _dbNextEmploymentId
 
 modifyEmployments
   :: forall runtime
@@ -556,9 +554,8 @@ createInvoiceFull db new = do
 
 generateInvoiceId
   :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
-generateInvoiceId db = do
-  let tvar = Data._dbNextInvoiceId db
-  STM.stateTVar tvar (\i -> (Invoice.InvoiceId $ "INV-" <> show i, succ i))
+generateInvoiceId Data.Db {..} =
+  Invoice.InvoiceId <$> C.bumpCounterPrefix "INV-" _dbNextInvoiceId
 
 modifyInvoices
   :: forall runtime
@@ -684,9 +681,8 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
   existsErr = pure . Left $ User.UserExists
 
 generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
-generateUserId db = do
-  let nextUserIdTVar = Data._dbNextUserId db
-  STM.stateTVar nextUserIdTVar (\i -> (User.UserId $ "USER-" <> show i, succ i))
+generateUserId Data.Db {..} =
+  User.UserId <$> C.bumpCounterPrefix "USER-" _dbNextUserId
 
 modifyUsers
   :: forall runtime
