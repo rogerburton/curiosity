@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
@@ -58,10 +59,10 @@ import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import Network.WebSockets.Connection
+import           Network.WebSockets.Connection
 import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
-import Servant.API.WebSocket
+import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
@@ -113,15 +114,18 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
-             :<|> "state" :> Get '[B.HTML] Login.ResultPage -- TODO Proper type.
+             :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
-                  :> Post '[B.HTML] Login.ResultPage
+                  :> Post '[B.HTML] Pages.EchoPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
-                  :> Post '[B.HTML] Signup.ResultPage
+                  :> Post '[B.HTML] Pages.EchoPage
+             :<|> "echo" :> "new-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Post '[B.HTML] Pages.EchoPage
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
@@ -169,8 +173,11 @@ serverT conf jwtS root dataDir =
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
+
     :<|> echoLogin
     :<|> echoSignup
+    :<|> echoContract
+
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> showLoginPage
@@ -302,8 +309,8 @@ documentSignupPage = pure $ Signup.Page "/echo/signup"
 messageSignupSuccess :: ServerC m => m Signup.SignupResultPage
 messageSignupSuccess = pure Signup.SignupSuccess
 
-echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
-echoSignup input = pure $ Signup.Success $ show input
+echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage
+echoSignup input = pure $ Pages.EchoPage $ show input
 
 
 --------------------------------------------------------------------------------
@@ -328,8 +335,8 @@ showLoginPage = pure $ Login.Page "/a/login"
 documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
-echoLogin :: ServerC m => User.Login -> m Login.ResultPage
-echoLogin = pure . Login.Success . show
+echoLogin :: ServerC m => User.Login -> m Pages.EchoPage
+echoLogin = pure . Pages.EchoPage . show
 
 
 --------------------------------------------------------------------------------
@@ -567,6 +574,9 @@ documentCreateContractPage = do
   profile <- readJson "data/alice.json"
   pure $ Pages.CreateContractPage profile "/echo/new-contract"
 
+echoContract :: ServerC m => Employment.CreateContract -> m Pages.EchoPage
+echoContract = pure . Pages.EchoPage . show
+
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
@@ -693,11 +703,11 @@ withMaybeUserFromUsername username a f = do
 
 
 --------------------------------------------------------------------------------
-showState :: ServerC m => m Login.ResultPage
+showState :: ServerC m => m Pages.EchoPage
 showState = do
   stmDb <- asks Rt._rDb
   db    <- readFullStmDbInHask stmDb
-  pure . Login.Success $ show db
+  pure . Pages.EchoPage $ show db
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.
@@ -777,10 +787,9 @@ type WebSocketApi = "ws" :> WebSocket
 
 websocket :: ServerC m => Connection -> m ()
 websocket con =
-  liftIO $ withPingThread con 30 (pure ()) $
-    liftIO . forM_ [1..] $ \i -> do
-      sendTextData con (show (i :: Int) :: Text)
-      threadDelay $ 60 * 1000000 -- 60 seconds
+  liftIO $ withPingThread con 30 (pure ()) $ liftIO . forM_ [1 ..] $ \i -> do
+    sendTextData con (show (i :: Int) :: Text)
+    threadDelay $ 60 * 1000000 -- 60 seconds
 
 
 --------------------------------------------------------------------------------

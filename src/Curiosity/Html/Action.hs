@@ -6,6 +6,7 @@ under e.g. `cty user do` and the action menu on table views.
 module Curiosity.Html.Action
   ( SetUserEmailAddrAsVerifiedPage(..)
   , ActionResult(..)
+  , EchoPage(..)
   ) where
 
 import           Curiosity.Data.User           as User
@@ -89,3 +90,19 @@ instance H.ToMarkup ActionResult where
 
 actionResultPanel title msg =
   PanelHeaderAndBody (Types.Title title) $ H.code $ H.text msg
+
+
+--------------------------------------------------------------------------------
+data EchoPage = EchoPage Text
+
+instance H.ToMarkup EchoPage where
+  toMarkup = \case
+    EchoPage msg -> withText msg
+   where
+    withText msg =
+      Render.renderCanvas
+        $ Dsl.SingletonCanvas
+        $ H.div
+        ! A.class_ "c-display"
+        $ H.code
+        $ H.toMarkup msg

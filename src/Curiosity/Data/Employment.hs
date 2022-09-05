@@ -5,7 +5,8 @@ Module: Curiosity.Data.Employment
 Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
-  ( Contract(..)
+  ( CreateContract(..)
+  , Contract(..)
   , ContractId(..)
   , Err(..)
   ) where
@@ -13,7 +14,18 @@ module Curiosity.Data.Employment
 import qualified Commence.Types.Wrapped        as W
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
-import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseUnique
+                                                )
+
+--------------------------------------------------------------------------------
+data CreateContract = CreateContract
+  { _createContractDescription :: Text
+  }
+  deriving (Generic, Eq, Show)
+
+instance FromForm CreateContract where
+  fromForm f = CreateContract <$> parseUnique "description" f
 
 
 --------------------------------------------------------------------------------
