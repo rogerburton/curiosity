@@ -36,6 +36,9 @@ class Counter count datastore m where
   -- | Generate the next value of a counter.
   readCounter :: CounterValue datastore count -> m count
 
+  -- | Set the value of a counter.
+  writeCounter :: CounterValue datastore count -> count -> m ()
+
   -- | Bump the counter value, returning the value before and after the bump.
   bumpCounter :: CounterValue datastore count -> m (CounterStep count)
 
@@ -44,6 +47,8 @@ instance Enum count => Counter count STM.TVar STM.STM  where
   newCounter initCount = CounterValue <$> STM.newTVar initCount
 
   readCounter (CounterValue countTvar) = STM.readTVar countTvar
+
+  writeCounter (CounterValue countTvar) count = STM.writeTVar countTvar count
 
   bumpCounter ctr@(CounterValue countTvar) = do
     was <- readCounter ctr
@@ -57,6 +62,8 @@ instance Enum count => Counter count Identity Identity where
   newCounter initCount = pure $ CounterValue . Identity $ initCount
 
   readCounter (CounterValue (Identity curValue)) = pure curValue
+
+  writeCounter (CounterValue countTvar) count = pure ()
 
   bumpCounter (CounterValue (Identity curValue)) =
     pure CounterStep { was = curValue, is = succ curValue }

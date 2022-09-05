@@ -45,13 +45,13 @@ a container type of the database.
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextBusinessId   :: C.CounterValue datastore Int
   , _dbBusinessEntities :: datastore [Business.Entity]
-  , _dbNextLegalId      :: datastore Int
+  , _dbNextLegalId      :: C.CounterValue datastore Int
   , _dbLegalEntities    :: datastore [Legal.Entity]
-  , _dbNextUserId       :: datastore Int
+  , _dbNextUserId       :: C.CounterValue datastore Int
   , _dbUserProfiles     :: datastore [User.UserProfile]
-  , _dbNextInvoiceId    :: datastore Int
+  , _dbNextInvoiceId    :: C.CounterValue datastore Int
   , _dbInvoices         :: datastore [Invoice.Invoice]
-  , _dbNextEmploymentId :: datastore Int
+  , _dbNextEmploymentId :: C.CounterValue datastore Int
   , _dbEmployments      :: datastore [Employment.Contract]
   }
 
@@ -82,13 +82,13 @@ instantiateStmDb
 instantiateStmDb Db
   { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
   , _dbBusinessEntities = Identity seedBusinessEntities
-  , _dbNextLegalId      = Identity seedNextLegalId
+  , _dbNextLegalId      = CounterValue (Identity seedNextLegalId)
   , _dbLegalEntities    = Identity seedLegalEntities
-  , _dbNextUserId       = Identity seedNextUserId
+  , _dbNextUserId       = CounterValue (Identity seedNextUserId)
   , _dbUserProfiles     = Identity seedProfiles
-  , _dbNextInvoiceId    = Identity seedNextInvoiceId
+  , _dbNextInvoiceId    = CounterValue (Identity seedNextInvoiceId)
   , _dbInvoices         = Identity seedInvoices
-  , _dbNextEmploymentId = Identity seedNextEmploymentId
+  , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
   , _dbEmployments      = Identity seedEmployments
   }
   =
@@ -97,13 +97,13 @@ instantiateStmDb Db
     liftIO . STM.atomically $ do
     _dbNextBusinessId   <- C.newCounter seedNextBusinessId
     _dbBusinessEntities <- STM.newTVar seedBusinessEntities
-    _dbNextLegalId      <- STM.newTVar seedNextLegalId
+    _dbNextLegalId      <- C.newCounter seedNextLegalId
     _dbLegalEntities    <- STM.newTVar seedLegalEntities
-    _dbNextUserId       <- STM.newTVar seedNextUserId
+    _dbNextUserId       <- C.newCounter seedNextUserId
     _dbUserProfiles     <- STM.newTVar seedProfiles
-    _dbNextInvoiceId    <- STM.newTVar seedNextInvoiceId
+    _dbNextInvoiceId    <- C.newCounter seedNextInvoiceId
     _dbInvoices         <- STM.newTVar seedInvoices
-    _dbNextEmploymentId <- STM.newTVar seedNextEmploymentId
+    _dbNextEmploymentId <- C.newCounter seedNextEmploymentId
     _dbEmployments      <- STM.newTVar seedEmployments
     pure Db { .. }
 
@@ -115,10 +115,29 @@ instantiateEmptyStmDb = instantiateStmDb emptyHask
 resetStmDb
   :: forall runtime m . MonadIO m => StmDb runtime -> m ()
 resetStmDb stmDb = liftIO . STM.atomically $ do
-  STM.writeTVar (_dbNextUserId stmDb) seedNextUserId
+  C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
+  STM.writeTVar (_dbBusinessEntities stmDb) seedBusinessEntities
+  C.writeCounter (_dbNextLegalId stmDb) seedNextLegalId
+  STM.writeTVar (_dbLegalEntities stmDb) seedLegalEntities
+  C.writeCounter (_dbNextUserId stmDb) seedNextUserId
   STM.writeTVar (_dbUserProfiles stmDb) seedProfiles
+  C.writeCounter (_dbNextInvoiceId stmDb) seedNextInvoiceId
+  STM.writeTVar (_dbInvoices stmDb) seedInvoices
+  C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
+  STM.writeTVar (_dbEmployments stmDb) seedEmployments
  where
-  Db { _dbNextUserId = Identity seedNextUserId, _dbUserProfiles = Identity seedProfiles } = emptyHask
+  Db
+    { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
+    , _dbBusinessEntities = Identity seedBusinessEntities
+    , _dbNextLegalId      = CounterValue (Identity seedNextLegalId)
+    , _dbLegalEntities    = Identity seedLegalEntities
+    , _dbNextUserId       = CounterValue (Identity seedNextUserId)
+    , _dbUserProfiles     = Identity seedProfiles
+    , _dbNextInvoiceId    = CounterValue (Identity seedNextInvoiceId)
+    , _dbInvoices         = Identity seedInvoices
+    , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
+    , _dbEmployments      = Identity seedEmployments
+    } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHaskFromRuntime
@@ -137,13 +156,13 @@ readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
 readFullStmDbInHask' stmDb = do
   _dbNextBusinessId   <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
   _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
-  _dbNextLegalId      <- pure <$> STM.readTVar (_dbNextLegalId stmDb)
+  _dbNextLegalId      <- pure <$> C.readCounter (_dbNextLegalId stmDb)
   _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
-  _dbNextUserId       <- pure <$> STM.readTVar (_dbNextUserId stmDb)
+  _dbNextUserId       <- pure <$> C.readCounter (_dbNextUserId stmDb)
   _dbUserProfiles     <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-  _dbNextInvoiceId    <- pure <$> STM.readTVar (_dbNextInvoiceId stmDb)
+  _dbNextInvoiceId    <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
   _dbInvoices         <- pure <$> STM.readTVar (_dbInvoices stmDb)
-  _dbNextEmploymentId <- pure <$> STM.readTVar (_dbNextEmploymentId stmDb)
+  _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
   _dbEmployments      <- pure <$> STM.readTVar (_dbEmployments stmDb)
   pure Db { .. }
 
