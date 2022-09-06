@@ -5,6 +5,7 @@ Description: Employment contract pages (view and edit).
 module Curiosity.Html.Employment
   ( ContractView(..)
   , CreateContractPage(..)
+  , AddExpensePage(..)
   , ConfirmContractPage(..)
   ) where
 
@@ -40,15 +41,16 @@ contractView contract hasEditButton = containerLarge $ do
 
 --------------------------------------------------------------------------------
 data CreateContractPage = CreateContractPage
-  { _createContractPageUserProfile :: User.UserProfile
+  { _createContractPageUserProfile   :: User.UserProfile
     -- ^ The user creating the contract
-  , _createContractContract        :: Employment.CreateContract
+  , _createContractContract          :: Employment.CreateContract
     -- ^ The contract being edited
-  , _createContractPageSaveURL     :: H.AttributeValue
+  , _createContractPageSaveURL       :: H.AttributeValue
+  , _createContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile Employment.CreateContract {..} saveUrl)
+  toMarkup (CreateContractPage profile Employment.CreateContract {..} saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       title "New employment contract"
       panel "General information" $ do
@@ -87,7 +89,8 @@ instance H.ToMarkup CreateContractPage where
 
       panel "Risks" $ groupRisks
       panel "Invoicing" $ groupInvoicing
-      panel "Expenses" $ groupExpenses
+      (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
+        addExpenseUrl
       panel "Employment type" $ groupEmployment
 
       groupLayout $ do
@@ -137,9 +140,14 @@ groupInvoicing = do
             $ "Usually, business clients prefer to see amounts VAT excluded."
   inputText "Down payment" "down-payment" Nothing Nothing
 
-groupExpenses = H.p ! A.class_ "c-form-help-text" $ do
-  "When using a project, you can choose to add expenses directly or later. "
-  H.a ! A.class_ "c-link" ! A.href "#" $ "Add an expense now."
+groupExpenses submitUrl = do
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" $ "Add expenses (optional)"
+    H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
+      H.p
+        ! A.class_ "u-text-muted c-body-1"
+        $ "When using a project, you can choose to add expenses directly or later."
+      H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl "Add expense"
 
 groupEmployment = do
   inputText "Withholding tax"     "withholding-tax" Nothing Nothing
@@ -153,6 +161,35 @@ formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
     ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
     $ H.label
     $ H.text value
+
+
+--------------------------------------------------------------------------------
+data AddExpensePage = AddExpensePage
+  { _addExpensePageUserProfile :: User.UserProfile
+    -- ^ The user creating the expense within a contract
+  , _addExpensePageKey         :: Text
+    -- ^ The key of the contract form
+  , _addExpensePageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup AddExpensePage where
+  toMarkup (AddExpensePage profile key submitUrl) =
+    renderFormLarge profile $ do
+      title' "Add expense" Nothing
+
+      panel "General information" $ do
+        H.input
+          ! A.type_ "hidden"
+          ! A.id "contract-key"
+          ! A.name "contract-key"
+          ! A.value (H.toValue key)
+        inputText "Amount" "amount" Nothing Nothing
+
+      H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
+        (H.toValue key)
+      button submitUrl "Add expense"
+   where
+    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
 
 
 --------------------------------------------------------------------------------

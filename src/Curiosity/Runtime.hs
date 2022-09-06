@@ -32,6 +32,7 @@ module Curiosity.Runtime
   , newCreateContractForm
   , readCreateContractForm
   , writeCreateContractForm
+  , addExpenseToContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -225,7 +226,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in
+  in 
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -569,6 +570,19 @@ writeCreateContractForm db (profile, key, c) = do
  where
   -- TODO Return an error when the key is not found.
   save     = M.adjust (const c) (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addExpenseToContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Employment.AddExpense)
+  -> STM (Either Text Employment.AddExpenseId) -- TODO Possible errors
+addExpenseToContractForm db (profile, key, expense) = do
+  expenseKey <- Employment.AddExpenseId <$> Data.genRandomText db
+  STM.modifyTVar (Data._dbFormAddExpense db) (add expenseKey)
+  pure $ Right expenseKey
+ where
+  add expenseKey = M.insert (username, expenseKey) expense
   username = User._userCredsName $ User._userProfileCreds profile
 
 

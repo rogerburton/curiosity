@@ -7,6 +7,8 @@ Description: Employment related datatypes
 module Curiosity.Data.Employment
   ( CreateContract(..)
   , emptyCreateContract
+  , AddExpense(..)
+  , AddExpenseId(..)
   , SubmitContract(..)
   , Contract(..)
   , ContractId(..)
@@ -19,6 +21,7 @@ import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseUnique
                                                 )
+import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 --------------------------------------------------------------------------------
 -- | This represent a form being filled in. In particular, it can represent
@@ -51,6 +54,27 @@ emptyCreateContract = CreateContract { _createContractProject     = ""
                                      , _createContractType        = ""
                                      , _createContractDescription = ""
                                      }
+
+data AddExpense = AddExpense
+  { _addExpenseCreateContract :: Text
+  , _addExpenseAmount         :: Int
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm AddExpense where
+  fromForm f =
+    AddExpense <$> parseUnique "contract-key" f <*> parseUnique "amount" f
+
+newtype AddExpenseId = AddExpenseId Text
+  deriving (Eq, Ord, Show)
+  deriving ( IsString
+           , FromJSON
+           , ToJSON
+           , H.ToMarkup
+           , H.ToValue
+           ) via Text
+  deriving (FromHttpApiData, FromForm) via W.Wrapped "user-id" Text
 
 data SubmitContract = SubmitContract
   { _submitContractKey :: Text

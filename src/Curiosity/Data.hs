@@ -69,6 +69,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
     -- ^ The internal representation of a StdGen.
   , _dbFormCreateContract ::
       datastore (Map (User.UserName, Text) Employment.CreateContract)
+  , _dbFormAddExpense ::
+      datastore (Map (User.UserName, Employment.AddExpenseId) Employment.AddExpense)
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -95,6 +97,7 @@ emptyHask = Db
 
   (pure $ randomGenState 42) -- Deterministic initial seed.
   (pure mempty)
+  (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -112,6 +115,7 @@ instantiateStmDb Db
 
   , _dbRandomGenState     = Identity seedRandomGenState
   , _dbFormCreateContract = Identity seedFormCreateContract
+  , _dbFormAddExpense     = Identity seedFormAddExpense
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -130,6 +134,7 @@ instantiateStmDb Db
 
     _dbRandomGenState     <- STM.newTVar seedRandomGenState
     _dbFormCreateContract <- STM.newTVar seedFormCreateContract
+    _dbFormAddExpense     <- STM.newTVar seedFormAddExpense
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -152,6 +157,7 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
   STM.writeTVar (_dbFormCreateContract stmDb) seedFormCreateContract
+  STM.writeTVar (_dbFormAddExpense stmDb) seedFormAddExpense
  where
   Db
     { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
@@ -166,6 +172,7 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
     , _dbEmployments      = Identity seedEmployments
 
     , _dbFormCreateContract = Identity seedFormCreateContract
+    , _dbFormAddExpense     = Identity seedFormAddExpense
     } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -196,6 +203,7 @@ readFullStmDbInHask' stmDb = do
 
   _dbRandomGenState     <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
   _dbFormCreateContract <- pure <$> STM.readTVar (_dbFormCreateContract stmDb)
+  _dbFormAddExpense     <- pure <$> STM.readTVar (_dbFormAddExpense stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
