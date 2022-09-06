@@ -95,6 +95,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
              :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "forms" :> "confirm-contract"
+                  :> Capture "id" Text
+                  :> Get '[B.HTML] Pages.ConfirmContractPage
 
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
@@ -123,8 +126,13 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
-             :<|> "echo" :> "new-contract"
+             :<|> "echo" :> "save-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "submit-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
@@ -164,6 +172,7 @@ serverT conf jwtS root dataDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage
     :<|> documentCreateContractPage
+    :<|> documentConfirmContractPage
 
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
@@ -176,7 +185,8 @@ serverT conf jwtS root dataDir =
 
     :<|> echoLogin
     :<|> echoSignup
-    :<|> echoContract
+    :<|> echoSaveContract
+    :<|> echoSubmitContract
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
@@ -286,7 +296,7 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
-    b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
+    b <- liftIO . atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
                                              _rDb
                                              profile
     profiles <- if b
@@ -509,7 +519,7 @@ showCreateUnitPage profile = pure $ Pages.CreateUnitPage profile "/a/new-unit"
 showCreateContractPage
   :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
 showCreateContractPage profile =
-  pure $ Pages.CreateContractPage profile "/a/new-contract"
+  pure $ Pages.CreateContractPage profile "/a/save-contract"
 
 showCreateInvoicePage
   :: ServerC m => User.UserProfile -> m Pages.CreateInvoicePage
@@ -557,7 +567,7 @@ handleSetUserEmailAddrAsVerified
 handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) profile
   = do
     db     <- asks Rt._rDb
-    output <- liftIO $ atomically $ Rt.setUserEmailAddrAsVerifiedFull
+    output <- liftIO . atomically $ Rt.setUserEmailAddrAsVerifiedFull
       db
       (profile, username)
     pure $ Pages.ActionResult "Set email address as verified" $ case output of
@@ -572,10 +582,37 @@ documentEditProfilePage = do
 documentCreateContractPage :: ServerC m => m Pages.CreateContractPage
 documentCreateContractPage = do
   profile <- readJson "data/alice.json"
-  pure $ Pages.CreateContractPage profile "/echo/new-contract"
+  pure $ Pages.CreateContractPage profile "/echo/save-contract"
 
-echoContract :: ServerC m => Employment.CreateContract -> m Pages.EchoPage
-echoContract = pure . Pages.EchoPage . show
+echoSaveContract
+  :: ServerC m
+  => Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveContract c@Employment.CreateContract {..} = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  key     <- liftIO . atomically $ Rt.newCreateContractForm db (profile, c)
+  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+
+documentConfirmContractPage :: ServerC m => Text -> m Pages.ConfirmContractPage
+documentConfirmContractPage key = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contract -> pure
+      $ Pages.ConfirmContractPage profile key contract "/echo/submit-contract"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+echoSubmitContract
+  :: ServerC m => Employment.SubmitContract -> m Pages.EchoPage
+echoSubmitContract (Employment.SubmitContract key) = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contract -> pure . Pages.EchoPage $ show contract
+    Left  _        -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView

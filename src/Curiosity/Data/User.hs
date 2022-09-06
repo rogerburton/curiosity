@@ -164,6 +164,7 @@ data AccessRight = CanVerifyEmailAddr | CanDummy
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName { unUserName :: Text }
                  deriving ( Eq
+                          , Ord
                           , Show
                           , IsString
                           , FromJSON

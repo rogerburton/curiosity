@@ -28,6 +28,9 @@ module Curiosity.Runtime
   , filterUsers
   , createUser
   , checkCredentials
+  -- * Form edition
+  , newCreateContractForm
+  , readCreateContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -53,6 +56,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Map                      as M
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Language.Haskell.TH.Syntax    as Syntax
@@ -528,6 +532,30 @@ modifyEmployments
   -> STM ()
 modifyEmployments db f =
   let tvar = Data._dbEmployments db in STM.modifyTVar tvar f
+
+newCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.CreateContract)
+  -> STM Text
+newCreateContractForm db (profile, c) = do
+  key <- Data.genRandomText db
+  STM.modifyTVar (Data._dbFormCreateContract db) (add key)
+  pure key
+ where
+  add key = M.insert (username, key) c
+  username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () Employment.CreateContract)
+readCreateContractForm db (profile, key) = do
+  m <- STM.readTVar $ Data._dbFormCreateContract db
+  let mform = M.lookup (username, key) m
+  pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
 
 
 --------------------------------------------------------------------------------

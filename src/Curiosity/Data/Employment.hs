@@ -6,6 +6,7 @@ Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
   ( CreateContract(..)
+  , SubmitContract(..)
   , Contract(..)
   , ContractId(..)
   , Err(..)
@@ -23,9 +24,19 @@ data CreateContract = CreateContract
   { _createContractDescription :: Text
   }
   deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContract where
   fromForm f = CreateContract <$> parseUnique "description" f
+
+data SubmitContract = SubmitContract
+  { _submitContractKey :: Text
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm SubmitContract where
+  fromForm f = SubmitContract <$> parseUnique "key" f
 
 
 --------------------------------------------------------------------------------
@@ -48,4 +59,3 @@ newtype ContractId = ContractId { unContractId :: Text }
 
 data Err = Err
   deriving (Eq, Exception, Show)
-

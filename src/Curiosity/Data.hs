@@ -68,7 +68,7 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbRandomGenState     :: datastore (Word64, Word64)
     -- ^ The internal representation of a StdGen.
   , _dbFormCreateContract ::
-      datastore (Map (Text, User.UserName) Employment.CreateContract)
+      datastore (Map (User.UserName, Text) Employment.CreateContract)
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@

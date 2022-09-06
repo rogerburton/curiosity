@@ -5,6 +5,7 @@ Description: Employment contract pages (view and edit).
 module Curiosity.Html.Employment
   ( ContractView(..)
   , CreateContractPage(..)
+  , ConfirmContractPage(..)
   ) where
 
 import qualified Curiosity.Data.Employment     as Employment
@@ -40,43 +41,43 @@ contractView contract hasEditButton = containerLarge $ do
 data CreateContractPage = CreateContractPage
   { _createContractPageUserProfile :: User.UserProfile
     -- ^ The user creating the contract
-  , _createContractPageSubmitURL   :: H.AttributeValue
+  , _createContractPageSaveURL     :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile submitUrl) =
-    renderFormLarge profile $ do
-      title "New employment contract"
-      panel "General information" $ do
+  toMarkup (CreateContractPage profile saveUrl) = renderFormLarge profile $ do
+    title "New employment contract"
+    panel "General information" $ do
 
-        -- TODO I guess this should be the real name ?
-        formKeyValue "Worker name" displayName
-        Misc.inputSelect_ "project"
-                          "Project"
-                          ["Select a project"]
-                          (Just "Enter an existing project or create new one")
-                          True
-        inputText "Purchase order" "po"   Nothing Nothing
-        inputText "Role"           "role" Nothing Nothing
-        inputText "Work type"      "type" Nothing Nothing
-        Misc.inputTextarea "description"
-                           "Description"
-                           6
-                           "Describe your work (minimum 10 characters)"
-                           True
+      -- TODO I guess this should be the real name ?
+      formKeyValue "Worker name" displayName
+      Misc.inputSelect_ "project"
+                        "Project"
+                        ["Select a project"]
+                        (Just "Enter an existing project or create new one")
+                        True
+      inputText "Purchase order" "po"   Nothing Nothing
+      inputText "Role"           "role" Nothing Nothing
+      inputText "Work type"      "type" Nothing Nothing
+      Misc.inputTextarea "description"
+                         "Description"
+                         6
+                         "Describe your work (minimum 10 characters)"
+                         True
 
-      panel "Location and dates" $ do
-        inputText "Work country" "country" Nothing Nothing
-        inputText "Work dates"   "dates"   Nothing Nothing
+    panel "Location and dates" $ do
+      inputText "Work country" "country" Nothing Nothing
+      inputText "Work dates"   "dates"   Nothing Nothing
 
-      panel "Risks" $ groupRisks
-      panel "Invoicing" $ groupInvoicing
-      panel "Expenses" $ groupExpenses
-      panel "Employment type" $ groupEmployment
+    panel "Risks" $ groupRisks
+    panel "Invoicing" $ groupInvoicing
+    panel "Expenses" $ groupExpenses
+    panel "Employment type" $ groupEmployment
 
-      groupLayout $ submitButton submitUrl "Save changes"
+    groupLayout $ do
+      submitButton saveUrl "Save changes"
 
-      autoReload
+    autoReload
    where
     displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
 
@@ -136,3 +137,40 @@ formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
     ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
     $ H.label
     $ H.text value
+
+
+--------------------------------------------------------------------------------
+data ConfirmContractPage = ConfirmContractPage
+  { _confirmContractPageUserProfile :: User.UserProfile
+    -- ^ The user creating the contract
+  , _confirmContractPageKey         :: Text
+  , _confirmContractPageContract    :: Employment.CreateContract
+  , _confirmContractPageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup ConfirmContractPage where
+  toMarkup (ConfirmContractPage profile key contract submitUrl) =
+    renderFormLarge profile $ do
+      title "New employment contract"
+
+      H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
+        (H.toValue key)
+      H.div
+        ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
+        $ H.div
+        ! A.class_ "o-form-group"
+        $ H.div
+        ! A.class_ "u-spacer-left-auto u-spacer-top-l"
+        $ H.button
+        ! A.class_ "c-button c-button--primary"
+        ! A.formaction submitUrl
+        ! A.formmethod "POST"
+        $ H.span
+        ! A.class_ "c-button__content"
+        $ do
+            H.span ! A.class_ "c-button__label" $ "Submit contract"
+            Misc.divIconCheck
+
+      autoReload
+   where
+    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
