@@ -49,6 +49,7 @@ common common-dependencies
     , lens
     , exceptions
     , random
+    , splitmix
 
     , megaparsec
 
@@ -71,6 +72,7 @@ common common-dependencies
     , jose
     , wai
     , warp
+    , websockets
 
     , aeson
     , blaze
