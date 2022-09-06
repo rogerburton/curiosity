@@ -95,8 +95,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
              :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "forms" :> "edit-contract"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "forms" :> "confirm-contract"
-                  :> Capture "id" Text
+                  :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
 
              :<|> "views" :> "profile"
@@ -126,7 +129,13 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
+             :<|> "echo" :> "new-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "save-contract"
+                  :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] Employment.CreateContract
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
@@ -172,6 +181,7 @@ serverT conf jwtS root dataDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage
     :<|> documentCreateContractPage
+    :<|> documentEditContractPage
     :<|> documentConfirmContractPage
 
     :<|> documentProfilePage dataDir
@@ -185,6 +195,7 @@ serverT conf jwtS root dataDir =
 
     :<|> echoLogin
     :<|> echoSignup
+    :<|> echoNewContract
     :<|> echoSaveContract
     :<|> echoSubmitContract
 
@@ -518,8 +529,10 @@ showCreateUnitPage profile = pure $ Pages.CreateUnitPage profile "/a/new-unit"
 
 showCreateContractPage
   :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
-showCreateContractPage profile =
-  pure $ Pages.CreateContractPage profile "/a/save-contract"
+showCreateContractPage profile = pure $ Pages.CreateContractPage
+  profile
+  Employment.emptyCreateContract
+  "/a/new-contract"
 
 showCreateInvoicePage
   :: ServerC m => User.UserProfile -> m Pages.CreateInvoicePage
@@ -582,16 +595,43 @@ documentEditProfilePage = do
 documentCreateContractPage :: ServerC m => m Pages.CreateContractPage
 documentCreateContractPage = do
   profile <- readJson "data/alice.json"
-  pure $ Pages.CreateContractPage profile "/echo/save-contract"
+  let contract = Employment.emptyCreateContract
+  pure $ Pages.CreateContractPage profile contract "/echo/new-contract"
 
-echoSaveContract
+-- | Same as documentCreateContractPage, but use an existing form.
+documentEditContractPage :: ServerC m => Text -> m Pages.CreateContractPage
+documentEditContractPage key = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contract -> pure $ Pages.CreateContractPage
+      profile
+      contract
+      (H.toValue $ "/echo/save-contract/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Save a form, generating a new key.
+echoNewContract
   :: ServerC m
   => Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveContract c@Employment.CreateContract {..} = do
+echoNewContract c@Employment.CreateContract {..} = do
   profile <- readJson "data/alice.json"
   db      <- asks Rt._rDb
   key     <- liftIO . atomically $ Rt.newCreateContractForm db (profile, c)
+  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+
+-- | Save a form, re-using a key.
+echoSaveContract
+  :: ServerC m
+  => Text
+  -> Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveContract key c@Employment.CreateContract {..} = do
+  profile <- readJson "data/alice.json"
+  db <- asks Rt._rDb
+  todo <- liftIO . atomically $ Rt.writeCreateContractForm db (profile, key, c)
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
 
 documentConfirmContractPage :: ServerC m => Text -> m Pages.ConfirmContractPage

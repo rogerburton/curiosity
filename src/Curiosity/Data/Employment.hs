@@ -6,6 +6,7 @@ Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
   ( CreateContract(..)
+  , emptyCreateContract
   , SubmitContract(..)
   , Contract(..)
   , ContractId(..)
@@ -20,14 +21,36 @@ import           Web.FormUrlEncoded             ( FromForm(..)
                                                 )
 
 --------------------------------------------------------------------------------
+-- | This represent a form being filled in. In particular, it can represent
+-- invalid inputs. As it is filled, it is kept in a Map, where it is identified
+-- by a key. The form data are validated when they are "submitted", using the
+-- SubmitContract data type below, and the key.
 data CreateContract = CreateContract
-  { _createContractDescription :: Text
+  { _createContractProject     :: Text
+  , _createContractPO          :: Text
+  , _createContractRole        :: Text
+  , _createContractType        :: Text
+  , _createContractDescription :: Text
   }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContract where
-  fromForm f = CreateContract <$> parseUnique "description" f
+  fromForm f =
+    CreateContract
+      <$> parseUnique "project"     f
+      <*> parseUnique "po"          f
+      <*> parseUnique "role"        f
+      <*> parseUnique "type"        f
+      <*> parseUnique "description" f
+
+emptyCreateContract :: CreateContract
+emptyCreateContract = CreateContract { _createContractProject     = ""
+                                     , _createContractPO          = ""
+                                     , _createContractRole        = ""
+                                     , _createContractType        = ""
+                                     , _createContractDescription = ""
+                                     }
 
 data SubmitContract = SubmitContract
   { _submitContractKey :: Text

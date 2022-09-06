@@ -31,6 +31,7 @@ module Curiosity.Runtime
   -- * Form edition
   , newCreateContractForm
   , readCreateContractForm
+  , writeCreateContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -556,6 +557,19 @@ readCreateContractForm db (profile, key) = do
   let mform = M.lookup (username, key) m
   pure $ maybe (Left ()) Right mform
   where username = User._userCredsName $ User._userProfileCreds profile
+
+writeCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Employment.CreateContract)
+  -> STM Text
+writeCreateContractForm db (profile, key, c) = do
+  STM.modifyTVar (Data._dbFormCreateContract db) save
+  pure key
+ where
+  -- TODO Return an error when the key is not found.
+  save     = M.adjust (const c) (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
 
 
 --------------------------------------------------------------------------------

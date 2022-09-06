@@ -10,6 +10,7 @@ module Curiosity.Html.Action
   ) where
 
 import           Curiosity.Data.User           as User
+import           Curiosity.Html.Misc
 import           Curiosity.Html.Profile         ( keyValuePair )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
@@ -64,21 +65,7 @@ setUserEmailAddrAsVerifiedPanel username profile =
 setUserEmailAddrAsVerifiedForm username = H.form $ do
   H.input ! A.type_ "hidden" ! A.id "username" ! A.name "username" ! A.value
     (H.toValue username)
-  H.div
-    ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
-    $ H.div
-    ! A.class_ "o-form-group"
-    $ H.div
-    ! A.class_ "u-spacer-left-auto u-spacer-top-l"
-    $ H.button
-    ! A.class_ "c-button c-button--primary"
-    ! A.formaction "/a/set-email-addr-as-verified"
-    ! A.formmethod "POST"
-    $ H.span
-    ! A.class_ "c-button__content"
-    $ do
-        H.span ! A.class_ "c-button__label" $ "Set as verified"
-        Misc.divIconCheck
+  button "/a/set-email-addr-as-verified" "Set as verified"
 
 
 --------------------------------------------------------------------------------

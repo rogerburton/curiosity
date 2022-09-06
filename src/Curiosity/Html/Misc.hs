@@ -17,6 +17,7 @@ module Curiosity.Html.Misc
   , title'
   , inputText
   , submitButton
+  , button
 
   -- View
   , editButton
@@ -32,7 +33,9 @@ import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
-import           Smart.Html.Shared.Html.Icons   ( svgIconEdit )
+import           Smart.Html.Shared.Html.Icons   ( divIconCheck
+                                                , svgIconEdit
+                                                )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!)
                                                 , Html
@@ -177,6 +180,23 @@ submitButton submitUrl label =
     $ H.span
     ! A.class_ "c-button__label"
     $ label
+
+button submitUrl label =
+  H.div
+    ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
+    $ H.div
+    ! A.class_ "o-form-group"
+    $ H.div
+    ! A.class_ "u-spacer-left-auto u-spacer-top-l"
+    $ H.button
+    ! A.class_ "c-button c-button--primary"
+    ! A.formaction submitUrl
+    ! A.formmethod "POST"
+    $ H.span
+    ! A.class_ "c-button__content"
+    $ do
+        H.span ! A.class_ "c-button__label" $ H.text label
+        divIconCheck
 
 --------------------------------------------------------------------------------
 editButton :: H.AttributeValue -> Html
