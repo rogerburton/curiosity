@@ -58,6 +58,14 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
             exitSuccess
           )
 
+run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget path) _)
+  = do
+    runtime <-
+      Rt.boot conf { P._confDbFile = Just path } >>= either throwIO pure
+    Rt.reset runtime
+    Rt.powerdown runtime
+    exitSuccess
+
 run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path) (Command.User user))
   = do
     runtime <- Rt.boot conf >>= either throwIO pure
@@ -338,7 +346,7 @@ client path command = do
   exitSuccess
 
 commandToString = \case
-  Command.Init        -> do
+  Command.Init -> do
     putStrLn @Text "Can't send `init` to a server."
     exitFailure
   Command.State useHs -> pure $ "state" <> if useHs then " --hs" else ""

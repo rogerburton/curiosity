@@ -29,6 +29,8 @@ data Command =
     -- ^ Display the routing layout of the web server.
   | Init
     -- ^ Initialise a new, empty state file.
+  | Reset P.Conf
+    -- ^ Set the state file to the empty state.
   | Repl P.Conf
     -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
@@ -171,6 +173,12 @@ parser =
            )
 
       <> A.command
+           "reset"
+           ( A.info (parserReset <**> A.helper)
+           $ A.progDesc "Reset a state file to the empty state"
+           )
+
+      <> A.command
            "repl"
            (A.info (parserRepl <**> A.helper) $ A.progDesc "Start a REPL")
 
@@ -258,6 +266,9 @@ parserLayout = pure Layout
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserReset :: A.Parser Command
+parserReset = Reset <$> P.confParser
 
 parserRepl :: A.Parser Command
 parserRepl = Repl <$> P.confParser
