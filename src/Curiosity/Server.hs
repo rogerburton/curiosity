@@ -555,6 +555,7 @@ showCreateContractPage
   :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
 showCreateContractPage profile = pure $ Pages.CreateContractPage
   profile
+  Nothing
   Employment.emptyCreateContractAll
   "/a/new-contract"
   "/a/new-contract-and-add-expense"
@@ -622,6 +623,7 @@ documentCreateContractPage = do
   profile <- readJson "data/alice.json"
   let contractAll = Employment.emptyCreateContractAll
   pure $ Pages.CreateContractPage profile
+                                  Nothing
                                   contractAll
                                   "/echo/new-contract"
                                   "/echo/new-contract-and-add-expense"
@@ -635,6 +637,7 @@ documentEditContractPage key = do
   case output of
     Right contractAll -> pure $ Pages.CreateContractPage
       profile
+      (Just key)
       contractAll
       (H.toValue $ "/echo/save-contract/" <> key)
       (H.toValue $ "/echo/save-contract-and-add-expense/" <> key)

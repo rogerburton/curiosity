@@ -43,6 +43,8 @@ contractView contract hasEditButton = containerLarge $ do
 data CreateContractPage = CreateContractPage
   { _createContractPageUserProfile   :: User.UserProfile
     -- ^ The user creating the contract
+  , _createContractPageKey           :: Maybe Text
+    -- ^ The form editing session key, if the form was already saved
   , _createContractContract          :: Employment.CreateContractAll
     -- ^ The contract being edited
   , _createContractPageSaveURL       :: H.AttributeValue
@@ -50,7 +52,7 @@ data CreateContractPage = CreateContractPage
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile (Employment.CreateContractAll Employment.CreateContract {..} expenses) saveUrl addExpenseUrl)
+  toMarkup (CreateContractPage profile mkey (Employment.CreateContractAll Employment.CreateContract {..} expenses) saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       title "New employment contract"
       panel "General information" $ do
@@ -90,6 +92,8 @@ instance H.ToMarkup CreateContractPage where
       panel "Risks" $ groupRisks
       panel "Invoicing" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
+        mkey
+        expenses
         addExpenseUrl
       panel "Employment type" $ groupEmployment
 
@@ -140,7 +144,7 @@ groupInvoicing = do
             $ "Usually, business clients prefer to see amounts VAT excluded."
   inputText "Down payment" "down-payment" Nothing Nothing
 
-groupExpenses submitUrl = do
+groupExpenses mkey expenses submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" $ "Add expenses (optional)"
     H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
@@ -148,6 +152,26 @@ groupExpenses submitUrl = do
         ! A.class_ "u-text-muted c-body-1"
         $ "When using a project, you can choose to add expenses directly or later."
       H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl "Add expense"
+    case mkey of
+      Nothing -> pure ()
+      Just key ->
+        Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+ where
+  titles = ["Amount"]
+  display
+    :: Text
+    -> Int
+    -> Employment.AddExpense
+    -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+  display key i Employment.AddExpense {..} =
+    ( [show _addExpenseAmount]
+    , [ ( Misc.divIconDelete
+        , "Remove"
+        , "/echo/remove-expense/" <> key <> "/" <> show i
+        )
+      ]
+    , (Just $ "/echo/edit-expense/" <> key <> "/" <> show i)
+    )
 
 groupEmployment = do
   inputText "Withholding tax"     "withholding-tax" Nothing Nothing
