@@ -5,6 +5,7 @@ module Curiosity.Run
   , interpret'
   ) where
 
+import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
@@ -187,6 +188,14 @@ run (Command.CommandWithTarget Command.Step target (Command.User user)) = do
     Command.UnixDomainTarget path -> do
       putStrLn @Text "TODO"
       exitFailure
+
+run (Command.CommandWithTarget (Command.Log msg conf) (Command.StateFileTarget path) _)
+  = do
+    runtime <-
+      Rt.boot conf { P._confDbFile = Just path } >>= either throwIO pure
+    P.logInfo (<> "CLI" <> "Log") (Rt._rLoggers runtime) msg
+    Rt.powerdown runtime
+    exitSuccess
 
 run (Command.CommandWithTarget (Command.ShowId i) target (Command.User user)) =
   do

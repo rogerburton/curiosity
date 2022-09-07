@@ -61,6 +61,8 @@ data Command =
     -- ^ Execute the next automated action when using stepped (non-wallclock)
     -- mode, or mixed-mode, or the next automated action when the automation is
     -- "disabled".
+  | Log Text P.Conf
+    -- Log a line of text to the logs.
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving (Eq, Show)
@@ -257,6 +259,12 @@ parser =
            "step"
            ( A.info (pure Step <**> A.helper)
            $ A.progDesc "Run the next automated action"
+           )
+
+      <> A.command
+           "log"
+           ( A.info (parserLog <**> A.helper)
+           $ A.progDesc "Log a message to the logs"
            )
       )
     <|> parserShowId
@@ -490,6 +498,12 @@ parserQueues =
             <> A.metavar "USERNAME"
             )
         )
+
+parserLog :: A.Parser Command
+parserLog =
+  Log
+    <$> A.argument A.str (A.metavar "MESSAGE" <> A.help "A line of text")
+    <*> P.confParser
 
 parserShowId :: A.Parser Command
 parserShowId =
