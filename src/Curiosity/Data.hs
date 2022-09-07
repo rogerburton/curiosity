@@ -27,7 +27,7 @@ module Curiosity.Data
   , writeStdGen
   ) where
 
-import Curiosity.Data.Counter as C
+import qualified Curiosity.Data.Counter        as C
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business
@@ -99,15 +99,15 @@ emptyHask = Db
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db
-  { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
+  { _dbNextBusinessId   = C.CounterValue (Identity seedNextBusinessId)
   , _dbBusinessEntities = Identity seedBusinessEntities
-  , _dbNextLegalId      = CounterValue (Identity seedNextLegalId)
+  , _dbNextLegalId      = C.CounterValue (Identity seedNextLegalId)
   , _dbLegalEntities    = Identity seedLegalEntities
-  , _dbNextUserId       = CounterValue (Identity seedNextUserId)
+  , _dbNextUserId       = C.CounterValue (Identity seedNextUserId)
   , _dbUserProfiles     = Identity seedProfiles
-  , _dbNextInvoiceId    = CounterValue (Identity seedNextInvoiceId)
+  , _dbNextInvoiceId    = C.CounterValue (Identity seedNextInvoiceId)
   , _dbInvoices         = Identity seedInvoices
-  , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
+  , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
   , _dbEmployments      = Identity seedEmployments
 
   , _dbRandomGenState        = Identity seedRandomGenState
@@ -156,15 +156,15 @@ resetStmDb' stmDb = do
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
  where
   Db
-    { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
+    { _dbNextBusinessId   = C.CounterValue (Identity seedNextBusinessId)
     , _dbBusinessEntities = Identity seedBusinessEntities
-    , _dbNextLegalId      = CounterValue (Identity seedNextLegalId)
+    , _dbNextLegalId      = C.CounterValue (Identity seedNextLegalId)
     , _dbLegalEntities    = Identity seedLegalEntities
-    , _dbNextUserId       = CounterValue (Identity seedNextUserId)
+    , _dbNextUserId       = C.CounterValue (Identity seedNextUserId)
     , _dbUserProfiles     = Identity seedProfiles
-    , _dbNextInvoiceId    = CounterValue (Identity seedNextInvoiceId)
+    , _dbNextInvoiceId    = C.CounterValue (Identity seedNextInvoiceId)
     , _dbInvoices         = Identity seedInvoices
-    , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
+    , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments      = Identity seedEmployments
 
     , _dbFormCreateContractAll = Identity seedFormCreateContractAll
