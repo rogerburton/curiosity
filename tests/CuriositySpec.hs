@@ -77,6 +77,7 @@ spec = do
           go
           [ ("init", Data.emptyHask)
           , ("user create alice a alice@example.com --accept-tos", aliceState)
+          , ("reset", Data.emptyHask)
           ]
 
 
