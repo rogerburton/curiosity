@@ -106,6 +106,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "key" Text
                   :> Capture "index" Int
                   :> Get '[B.HTML] Pages.AddExpensePage
+             :<|> "forms" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.RemoveExpensePage
              :<|> "forms" :> "confirm-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
@@ -172,6 +176,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "submit-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
@@ -216,6 +226,7 @@ serverT conf jwtS root dataDir =
     :<|> documentEditContractPage
     :<|> documentAddExpensePage
     :<|> documentEditExpensePage
+    :<|> documentRemoveExpensePage
     :<|> documentConfirmContractPage
 
     :<|> documentProfilePage dataDir
@@ -235,6 +246,7 @@ serverT conf jwtS root dataDir =
     :<|> echoSaveContractAndAddExpense
     :<|> echoAddExpense
     :<|> echoSaveExpense
+    :<|> echoRemoveExpense
     :<|> echoSubmitContract
 
     :<|> partialUsernameBlocklist
@@ -689,6 +701,22 @@ documentEditExpensePage key index = do
           (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
+documentRemoveExpensePage key index = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right (Employment.CreateContractAll _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.RemoveExpensePage
+          profile
+          key
+          index
+          (expenses !! index)
+          (H.toValue $ "/echo/remove-expense/" <> key <> "/" <> show index)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
 -- | Save a form, generating a new key.
 echoNewContract
   :: ServerC m
@@ -754,6 +782,18 @@ echoSaveExpense key index expense = do
   todo    <- liftIO . atomically $ Rt.writeExpenseToContractForm
     db
     (profile, key, index, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+echoRemoveExpense
+  :: ServerC m => Text -> Int -> m (Headers '[Header "Location" Text] NoContent)
+echoRemoveExpense key index = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.removeExpenseFromContractForm
+    db
+    (profile, key, index)
   pure $ addHeader @"Location"
     ("/forms/edit-contract/" <> key <> "#panel-expenses")
     NoContent

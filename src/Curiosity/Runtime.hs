@@ -34,6 +34,7 @@ module Curiosity.Runtime
   , writeCreateContractForm
   , addExpenseToContractForm
   , writeExpenseToContractForm
+  , removeExpenseFromContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -602,6 +603,22 @@ writeExpenseToContractForm db (profile, key, index, expense) = do
     (\(Employment.CreateContractAll c es) ->
       let f i e = if i == index then expense else e
           es' = zipWith f [0 ..] es
+      in  Employment.CreateContractAll c es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeExpenseFromContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeExpenseFromContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+ where
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
       in  Employment.CreateContractAll c es'
     )
     (username, key)

@@ -6,6 +6,7 @@ module Curiosity.Html.Employment
   ( ContractView(..)
   , CreateContractPage(..)
   , AddExpensePage(..)
+  , RemoveExpensePage(..)
   , ConfirmContractPage(..)
   ) where
 
@@ -163,7 +164,7 @@ groupExpenses mkey expenses submitUrl = do
     ( [show _addExpenseAmount]
     , [ ( Misc.divIconDelete
         , "Remove"
-        , "/echo/remove-expense/" <> key <> "/" <> show i
+        , "/forms/remove-expense/" <> key <> "/" <> show i
         )
       ]
     , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
@@ -214,6 +215,32 @@ instance H.ToMarkup AddExpensePage where
       button submitUrl "Add expense"
    where
     mamount = if amount /= 0 then Just (H.toValue amount) else Nothing
+    amount  = Employment._addExpenseAmount expense
+
+
+--------------------------------------------------------------------------------
+data RemoveExpensePage = RemoveExpensePage
+  { _removeExpensePageUserProfile :: User.UserProfile
+    -- ^ The user creating the expense within a contract
+  , _removeExpensePageKey         :: Text
+    -- ^ The key of the contract form
+  , _removeExpensePageIndex       :: Int
+    -- ^ The index of the expense within CreateContractAll
+  , _removeExpensePageExpense     :: Employment.AddExpense
+  , _removeExpensePageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup RemoveExpensePage where
+  toMarkup (RemoveExpensePage profile key mindex expense submitUrl) =
+    renderFormLarge profile $ do
+      title' "Remove expense" Nothing
+
+      panel "General information" $ do
+        keyValuePair "Amount" mamount
+
+      button submitUrl "Remove expense"
+   where
+    mamount = if amount /= 0 then show amount else "/" :: Text
     amount  = Employment._addExpenseAmount expense
 
 
