@@ -54,6 +54,7 @@ import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import           Data.List                      ( (!!) )
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
@@ -100,6 +101,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "forms" :> "add-expense"
                   :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.AddExpensePage
+             :<|> "forms" :> "edit-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
                   :> Get '[B.HTML] Pages.AddExpensePage
              :<|> "forms" :> "confirm-contract"
                   :> Capture "key" Text
@@ -203,6 +208,7 @@ serverT conf jwtS root dataDir =
     :<|> documentCreateContractPage
     :<|> documentEditContractPage
     :<|> documentAddExpensePage
+    :<|> documentEditExpensePage
     :<|> documentConfirmContractPage
 
     :<|> documentProfilePage dataDir
@@ -652,7 +658,27 @@ documentAddExpensePage key = do
     Right _ -> pure $ Pages.AddExpensePage
       profile
       key
+      Nothing
+      Employment.emptyAddExpense
       (H.toValue $ "/echo/add-expense/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Same as documentAddExpensePage, but use an existing form.
+documentEditExpensePage :: ServerC m => Text -> Int -> m Pages.AddExpensePage
+documentEditExpensePage key index = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right (Employment.CreateContractAll _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.AddExpensePage
+          profile
+          key
+          (Just index)
+          (expenses !! index)
+          (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Save a form, generating a new key.

@@ -10,6 +10,7 @@ module Curiosity.Data.Employment
   , emptyCreateContractAll
   , emptyCreateContract
   , AddExpense(..)
+  , emptyAddExpense
   , SubmitContract(..)
   , Contract(..)
   , ContractId(..)
@@ -63,15 +64,15 @@ emptyCreateContract = CreateContract { _createContractProject     = ""
                                      }
 
 data AddExpense = AddExpense
-  { _addExpenseCreateContract :: Text
-  , _addExpenseAmount         :: Int
+  { _addExpenseAmount :: Int
   }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm AddExpense where
-  fromForm f =
-    AddExpense <$> parseUnique "contract-key" f <*> parseUnique "amount" f
+  fromForm f = AddExpense <$> parseUnique "amount" f
+
+emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
 
 data SubmitContract = SubmitContract
   { _submitContractKey :: Text

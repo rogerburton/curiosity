@@ -166,7 +166,7 @@ groupExpenses mkey expenses submitUrl = do
         , "/echo/remove-expense/" <> key <> "/" <> show i
         )
       ]
-    , (Just $ "/echo/edit-expense/" <> key <> "/" <> show i)
+    , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
     )
 
 groupEmployment = do
@@ -189,11 +189,15 @@ data AddExpensePage = AddExpensePage
     -- ^ The user creating the expense within a contract
   , _addExpensePageKey         :: Text
     -- ^ The key of the contract form
+  , _addExpensePageIndex       :: Maybe Int
+    -- ^ The index of the expense within CreateContractAll, if it was already
+    -- added
+  , _addExpensePageExpense     :: Employment.AddExpense
   , _addExpensePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup AddExpensePage where
-  toMarkup (AddExpensePage profile key submitUrl) =
+  toMarkup (AddExpensePage profile key mindex expense submitUrl) =
     renderFormLarge profile $ do
       title' "Add expense" Nothing
 
@@ -203,11 +207,14 @@ instance H.ToMarkup AddExpensePage where
           ! A.id "contract-key"
           ! A.name "contract-key"
           ! A.value (H.toValue key)
-        inputText "Amount" "amount" Nothing Nothing
+        inputText "Amount" "amount" mamount Nothing
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       button submitUrl "Add expense"
+   where
+    mamount = if amount /= 0 then Just (H.toValue amount) else Nothing
+    amount  = Employment._addExpenseAmount expense
 
 
 --------------------------------------------------------------------------------
