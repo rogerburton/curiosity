@@ -231,26 +231,31 @@ handleServe conf serverConf = do
 handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
 handleRun conf user scriptPath = do
   runtime <- Rt.boot conf >>= either throwIO pure
-  let handleExceptions = (`catch` P.shutdown runtime . Just)
-  handleExceptions $ do
-    code <- interpret runtime user scriptPath
-    Rt.powerdown runtime
-    exitWith code
+  code    <- interpret runtime user scriptPath
+  Rt.powerdown runtime
+  exitWith code
 
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
 interpret runtime user path = do
-  (_, output) <- interpret' runtime user path
-  let len     = length $ takeWhile ((== ExitSuccess) . fst) output
+  (_, output) <- interpret' runtime user path 0
+  let len     = length $ takeWhile ((== ExitSuccess) . snd3) output
       output' = take (len + 1) output
-  mapM_ (putStrLn . snd) output'
-  pure $ fst . last $ (ExitSuccess, "") : output'
+      pad 0 = ""
+      pad 1 = "> "
+      pad n = T.concat (replicate ((n - 1) * 2) ">") <> "> "
+  mapM_ (\(a, _, c) -> putStrLn $ pad a <> c) output'
+  pure $ snd3 . last $ (0, ExitSuccess, "") : output'
+
+snd3 (_, b, _) = b
+thd3 (_, _, c) = c
 
 interpret'
   :: Rt.Runtime
   -> User.UserName
   -> FilePath
-  -> IO (User.UserName, [(ExitCode, Text)])
-interpret' runtime user path = do
+  -> Int
+  -> IO (User.UserName, [(Int, ExitCode, Text)])
+interpret' runtime user path nesting = do
   content <- readFile path
   foldlM loop (user, []) $ zip [1 :: Int ..] (T.lines content)
  where
@@ -259,18 +264,14 @@ interpret' runtime user path = do
         separated         = T.words prefix
         grouped           = T.unwords separated
     case separated of
-      []        -> pure (user', acc)
-      ["reset"] -> do
-        let output =
-              [show ln <> ": " <> grouped, "Resetting to the empty state."]
-        Rt.reset runtime
-        pure (user', acc ++ map (ExitSuccess, ) output)
+      []               -> pure (user', acc)
       ["as", username] -> do
         let output = [show ln <> ": " <> grouped, "Modifiying default user."]
-        pure (User.UserName username, acc ++ map (ExitSuccess, ) output)
+        pure
+          (User.UserName username, acc ++ map (nesting, ExitSuccess, ) output)
       ["quit"] -> do
         let output = [show ln <> ": " <> grouped, "Exiting."]
-        pure (user', acc ++ map (ExitSuccess, ) output)
+        pure (user', acc ++ map (nesting, ExitSuccess, ) output)
       input -> do
         let output_ = [show ln <> ": " <> grouped]
             result =
@@ -279,11 +280,28 @@ interpret' runtime user path = do
                 <$> input
         case result of
           A.Success command -> do
-            (_, output) <- Rt.handleCommand runtime user' command
-            pure (user', acc ++ map (ExitSuccess, ) (output_ ++ output))
-          A.Failure err -> pure (user', acc ++ [(ExitFailure 1, show err)])
+            case command of
+              Command.Reset _ -> do
+                let output = output_ ++ ["Resetting to the empty state."]
+                Rt.reset runtime
+                pure (user', acc ++ map (nesting, ExitSuccess, ) output)
+              Command.Run _ scriptPath -> do
+                (_, output') <- liftIO
+                  $ interpret' runtime user scriptPath (succ nesting)
+                pure
+                  ( user'
+                  , acc ++ map (nesting, ExitSuccess, ) output_ ++ output'
+                  )
+              _ -> do
+                (_, output) <- Rt.handleCommand runtime user' command
+                pure
+                  ( user'
+                  , acc ++ map (nesting, ExitSuccess, ) (output_ ++ output)
+                  )
+          A.Failure err ->
+            pure (user', acc ++ [(nesting, ExitFailure 1, show err)])
           A.CompletionInvoked _ ->
-            pure (user', acc ++ [(ExitFailure 1, "Shouldn't happen")])
+            pure (user', acc ++ [(nesting, ExitFailure 1, "Shouldn't happen")])
 
 
 --------------------------------------------------------------------------------
