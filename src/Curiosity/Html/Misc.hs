@@ -19,7 +19,11 @@ module Curiosity.Html.Misc
   , inputText
   , submitButton
   , button
+  , buttonLink
   , buttonAdd
+  , buttonGroup
+  , buttonBar
+  , buttonPrimary
 
   -- View
   , editButton
@@ -191,14 +195,40 @@ submitButton submitUrl label =
     ! A.class_ "c-button__label"
     $ label
 
-button submitUrl label =
+buttonGroup content =
   H.div
     ! A.class_ "o-form-group-layout o-form-group-layout--horizontal"
     $ H.div
     ! A.class_ "o-form-group"
     $ H.div
     ! A.class_ "u-spacer-left-auto u-spacer-top-l"
-    $ H.button
+    $ content
+
+buttonBar content =
+  H.div
+    ! A.class_ "c-toolbar"
+    $ H.div
+    ! A.class_ "c-toolbar__right"
+    $ H.div
+    ! A.class_ "c-toolbar__item"
+    $ H.div
+    ! A.class_ "c-button-toolbar"
+    $ content
+
+button submitUrl label = buttonGroup $ buttonPrimary submitUrl label
+
+buttonLink url label =
+  H.a
+    ! A.class_ "c-button c-button--secondary"
+    ! A.href url
+    $ H.div
+    ! A.class_ "c-button__content"
+    $ H.div
+    ! A.class_ "c-button__label"
+    $ H.text label
+
+buttonPrimary submitUrl label =
+  H.button
     ! A.class_ "c-button c-button--primary"
     ! A.formaction submitUrl
     ! A.formmethod "POST"

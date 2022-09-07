@@ -150,9 +150,9 @@ groupExpenses mkey expenses submitUrl = do
         $ "When using a project, you can choose to add expenses directly or later."
       H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl "Add expense"
     case mkey of
-      Nothing -> pure ()
-      Just key ->
+      Just key | not (null expenses) ->
         Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+      _ -> pure ()
  where
   titles = ["Amount"]
   display
@@ -200,7 +200,7 @@ data AddExpensePage = AddExpensePage
 instance H.ToMarkup AddExpensePage where
   toMarkup (AddExpensePage profile key mindex expense submitUrl) =
     renderFormLarge profile $ do
-      title' "Add expense" Nothing
+      title' label Nothing
 
       panel "General information" $ do
         H.input
@@ -212,8 +212,15 @@ instance H.ToMarkup AddExpensePage where
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
-      button submitUrl "Add expense"
+      buttonBar $ do
+        buttonLink
+          (H.toValue $ "/forms/edit-contract/" <> key <> "#panel-expenses")
+          "Cancel"
+        buttonPrimary
+          submitUrl
+          label
    where
+    label = if isJust mindex then "Update expense" else "Add expense"
     mamount = if amount /= 0 then Just (H.toValue amount) else Nothing
     amount  = Employment._addExpenseAmount expense
 
