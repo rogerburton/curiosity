@@ -165,6 +165,13 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "save-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> ReqBody '[FormUrlEncoded] Employment.AddExpense
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "submit-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
@@ -227,6 +234,7 @@ serverT conf jwtS root dataDir =
     :<|> echoSaveContract
     :<|> echoSaveContractAndAddExpense
     :<|> echoAddExpense
+    :<|> echoSaveExpense
     :<|> echoSubmitContract
 
     :<|> partialUsernameBlocklist
@@ -732,6 +740,23 @@ echoSaveContractAndAddExpense key contract = do
     db
     (profile, key, contract)
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+
+-- | Save an expense, re-using a key and an index.
+echoSaveExpense
+  :: ServerC m
+  => Text
+  -> Int
+  -> Employment.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveExpense key index expense = do
+  profile <- readJson "data/alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeExpenseToContractForm
+    db
+    (profile, key, index, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
 
 documentConfirmContractPage :: ServerC m => Text -> m Pages.ConfirmContractPage
 documentConfirmContractPage key = do

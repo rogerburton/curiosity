@@ -33,6 +33,7 @@ module Curiosity.Runtime
   , readCreateContractForm
   , writeCreateContractForm
   , addExpenseToContractForm
+  , writeExpenseToContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -226,7 +227,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -585,6 +586,23 @@ addExpenseToContractForm db (profile, key, expense) = do
   save = M.adjust
     (\(Employment.CreateContractAll c es) ->
       Employment.CreateContractAll c $ es ++ [expense]
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeExpenseToContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, Employment.AddExpense)
+  -> STM () -- TODO Possible errors
+writeExpenseToContractForm db (profile, key, index, expense) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+ where
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      let f i e = if i == index then expense else e
+          es' = zipWith f [0 ..] es
+      in  Employment.CreateContractAll c es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
