@@ -221,13 +221,13 @@ serverT conf jwtS root dataDir =
   showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
-    :<|> documentEditProfilePage
-    :<|> documentCreateContractPage
-    :<|> documentEditContractPage
-    :<|> documentAddExpensePage
-    :<|> documentEditExpensePage
-    :<|> documentRemoveExpensePage
-    :<|> documentConfirmContractPage
+    :<|> documentEditProfilePage dataDir
+    :<|> documentCreateContractPage dataDir
+    :<|> documentEditContractPage dataDir
+    :<|> documentAddExpensePage dataDir
+    :<|> documentEditExpensePage dataDir
+    :<|> documentRemoveExpensePage dataDir
+    :<|> documentConfirmContractPage dataDir
 
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
@@ -240,14 +240,14 @@ serverT conf jwtS root dataDir =
 
     :<|> echoLogin
     :<|> echoSignup
-    :<|> echoNewContract
-    :<|> echoNewContractAndAddExpense
-    :<|> echoSaveContract
-    :<|> echoSaveContractAndAddExpense
-    :<|> echoAddExpense
-    :<|> echoSaveExpense
-    :<|> echoRemoveExpense
-    :<|> echoSubmitContract
+    :<|> echoNewContract dataDir
+    :<|> echoNewContractAndAddExpense dataDir
+    :<|> echoSaveContract dataDir
+    :<|> echoSaveContractAndAddExpense dataDir
+    :<|> echoAddExpense dataDir
+    :<|> echoSaveExpense dataDir
+    :<|> echoRemoveExpense dataDir
+    :<|> echoSubmitContract dataDir
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
@@ -639,14 +639,15 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
-documentEditProfilePage :: ServerC m => m Pages.ProfilePage
-documentEditProfilePage = do
-  profile <- readJson "data/alice.json"
+documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
+documentEditProfilePage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
   pure $ Pages.ProfilePage profile "/echo/profile"
 
-documentCreateContractPage :: ServerC m => m Pages.CreateContractPage
-documentCreateContractPage = do
-  profile <- readJson "data/alice.json"
+documentCreateContractPage
+  :: ServerC m => FilePath -> m Pages.CreateContractPage
+documentCreateContractPage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
   let contractAll = Employment.emptyCreateContractAll
   pure $ Pages.CreateContractPage profile
                                   Nothing
@@ -655,9 +656,10 @@ documentCreateContractPage = do
                                   "/echo/new-contract-and-add-expense"
 
 -- | Same as documentCreateContractPage, but use an existing form.
-documentEditContractPage :: ServerC m => Text -> m Pages.CreateContractPage
-documentEditContractPage key = do
-  profile <- readJson "data/alice.json"
+documentEditContractPage
+  :: ServerC m => FilePath -> Text -> m Pages.CreateContractPage
+documentEditContractPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
@@ -669,9 +671,10 @@ documentEditContractPage key = do
       (H.toValue $ "/echo/save-contract-and-add-expense/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
-documentAddExpensePage :: ServerC m => Text -> m Pages.AddExpensePage
-documentAddExpensePage key = do
-  profile <- readJson "data/alice.json"
+documentAddExpensePage
+  :: ServerC m => FilePath -> Text -> m Pages.AddExpensePage
+documentAddExpensePage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
@@ -684,9 +687,10 @@ documentAddExpensePage key = do
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Same as documentAddExpensePage, but use an existing form.
-documentEditExpensePage :: ServerC m => Text -> Int -> m Pages.AddExpensePage
-documentEditExpensePage key index = do
-  profile <- readJson "data/alice.json"
+documentEditExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.AddExpensePage
+documentEditExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
@@ -701,8 +705,10 @@ documentEditExpensePage key index = do
           (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
-documentRemoveExpensePage key index = do
-  profile <- readJson "data/alice.json"
+documentRemoveExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveExpensePage
+documentRemoveExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
@@ -720,10 +726,11 @@ documentRemoveExpensePage key index = do
 -- | Save a form, generating a new key.
 echoNewContract
   :: ServerC m
-  => Employment.CreateContract
+  => FilePath
+  -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoNewContract contract = do
-  profile <- readJson "data/alice.json"
+echoNewContract dataDir contract = do
+  profile <- readJson $ dataDir </> "alice.json"
   db <- asks Rt._rDb
   key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
@@ -731,11 +738,12 @@ echoNewContract contract = do
 -- | Save a form, then move to the add expense part.
 echoNewContractAndAddExpense
   :: ServerC m
-  => Employment.CreateContract
+  => FilePath
+  -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoNewContractAndAddExpense contract = do
+echoNewContractAndAddExpense dataDir contract = do
   -- TODO This is the same code, but with a different redirect.
-  profile <- readJson "data/alice.json"
+  profile <- readJson $ dataDir </> "alice.json"
   db <- asks Rt._rDb
   key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
@@ -743,11 +751,12 @@ echoNewContractAndAddExpense contract = do
 -- | Save a form, re-using a key.
 echoSaveContract
   :: ServerC m
-  => Text
+  => FilePath
+  -> Text
   -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveContract key contract = do
-  profile <- readJson "data/alice.json"
+echoSaveContract dataDir key contract = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeCreateContractForm
     db
@@ -757,12 +766,13 @@ echoSaveContract key contract = do
 -- | Save a form, re-using a key, then move to the add expense part.
 echoSaveContractAndAddExpense
   :: ServerC m
-  => Text
+  => FilePath
+  -> Text
   -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveContractAndAddExpense key contract = do
+echoSaveContractAndAddExpense dataDir key contract = do
   -- TODO This is the same code, but with a different redirect.
-  profile <- readJson "data/alice.json"
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeCreateContractForm
     db
@@ -772,12 +782,13 @@ echoSaveContractAndAddExpense key contract = do
 -- | Save an expense, re-using a key and an index.
 echoSaveExpense
   :: ServerC m
-  => Text
+  => FilePath
+  -> Text
   -> Int
   -> Employment.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveExpense key index expense = do
-  profile <- readJson "data/alice.json"
+echoSaveExpense dataDir key index expense = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeExpenseToContractForm
     db
@@ -787,9 +798,13 @@ echoSaveExpense key index expense = do
     NoContent
 
 echoRemoveExpense
-  :: ServerC m => Text -> Int -> m (Headers '[Header "Location" Text] NoContent)
-echoRemoveExpense key index = do
-  profile <- readJson "data/alice.json"
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoRemoveExpense dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.removeExpenseFromContractForm
     db
@@ -798,9 +813,10 @@ echoRemoveExpense key index = do
     ("/forms/edit-contract/" <> key <> "#panel-expenses")
     NoContent
 
-documentConfirmContractPage :: ServerC m => Text -> m Pages.ConfirmContractPage
-documentConfirmContractPage key = do
-  profile <- readJson "data/alice.json"
+documentConfirmContractPage
+  :: ServerC m => FilePath -> Text -> m Pages.ConfirmContractPage
+documentConfirmContractPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
@@ -813,11 +829,12 @@ documentConfirmContractPage key = do
 
 echoAddExpense
   :: ServerC m
-  => Text
+  => FilePath
+  -> Text
   -> Employment.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
-echoAddExpense key expense = do
-  profile <- readJson "data/alice.json"
+echoAddExpense dataDir key expense = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
   pure $ addHeader @"Location"
@@ -825,9 +842,9 @@ echoAddExpense key expense = do
     NoContent
 
 echoSubmitContract
-  :: ServerC m => Employment.SubmitContract -> m Pages.EchoPage
-echoSubmitContract (Employment.SubmitContract key) = do
-  profile <- readJson "data/alice.json"
+  :: ServerC m => FilePath -> Employment.SubmitContract -> m Pages.EchoPage
+echoSubmitContract dataDir (Employment.SubmitContract key) = do
+  profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
