@@ -143,16 +143,20 @@ groupInvoicing = do
 
 groupExpenses mkey expenses submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
-    H.label ! A.class_ "o-form-group__label" $ "Add expenses (optional)"
-    H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
-      H.p
-        ! A.class_ "u-text-muted c-body-1"
-        $ "When using a project, you can choose to add expenses directly or later."
-      H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl "Add expense"
+    when (null expenses)
+      $ H.div
+      ! A.class_ "c-blank-slate c-blank-slate--bg-alt"
+      $ do
+          H.p
+            ! A.class_ "u-text-muted c-body-1"
+            $ "When using a project, you can choose to add expenses directly or later."
+          H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl
+                                                          "Add expense"
     case mkey of
       Just key | not (null expenses) ->
         Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
       _ -> pure ()
+    when (not $ null expenses) $ buttonGroup $ buttonAdd submitUrl "Add expense"
  where
   titles = ["Amount"]
   display
@@ -216,11 +220,9 @@ instance H.ToMarkup AddExpensePage where
         buttonLink
           (H.toValue $ "/forms/edit-contract/" <> key <> "#panel-expenses")
           "Cancel"
-        buttonPrimary
-          submitUrl
-          label
+        buttonPrimary submitUrl label
    where
-    label = if isJust mindex then "Update expense" else "Add expense"
+    label   = if isJust mindex then "Update expense" else "Add expense"
     mamount = if amount /= 0 then Just (H.toValue amount) else Nothing
     amount  = Employment._addExpenseAmount expense
 
