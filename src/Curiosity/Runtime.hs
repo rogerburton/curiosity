@@ -382,7 +382,11 @@ handleCommand runtime@Runtime {..} user command = do
         Right x   -> pure (ExitSuccess, map show x)
         Left  err -> pure (ExitFailure 1, [Errs.displayErr err])
     _ -> do
-      pure (ExitFailure 1, ["Unhandled command " <> show command])
+      -- TODO It seems that showing the command causes a stack overflow. For
+      -- instance the error happens by passing the Log or the Reset commands.
+      -- I think this has to do with the fact that they contain a conf.
+      -- pure (ExitFailure 1, ["Unhandled command " <> show command])
+      pure (ExitFailure 1, ["Unhandled command."])
 
 setUserEmailAddrAsVerifiedFull
   :: Data.StmDb runtime

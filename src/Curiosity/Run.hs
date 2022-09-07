@@ -365,6 +365,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
     -- other possible results (beside mod and viz): comments and blanks
     -- (no-op), instead of this special empty case.
     Just ""     -> loop
+    Just "reset" -> Rt.reset runtime >> loop
     Just "quit" -> pure ()
     Just input  -> do
       let result =
