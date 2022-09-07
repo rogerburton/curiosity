@@ -374,7 +374,6 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
     -- other possible results (beside mod and viz): comments and blanks
     -- (no-op), instead of this special empty case.
     Just ""     -> loop
-    Just "reset" -> Rt.reset runtime >> loop
     Just "quit" -> pure ()
     Just input  -> do
       let result =
@@ -383,8 +382,18 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
               <$> (words $ T.pack input)
       case result of
         A.Success command -> do
-          (_, output) <- Rt.handleCommand runtime user command
-          mapM_ output' output
+          case command of
+            -- We ignore the Configuration here. Probably this should be moved
+            -- to Rt.handleCommand too.
+            Command.Reset _          -> Rt.reset runtime
+            Command.Run _ scriptPath -> do
+              code <- liftIO $ interpret runtime user scriptPath
+              case code of
+                ExitSuccess   -> pure ()
+                ExitFailure _ -> output' "Script failed."
+            _ -> do
+              (_, output) <- Rt.handleCommand runtime user command
+              mapM_ output' output
         A.Failure           err -> output' $ show err
         A.CompletionInvoked _   -> output' "Shouldn't happen"
 
