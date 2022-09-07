@@ -271,7 +271,9 @@ instance H.ToMarkup ConfirmContractPage where
         $  "/forms/edit-contract/"
         <> key
 
-      H.toMarkup
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
         $ PanelHeaderAndBody "General information"
         $ H.dl
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
@@ -283,6 +285,19 @@ instance H.ToMarkup ConfirmContractPage where
             keyValuePair "Work type"      _createContractType
             keyValuePair "Description"    _createContractDescription
 
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
+        $ PanelHeaderAndBody "Expenses"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ if null expenses
+            then H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
+              H.p
+                ! A.class_ "u-text-muted c-body-1"
+                $ "You have no expenses right now."
+            else Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       button submitUrl "Submit contract"
@@ -290,3 +305,11 @@ instance H.ToMarkup ConfirmContractPage where
       autoReload
    where
     displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
+    titles      = ["Amount"]
+    display
+      :: Text
+      -> Int
+      -> Employment.AddExpense
+      -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+    display key i Employment.AddExpense {..} =
+      ([show _addExpenseAmount], [], Nothing)
