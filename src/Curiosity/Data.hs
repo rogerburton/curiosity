@@ -36,7 +36,6 @@ import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.List                     as L
-import           Data.Map                       ( Map )
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
 import qualified System.Random                 as Rand

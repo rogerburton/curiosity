@@ -649,7 +649,7 @@ documentAddExpensePage key = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure $ Pages.AddExpensePage
+    Right _ -> pure $ Pages.AddExpensePage
       profile
       key
       (H.toValue $ "/echo/add-expense/" <> key)
@@ -660,10 +660,10 @@ echoNewContract
   :: ServerC m
   => Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoNewContract c@Employment.CreateContract {..} = do
+echoNewContract contract = do
   profile <- readJson "data/alice.json"
-  db      <- asks Rt._rDb
-  key     <- liftIO . atomically $ Rt.newCreateContractForm db (profile, c)
+  db <- asks Rt._rDb
+  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
 
 -- | Save a form, then move to the add expense part.
@@ -671,11 +671,11 @@ echoNewContractAndAddExpense
   :: ServerC m
   => Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoNewContractAndAddExpense c@Employment.CreateContract {..} = do
+echoNewContractAndAddExpense contract = do
   -- TODO This is the same code, but with a different redirect.
   profile <- readJson "data/alice.json"
-  db      <- asks Rt._rDb
-  key     <- liftIO . atomically $ Rt.newCreateContractForm db (profile, c)
+  db <- asks Rt._rDb
+  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
 
 -- | Save a form, re-using a key.
@@ -684,10 +684,12 @@ echoSaveContract
   => Text
   -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveContract key c@Employment.CreateContract {..} = do
+echoSaveContract key contract = do
   profile <- readJson "data/alice.json"
-  db <- asks Rt._rDb
-  todo <- liftIO . atomically $ Rt.writeCreateContractForm db (profile, key, c)
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+    db
+    (profile, key, contract)
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
@@ -696,11 +698,13 @@ echoSaveContractAndAddExpense
   => Text
   -> Employment.CreateContract
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveContractAndAddExpense key c@Employment.CreateContract {..} = do
+echoSaveContractAndAddExpense key contract = do
   -- TODO This is the same code, but with a different redirect.
   profile <- readJson "data/alice.json"
-  db <- asks Rt._rDb
-  todo <- liftIO . atomically $ Rt.writeCreateContractForm db (profile, key, c)
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+    db
+    (profile, key, contract)
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
 
 documentConfirmContractPage :: ServerC m => Text -> m Pages.ConfirmContractPage

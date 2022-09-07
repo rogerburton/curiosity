@@ -11,9 +11,7 @@ module Curiosity.Html.Action
 
 import           Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Profile         ( keyValuePair )
 import qualified Smart.Html.Dsl                as Dsl
-import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
 import qualified Smart.Html.Render             as Render
 import qualified Smart.Html.Shared.Types       as Types

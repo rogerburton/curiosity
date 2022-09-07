@@ -22,7 +22,6 @@ import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseUnique
                                                 )
-import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 --------------------------------------------------------------------------------
 -- | This represent a form being filled in. In particular, it can represent

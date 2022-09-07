@@ -12,12 +12,8 @@ module Curiosity.Html.Employment
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Navbar          ( navbar )
-import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
-import qualified Smart.Html.Render             as Render
-import           Smart.Html.Shared.Html.Icons   ( svgIconEdit )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -212,8 +208,6 @@ instance H.ToMarkup AddExpensePage where
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       button submitUrl "Add expense"
-   where
-    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
 
 
 --------------------------------------------------------------------------------

@@ -7,7 +7,6 @@ module Curiosity.Html.Profile
   , ProfileView(..)
   , PublicProfileView(..)
   , ProfileSaveConfirmPage(..)
-  , keyValuePair -- TODO Move to Misc.
   ) where
 
 import qualified Curiosity.Data.User           as User
