@@ -542,19 +542,19 @@ newCreateContractForm
   -> STM Text
 newCreateContractForm db (profile, c) = do
   key <- Data.genRandomText db
-  STM.modifyTVar (Data._dbFormCreateContract db) (add key)
+  STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
   pure key
  where
-  add key = M.insert (username, key) c
+  add key = M.insert (username, key) (Employment.CreateContractAll c [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
   -> (User.UserProfile, Text)
-  -> STM (Either () Employment.CreateContract)
+  -> STM (Either () Employment.CreateContractAll)
 readCreateContractForm db (profile, key) = do
-  m <- STM.readTVar $ Data._dbFormCreateContract db
+  m <- STM.readTVar $ Data._dbFormCreateContractAll db
   let mform = M.lookup (username, key) m
   pure $ maybe (Left ()) Right mform
   where username = User._userCredsName $ User._userProfileCreds profile
@@ -565,24 +565,28 @@ writeCreateContractForm
   -> (User.UserProfile, Text, Employment.CreateContract)
   -> STM Text
 writeCreateContractForm db (profile, key, c) = do
-  STM.modifyTVar (Data._dbFormCreateContract db) save
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
   pure key
  where
   -- TODO Return an error when the key is not found.
-  save     = M.adjust (const c) (username, key)
+  save = M.adjust
+    (\(Employment.CreateContractAll _ es) -> Employment.CreateContractAll c es)
+    (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
 addExpenseToContractForm
   :: forall runtime
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Employment.AddExpense)
-  -> STM (Either Text Employment.AddExpenseId) -- TODO Possible errors
+  -> STM () -- TODO Possible errors
 addExpenseToContractForm db (profile, key, expense) = do
-  expenseKey <- Employment.AddExpenseId <$> Data.genRandomText db
-  STM.modifyTVar (Data._dbFormAddExpense db) (add expenseKey)
-  pure $ Right expenseKey
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
-  add expenseKey = M.insert (username, expenseKey) expense
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      Employment.CreateContractAll c $ es ++ [expense]
+    )
+    (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
 

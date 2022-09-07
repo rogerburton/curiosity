@@ -555,7 +555,7 @@ showCreateContractPage
   :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
 showCreateContractPage profile = pure $ Pages.CreateContractPage
   profile
-  Employment.emptyCreateContract
+  Employment.emptyCreateContractAll
   "/a/new-contract"
   "/a/new-contract-and-add-expense"
 
@@ -620,9 +620,9 @@ documentEditProfilePage = do
 documentCreateContractPage :: ServerC m => m Pages.CreateContractPage
 documentCreateContractPage = do
   profile <- readJson "data/alice.json"
-  let contract = Employment.emptyCreateContract
+  let contractAll = Employment.emptyCreateContractAll
   pure $ Pages.CreateContractPage profile
-                                  contract
+                                  contractAll
                                   "/echo/new-contract"
                                   "/echo/new-contract-and-add-expense"
 
@@ -633,9 +633,9 @@ documentEditContractPage key = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure $ Pages.CreateContractPage
+    Right contractAll -> pure $ Pages.CreateContractPage
       profile
-      contract
+      contractAll
       (H.toValue $ "/echo/save-contract/" <> key)
       (H.toValue $ "/echo/save-contract-and-add-expense/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
@@ -706,8 +706,11 @@ documentConfirmContractPage key = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure
-      $ Pages.ConfirmContractPage profile key contract "/echo/submit-contract"
+    Right contractAll -> pure $ Pages.ConfirmContractPage
+      profile
+      key
+      contractAll
+      "/echo/submit-contract"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 echoAddExpense
@@ -718,14 +721,10 @@ echoAddExpense
 echoAddExpense key expense = do
   profile <- readJson "data/alice.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.addExpenseToContractForm
-    db
-    (profile, key, expense)
-  case output of
-    Right contract -> pure $ addHeader @"Location"
-      ("/forms/edit-contract/" <> key <> "#panel-expenses")
-      NoContent
-    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+  liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
 
 echoSubmitContract
   :: ServerC m => Employment.SubmitContract -> m Pages.EchoPage

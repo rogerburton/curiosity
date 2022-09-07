@@ -43,14 +43,14 @@ contractView contract hasEditButton = containerLarge $ do
 data CreateContractPage = CreateContractPage
   { _createContractPageUserProfile   :: User.UserProfile
     -- ^ The user creating the contract
-  , _createContractContract          :: Employment.CreateContract
+  , _createContractContract          :: Employment.CreateContractAll
     -- ^ The contract being edited
   , _createContractPageSaveURL       :: H.AttributeValue
   , _createContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile Employment.CreateContract {..} saveUrl addExpenseUrl)
+  toMarkup (CreateContractPage profile (Employment.CreateContractAll Employment.CreateContract {..} expenses) saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       title "New employment contract"
       panel "General information" $ do
@@ -197,12 +197,12 @@ data ConfirmContractPage = ConfirmContractPage
   { _confirmContractPageUserProfile :: User.UserProfile
     -- ^ The user creating the contract
   , _confirmContractPageKey         :: Text
-  , _confirmContractPageContract    :: Employment.CreateContract
+  , _confirmContractPageContract    :: Employment.CreateContractAll
   , _confirmContractPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmContractPage where
-  toMarkup (ConfirmContractPage profile key Employment.CreateContract {..} submitUrl)
+  toMarkup (ConfirmContractPage profile key (Employment.CreateContractAll Employment.CreateContract {..} expenses) submitUrl)
     = renderFormLarge profile $ do
       title' "New employment contract"
         .  Just

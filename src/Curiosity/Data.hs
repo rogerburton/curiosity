@@ -67,10 +67,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
 
   , _dbRandomGenState     :: datastore (Word64, Word64)
     -- ^ The internal representation of a StdGen.
-  , _dbFormCreateContract ::
-      datastore (Map (User.UserName, Text) Employment.CreateContract)
-  , _dbFormAddExpense ::
-      datastore (Map (User.UserName, Employment.AddExpenseId) Employment.AddExpense)
+  , _dbFormCreateContractAll ::
+      datastore (Map (User.UserName, Text) Employment.CreateContractAll)
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -97,7 +95,6 @@ emptyHask = Db
 
   (pure $ randomGenState 42) -- Deterministic initial seed.
   (pure mempty)
-  (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -113,9 +110,8 @@ instantiateStmDb Db
   , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
   , _dbEmployments      = Identity seedEmployments
 
-  , _dbRandomGenState     = Identity seedRandomGenState
-  , _dbFormCreateContract = Identity seedFormCreateContract
-  , _dbFormAddExpense     = Identity seedFormAddExpense
+  , _dbRandomGenState        = Identity seedRandomGenState
+  , _dbFormCreateContractAll = Identity seedFormCreateContractAll
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -132,9 +128,8 @@ instantiateStmDb Db
     _dbNextEmploymentId <- C.newCounter seedNextEmploymentId
     _dbEmployments      <- STM.newTVar seedEmployments
 
-    _dbRandomGenState     <- STM.newTVar seedRandomGenState
-    _dbFormCreateContract <- STM.newTVar seedFormCreateContract
-    _dbFormAddExpense     <- STM.newTVar seedFormAddExpense
+    _dbRandomGenState        <- STM.newTVar seedRandomGenState
+    _dbFormCreateContractAll <- STM.newTVar seedFormCreateContractAll
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -156,8 +151,7 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
   C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
-  STM.writeTVar (_dbFormCreateContract stmDb) seedFormCreateContract
-  STM.writeTVar (_dbFormAddExpense stmDb) seedFormAddExpense
+  STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
  where
   Db
     { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
@@ -171,8 +165,7 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
     , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments      = Identity seedEmployments
 
-    , _dbFormCreateContract = Identity seedFormCreateContract
-    , _dbFormAddExpense     = Identity seedFormAddExpense
+    , _dbFormCreateContractAll = Identity seedFormCreateContractAll
     } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -201,9 +194,8 @@ readFullStmDbInHask' stmDb = do
   _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
   _dbEmployments      <- pure <$> STM.readTVar (_dbEmployments stmDb)
 
-  _dbRandomGenState     <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
-  _dbFormCreateContract <- pure <$> STM.readTVar (_dbFormCreateContract stmDb)
-  _dbFormAddExpense     <- pure <$> STM.readTVar (_dbFormAddExpense stmDb)
+  _dbRandomGenState        <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
+  _dbFormCreateContractAll <- pure <$> STM.readTVar (_dbFormCreateContractAll stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
