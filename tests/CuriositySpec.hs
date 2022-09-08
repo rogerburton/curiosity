@@ -5,6 +5,7 @@ module CuriositySpec
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Run                 as Run
 import qualified Data.Aeson                    as Aeson
@@ -19,6 +20,8 @@ import           Test.Hspec
 --------------------------------------------------------------------------------
 spec :: Spec
 spec = do
+  -- This makes sure we can parse the example data files. Otherwise we can
+  -- forget to update them as we change their corresponding data types.
   describe "UserProfile JSON parser" $ do
     let go (filename, username) = it ("Parses " <> filename) $ do
           Right (result :: User.UserProfile) <- parseFile $ "data/" </> filename
@@ -27,11 +30,25 @@ spec = do
     mapM_
       go
       [ ("alice.json"  , "alice")
+      , ("alice-with-bio.json"  , "alice")
       , ("bob-0.json"  , "bob")
       , ("bob-1.json"  , "bob")
       , ("bob-2.json"  , "bob")
       , ("charlie.json", "charlie")
       ]
+
+  -- Same here.
+  describe "Legal entity JSON parser" $ do
+    let go (filename, slug) = it ("Parses " <> filename) $ do
+          Right (result :: Legal.Entity) <- parseFile $ "data/" </> filename
+          Legal._entitySlug result
+            `shouldBe` slug
+    mapM_
+      go
+      [ ("one.json"  , "one")
+      ]
+
+  -- TODO Check that all the files in data/ are in one of the above lists.
 
   describe "Command-line interface parser" $ do
     let go (arguments, command) =
