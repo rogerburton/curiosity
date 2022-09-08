@@ -16,6 +16,7 @@ title: Curiosity
 - [Man pages](/documentation/man-pages)
 - [Messages](/documentation/messages)
 - [Objects](/documentation/objects)
+- [Scenarios](/documentation/scenarios)
 - [Sitemap](/documentation/sitemap)
 - [Source code](/documentation/source)
 - [UBL](/documentation/ubl)
