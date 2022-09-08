@@ -96,8 +96,6 @@ instance H.ToMarkup CreateContractPage where
 
       groupLayout $ do
         submitButton saveUrl "Save changes"
-
-      autoReload
    where
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
@@ -302,8 +300,6 @@ instance H.ToMarkup ConfirmContractPage where
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       button submitUrl "Submit contract"
-
-      autoReload
    where
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile

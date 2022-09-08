@@ -524,7 +524,9 @@ type Private = H.UserAuthentication :> (
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
-                   :> H.PostUserPage Pages.ProfileSaveConfirmPage
+                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                               NoContent
+                                             )
              :<|> "a" :> "logout" :> Verb 'GET 303 '[JSON] ( Headers CAuth.PostLogoutHeaders
                                                              NoContent
                                                             )
@@ -544,7 +546,7 @@ privateT conf authResult =
         :<|> (withUser' showCreateUnitPage)
         :<|> (withUser' showCreateContractPage)
         :<|> (withUser' showCreateInvoicePage)
-        :<|> (withUser' . handleUserUpdate)
+        :<|> (withUser' . handleUserProfileUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
 
@@ -593,35 +595,24 @@ showCreateInvoicePage profile =
 
 
 --------------------------------------------------------------------------------
-handleUserUpdate
+handleUserProfileUpdate
   :: forall m
    . ServerC m
   => User.Update
   -> User.UserProfile
-  -> m
-       ( SS.P.Page
-           'SS.P.Authd
-           User.UserProfile
-           Pages.ProfileSaveConfirmPage
-       )
-handleUserUpdate User.Update {..} profile = case _editPassword of
-  Just newPass -> do
-    let updatedProfile =
-          profile
-            &  User.userProfileCreds
-            .  User.userCredsPassword
-            %~ (`fromMaybe` _editPassword)
-    db   <- asks Rt._rDb
-    eIds <- S.liftTxn
-      (S.dbUpdate @m @STM db (User.UserPasswordUpdate (S.dbId profile) newPass))
+  -> m (Headers '[Header "Location" Text] NoContent)
+handleUserProfileUpdate User.Update {..} profile = do
+  db   <- asks Rt._rDb
+  eIds <- S.liftTxn
+    (S.dbUpdate @m @STM
+      db
+      (User.UserDisplayNameUpdate (S.dbId profile) _updateDisplayName)
+    )
 
-    let page = case eIds of
-          Right (Right [_]) -> Pages.ProfileSaveSuccess
-          _ -> Pages.ProfileSaveFailure (Just "Cannot update the user.")
-    pure $ SS.P.AuthdPage updatedProfile page
-
-  Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
-    "Nothing to update."
+  case eIds of
+    Right (Right [_]) ->
+      pure $ addHeader @"Location" ("/settings/profile") NoContent
+    _ -> Errs.throwError' $ Rt.UnspeciedErr "Cannot update the user."
 
 handleSetUserEmailAddrAsVerified
   :: forall m

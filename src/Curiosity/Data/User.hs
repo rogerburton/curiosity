@@ -106,12 +106,12 @@ instance FromForm Login where
 
 -- | Represents the input data to update a user profile.
 newtype Update = Update
-  { _editPassword :: Maybe Password
+  { _updateDisplayName :: Maybe UserDisplayName
   }
   deriving (Eq, Show, Generic)
 
 instance FromForm Update where
-  fromForm f = Update <$> parseMaybe "password" f
+  fromForm f = Update <$> parseMaybe "display-name" f
 
 
 --------------------------------------------------------------------------------
@@ -248,7 +248,7 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserCreateGeneratingUserId Signup
     | UserDelete UserId
-    | UserPasswordUpdate UserId Password
+    | UserDisplayNameUpdate UserId (Maybe UserDisplayName)
     deriving (Show, Eq)
   
   data DBSelect UserProfile =

@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Curiosity.Runtime
   ( IOErr(..)
+  , UnspeciedErr(..)
   , Runtime(..)
   , rConf
   , rDb
@@ -687,16 +688,15 @@ instance S.DBStorage AppM STM User.UserProfile where
       deleteUser _ =
         modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
 
-    User.UserPasswordUpdate id newPass ->
+    User.UserDisplayNameUpdate id mname ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
         (pure . userNotFound $ show id)
         (fmap Right . updateUser)
      where
       updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
-      setPassword =
-        set (User.userProfileCreds . User.userCredsPassword) newPass
+      setDisplayName = set User.userProfileDisplayName mname
       replaceOlder users =
-        [ if S.dbId u == id then setPassword u else u | u <- users ]
+        [ if S.dbId u == id then setDisplayName u else u | u <- users ]
 
   dbSelect db = \case
 
@@ -841,3 +841,14 @@ instance Errs.IsRuntimeErr IOErr where
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
+
+-- | A placeholder error type, used until better handling (at the call site) is
+-- put in place.
+newtype UnspeciedErr = UnspeciedErr Text
+  deriving Show
+
+instance Errs.IsRuntimeErr UnspeciedErr where
+  errCode UnspeciedErr{} = "ERR.FILE_NOT_FOUND"
+  httpStatus UnspeciedErr{} = HTTP.notFound404
+  userMessage = Just . \case
+    UnspeciedErr msg -> T.unwords ["Error:", msg]

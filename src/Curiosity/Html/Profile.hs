@@ -39,7 +39,7 @@ instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
     renderForm profile $ groupLayout $ do
       title "User profile"
-      inputText
+      disabledText
           "Username"
           "username"
           ( Just
@@ -48,16 +48,8 @@ instance H.ToMarkup ProfilePage where
           . User._userProfileCreds
           $ profile
           )
-        $ Just "This is your public username"
-      H.div ! A.class_ "o-form-group" $ do
-        H.label ! A.class_ "o-form-group__label" ! A.for "password" $ "Password"
-        H.div
-          ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
-          $ H.input
-          ! A.class_ "c-input"
-          ! A.type_ "password"
-          ! A.id "password"
-          ! A.name "password"
+        $ Just "This is your username. It can not be changed."
+      disabledText "Password" "password" (Just "") Nothing
       inputText
           "Display name"
           "display-name"
@@ -67,11 +59,12 @@ instance H.ToMarkup ProfilePage where
           . User._userProfileDisplayName
           $ profile
           )
-        $ Just "This is the name that appears in e.g. your public profile"
-      inputText "Email address"
-                "email-addr"
-                (Just . H.toValue . User._userProfileEmailAddr $ profile)
-        $ Just "Your email address is private"
+        $ Just
+            "This is the name that appears in e.g. your public profile and can be left empty if you prefer."
+      disabledText "Email address"
+                   "email-addr"
+                   (Just . H.toValue . User._userProfileEmailAddr $ profile)
+        $ Just "Your email address is private."
       submitButton submitUrl "Update profile"
 
 -- Partial re-creation of
@@ -201,9 +194,8 @@ profileView profile hasEditButton =
             "Username"
             (User._userCredsName . User._userProfileCreds $ profile)
           keyValuePair @Text "Password" ""
-          maybe mempty
-                (keyValuePair "Display name")
-                (User._userProfileDisplayName profile)
+          keyValuePair "Display name"
+            $ maybe "" identity (User._userProfileDisplayName profile)
           keyValuePair "Email address" (User._userProfileEmailAddr profile)
           keyValuePair
             "Email addr. verified"

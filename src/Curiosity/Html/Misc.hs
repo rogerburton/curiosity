@@ -17,6 +17,7 @@ module Curiosity.Html.Misc
   , title
   , title'
   , inputText
+  , disabledText
   , submitButton
   , button
   , buttonLink
@@ -165,19 +166,44 @@ title' s mEditButton =
           $ H.text s
         maybe mempty editButton mEditButton
 
+disabledText
+  :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html
+disabledText label name mvalue mhelp = inputText' label name mvalue mhelp True
+
 inputText
   :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html
-inputText label name mvalue mhelp = H.div ! A.class_ "o-form-group" $ do
-  H.label ! A.class_ "o-form-group__label" ! A.for name $ H.toHtml label
+inputText label name mvalue mhelp = inputText' label name mvalue mhelp False
+
+inputText'
+  :: Text
+  -> H.AttributeValue
+  -> Maybe H.AttributeValue
+  -> Maybe Text
+  -> Bool
+  -> Html
+inputText' label name mvalue mhelp disabled =
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" ! A.for name $ H.toHtml label
+    H.div
+      ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+      $ do
+          (if disabled then (! (A.disabled "disabled")) else identity)
+            $ maybe identity (\value -> (! (A.value value))) mvalue
+            $ H.input
+            ! A.class_ "c-input"
+            ! A.id name
+            ! A.name name
+          maybe mempty ((H.p ! A.class_ "c-form-help-text") . H.text) mhelp
+
+inputPassword = H.div ! A.class_ "o-form-group" $ do
+  H.label ! A.class_ "o-form-group__label" ! A.for "password" $ "Password"
   H.div
     ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
-    $ do
-        maybe identity (\value -> (! (A.value value))) mvalue
-          $ H.input
-          ! A.class_ "c-input"
-          ! A.id name
-          ! A.name name
-        maybe mempty ((H.p ! A.class_ "c-form-help-text") . H.text) mhelp
+    $ H.input
+    ! A.class_ "c-input"
+    ! A.type_ "password"
+    ! A.id "password"
+    ! A.name "password"
 
 submitButton :: H.AttributeValue -> Html -> Html
 submitButton submitUrl label =
