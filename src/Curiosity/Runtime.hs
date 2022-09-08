@@ -743,7 +743,7 @@ createUser db User.Signup {..} = do
     let newProfile = User.UserProfile
           newId
           (User.Credentials username password)
-          "TODO"
+          Nothing
           email
           Nothing
           tosConsent

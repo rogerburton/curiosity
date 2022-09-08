@@ -56,8 +56,10 @@ setUserEmailAddrAsVerifiedPanel username profile =
     $ H.dl
     ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
     $ do
-        keyValuePair "Username"      username
-        keyValuePair "Display name"  (User._userProfileDisplayName profile)
+        keyValuePair "Username" username
+        maybe mempty
+              (keyValuePair "Display name")
+              (User._userProfileDisplayName profile)
         keyValuePair "Email address" (User._userProfileEmailAddr profile)
 
 setUserEmailAddrAsVerifiedForm username = H.form $ do

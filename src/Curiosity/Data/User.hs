@@ -119,10 +119,14 @@ type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   { _userProfileId                :: UserId
-  , _userProfileCreds             :: creds -- ^ Users credentials
-  , _userProfileDisplayName       :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr         :: userEmailAddr -- ^ User's email address
-  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileCreds             :: creds
+    -- ^ Users credentials
+  , _userProfileDisplayName       :: Maybe userDisplayName
+    -- ^ User's human friendly name
+  , _userProfileEmailAddr         :: userEmailAddr
+    -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text
+    -- ^ TODO Last date it was checked
   , _userProfileTosConsent        :: tosConsent
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
@@ -231,8 +235,8 @@ instance Nav.IsNavbarContent UserProfile where
     editProfileLink
     H.hr
    where
-    greeting =
-      H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
+    greeting = H.div . H.text $ T.unwords
+      ["Hi", _userCredsName _userProfileCreds ^. coerced]
     editProfileLink = H.a ! A.href "/settings/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where

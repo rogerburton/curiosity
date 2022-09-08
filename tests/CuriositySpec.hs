@@ -22,14 +22,15 @@ spec = do
   describe "UserProfile JSON parser" $ do
     let go (filename, username) = it ("Parses " <> filename) $ do
           Right (result :: User.UserProfile) <- parseFile $ "data/" </> filename
-          User._userProfileDisplayName result `shouldBe` username
+          User._userCredsName (User._userProfileCreds result)
+            `shouldBe` username
     mapM_
       go
-      [ ("alice.json"  , "TODO")
-      , ("bob-0.json"  , "Bob")
-      , ("bob-1.json"  , "Bob")
-      , ("bob-2.json"  , "Bob")
-      , ("charlie.json", "Charlie")
+      [ ("alice.json"  , "alice")
+      , ("bob-0.json"  , "bob")
+      , ("bob-1.json"  , "bob")
+      , ("bob-2.json"  , "bob")
+      , ("charlie.json", "charlie")
       ]
 
   describe "Command-line interface parser" $ do
@@ -75,7 +76,7 @@ spec = do
               }
         mapM_
           go
-          [ ("init", Data.emptyHask)
+          [ ("init" , Data.emptyHask)
           , ("user create alice a alice@example.com --accept-tos", aliceState)
           , ("reset", Data.emptyHask)
           ]

@@ -58,9 +58,15 @@ instance H.ToMarkup ProfilePage where
           ! A.type_ "password"
           ! A.id "password"
           ! A.name "password"
-      inputText "Display name"
-                "display-name"
-                (Just . H.toValue . User._userProfileDisplayName $ profile)
+      inputText
+          "Display name"
+          "display-name"
+          ( Just
+          . H.toValue
+          . maybe "" identity
+          . User._userProfileDisplayName
+          $ profile
+          )
         $ Just "This is the name that appears in e.g. your public profile"
       inputText "Email address"
                 "email-addr"
@@ -195,7 +201,9 @@ profileView profile hasEditButton =
             "Username"
             (User._userCredsName . User._userProfileCreds $ profile)
           keyValuePair @Text "Password" ""
-          keyValuePair "Display name"  (User._userProfileDisplayName profile)
+          maybe mempty
+                (keyValuePair "Display name")
+                (User._userProfileDisplayName profile)
           keyValuePair "Email address" (User._userProfileEmailAddr profile)
           keyValuePair
             "Email addr. verified"
@@ -289,7 +297,9 @@ publicProfileView profile =
           keyValuePair
             "Username"
             (User._userCredsName . User._userProfileCreds $ profile)
-          keyValuePair "Display name" (User._userProfileDisplayName profile)
+          maybe mempty
+                (keyValuePair "Display name")
+                (User._userProfileDisplayName profile)
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =
