@@ -6,7 +6,7 @@ title: Curiosity
 # About
 
 Curiosity is an ever-evolving prototype system to think, discuss, and
-communicate the future of Smart Belgium's developments. The complete system is
+communicate the future of Smart Coop's developments. The complete system is
 packaged as a [virtual machine image](/documentation/machine). It is exposed to
 end-users as a web application and a running instance of Curiosity is made
 available at [`smartcoop.sh`](//smartcoop.sh) for demonstration purpose.
@@ -16,7 +16,7 @@ available at [`smartcoop.sh`](//smartcoop.sh) for demonstration purpose.
 Curiosity is being developed to inform further developments, and is not
 intended to be a production system. It will evolve during the next few months
 as we try to nail down as precisely as possible what the best solutions for
-Smart Belgium are.
+Smart Coop are.
 
 ## Open source
 
