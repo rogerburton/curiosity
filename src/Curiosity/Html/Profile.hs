@@ -6,7 +6,6 @@ module Curiosity.Html.Profile
   ( ProfilePage(..)
   , ProfileView(..)
   , PublicProfileView(..)
-  , ProfileSaveConfirmPage(..)
   ) where
 
 import qualified Curiosity.Data.User           as User
@@ -319,15 +318,3 @@ contractCreate1Confirm =
           keyValuePair @Text "Compensation budget" "1000.00 EUR"
           keyValuePair @Text "Project" "Unspecified"
           keyValuePair @Text "Description" "Some description."
-
-
-data ProfileSaveConfirmPage = ProfileSaveSuccess
-                            | ProfileSaveFailure (Maybe Text)
-                            deriving Show
-
-instance H.ToMarkup ProfileSaveConfirmPage where
-  toMarkup = \case
-    ProfileSaveSuccess      -> "All done, you can now go back."
-    ProfileSaveFailure mmsg -> do
-      H.text "We had a problem saving your data."
-      maybe mempty (H.text . mappend "Reason: ") mmsg
