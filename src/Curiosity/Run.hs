@@ -28,6 +28,10 @@ import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
 import           System.Directory               ( doesFileExist )
 import           System.Environment             ( lookupEnv )
+import           System.FilePath                ( (</>)
+                                                , takeDirectory
+                                                , takeFileName
+                                                )
 import           System.Posix.User              ( getLoginName )
 
 
@@ -259,6 +263,7 @@ interpret' runtime user path nesting = do
   content <- readFile path
   foldlM loop (user, []) $ zip [1 :: Int ..] (T.lines content)
  where
+  dir = takeDirectory path
   loop (user', acc) (ln, line) = do
     let (prefix, comment) = T.breakOn "#" line
         separated         = T.words prefix
@@ -286,8 +291,10 @@ interpret' runtime user path nesting = do
                 Rt.reset runtime
                 pure (user', acc ++ map (nesting, ExitSuccess, ) output)
               Command.Run _ scriptPath -> do
-                (_, output') <- liftIO
-                  $ interpret' runtime user scriptPath (succ nesting)
+                (_, output') <- liftIO $ interpret' runtime
+                                                    user
+                                                    (dir </> scriptPath)
+                                                    (succ nesting)
                 pure
                   ( user'
                   , acc ++ map (nesting, ExitSuccess, ) output_ ++ output'
