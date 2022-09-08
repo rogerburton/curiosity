@@ -202,7 +202,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
-             :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "alice" :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> WebSocketApi
              :<|> Raw -- Catchall for static files (documentation)
@@ -1041,9 +1041,18 @@ errorFormatters = defaultErrorFormatters
 --------------------------------------------------------------------------------
 -- | Serve the pages under a namespace. TODO Currently the namespace is
 -- hard-coded to "alice"
-serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
-serveNamespace username =
-  withUserFromUsername username (pure . Pages.PublicProfileView)
+serveNamespace
+  :: ServerC m
+  => User.UserName
+  -> SAuth.AuthResult User.UserId
+  -> m Pages.PublicProfileView
+serveNamespace username authResult =
+  withUserFromUsername username $ \targetProfile -> withMaybeUser
+    authResult
+    (const . pure $ Pages.PublicProfileView Nothing targetProfile)
+    (\profile -> do
+      pure $ Pages.PublicProfileView (Just profile) targetProfile
+    )
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView

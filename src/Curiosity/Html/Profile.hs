@@ -11,7 +11,9 @@ module Curiosity.Html.Profile
 
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Navbar          ( navbar
+                                                , navbarWebsite
+                                                )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
 import qualified Smart.Html.Render             as Render
@@ -240,23 +242,29 @@ profileView profile hasEditButton =
                        (show . User._userProfileRights $ profile :: Text)
 
 data PublicProfileView = PublicProfileView
-  { _publicProfileViewUserProfile :: User.UserProfile
+  { _publicProfileViewUserProfile   :: (Maybe User.UserProfile)
+    -- ^ The logged in user, if any
+  , _publicProfileViewTargetProfile :: User.UserProfile
+    -- ^ The profile being displayed
   }
 
 instance H.ToMarkup PublicProfileView where
-  toMarkup (PublicProfileView profile) =
+  toMarkup (PublicProfileView mprofile targetProfile) =
     Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
       ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header
-            $ H.toMarkup
-            . navbar
-            . User.unUserName
-            . User._userCredsName
-            $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ publicProfileView profile
+          case mprofile of
+            Just profile ->
+              H.header
+                $ H.toMarkup
+                . navbar
+                . User.unUserName
+                . User._userCredsName
+                $ User._userProfileCreds profile
+            Nothing -> H.header $ H.toMarkup navbarWebsite
+          H.main ! A.class_ "u-maximize-width" $ publicProfileView targetProfile
 
 publicProfileView profile =
   containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
