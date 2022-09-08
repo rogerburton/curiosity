@@ -1081,7 +1081,7 @@ serveEntity
 serveEntity authResult name = withEntityFromName name $ \targetEntity ->
   withMaybeUser
     authResult
-    (const . pure $ Pages.EntityView Nothing targetEntity (Just "#"))
+    (const . pure $ Pages.EntityView Nothing targetEntity Nothing)
     (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
 
 

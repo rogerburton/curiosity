@@ -12,6 +12,7 @@ module Curiosity.Html.Misc
   , groupLayout
   , panel
   , panelStandard
+  , header
 
   -- Form
   , title
@@ -31,13 +32,16 @@ module Curiosity.Html.Misc
 
   -- Keep here:
   , renderView
+  , renderView'
   , renderForm
   , renderFormLarge
   , autoReload
   ) where
 
 import qualified Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Navbar          ( navbar
+                                                , navbarWebsite
+                                                )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( divIconAdd
@@ -89,6 +93,15 @@ keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
 fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
   content
 
+renderView' mprofile content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        header mprofile
+        fullScroll content
+
 renderView content =
   Render.renderCanvasFullScroll
     . Dsl.SingletonCanvas
@@ -97,6 +110,15 @@ renderView content =
     $ do
         H.header $ H.toMarkup . navbar $ "TODO username"
         fullScroll content
+
+header mprofile = H.header $ case mprofile of
+  Just profile ->
+    H.toMarkup
+      . navbar
+      . User.unUserName
+      . User._userCredsName
+      $ User._userProfileCreds profile
+  Nothing -> H.toMarkup navbarWebsite
 
 renderForm :: User.UserProfile -> Html -> Html
 renderForm profile content =

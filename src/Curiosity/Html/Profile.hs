@@ -10,9 +10,7 @@ module Curiosity.Html.Profile
 
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Navbar          ( navbar
-                                                , navbarWebsite
-                                                )
+import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
 import qualified Smart.Html.Misc               as Misc
@@ -262,15 +260,7 @@ instance H.ToMarkup PublicProfileView where
       $ H.div
       ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          case mprofile of
-            Just profile ->
-              H.header
-                $ H.toMarkup
-                . navbar
-                . User.unUserName
-                . User._userCredsName
-                $ User._userProfileCreds profile
-            Nothing -> H.header $ H.toMarkup navbarWebsite
+          header mprofile
           H.main ! A.class_ "u-maximize-width" $ publicProfileView targetProfile
 
 publicProfileView profile =

@@ -24,8 +24,8 @@ data EntityView = EntityView
   }
 
 instance H.ToMarkup EntityView where
-  toMarkup (EntityView profile entity hasEditButton) =
-    renderView $ entityView entity hasEditButton
+  toMarkup (EntityView mprofile entity hasEditButton) =
+    renderView' mprofile $ entityView entity hasEditButton
 
 entityView entity hasEditButton = containerLarge $ do
   title' "Legal entity" hasEditButton
