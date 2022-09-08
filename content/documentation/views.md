@@ -11,7 +11,7 @@ User profile
 
     Example data include:
 
-    - [Alice](/views/profile/alice.json)
+    - [Alice](/views/profile/alice.json), [with bio](/views/profile/alice-with-bio.json)
     - [Charlie](/views/profile/charlie.json)
 
 

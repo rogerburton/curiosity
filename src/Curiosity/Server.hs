@@ -601,13 +601,10 @@ handleUserProfileUpdate
   => User.Update
   -> User.UserProfile
   -> m (Headers '[Header "Location" Text] NoContent)
-handleUserProfileUpdate User.Update {..} profile = do
+handleUserProfileUpdate update profile = do
   db   <- asks Rt._rDb
   eIds <- S.liftTxn
-    (S.dbUpdate @m @STM
-      db
-      (User.UserDisplayNameUpdate (S.dbId profile) _updateDisplayName)
-    )
+    (S.dbUpdate @m @STM db (User.UserUpdate (S.dbId profile) update))
 
   case eIds of
     Right (Right [_]) ->

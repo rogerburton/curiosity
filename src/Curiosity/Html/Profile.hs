@@ -15,6 +15,7 @@ import           Curiosity.Html.Navbar          ( navbar
                                                 )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
+import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
@@ -60,6 +61,12 @@ instance H.ToMarkup ProfilePage where
           )
         $ Just
             "This is the name that appears in e.g. your public profile and can be left empty if you prefer."
+      Misc.inputTextarea "bio"
+                         "Bio"
+                         6
+                         "The bio appears on your public profile"
+                         (maybe "" identity . User._userProfileBio $ profile)
+                         True
       disabledText "Email address"
                    "email-addr"
                    (Just . H.toValue . User._userProfileEmailAddr $ profile)
@@ -195,6 +202,7 @@ profileView profile hasEditButton =
           keyValuePair @Text "Password" ""
           keyValuePair "Display name"
             $ maybe "" identity (User._userProfileDisplayName profile)
+          keyValuePair "Bio" $ maybe "" identity (User._userProfileBio profile)
           keyValuePair "Email address" (User._userProfileEmailAddr profile)
           keyValuePair
             "Email addr. verified"
@@ -291,6 +299,7 @@ publicProfileView profile =
           maybe mempty
                 (keyValuePair "Display name")
                 (User._userProfileDisplayName profile)
+          maybe mempty (keyValuePair "Bio") (User._userProfileBio profile)
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =

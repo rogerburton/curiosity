@@ -688,15 +688,16 @@ instance S.DBStorage AppM STM User.UserProfile where
       deleteUser _ =
         modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
 
-    User.UserDisplayNameUpdate id mname ->
+    User.UserUpdate id (User.Update mname mbio) ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
         (pure . userNotFound $ show id)
         (fmap Right . updateUser)
      where
       updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
-      setDisplayName = set User.userProfileDisplayName mname
+      change =
+        set User.userProfileBio mbio . set User.userProfileDisplayName mname
       replaceOlder users =
-        [ if S.dbId u == id then setDisplayName u else u | u <- users ]
+        [ if S.dbId u == id then change u else u | u <- users ]
 
   dbSelect db = \case
 
@@ -743,6 +744,7 @@ createUser db User.Signup {..} = do
     let newProfile = User.UserProfile
           newId
           (User.Credentials username password)
+          Nothing
           Nothing
           email
           Nothing

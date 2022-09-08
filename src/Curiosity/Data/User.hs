@@ -21,6 +21,7 @@ module Curiosity.Data.User
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
+  , userProfileBio
   , userProfileEmailAddr
   , userProfileTosConsent
   , userProfileAddrAndTelVerified
@@ -105,13 +106,14 @@ instance FromForm Login where
   fromForm f = Login <$> parseUnique "username" f <*> parseUnique "password" f
 
 -- | Represents the input data to update a user profile.
-newtype Update = Update
+data Update = Update
   { _updateDisplayName :: Maybe UserDisplayName
+  , _updateBio         :: Maybe Text
   }
   deriving (Eq, Show, Generic)
 
 instance FromForm Update where
-  fromForm f = Update <$> parseMaybe "display-name" f
+  fromForm f = Update <$> parseMaybe "display-name" f <*> parseMaybe "bio" f
 
 
 --------------------------------------------------------------------------------
@@ -123,6 +125,8 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
     -- ^ Users credentials
   , _userProfileDisplayName       :: Maybe userDisplayName
     -- ^ User's human friendly name
+  , _userProfileBio               :: Maybe Text
+    -- ^ Public bio
   , _userProfileEmailAddr         :: userEmailAddr
     -- ^ User's email address
   , _userProfileEmailAddrVerified :: Maybe Text
@@ -248,7 +252,7 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserCreateGeneratingUserId Signup
     | UserDelete UserId
-    | UserDisplayNameUpdate UserId (Maybe UserDisplayName)
+    | UserUpdate UserId Update
     deriving (Show, Eq)
   
   data DBSelect UserProfile =
