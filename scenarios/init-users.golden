@@ -1,0 +1,6 @@
+2: user create alice a alice@example.com --accept-tos
+User created: USER-1
+3: user create bob b bob@example.com --accept-tos
+User created: USER-2
+4: user create charlie c charlie@example.com --accept-tos
+User created: USER-3

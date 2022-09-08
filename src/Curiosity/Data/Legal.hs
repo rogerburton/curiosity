@@ -26,21 +26,27 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 --------------------------------------------------------------------------------
 data Create = Create
-  { _createName      :: RegistrationName
+  { _createSlug      :: Text
+  , _createName      :: RegistrationName
   , _createCbeNumber :: CbeNumber
   , _createVatNumber :: VatNumber -- TODO Is it really useful to habe both ?
   }
   deriving (Generic, Eq, Show)
 
 instance FromForm Create where
-  fromForm f = Create <$> parseUnique "name" f
-                      <*> parseUnique "cbe-number" f
-                      <*> parseUnique "vat-number" f
+  fromForm f =
+    Create
+      <$> parseUnique "slug"       f
+      <*> parseUnique "name"       f
+      <*> parseUnique "cbe-number" f
+      <*> parseUnique "vat-number" f
 
 
 --------------------------------------------------------------------------------
 data Entity = Entity
   { _entityId        :: LegalId
+  , _entitySlug      :: Text
+    -- An identifier suitable for URLs
   , _entityName      :: RegistrationName
   , _entityCbeNumber :: CbeNumber
   , _entityVatNumber :: VatNumber -- TODO Is it really useful to habe both ?

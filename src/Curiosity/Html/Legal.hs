@@ -17,12 +17,14 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data EntityView = EntityView
-  { _entityViewEntity        :: Legal.Entity
+  { _entityViewUser          :: Maybe User.UserProfile
+    -- ^ The logged-in user, if any.
+  , _entityViewEntity        :: Legal.Entity
   , _entityViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup EntityView where
-  toMarkup (EntityView entity hasEditButton) =
+  toMarkup (EntityView profile entity hasEditButton) =
     renderView $ entityView entity hasEditButton
 
 entityView entity hasEditButton = containerLarge $ do

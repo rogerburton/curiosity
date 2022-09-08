@@ -1,0 +1,3 @@
+reset
+run scenarios/init-users.txt
+run scenarios/init-entities.txt

@@ -1,0 +1,12 @@
+1: reset
+Resetting to the empty state.
+2: run scenarios/init-users.txt
+2: user create alice a alice@example.com --accept-tos
+User created: USER-1
+3: user create bob b bob@example.com --accept-tos
+User created: USER-2
+4: user create charlie c charlie@example.com --accept-tos
+User created: USER-3
+3: run scenarios/init-entities.txt
+1: legal create one One,S.A. 100200300 BE0100200300
+Legal entity created: LENT-1

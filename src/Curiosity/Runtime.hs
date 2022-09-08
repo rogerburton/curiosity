@@ -21,7 +21,7 @@ module Curiosity.Runtime
   , saveDbAs
   , runAppMSafe
   , withRuntimeAtomically
-  -- * High-level operations
+  -- * High-level user operations
   , canPerform
   , setUserEmailAddrAsVerifiedFull
   , selectUserById
@@ -29,6 +29,8 @@ module Curiosity.Runtime
   , filterUsers
   , createUser
   , checkCredentials
+  -- * High-level entity operations
+  , selectEntityByName
   -- * Form edition
   , newCreateContractForm
   , readCreateContractForm
@@ -482,7 +484,11 @@ createLegal db Legal.Create {..} = do
  where
   transaction = do
     newId <- generateLegalId db
-    let new = Legal.Entity newId _createName _createCbeNumber _createVatNumber
+    let new = Legal.Entity newId
+                           _createSlug
+                           _createName
+                           _createCbeNumber
+                           _createVatNumber
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -831,6 +837,13 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
     profile ^. User.userProfileCreds . User.userCredsPassword
 
 userNotFound = Left . User.UserNotFound . mappend "User not found: "
+
+selectEntityByName
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Legal.Entity)
+selectEntityByName db name = do
+  let tvar = Data._dbLegalEntities db
+  records <- STM.readTVar tvar
+  pure $ find ((== name) . Legal._entitySlug) records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 

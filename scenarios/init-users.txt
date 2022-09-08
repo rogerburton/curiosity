@@ -1,0 +1,4 @@
+# Initialize a state with three users.
+user create alice a alice@example.com --accept-tos
+user create bob b bob@example.com --accept-tos
+user create charlie c charlie@example.com --accept-tos

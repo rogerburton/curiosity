@@ -204,6 +204,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              -- TODO Make a single handler for any namespace:
              :<|> "alice" :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
+             :<|> "entity" :> H.UserAuthentication
+                  :> Capture "name" Text
+                  :> Get '[B.HTML] Pages.EntityView
              :<|> WebSocketApi
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
@@ -261,6 +264,7 @@ serverT conf jwtS root dataDir =
     :<|> serveErrors
     :<|> serveNamespace "alice"
     :<|> serveNamespaceDocumentation "alice"
+    :<|> serveEntity
     :<|> websocket
     :<|> serveDocumentation root
 
@@ -851,7 +855,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView entity (Just "#")
+  pure $ Pages.EntityView Nothing entity (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -930,8 +934,8 @@ withMaybeUser authResult a f = case authResult of
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
 
--- | Run a handler, ensuring a user profile can be extracted from the
--- authentication result, or throw an error.
+-- | Run a handler, ensuring a user profile can be obtained from the
+-- given username, or throw an error.
 withUserFromUsername
   :: forall m a
    . ServerC m
@@ -959,9 +963,33 @@ withMaybeUserFromUsername
 withMaybeUserFromUsername username a f = do
   mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsername . Rt._rDb)
                                        username
-  case mprofile of
-    Just userProfile -> f userProfile
-    Nothing          -> a username
+  maybe (a username) f mprofile
+
+
+--------------------------------------------------------------------------------
+-- | Run a handler, ensuring a user profile can be obtained from the given
+-- username, or throw an error.
+withEntityFromName
+  :: forall m a . ServerC m => Text -> (Legal.Entity -> m a) -> m a
+withEntityFromName name f = withMaybeEntityFromName name
+                                                    (noSuchUserErr . show) -- TODO entity, not user
+                                                    f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting an entity, or a normal handler, depending
+-- on if entity can be queried using the supplied name or not.
+withMaybeEntityFromName
+  :: forall m a
+   . ServerC m
+  => Text
+  -> (Text -> m a)
+  -> (Legal.Entity -> m a)
+  -> m a
+withMaybeEntityFromName name a f = do
+  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityByName . Rt._rDb) name
+  maybe (a name) f mentity
 
 
 --------------------------------------------------------------------------------
@@ -1038,15 +1066,23 @@ serveNamespace username authResult =
   withUserFromUsername username $ \targetProfile -> withMaybeUser
     authResult
     (const . pure $ Pages.PublicProfileView Nothing targetProfile)
-    (\profile -> do
-      pure $ Pages.PublicProfileView (Just profile) targetProfile
-    )
+    (\profile -> pure $ Pages.PublicProfileView (Just profile) targetProfile)
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
 serveNamespaceDocumentation username = withUserFromUsername
   username
   (\profile -> pure $ Pages.ProfileView profile Nothing)
+
+
+--------------------------------------------------------------------------------
+serveEntity
+  :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.EntityView
+serveEntity authResult name = withEntityFromName name $ \targetEntity ->
+  withMaybeUser
+    authResult
+    (const . pure $ Pages.EntityView Nothing targetEntity (Just "#"))
+    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
 
 
 --------------------------------------------------------------------------------
