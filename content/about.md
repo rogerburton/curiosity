@@ -6,10 +6,11 @@ title: Curiosity
 # About
 
 Curiosity is an ever-evolving prototype system to think, discuss, and
-communicate the future of Smart Coop's developments. The complete system is
-packaged as a [virtual machine image](/documentation/machine). It is exposed to
+communicate the future of Smart Coop's developments. It is exposed to
 end-users as a web application and a running instance of Curiosity is made
-available at [`smartcoop.sh`](//smartcoop.sh) for demonstration purpose.
+available at [`smartcoop.sh`](//smartcoop.sh) for demonstration purpose. For
+tech savvy users, the complete system is packaged as a [virtual machine
+image](/documentation/machine), made to be easily run and explored.
 
 ## Experimental
 
