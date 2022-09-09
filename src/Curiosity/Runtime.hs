@@ -31,6 +31,8 @@ module Curiosity.Runtime
   , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
+  -- * High-level unit operations
+  , selectUnitBySlug
   -- * Form edition
   , newCreateContractForm
   , readCreateContractForm
@@ -875,6 +877,13 @@ selectEntityBySlug db name = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Legal._entitySlug) records
+
+selectUnitBySlug
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Entity)
+selectUnitBySlug db name = do
+  let tvar = Data._dbBusinessEntities db
+  records <- STM.readTVar tvar
+  pure $ find ((== name) . Business._entitySlug) records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 

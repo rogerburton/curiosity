@@ -17,19 +17,22 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data UnitView = UnitView
-  { _unitViewUnit          :: Business.Entity
+  { _unitViewUser          :: Maybe User.UserProfile
+    -- ^ The logged-in user, if any.
+  , _unitViewUnit          :: Business.Entity
   , _unitViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup UnitView where
-  toMarkup (UnitView unit hasEditButton) =
-    renderView $ unitView unit hasEditButton
+  toMarkup (UnitView mprofile unit hasEditButton) =
+    renderView' mprofile $ unitView unit hasEditButton
 
-unitView unit hasEditButton = containerLarge $ do
+unitView unit hasEditButton = containerMedium $ do
   title' "Business unit" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
-    keyValuePair "ID" (Business._entityId unit)
-
+    keyValuePair "ID"   (Business._entityId unit)
+    keyValuePair "Name" (Business._entityName unit)
+    maybe mempty (keyValuePair "Description") (Business._entityDescription unit)
 
 --------------------------------------------------------------------------------
 data CreateUnitPage = CreateUnitPage

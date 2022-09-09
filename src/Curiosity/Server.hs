@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
@@ -202,8 +203,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
-             :<|> "alice" :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
-             :<|> "mila"  :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "alice"  :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+             :<|> "mila"   :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+             :<|> "alpha"  :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
@@ -265,6 +270,7 @@ serverT conf jwtS root dataDir =
     :<|> serveErrors
     :<|> serveNamespace "alice"
     :<|> serveNamespace "mila"
+    :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
     :<|> serveEntity
     :<|> websocket
@@ -865,7 +871,7 @@ documentEntityPage dataDir filename = do
 documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
 documentUnitPage dataDir filename = do
   unit <- readJson $ dataDir </> filename
-  pure $ Pages.UnitView unit (Just "#")
+  pure $ Pages.UnitView Nothing unit (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -995,6 +1001,32 @@ withMaybeEntityFromName name a f = do
 
 
 --------------------------------------------------------------------------------
+-- | Run a handler, ensuring a business unit can be obtained from the given
+-- ame, or throw an error.
+withUnitFromName
+  :: forall m a . ServerC m => Text -> (Business.Entity -> m a) -> m a
+withUnitFromName name f = withMaybeUnitFromName name
+                                                (noSuchUserErr . show) -- TODO unit, not user
+                                                f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting a unit, or a normal handler, depending
+-- on if a unit can be queried using the supplied name or not.
+withMaybeUnitFromName
+  :: forall m a
+   . ServerC m
+  => Text
+  -> (Text -> m a)
+  -> (Business.Entity -> m a)
+  -> m a
+withMaybeUnitFromName name a f = do
+  munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name
+  maybe (a name) f munit
+
+
+--------------------------------------------------------------------------------
 showState :: ServerC m => m Pages.EchoPage
 showState = do
   stmDb <- asks Rt._rDb
@@ -1058,17 +1090,26 @@ errorFormatters = defaultErrorFormatters
 
 --------------------------------------------------------------------------------
 -- | Serve the pages under a namespace. TODO Currently the namespace is
--- hard-coded to "alice" and "mila"
+-- hard-coded to "alice" and "mila" for usernames, and "alpha" for business
+-- unit names.
 serveNamespace
   :: ServerC m
-  => User.UserName
+  => Text
   -> SAuth.AuthResult User.UserId
-  -> m Pages.PublicProfileView
-serveNamespace username authResult =
-  withUserFromUsername username $ \targetProfile -> withMaybeUser
+  -> m (PageEither Pages.PublicProfileView Pages.UnitView)
+serveNamespace name authResult = withMaybeUserFromUsername
+  (User.UserName name)
+  withName
+  withTargetProfile
+
+ where
+  withName (User.UserName name) = SS.P.PageR <$> serveUnit authResult name
+  withTargetProfile targetProfile = withMaybeUser
     authResult
-    (const . pure $ Pages.PublicProfileView Nothing targetProfile)
-    (\profile -> pure $ Pages.PublicProfileView (Just profile) targetProfile)
+    (const . pure . SS.P.PageL $ Pages.PublicProfileView Nothing targetProfile)
+    (\profile ->
+      pure . SS.P.PageL $ Pages.PublicProfileView (Just profile) targetProfile
+    )
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
@@ -1085,6 +1126,16 @@ serveEntity authResult name = withEntityFromName name $ \targetEntity ->
     authResult
     (const . pure $ Pages.EntityView Nothing targetEntity Nothing)
     (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
+
+
+--------------------------------------------------------------------------------
+serveUnit
+  :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.UnitView
+serveUnit authResult name = withUnitFromName name $ \targetUnit ->
+  withMaybeUser
+    authResult
+    (const . pure $ Pages.UnitView Nothing targetUnit Nothing)
+    (\profile -> pure $ Pages.UnitView (Just profile) targetUnit (Just "#"))
 
 
 --------------------------------------------------------------------------------

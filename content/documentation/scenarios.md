@@ -44,3 +44,7 @@ system was initialized.
 ## Legal entities
 
 - [One S.A.](/entity/one)
+
+## Business units
+
+- [Alpha](/alpha)
