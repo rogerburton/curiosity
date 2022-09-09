@@ -3,6 +3,7 @@
 module Curiosity.Run
   ( run
   , interpret'
+  , wordsq
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -266,7 +267,7 @@ interpret' runtime user path nesting = do
   dir = takeDirectory path
   loop (user', acc) (ln, line) = do
     let (prefix, comment) = T.breakOn "#" line
-        separated         = T.words prefix
+        separated         = map T.pack . wordsq $ T.unpack prefix
         grouped           = T.unwords separated
     case separated of
       []               -> pure (user', acc)
@@ -402,9 +403,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
     Just "quit" -> pure ()
     Just input  -> do
       let result =
-            A.execParserPure A.defaultPrefs Command.parserInfo
-              $   T.unpack
-              <$> (words $ T.pack input)
+            A.execParserPure A.defaultPrefs Command.parserInfo $ wordsq input
       case result of
         A.Success command -> do
           case command of
@@ -427,3 +426,24 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
   prompt  = "> "
 
   output' = HL.outputStrLn . T.unpack
+
+
+--------------------------------------------------------------------------------
+-- From https://stackoverflow.com/questions/4334897/functionally-split-a-string-by-whitespace-group-by-quotes
+wordsq = outside [] . (' ' :)
+
+add c res = if null res then [[c]] else map (++ [c]) res
+
+outside res xs = case xs of
+  ' ' : ' '  : ys -> outside res $ ' ' : ys
+  ' ' : '\"' : ys -> res ++ inside [] ys
+  ' '        : ys -> res ++ outside [] ys
+  c          : ys -> outside (add c res) ys
+  _               -> res
+
+inside res xs = case xs of
+  ' '  : ' ' : ys -> inside res $ ' ' : ys
+  '\"' : ' ' : ys -> res ++ outside [] (' ' : ys)
+  '\"'       : [] -> res
+  c          : ys -> inside (add c res) ys
+  _               -> res

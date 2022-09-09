@@ -365,6 +365,9 @@ parserUser = A.subparser
        "delete"
        (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
   <> A.command
+       "update"
+       (A.info (parserUpdateUser <**> A.helper) $ A.progDesc "Update a user")
+  <> A.command
        "get"
        (A.info (parserGetUser <**> A.helper) $ A.progDesc "Select a user")
   <> A.command
@@ -400,6 +403,13 @@ parserCreateUser = do
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId
+
+parserUpdateUser :: A.Parser Command
+parserUpdateUser = do
+  uid  <- argumentUserId
+  name <- A.argument A.str (A.metavar "NAME" <> A.help "A display name")
+  bio  <- A.argument A.str (A.metavar "TEXT" <> A.help "A bio")
+  pure $ UpdateUser . User.UserUpdate uid $ User.Update (Just name) (Just bio)
 
 parserGetUser :: A.Parser Command
 parserGetUser =
