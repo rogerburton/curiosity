@@ -39,6 +39,6 @@ mkGoldenTest path = do
 run :: FilePath -> IO [Text]
 run scriptPath = do
   runtime     <- Rt.boot P.defaultConf >>= either throwIO pure
-  (_, output) <- Run.interpret' runtime "system" scriptPath
+  (_, output) <- Run.interpret' runtime "system" scriptPath 0
   Rt.powerdown runtime
-  pure $ map snd output
+  pure $ map (\(_ ,_ , c) -> c)  output

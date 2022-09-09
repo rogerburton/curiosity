@@ -5,7 +5,9 @@
 -- operations provided by Curiosity.
 -- In the future this might be useful to try to express complex business rules
 -- clearly, possibly for non-developers.
-module Curiosity.Dsl where
+module Curiosity.Dsl
+  ( reset
+  ) where
 
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data                as Data
@@ -41,6 +43,9 @@ db0 = Data.emptyHask
 state :: Run (HaskDb Rt.Runtime)
 state = ask >>= (Run . lift . readFullStmDbInHask')
 
+reset :: Run ()
+reset = ask >>= (Run . lift . Data.resetStmDb')
+
 user :: User.UserName -> Run (Maybe User.UserProfile)
 user username = ask >>= (Run . lift . flip Rt.selectUserByUsername username)
 
@@ -58,6 +63,8 @@ can profile name = ask >>= (Run . lift . flip (Rt.canPerform name) profile)
 
 
 --------------------------------------------------------------------------------
+-- In a GHCi session, e.g. obtained with scripts/ghci-dsl.sh:
+--     ghci> run db0 example
 example :: Run (Bool, Bool)
 example = do
   signup "alice" "a" "alice@example.com"

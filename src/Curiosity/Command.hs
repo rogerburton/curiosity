@@ -29,6 +29,8 @@ data Command =
     -- ^ Display the routing layout of the web server.
   | Init
     -- ^ Initialise a new, empty state file.
+  | Reset P.Conf
+    -- ^ Set the state file to the empty state.
   | Repl P.Conf
     -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
@@ -59,6 +61,8 @@ data Command =
     -- ^ Execute the next automated action when using stepped (non-wallclock)
     -- mode, or mixed-mode, or the next automated action when the automation is
     -- "disabled".
+  | Log Text P.Conf
+    -- Log a line of text to the logs.
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving (Eq, Show)
@@ -171,6 +175,12 @@ parser =
            )
 
       <> A.command
+           "reset"
+           ( A.info (parserReset <**> A.helper)
+           $ A.progDesc "Reset a state file to the empty state"
+           )
+
+      <> A.command
            "repl"
            (A.info (parserRepl <**> A.helper) $ A.progDesc "Start a REPL")
 
@@ -250,6 +260,12 @@ parser =
            ( A.info (pure Step <**> A.helper)
            $ A.progDesc "Run the next automated action"
            )
+
+      <> A.command
+           "log"
+           ( A.info (parserLog <**> A.helper)
+           $ A.progDesc "Log a message to the logs"
+           )
       )
     <|> parserShowId
 
@@ -258,6 +274,9 @@ parserLayout = pure Layout
 
 parserInit :: A.Parser Command
 parserInit = pure Init
+
+parserReset :: A.Parser Command
+parserReset = Reset <$> P.confParser
 
 parserRepl :: A.Parser Command
 parserRepl = Repl <$> P.confParser
@@ -479,6 +498,12 @@ parserQueues =
             <> A.metavar "USERNAME"
             )
         )
+
+parserLog :: A.Parser Command
+parserLog =
+  Log
+    <$> A.argument A.str (A.metavar "MESSAGE" <> A.help "A line of text")
+    <*> P.confParser
 
 parserShowId :: A.Parser Command
 parserShowId =

@@ -4,6 +4,7 @@ module CuriositySpec
 
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Run                 as Run
 import qualified Data.Aeson                    as Aeson
@@ -24,7 +25,7 @@ spec = do
           User._userProfileDisplayName result `shouldBe` username
     mapM_
       go
-      [ ("alice.json"  , "Alice")
+      [ ("alice.json"  , "TODO")
       , ("bob-0.json"  , "Bob")
       , ("bob-1.json"  , "Bob")
       , ("bob-2.json"  , "Bob")
@@ -68,13 +69,16 @@ spec = do
     malice <- runIO $ parseFile "data/alice.json"
     case malice of
       Right alice -> do
-        let aliceState =
-              Data.emptyHask { Data._dbUserProfiles = Identity [alice] }
-        mapM_ go
-              [("init", Data.emptyHask)
-          -- TODO:
-          -- , ("user create alice secret alice@example.com", aliceState)
-                                       ]
+        let aliceState = Data.emptyHask
+              { Data._dbNextUserId   = C.CounterValue 2
+              , Data._dbUserProfiles = Identity [alice]
+              }
+        mapM_
+          go
+          [ ("init", Data.emptyHask)
+          , ("user create alice a alice@example.com --accept-tos", aliceState)
+          , ("reset", Data.emptyHask)
+          ]
 
 
 --------------------------------------------------------------------------------
