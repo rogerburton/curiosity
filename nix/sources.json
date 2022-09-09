@@ -14,7 +14,7 @@
     "design-hs": {
         "branch": "main",
         "repo": "git@github.com:hypered/smart-design-hs.git",
-        "rev": "4480c4a2d491616dec05bf6cc15a2ed2ab9826b7",
+        "rev": "3546d3378ed1277935420aa712f58773f976fc5d",
         "type": "git"
     },
     "gitignore": {
