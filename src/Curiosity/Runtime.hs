@@ -265,9 +265,10 @@ handleCommand runtime@Runtime {..} user command = do
                 else LT.toStrict (Aeson.encodeToLazyText value)
           pure (ExitSuccess, [value'])
         Left err -> pure (ExitFailure 1, [show err])
-    Command.CreateBusinessEntity -> do
+    Command.CreateBusinessEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createBusiness
         _rDb
+        input
       case output of
         Right mid -> do
           case mid of
@@ -455,13 +456,14 @@ instance S.DBTransaction AppM STM where
 createBusiness
   :: forall runtime
    . Data.StmDb runtime
+  -> Business.Create
   -> STM (Either Business.Err Business.BusinessId)
-createBusiness db = do
+createBusiness db Business.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Entity newId
+    let new = Business.Entity newId _createSlug _createName Nothing
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull

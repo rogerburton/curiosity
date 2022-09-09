@@ -20,9 +20,9 @@ import           Data.Aeson
 import qualified Data.ByteString.Lazy          as LB
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseMaybe
                                                 , parseUnique
                                                 )
-import           Web.FormUrlEncoded             ( parseMaybe )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 

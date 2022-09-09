@@ -18,3 +18,6 @@ Right (Right (Right [UserId {unUserId = "USER-4"}]))
 Legal entity created: LENT-1
 2: legal update one One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One.
 Legal entity updated: one
+4: run init-units.txt
+1: business create alpha Alpha
+Business entity created: BENT-1

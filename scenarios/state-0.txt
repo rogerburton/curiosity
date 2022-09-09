@@ -1,3 +1,4 @@
 reset
 run init-users.txt
 run init-entities.txt
+run init-units.txt

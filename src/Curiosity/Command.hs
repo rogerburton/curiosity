@@ -14,6 +14,7 @@ module Curiosity.Command
   ) where
 
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
@@ -41,7 +42,7 @@ data Command =
     -- ^ Parse a single command.
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
-  | CreateBusinessEntity
+  | CreateBusinessEntity Business.Create
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
   | CreateUser User.Signup
@@ -332,7 +333,12 @@ parserBusiness = A.subparser $ A.command
   )
 
 parserCreateBusinessEntity :: A.Parser Command
-parserCreateBusinessEntity = pure CreateBusinessEntity
+parserCreateBusinessEntity = do
+  slug <- A.argument
+    A.str
+    (A.metavar "SLUG" <> A.help "An identifier suitable for URLs")
+  name <- A.argument A.str (A.metavar "NAME" <> A.help "A name")
+  pure $ CreateBusinessEntity $ Business.Create slug name
 
 parserLegal :: A.Parser Command
 parserLegal =
