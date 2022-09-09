@@ -276,10 +276,7 @@ publicProfileView profile =
             ! A.class_ "c-toolbar__left"
             $ H.h3
             ! A.class_ "c-h3 u-m-b-0"
-            $ do
-                "Public profile "
-                H.toHtml
-                  (User._userCredsName . User._userProfileCreds $ profile)
+            $ "Public profile"
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do
