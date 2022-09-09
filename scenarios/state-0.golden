@@ -21,3 +21,5 @@ Legal entity updated: one
 4: run init-units.txt
 1: business create alpha Alpha
 Business entity created: BENT-1
+2: business update alpha The first business unit of the prototype, Alpha is run by @mila.
+Business unit updated: alpha

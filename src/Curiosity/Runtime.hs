@@ -278,6 +278,20 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Business entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateBusinessEntity input -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateBusiness
+        _rDb
+        input
+      case output of
+        Right mid -> do
+          case mid of
+            Right () -> do
+              pure
+                ( ExitSuccess
+                , ["Business unit updated: " <> Business._updateSlug input]
+                )
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateLegalEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal
         _rDb
@@ -476,6 +490,20 @@ createBusinessFull
 createBusinessFull db new = do
   modifyBusinessEntities db (++ [new])
   pure . Right $ Business._entityId new
+
+updateBusiness db Business.Update {..} = do
+  mentity <- selectUnitBySlug db _updateSlug
+  case mentity of
+    Just Business.Entity {..} -> do
+      let replaceOlder entities =
+            [ if Business._entitySlug e == _updateSlug
+                then e { Business._entityDescription = _updateDescription }
+                else e
+            | e <- entities
+            ]
+      modifyBusinessEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
