@@ -3,4 +3,5 @@
 
 # This script runs the Haskell library test suite and the scenarios.
 
+rm -f /tmp/curiosity-test-*
 cabal test --test-show-details=direct

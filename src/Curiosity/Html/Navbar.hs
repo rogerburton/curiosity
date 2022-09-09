@@ -3,15 +3,24 @@ Module: Curiosity.Html.Navbar
 Description: A navigation bar for Curiosity.
 -}
 module Curiosity.Html.Navbar
-  ( navbar
+  ( navbarWebsite
+  , navbar
   ) where
 
 import           Smart.Html.Avatar
 import qualified Smart.Html.Navbar             as Navbar
+import qualified Smart.Html.Pages.LandingPage  as Pages
 import           Smart.Html.Shared.Html.Icons
 
 
 --------------------------------------------------------------------------------
+-- The (not logged-in) website navbar.
+navbarWebsite :: Navbar.NavbarWebsite
+navbarWebsite = Pages.navigation
+
+
+--------------------------------------------------------------------------------
+-- The (logged-in) application navbar.
 navbar :: Text -> Navbar.Navbar
 navbar name = Navbar.Navbar [] [helpEntry, plusEntry, userEntry name]
 

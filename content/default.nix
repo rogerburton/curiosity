@@ -31,4 +31,14 @@ in
       cp -r data $out
     '';
   };
+
+  # Define this here, instead of creating a .nix file in scenarios/.
+  scenarios = pkgs.stdenv.mkDerivation {
+    name = "scenarios";
+    # TODO We only need scenarios/
+    src = ../.;
+    installPhase = ''
+      cp -r scenarios $out
+    '';
+  };
 }

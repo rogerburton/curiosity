@@ -6,7 +6,6 @@ module Curiosity.Html.Profile
   ( ProfilePage(..)
   , ProfileView(..)
   , PublicProfileView(..)
-  , ProfileSaveConfirmPage(..)
   ) where
 
 import qualified Curiosity.Data.User           as User
@@ -14,6 +13,7 @@ import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
+import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
                                                 , svgIconArrowRight
@@ -37,7 +37,7 @@ instance H.ToMarkup ProfilePage where
   toMarkup (ProfilePage profile submitUrl) =
     renderForm profile $ groupLayout $ do
       title "User profile"
-      inputText
+      disabledText
           "Username"
           "username"
           ( Just
@@ -46,24 +46,29 @@ instance H.ToMarkup ProfilePage where
           . User._userProfileCreds
           $ profile
           )
-        $ Just "This is your public username"
-      H.div ! A.class_ "o-form-group" $ do
-        H.label ! A.class_ "o-form-group__label" ! A.for "password" $ "Password"
-        H.div
-          ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
-          $ H.input
-          ! A.class_ "c-input"
-          ! A.type_ "password"
-          ! A.id "password"
-          ! A.name "password"
-      inputText "Display name"
-                "display-name"
-                (Just . H.toValue . User._userProfileDisplayName $ profile)
-        $ Just "This is the name that appears in e.g. your public profile"
-      inputText "Email address"
-                "email-addr"
-                (Just . H.toValue . User._userProfileEmailAddr $ profile)
-        $ Just "Your email address is private"
+        $ Just "This is your username. It can not be changed."
+      disabledText "Password" "password" (Just "") Nothing
+      inputText
+          "Display name"
+          "display-name"
+          ( Just
+          . H.toValue
+          . maybe "" identity
+          . User._userProfileDisplayName
+          $ profile
+          )
+        $ Just
+            "This is the name that appears in e.g. your public profile and can be left empty if you prefer."
+      Misc.inputTextarea "bio"
+                         "Bio"
+                         6
+                         "The bio appears on your public profile"
+                         (maybe "" identity . User._userProfileBio $ profile)
+                         True
+      disabledText "Email address"
+                   "email-addr"
+                   (Just . H.toValue . User._userProfileEmailAddr $ profile)
+        $ Just "Your email address is private."
       submitButton submitUrl "Update profile"
 
 -- Partial re-creation of
@@ -193,7 +198,9 @@ profileView profile hasEditButton =
             "Username"
             (User._userCredsName . User._userProfileCreds $ profile)
           keyValuePair @Text "Password" ""
-          keyValuePair "Display name"  (User._userProfileDisplayName profile)
+          keyValuePair "Display name"
+            $ maybe "" identity (User._userProfileDisplayName profile)
+          keyValuePair "Bio" $ maybe "" identity (User._userProfileBio profile)
           keyValuePair "Email address" (User._userProfileEmailAddr profile)
           keyValuePair
             "Email addr. verified"
@@ -240,23 +247,21 @@ profileView profile hasEditButton =
                        (show . User._userProfileRights $ profile :: Text)
 
 data PublicProfileView = PublicProfileView
-  { _publicProfileViewUserProfile :: User.UserProfile
+  { _publicProfileViewUserProfile   :: (Maybe User.UserProfile)
+    -- ^ The logged in user, if any
+  , _publicProfileViewTargetProfile :: User.UserProfile
+    -- ^ The profile being displayed
   }
 
 instance H.ToMarkup PublicProfileView where
-  toMarkup (PublicProfileView profile) =
+  toMarkup (PublicProfileView mprofile targetProfile) =
     Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
       ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header
-            $ H.toMarkup
-            . navbar
-            . User.unUserName
-            . User._userCredsName
-            $ User._userProfileCreds profile
-          H.main ! A.class_ "u-maximize-width" $ publicProfileView profile
+          header mprofile
+          H.main ! A.class_ "u-maximize-width" $ publicProfileView targetProfile
 
 publicProfileView profile =
   containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
@@ -271,17 +276,17 @@ publicProfileView profile =
             ! A.class_ "c-toolbar__left"
             $ H.h3
             ! A.class_ "c-h3 u-m-b-0"
-            $ do
-                "Public profile "
-                H.toHtml
-                  (User._userCredsName . User._userProfileCreds $ profile)
+            $ "Public profile"
     H.dl
       ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
       $ do
           keyValuePair
             "Username"
             (User._userCredsName . User._userProfileCreds $ profile)
-          keyValuePair "Display name" (User._userProfileDisplayName profile)
+          maybe mempty
+                (keyValuePair "Display name")
+                (User._userProfileDisplayName profile)
+          maybe mempty (keyValuePair "Bio") (User._userProfileBio profile)
 
 -- TODO Move to smart-design-hs and refactor.
 contractCreate1Confirm =
@@ -309,15 +314,3 @@ contractCreate1Confirm =
           keyValuePair @Text "Compensation budget" "1000.00 EUR"
           keyValuePair @Text "Project" "Unspecified"
           keyValuePair @Text "Description" "Some description."
-
-
-data ProfileSaveConfirmPage = ProfileSaveSuccess
-                            | ProfileSaveFailure (Maybe Text)
-                            deriving Show
-
-instance H.ToMarkup ProfileSaveConfirmPage where
-  toMarkup = \case
-    ProfileSaveSuccess      -> "All done, you can now go back."
-    ProfileSaveFailure mmsg -> do
-      H.text "We had a problem saving your data."
-      maybe mempty (H.text . mappend "Reason: ") mmsg

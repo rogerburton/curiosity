@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Curiosity.Runtime
   ( IOErr(..)
+  , UnspeciedErr(..)
   , Runtime(..)
   , rConf
   , rDb
@@ -20,7 +21,7 @@ module Curiosity.Runtime
   , saveDbAs
   , runAppMSafe
   , withRuntimeAtomically
-  -- * High-level operations
+  -- * High-level user operations
   , canPerform
   , setUserEmailAddrAsVerifiedFull
   , selectUserById
@@ -28,6 +29,10 @@ module Curiosity.Runtime
   , filterUsers
   , createUser
   , checkCredentials
+  -- * High-level entity operations
+  , selectEntityBySlug
+  -- * High-level unit operations
+  , selectUnitBySlug
   -- * Form edition
   , newCreateContractForm
   , readCreateContractForm
@@ -262,14 +267,29 @@ handleCommand runtime@Runtime {..} user command = do
                 else LT.toStrict (Aeson.encodeToLazyText value)
           pure (ExitSuccess, [value'])
         Left err -> pure (ExitFailure 1, [show err])
-    Command.CreateBusinessEntity -> do
+    Command.CreateBusinessEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createBusiness
         _rDb
+        input
       case output of
         Right mid -> do
           case mid of
             Right (Business.BusinessId id) -> do
               pure (ExitSuccess, ["Business entity created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateBusinessEntity input -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateBusiness
+        _rDb
+        input
+      case output of
+        Right mid -> do
+          case mid of
+            Right () -> do
+              pure
+                ( ExitSuccess
+                , ["Business unit updated: " <> Business._updateSlug input]
+                )
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateLegalEntity input -> do
@@ -281,6 +301,20 @@ handleCommand runtime@Runtime {..} user command = do
           case mid of
             Right (Legal.LegalId id) -> do
               pure (ExitSuccess, ["Legal entity created: " <> id])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntity input -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateLegal
+        _rDb
+        input
+      case output of
+        Right mid -> do
+          case mid of
+            Right () -> do
+              pure
+                ( ExitSuccess
+                , ["Legal entity updated: " <> Legal._updateSlug input]
+                )
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
@@ -327,11 +361,11 @@ handleCommand runtime@Runtime {..} user command = do
                     User.UserName n = User._userCredsName _userProfileCreds
                 in  i <> " " <> n
           pure (ExitSuccess, map f profiles)
-    Command.UpdateUser update -> do
+    Command.UpdateUser input -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
           _rDb
-          update
+          input
       pure (ExitSuccess, [show output])
     Command.SetUserEmailAddrAsVerified username -> do
       output <-
@@ -438,13 +472,14 @@ instance S.DBTransaction AppM STM where
 createBusiness
   :: forall runtime
    . Data.StmDb runtime
+  -> Business.Create
   -> STM (Either Business.Err Business.BusinessId)
-createBusiness db = do
+createBusiness db Business.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Entity newId
+    let new = Business.Entity newId _createSlug _createName Nothing
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull
@@ -455,6 +490,20 @@ createBusinessFull
 createBusinessFull db new = do
   modifyBusinessEntities db (++ [new])
   pure . Right $ Business._entityId new
+
+updateBusiness db Business.Update {..} = do
+  mentity <- selectUnitBySlug db _updateSlug
+  case mentity of
+    Just Business.Entity {..} -> do
+      let replaceOlder entities =
+            [ if Business._entitySlug e == _updateSlug
+                then e { Business._entityDescription = _updateDescription }
+                else e
+            | e <- entities
+            ]
+      modifyBusinessEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
@@ -481,7 +530,12 @@ createLegal db Legal.Create {..} = do
  where
   transaction = do
     newId <- generateLegalId db
-    let new = Legal.Entity newId _createName _createCbeNumber _createVatNumber
+    let new = Legal.Entity newId
+                           _createSlug
+                           _createName
+                           _createCbeNumber
+                           _createVatNumber
+                           Nothing
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -492,6 +546,20 @@ createLegalFull
 createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
+
+updateLegal db Legal.Update {..} = do
+  mentity <- selectEntityBySlug db _updateSlug
+  case mentity of
+    Just Legal.Entity {..} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == _updateSlug
+                then e { Legal._entityDescription = _updateDescription }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.LegalId
 generateLegalId Data.Db {..} =
@@ -687,16 +755,16 @@ instance S.DBStorage AppM STM User.UserProfile where
       deleteUser _ =
         modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
 
-    User.UserPasswordUpdate id newPass ->
+    User.UserUpdate id (User.Update mname mbio) ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
         (pure . userNotFound $ show id)
         (fmap Right . updateUser)
      where
       updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
-      setPassword =
-        set (User.userProfileCreds . User.userCredsPassword) newPass
+      change =
+        set User.userProfileBio mbio . set User.userProfileDisplayName mname
       replaceOlder users =
-        [ if S.dbId u == id then setPassword u else u | u <- users ]
+        [ if S.dbId u == id then change u else u | u <- users ]
 
   dbSelect db = \case
 
@@ -743,7 +811,8 @@ createUser db User.Signup {..} = do
     let newProfile = User.UserProfile
           newId
           (User.Credentials username password)
-          "TODO"
+          Nothing
+          Nothing
           email
           Nothing
           tosConsent
@@ -830,6 +899,20 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
 
 userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
+selectEntityBySlug
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Legal.Entity)
+selectEntityBySlug db name = do
+  let tvar = Data._dbLegalEntities db
+  records <- STM.readTVar tvar
+  pure $ find ((== name) . Legal._entitySlug) records
+
+selectUnitBySlug
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Entity)
+selectUnitBySlug db name = do
+  let tvar = Data._dbBusinessEntities db
+  records <- STM.readTVar tvar
+  pure $ find ((== name) . Business._entitySlug) records
+
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 
 --------------------------------------------------------------------------------
@@ -841,3 +924,14 @@ instance Errs.IsRuntimeErr IOErr where
   httpStatus FileDoesntExistErr{} = HTTP.notFound404
   userMessage = Just . \case
     FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
+
+-- | A placeholder error type, used until better handling (at the call site) is
+-- put in place.
+newtype UnspeciedErr = UnspeciedErr Text
+  deriving Show
+
+instance Errs.IsRuntimeErr UnspeciedErr where
+  errCode UnspeciedErr{} = "ERR.FILE_NOT_FOUND"
+  httpStatus UnspeciedErr{} = HTTP.notFound404
+  userMessage = Just . \case
+    UnspeciedErr msg -> T.unwords ["Error:", msg]

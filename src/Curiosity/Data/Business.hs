@@ -6,6 +6,8 @@ Description: Business entities related datatypes
 -}
 module Curiosity.Data.Business
   ( Entity(..)
+  , Create(..)
+  , Update(..)
   , BusinessId(..)
   , Err(..)
   ) where
@@ -13,12 +15,40 @@ module Curiosity.Data.Business
 import qualified Commence.Types.Wrapped        as W
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
-import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseMaybe
+                                                , parseUnique
+                                                )
+
+
+--------------------------------------------------------------------------------
+data Create = Create
+  { _createSlug :: Text -- Unique
+  , _createName :: Text
+  }
+  deriving (Generic, Eq, Show)
+
+instance FromForm Create where
+  fromForm f = Create <$> parseUnique "slug" f <*> parseUnique "name" f
+
+-- | Represents the input data to update a business unit profile.
+data Update = Update
+  { _updateSlug        :: Text
+  , _updateDescription :: Maybe Text
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromForm Update where
+  fromForm f = Update <$> parseUnique "slug" f <*> parseMaybe "description" f
 
 
 --------------------------------------------------------------------------------
 data Entity = Entity
-  { _entityId :: BusinessId
+  { _entityId          :: BusinessId
+  , _entitySlug        :: Text
+    -- An identifier suitable for URLs
+  , _entityName        :: Text
+  , _entityDescription :: Maybe Text
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

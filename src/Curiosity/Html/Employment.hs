@@ -55,7 +55,7 @@ instance H.ToMarkup CreateContractPage where
       panel "General information" $ do
 
         -- TODO I guess this should be the real name ?
-        formKeyValue "Worker name" displayName
+        formKeyValue "Worker username" username
         Misc.inputSelect_
           "project"
           "Project"
@@ -96,10 +96,9 @@ instance H.ToMarkup CreateContractPage where
 
       groupLayout $ do
         submitButton saveUrl "Save changes"
-
-      autoReload
    where
-    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
+    username =
+      User.unUserName . User._userCredsName $ User._userProfileCreds profile
 
 groupRisks = H.div ! A.class_ "o-form-group" $ do
   H.label ! A.class_ "o-form-group__label" $ "Work risks"
@@ -278,12 +277,12 @@ instance H.ToMarkup ConfirmContractPage where
         $ H.dl
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do
-            keyValuePair "Worker name"    displayName
-            keyValuePair "Project"        _createContractProject
-            keyValuePair "Purchase order" _createContractPO
-            keyValuePair "Role"           _createContractRole
-            keyValuePair "Work type"      _createContractType
-            keyValuePair "Description"    _createContractDescription
+            keyValuePair "Worker username" username
+            keyValuePair "Project"         _createContractProject
+            keyValuePair "Purchase order"  _createContractPO
+            keyValuePair "Role"            _createContractRole
+            keyValuePair "Work type"       _createContractType
+            keyValuePair "Description"     _createContractDescription
 
       H.div
         ! A.class_ "u-padding-vertical-l"
@@ -301,11 +300,10 @@ instance H.ToMarkup ConfirmContractPage where
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       button submitUrl "Submit contract"
-
-      autoReload
    where
-    displayName = User.unUserDisplayName $ User._userProfileDisplayName profile
-    titles      = ["Amount"]
+    username =
+      User.unUserName . User._userCredsName $ User._userProfileCreds profile
+    titles = ["Amount"]
     display
       :: Text
       -> Int

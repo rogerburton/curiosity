@@ -14,6 +14,7 @@ module Curiosity.Command
   ) where
 
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
@@ -41,8 +42,10 @@ data Command =
     -- ^ Parse a single command.
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
-  | CreateBusinessEntity
+  | CreateBusinessEntity Business.Create
+  | UpdateBusinessEntity Business.Update
   | CreateLegalEntity Legal.Create
+  | UpdateLegalEntity Legal.Update
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -324,24 +327,68 @@ parserState = State <$> A.switch
   (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
 
 parserBusiness :: A.Parser Command
-parserBusiness = A.subparser $ A.command
-  "create"
-  ( A.info (parserCreateBusinessEntity <**> A.helper)
-  $ A.progDesc "Create a new business entity"
-  )
+parserBusiness =
+  A.subparser
+    $  A.command
+         "create"
+         ( A.info (parserCreateBusinessEntity <**> A.helper)
+         $ A.progDesc "Create a new business entity"
+         )
+    <> A.command
+         "update"
+         ( A.info (parserUpdateBusinessEntity <**> A.helper)
+         $ A.progDesc "Update a business unit"
+         )
 
 parserCreateBusinessEntity :: A.Parser Command
-parserCreateBusinessEntity = pure CreateBusinessEntity
+parserCreateBusinessEntity = do
+  slug <- A.argument
+    A.str
+    (A.metavar "SLUG" <> A.help "An identifier suitable for URLs")
+  name <- A.argument A.str (A.metavar "NAME" <> A.help "A name")
+  pure $ CreateBusinessEntity $ Business.Create slug name
+
+parserUpdateBusinessEntity :: A.Parser Command
+parserUpdateBusinessEntity = do
+  slug        <- argumentUnitSlug
+  description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
+  pure $ UpdateBusinessEntity $ Business.Update slug (Just description)
+
+argumentUnitId = Legal.LegalId <$> A.argument A.str metavarUnitId
+
+metavarUnitId = A.metavar "BENT-ID" <> A.completer complete <> A.help
+  "A business unit ID"
+  where complete = A.mkCompleter . const $ pure ["LENT-", "LENT-1", "LENT-2"]
+        -- TODO I'd like to lookup IDs in the state, but here we don't know
+        -- where the state is (it depends on other command-line options).
+
+argumentUnitSlug = A.argument A.str metavarUnitSlug
+
+metavarUnitSlug = A.metavar "SLUG" <> A.completer complete <> A.help
+  "A business unit slug"
+  where complete = A.mkCompleter . const $ pure ["alpha", "beta", "gamma"]
+        -- TODO I'd like to lookup slugs in the state, but here we don't
+        -- know where the state is (it depends on other command-line options).
 
 parserLegal :: A.Parser Command
-parserLegal = A.subparser $ A.command
-  "create"
-  ( A.info (parserCreateLegalEntity <**> A.helper)
-  $ A.progDesc "Create a new legal entity"
-  )
+parserLegal =
+  A.subparser
+    $  A.command
+         "create"
+         ( A.info (parserCreateLegalEntity <**> A.helper)
+         $ A.progDesc "Create a new legal entity"
+         )
+    <> A.command
+         "update"
+         ( A.info (parserUpdateLegalEntity <**> A.helper)
+         $ A.progDesc "Update a legal entity"
+         )
 
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
+  slug <- A.argument
+    A.str
+    (A.metavar "SLUG" <> A.help "An identifier suitable for URLs")
   name <- A.argument A.str (A.metavar "NAME" <> A.help "A registration name")
   cbeNumber <- A.argument
     A.str
@@ -351,7 +398,29 @@ parserCreateLegalEntity = do
   vatNumber <- A.argument
     A.str
     (A.metavar "VAT-NUMER" <> A.help "VAT number (with prefix and leading zero")
-  pure $ CreateLegalEntity $ Legal.Create name cbeNumber vatNumber
+  pure $ CreateLegalEntity $ Legal.Create slug name cbeNumber vatNumber
+
+parserUpdateLegalEntity :: A.Parser Command
+parserUpdateLegalEntity = do
+  slug        <- argumentEntitySlug
+  description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
+  pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
+
+argumentEntityId = Legal.LegalId <$> A.argument A.str metavarEntityId
+
+metavarEntityId = A.metavar "LENT-ID" <> A.completer complete <> A.help
+  "A legal entity ID"
+  where complete = A.mkCompleter . const $ pure ["LENT-", "LENT-1", "LENT-2"]
+        -- TODO I'd like to lookup IDs in the state, but here we don't know
+        -- where the state is (it depends on other command-line options).
+
+argumentEntitySlug = A.argument A.str metavarEntitySlug
+
+metavarEntitySlug = A.metavar "SLUG" <> A.completer complete <> A.help
+  "A legal entity slug"
+  where complete = A.mkCompleter . const $ pure ["one", "two", "three"]
+        -- TODO I'd like to lookup slugs in the state, but here we don't
+        -- know where the state is (it depends on other command-line options).
 
 parserUser :: A.Parser Command
 parserUser = A.subparser
@@ -361,6 +430,9 @@ parserUser = A.subparser
   <> A.command
        "delete"
        (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
+  <> A.command
+       "update"
+       (A.info (parserUpdateUser <**> A.helper) $ A.progDesc "Update a user")
   <> A.command
        "get"
        (A.info (parserGetUser <**> A.helper) $ A.progDesc "Select a user")
@@ -397,6 +469,13 @@ parserCreateUser = do
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId
+
+parserUpdateUser :: A.Parser Command
+parserUpdateUser = do
+  uid  <- argumentUserId
+  name <- A.argument A.str (A.metavar "NAME" <> A.help "A display name")
+  bio  <- A.argument A.str (A.metavar "TEXT" <> A.help "A bio")
+  pure $ UpdateUser . User.UserUpdate uid $ User.Update (Just name) (Just bio)
 
 parserGetUser :: A.Parser Command
 parserGetUser =

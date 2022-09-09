@@ -17,21 +17,24 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data EntityView = EntityView
-  { _entityViewEntity        :: Legal.Entity
+  { _entityViewUser          :: Maybe User.UserProfile
+    -- ^ The logged-in user, if any.
+  , _entityViewEntity        :: Legal.Entity
   , _entityViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup EntityView where
-  toMarkup (EntityView entity hasEditButton) =
-    renderView $ entityView entity hasEditButton
+  toMarkup (EntityView mprofile entity hasEditButton) =
+    renderView' mprofile $ entityView entity hasEditButton
 
-entityView entity hasEditButton = containerLarge $ do
+entityView entity hasEditButton = containerMedium $ do
   title' "Legal entity" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"                (Legal._entityId entity)
     keyValuePair "Registration name" (Legal._entityName entity)
     keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
     keyValuePair "VAT number"        (Legal._entityVatNumber entity)
+    maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
 
 
 --------------------------------------------------------------------------------

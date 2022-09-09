@@ -7,6 +7,7 @@ Description: Legal entities related datatypes
 module Curiosity.Data.Legal
   ( Entity(..)
   , Create(..)
+  , Update(..)
   , LegalId(..)
   , RegistrationName(..)
   , Err(..)
@@ -19,6 +20,7 @@ import           Data.Aeson
 import qualified Data.ByteString.Lazy          as LB
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseMaybe
                                                 , parseUnique
                                                 )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
@@ -26,24 +28,42 @@ import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 --------------------------------------------------------------------------------
 data Create = Create
-  { _createName      :: RegistrationName
+  { _createSlug      :: Text
+  , _createName      :: RegistrationName
   , _createCbeNumber :: CbeNumber
   , _createVatNumber :: VatNumber -- TODO Is it really useful to habe both ?
   }
   deriving (Generic, Eq, Show)
 
 instance FromForm Create where
-  fromForm f = Create <$> parseUnique "name" f
-                      <*> parseUnique "cbe-number" f
-                      <*> parseUnique "vat-number" f
+  fromForm f =
+    Create
+      <$> parseUnique "slug"       f
+      <*> parseUnique "name"       f
+      <*> parseUnique "cbe-number" f
+      <*> parseUnique "vat-number" f
+
+-- | Represents the input data to update an entity profile.
+data Update = Update
+  { _updateSlug        :: Text
+  , _updateDescription :: Maybe Text
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromForm Update where
+  fromForm f = Update <$> parseUnique "slug" f <*> parseMaybe "description" f
 
 
 --------------------------------------------------------------------------------
 data Entity = Entity
-  { _entityId        :: LegalId
-  , _entityName      :: RegistrationName
-  , _entityCbeNumber :: CbeNumber
-  , _entityVatNumber :: VatNumber -- TODO Is it really useful to habe both ?
+  { _entityId          :: LegalId
+  , _entitySlug        :: Text
+    -- An identifier suitable for URLs
+  , _entityName        :: RegistrationName
+  , _entityCbeNumber   :: CbeNumber
+  , _entityVatNumber   :: VatNumber -- TODO Is it really useful to habe both ?
+  , _entityDescription :: Maybe Text
+    -- Public description. Similar to a user profile bio.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

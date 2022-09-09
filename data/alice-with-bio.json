@@ -5,6 +5,8 @@
     "_userCredsPassword": "a"
   },
   "_userProfileEmailAddr": "alice@example.com",
+  "_userProfileDisplayName": "Alice",
+  "_userProfileBio": "Hi ! I'm the first advisor registered on this prototype. I know and have access to everything... Let me know if you need anything !",
   "_userProfileTosConsent": true,
   "_userProfileCompletion1": {},
   "_userProfileCompletion2": {},

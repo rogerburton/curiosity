@@ -21,6 +21,7 @@ module Curiosity.Data.User
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
+  , userProfileBio
   , userProfileEmailAddr
   , userProfileTosConsent
   , userProfileAddrAndTelVerified
@@ -105,13 +106,14 @@ instance FromForm Login where
   fromForm f = Login <$> parseUnique "username" f <*> parseUnique "password" f
 
 -- | Represents the input data to update a user profile.
-newtype Update = Update
-  { _editPassword :: Maybe Password
+data Update = Update
+  { _updateDisplayName :: Maybe UserDisplayName
+  , _updateBio         :: Maybe Text
   }
   deriving (Eq, Show, Generic)
 
 instance FromForm Update where
-  fromForm f = Update <$> parseMaybe "password" f
+  fromForm f = Update <$> parseMaybe "display-name" f <*> parseMaybe "bio" f
 
 
 --------------------------------------------------------------------------------
@@ -119,10 +121,16 @@ type UserProfile = UserProfile' Credentials UserDisplayName UserEmailAddr Bool
 
 data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   { _userProfileId                :: UserId
-  , _userProfileCreds             :: creds -- ^ Users credentials
-  , _userProfileDisplayName       :: userDisplayName -- ^ User's human friendly name
-  , _userProfileEmailAddr         :: userEmailAddr -- ^ User's email address
-  , _userProfileEmailAddrVerified :: Maybe Text -- ^ TODO Last date it was checked.
+  , _userProfileCreds             :: creds
+    -- ^ Users credentials
+  , _userProfileDisplayName       :: Maybe userDisplayName
+    -- ^ User's human friendly name
+  , _userProfileBio               :: Maybe Text
+    -- ^ Public bio
+  , _userProfileEmailAddr         :: userEmailAddr
+    -- ^ User's email address
+  , _userProfileEmailAddrVerified :: Maybe Text
+    -- ^ TODO Last date it was checked
   , _userProfileTosConsent        :: tosConsent
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
@@ -231,8 +239,8 @@ instance Nav.IsNavbarContent UserProfile where
     editProfileLink
     H.hr
    where
-    greeting =
-      H.div . H.text $ T.unwords ["Hi", _userProfileDisplayName ^. coerced]
+    greeting = H.div . H.text $ T.unwords
+      ["Hi", _userCredsName _userProfileCreds ^. coerced]
     editProfileLink = H.a ! A.href "/settings/profile" $ "Edit profile"
 
 instance Storage.DBIdentity UserProfile where
@@ -244,7 +252,7 @@ instance Storage.DBStorageOps UserProfile where
     UserCreate UserProfile
     | UserCreateGeneratingUserId Signup
     | UserDelete UserId
-    | UserPasswordUpdate UserId Password
+    | UserUpdate UserId Update
     deriving (Show, Eq)
   
   data DBSelect UserProfile =

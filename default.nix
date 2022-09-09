@@ -28,6 +28,7 @@ in rec
     haddock = nixpkgs.haskellPackages.curiosity.doc;
     content = (import ./content {}).html.all;
     data = (import ./content {}).data;
+    scenarios = (import ./content {}).scenarios;
     static = (import "${sources.design-hs}").static;
     man-pages = (import ./man {}).man-pages;
     toplevel = os.config.system.build.toplevel;

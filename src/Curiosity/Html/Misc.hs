@@ -12,11 +12,13 @@ module Curiosity.Html.Misc
   , groupLayout
   , panel
   , panelStandard
+  , header
 
   -- Form
   , title
   , title'
   , inputText
+  , disabledText
   , submitButton
   , button
   , buttonLink
@@ -30,13 +32,16 @@ module Curiosity.Html.Misc
 
   -- Keep here:
   , renderView
+  , renderView'
   , renderForm
   , renderFormLarge
   , autoReload
   ) where
 
 import qualified Curiosity.Data.User           as User
-import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Navbar          ( navbar
+                                                , navbarWebsite
+                                                )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( divIconAdd
@@ -88,6 +93,15 @@ keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
 fullScroll content = H.main ! A.class_ "u-maximize-width" $ do
   content
 
+renderView' mprofile content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        header mprofile
+        fullScroll content
+
 renderView content =
   Render.renderCanvasFullScroll
     . Dsl.SingletonCanvas
@@ -96,6 +110,15 @@ renderView content =
     $ do
         H.header $ H.toMarkup . navbar $ "TODO username"
         fullScroll content
+
+header mprofile = H.header $ case mprofile of
+  Just profile ->
+    H.toMarkup
+      . navbar
+      . User.unUserName
+      . User._userCredsName
+      $ User._userProfileCreds profile
+  Nothing -> H.toMarkup navbarWebsite
 
 renderForm :: User.UserProfile -> Html -> Html
 renderForm profile content =
@@ -165,19 +188,44 @@ title' s mEditButton =
           $ H.text s
         maybe mempty editButton mEditButton
 
+disabledText
+  :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html
+disabledText label name mvalue mhelp = inputText' label name mvalue mhelp True
+
 inputText
   :: Text -> H.AttributeValue -> Maybe H.AttributeValue -> Maybe Text -> Html
-inputText label name mvalue mhelp = H.div ! A.class_ "o-form-group" $ do
-  H.label ! A.class_ "o-form-group__label" ! A.for name $ H.toHtml label
+inputText label name mvalue mhelp = inputText' label name mvalue mhelp False
+
+inputText'
+  :: Text
+  -> H.AttributeValue
+  -> Maybe H.AttributeValue
+  -> Maybe Text
+  -> Bool
+  -> Html
+inputText' label name mvalue mhelp disabled =
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" ! A.for name $ H.toHtml label
+    H.div
+      ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+      $ do
+          (if disabled then (! (A.disabled "disabled")) else identity)
+            $ maybe identity (\value -> (! (A.value value))) mvalue
+            $ H.input
+            ! A.class_ "c-input"
+            ! A.id name
+            ! A.name name
+          maybe mempty ((H.p ! A.class_ "c-form-help-text") . H.text) mhelp
+
+inputPassword = H.div ! A.class_ "o-form-group" $ do
+  H.label ! A.class_ "o-form-group__label" ! A.for "password" $ "Password"
   H.div
     ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
-    $ do
-        maybe identity (\value -> (! (A.value value))) mvalue
-          $ H.input
-          ! A.class_ "c-input"
-          ! A.id name
-          ! A.name name
-        maybe mempty ((H.p ! A.class_ "c-form-help-text") . H.text) mhelp
+    $ H.input
+    ! A.class_ "c-input"
+    ! A.type_ "password"
+    ! A.id "password"
+    ! A.name "password"
 
 submitButton :: H.AttributeValue -> Html -> Html
 submitButton submitUrl label =

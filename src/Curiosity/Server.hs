@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
@@ -202,8 +203,16 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
-             :<|> "alice" :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "alice"  :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+             :<|> "mila"   :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+             :<|> "alpha"  :> H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
+             :<|> "entity" :> H.UserAuthentication
+                  :> Capture "name" Text
+                  :> Get '[B.HTML] Pages.EntityView
              :<|> WebSocketApi
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
@@ -260,7 +269,10 @@ serverT conf jwtS root dataDir =
     :<|> serveUBL dataDir
     :<|> serveErrors
     :<|> serveNamespace "alice"
+    :<|> serveNamespace "mila"
+    :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
+    :<|> serveEntity
     :<|> websocket
     :<|> serveDocumentation root
 
@@ -524,7 +536,9 @@ type Private = H.UserAuthentication :> (
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
-                   :> H.PostUserPage Pages.ProfileSaveConfirmPage
+                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                               NoContent
+                                             )
              :<|> "a" :> "logout" :> Verb 'GET 303 '[JSON] ( Headers CAuth.PostLogoutHeaders
                                                              NoContent
                                                             )
@@ -544,7 +558,7 @@ privateT conf authResult =
         :<|> (withUser' showCreateUnitPage)
         :<|> (withUser' showCreateContractPage)
         :<|> (withUser' showCreateInvoicePage)
-        :<|> (withUser' . handleUserUpdate)
+        :<|> (withUser' . handleUserProfileUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
 
@@ -593,35 +607,21 @@ showCreateInvoicePage profile =
 
 
 --------------------------------------------------------------------------------
-handleUserUpdate
+handleUserProfileUpdate
   :: forall m
    . ServerC m
   => User.Update
   -> User.UserProfile
-  -> m
-       ( SS.P.Page
-           'SS.P.Authd
-           User.UserProfile
-           Pages.ProfileSaveConfirmPage
-       )
-handleUserUpdate User.Update {..} profile = case _editPassword of
-  Just newPass -> do
-    let updatedProfile =
-          profile
-            &  User.userProfileCreds
-            .  User.userCredsPassword
-            %~ (`fromMaybe` _editPassword)
-    db   <- asks Rt._rDb
-    eIds <- S.liftTxn
-      (S.dbUpdate @m @STM db (User.UserPasswordUpdate (S.dbId profile) newPass))
+  -> m (Headers '[Header "Location" Text] NoContent)
+handleUserProfileUpdate update profile = do
+  db   <- asks Rt._rDb
+  eIds <- S.liftTxn
+    (S.dbUpdate @m @STM db (User.UserUpdate (S.dbId profile) update))
 
-    let page = case eIds of
-          Right (Right [_]) -> Pages.ProfileSaveSuccess
-          _ -> Pages.ProfileSaveFailure (Just "Cannot update the user.")
-    pure $ SS.P.AuthdPage updatedProfile page
-
-  Nothing -> pure . SS.P.AuthdPage profile . Pages.ProfileSaveFailure $ Just
-    "Nothing to update."
+  case eIds of
+    Right (Right [_]) ->
+      pure $ addHeader @"Location" ("/settings/profile") NoContent
+    _ -> Errs.throwError' $ Rt.UnspeciedErr "Cannot update the user."
 
 handleSetUserEmailAddrAsVerified
   :: forall m
@@ -863,7 +863,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView entity (Just "#")
+  pure $ Pages.EntityView Nothing entity (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -871,7 +871,7 @@ documentEntityPage dataDir filename = do
 documentUnitPage :: ServerC m => FilePath -> FilePath -> m Pages.UnitView
 documentUnitPage dataDir filename = do
   unit <- readJson $ dataDir </> filename
-  pure $ Pages.UnitView unit (Just "#")
+  pure $ Pages.UnitView Nothing unit (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -942,8 +942,8 @@ withMaybeUser authResult a f = case authResult of
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
 
--- | Run a handler, ensuring a user profile can be extracted from the
--- authentication result, or throw an error.
+-- | Run a handler, ensuring a user profile can be obtained from the
+-- given username, or throw an error.
 withUserFromUsername
   :: forall m a
    . ServerC m
@@ -971,9 +971,59 @@ withMaybeUserFromUsername
 withMaybeUserFromUsername username a f = do
   mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsername . Rt._rDb)
                                        username
-  case mprofile of
-    Just userProfile -> f userProfile
-    Nothing          -> a username
+  maybe (a username) f mprofile
+
+
+--------------------------------------------------------------------------------
+-- | Run a handler, ensuring a user profile can be obtained from the given
+-- username, or throw an error.
+withEntityFromName
+  :: forall m a . ServerC m => Text -> (Legal.Entity -> m a) -> m a
+withEntityFromName name f = withMaybeEntityFromName name
+                                                    (noSuchUserErr . show) -- TODO entity, not user
+                                                    f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting an entity, or a normal handler, depending
+-- on if entity can be queried using the supplied name or not.
+withMaybeEntityFromName
+  :: forall m a
+   . ServerC m
+  => Text
+  -> (Text -> m a)
+  -> (Legal.Entity -> m a)
+  -> m a
+withMaybeEntityFromName name a f = do
+  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlug . Rt._rDb) name
+  maybe (a name) f mentity
+
+
+--------------------------------------------------------------------------------
+-- | Run a handler, ensuring a business unit can be obtained from the given
+-- ame, or throw an error.
+withUnitFromName
+  :: forall m a . ServerC m => Text -> (Business.Entity -> m a) -> m a
+withUnitFromName name f = withMaybeUnitFromName name
+                                                (noSuchUserErr . show) -- TODO unit, not user
+                                                f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Run either a handler expecting a unit, or a normal handler, depending
+-- on if a unit can be queried using the supplied name or not.
+withMaybeUnitFromName
+  :: forall m a
+   . ServerC m
+  => Text
+  -> (Text -> m a)
+  -> (Business.Entity -> m a)
+  -> m a
+withMaybeUnitFromName name a f = do
+  munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name
+  maybe (a name) f munit
 
 
 --------------------------------------------------------------------------------
@@ -1040,16 +1090,52 @@ errorFormatters = defaultErrorFormatters
 
 --------------------------------------------------------------------------------
 -- | Serve the pages under a namespace. TODO Currently the namespace is
--- hard-coded to "alice"
-serveNamespace :: ServerC m => User.UserName -> m Pages.PublicProfileView
-serveNamespace username =
-  withUserFromUsername username (pure . Pages.PublicProfileView)
+-- hard-coded to "alice" and "mila" for usernames, and "alpha" for business
+-- unit names.
+serveNamespace
+  :: ServerC m
+  => Text
+  -> SAuth.AuthResult User.UserId
+  -> m (PageEither Pages.PublicProfileView Pages.UnitView)
+serveNamespace name authResult = withMaybeUserFromUsername
+  (User.UserName name)
+  withName
+  withTargetProfile
+
+ where
+  withName (User.UserName name) = SS.P.PageR <$> serveUnit authResult name
+  withTargetProfile targetProfile = withMaybeUser
+    authResult
+    (const . pure . SS.P.PageL $ Pages.PublicProfileView Nothing targetProfile)
+    (\profile ->
+      pure . SS.P.PageL $ Pages.PublicProfileView (Just profile) targetProfile
+    )
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
 serveNamespaceDocumentation username = withUserFromUsername
   username
   (\profile -> pure $ Pages.ProfileView profile Nothing)
+
+
+--------------------------------------------------------------------------------
+serveEntity
+  :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.EntityView
+serveEntity authResult name = withEntityFromName name $ \targetEntity ->
+  withMaybeUser
+    authResult
+    (const . pure $ Pages.EntityView Nothing targetEntity Nothing)
+    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
+
+
+--------------------------------------------------------------------------------
+serveUnit
+  :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.UnitView
+serveUnit authResult name = withUnitFromName name $ \targetUnit ->
+  withMaybeUser
+    authResult
+    (const . pure $ Pages.UnitView Nothing targetUnit Nothing)
+    (\profile -> pure $ Pages.UnitView (Just profile) targetUnit (Just "#"))
 
 
 --------------------------------------------------------------------------------
