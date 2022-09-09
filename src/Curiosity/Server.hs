@@ -203,6 +203,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
              :<|> "alice" :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
+             :<|> "mila"  :> H.UserAuthentication :> Get '[B.HTML] Pages.PublicProfileView
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
@@ -263,6 +264,7 @@ serverT conf jwtS root dataDir =
     :<|> serveUBL dataDir
     :<|> serveErrors
     :<|> serveNamespace "alice"
+    :<|> serveNamespace "mila"
     :<|> serveNamespaceDocumentation "alice"
     :<|> serveEntity
     :<|> websocket
@@ -1056,7 +1058,7 @@ errorFormatters = defaultErrorFormatters
 
 --------------------------------------------------------------------------------
 -- | Serve the pages under a namespace. TODO Currently the namespace is
--- hard-coded to "alice"
+-- hard-coded to "alice" and "mila"
 serveNamespace
   :: ServerC m
   => User.UserName
