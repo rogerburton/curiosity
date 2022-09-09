@@ -39,9 +39,9 @@ plusEntry = Navbar.IconEntry divIconAdd plusEntries
 
 plusEntries :: [Navbar.SubEntry]
 plusEntries =
-  [ Navbar.SubEntry "New invoice" "#" False
-  , Navbar.SubEntry "New contract" "#" False
+  [ Navbar.SubEntry "New invoice" "/new/invoice" False
+  , Navbar.SubEntry "New contract" "/new/contract" False
   , Navbar.Divider
-  , Navbar.SubEntry "New business entity" "#" False
+  , Navbar.SubEntry "New business entity" "/new/unit" False
   , Navbar.SubEntry "New legal entity" "/new/entity" False
   ]

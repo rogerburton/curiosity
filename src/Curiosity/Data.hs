@@ -20,6 +20,10 @@ module Curiosity.Data
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
+  -- * Pseudo-random number generation.
+  , genRandomText
+  , readStdGen
+  , writeStdGen
   ) where
 
 import Curiosity.Data.Counter as C
@@ -31,9 +35,15 @@ import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
+import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
+import qualified System.Random                 as Rand
+import qualified System.Random.Internal        as Rand
+import qualified System.Random.SplitMix        as SM
 
+
+--------------------------------------------------------------------------------
 {- | The central database. The product type contains all values and is
 parameterised by @datastore@. The @datastore@ can be the layer dealing with
 storage. When it is @Identity@, it just means the data is stored as is. It can,
@@ -53,6 +63,11 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbInvoices         :: datastore [Invoice.Invoice]
   , _dbNextEmploymentId :: C.CounterValue datastore Int
   , _dbEmployments      :: datastore [Employment.Contract]
+
+  , _dbRandomGenState     :: datastore (Word64, Word64)
+    -- ^ The internal representation of a StdGen.
+  , _dbFormCreateContractAll ::
+      datastore (Map (User.UserName, Text) Employment.CreateContractAll)
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -77,6 +92,9 @@ emptyHask = Db
   (pure 1) (pure mempty)
   (pure 1) (pure mempty)
 
+  (pure $ randomGenState 42) -- Deterministic initial seed.
+  (pure mempty)
+
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db
@@ -90,6 +108,9 @@ instantiateStmDb Db
   , _dbInvoices         = Identity seedInvoices
   , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
   , _dbEmployments      = Identity seedEmployments
+
+  , _dbRandomGenState        = Identity seedRandomGenState
+  , _dbFormCreateContractAll = Identity seedFormCreateContractAll
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -105,6 +126,9 @@ instantiateStmDb Db
     _dbInvoices         <- STM.newTVar seedInvoices
     _dbNextEmploymentId <- C.newCounter seedNextEmploymentId
     _dbEmployments      <- STM.newTVar seedEmployments
+
+    _dbRandomGenState        <- STM.newTVar seedRandomGenState
+    _dbFormCreateContractAll <- STM.newTVar seedFormCreateContractAll
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -125,6 +149,8 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
   STM.writeTVar (_dbInvoices stmDb) seedInvoices
   C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
+
+  STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
  where
   Db
     { _dbNextBusinessId   = CounterValue (Identity seedNextBusinessId)
@@ -137,6 +163,8 @@ resetStmDb stmDb = liftIO . STM.atomically $ do
     , _dbInvoices         = Identity seedInvoices
     , _dbNextEmploymentId = CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments      = Identity seedEmployments
+
+    , _dbFormCreateContractAll = Identity seedFormCreateContractAll
     } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -164,6 +192,9 @@ readFullStmDbInHask' stmDb = do
   _dbInvoices         <- pure <$> STM.readTVar (_dbInvoices stmDb)
   _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
   _dbEmployments      <- pure <$> STM.readTVar (_dbEmployments stmDb)
+
+  _dbRandomGenState        <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
+  _dbFormCreateContractAll <- pure <$> STM.readTVar (_dbFormCreateContractAll stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
@@ -188,6 +219,8 @@ instance E.IsRuntimeErr DbErr where
   userMessage = Just . \case
     DbDecodeFailed msg -> msg
 
+
+--------------------------------------------------------------------------------
 -- | Write an entire db state to bytes.
 serialiseDb :: forall runtime . HaskDb runtime -> LByteString
 serialiseDb = encode
@@ -197,3 +230,32 @@ serialiseDb = encode
 deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
 deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
 {-# INLINE deserialiseDb #-}
+
+
+--------------------------------------------------------------------------------
+-- We use System.Random.Internal and Sytem.Random.SplitMix to be able to keep
+-- the random generator internal state (a pair of Word64) in our Data.StmDb
+-- structure.
+randomGenState :: Int -> (Word64, Word64)
+randomGenState = SM.unseedSMGen . Rand.unStdGen . Rand.mkStdGen
+
+readStdGen :: StmDb runtime -> STM Rand.StdGen
+readStdGen db = do
+  (seed, gamma) <- STM.readTVar $ _dbRandomGenState db
+  let g = Rand.StdGen $ SM.seedSMGen' (seed, gamma)
+  pure g
+
+writeStdGen :: StmDb runtime -> Rand.StdGen -> STM ()
+writeStdGen db g = do
+  let (seed, gamma) = SM.unseedSMGen $ Rand.unStdGen g
+  STM.writeTVar (_dbRandomGenState db) (seed, gamma)
+
+genRandomText :: forall runtime . StmDb runtime -> STM Text
+genRandomText db = do
+  g1 <- readStdGen db
+  let ags = take 8 $ unfoldr (\g -> let (a, g') = Rand.uniformR ('A', 'Z') g
+                                     in Just ((a, g'), g')) g1
+      s = T.pack $ fst <$> ags
+      g2 = snd $ L.last ags
+  writeStdGen db g2
+  pure s

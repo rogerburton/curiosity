@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Curiosity.Form.Signup
   ( Page(..)
-  , ResultPage(..)
   , SignupResultPage(..)
   ) where
 
@@ -205,14 +204,3 @@ withMessage title msg = do
         H.div ! A.class_ "c-content" $ H.h1 $ H.toHtml title
 
         H.div ! A.class_ "c-panel" $ H.div ! A.class_ "c-panel__body" $ msg
---------------------------------------------------------------------------------
-data ResultPage = Success Text
-                | Failure Text
-
-instance H.ToMarkup ResultPage where
-  toMarkup = \case
-    Success msg -> withText msg
-    Failure msg -> withText msg
-   where
-    withText msg =
-      Render.renderCanvas $ Dsl.SingletonCanvas $ H.code $ H.toMarkup msg

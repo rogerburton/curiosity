@@ -63,7 +63,7 @@ instance Enum count => Counter count Identity Identity where
 
   readCounter (CounterValue (Identity curValue)) = pure curValue
 
-  writeCounter (CounterValue countTvar) count = pure ()
+  writeCounter (CounterValue _) _ = pure ()
 
   bumpCounter (CounterValue (Identity curValue)) =
     pure CounterStep { was = curValue, is = succ curValue }

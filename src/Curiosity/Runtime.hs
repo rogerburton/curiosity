@@ -28,6 +28,13 @@ module Curiosity.Runtime
   , filterUsers
   , createUser
   , checkCredentials
+  -- * Form edition
+  , newCreateContractForm
+  , readCreateContractForm
+  , writeCreateContractForm
+  , addExpenseToContractForm
+  , writeExpenseToContractForm
+  , removeExpenseFromContractForm
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -53,6 +60,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
+import qualified Data.Map                      as M
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Language.Haskell.TH.Syntax    as Syntax
@@ -528,6 +536,93 @@ modifyEmployments
   -> STM ()
 modifyEmployments db f =
   let tvar = Data._dbEmployments db in STM.modifyTVar tvar f
+
+newCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.CreateContract)
+  -> STM Text
+newCreateContractForm db (profile, c) = do
+  key <- Data.genRandomText db
+  STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
+  pure key
+ where
+  add key = M.insert (username, key) (Employment.CreateContractAll c [])
+  username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () Employment.CreateContractAll)
+readCreateContractForm db (profile, key) = do
+  m <- STM.readTVar $ Data._dbFormCreateContractAll db
+  let mform = M.lookup (username, key) m
+  pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
+
+writeCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Employment.CreateContract)
+  -> STM Text
+writeCreateContractForm db (profile, key, c) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+  pure key
+ where
+  -- TODO Return an error when the key is not found.
+  save = M.adjust
+    (\(Employment.CreateContractAll _ es) -> Employment.CreateContractAll c es)
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addExpenseToContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Employment.AddExpense)
+  -> STM () -- TODO Possible errors
+addExpenseToContractForm db (profile, key, expense) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+ where
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      Employment.CreateContractAll c $ es ++ [expense]
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeExpenseToContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, Employment.AddExpense)
+  -> STM () -- TODO Possible errors
+writeExpenseToContractForm db (profile, key, index, expense) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+ where
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      let f i e = if i == index then expense else e
+          es' = zipWith f [0 ..] es
+      in  Employment.CreateContractAll c es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeExpenseFromContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeExpenseFromContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateContractAll db) save
+ where
+  save = M.adjust
+    (\(Employment.CreateContractAll c es) ->
+      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
+      in  Employment.CreateContractAll c es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
 
 
 --------------------------------------------------------------------------------

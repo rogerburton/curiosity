@@ -22,6 +22,10 @@ title: Curiosity
     profile form is part of the settings and is available from the user menu at
     [`/settings/profile/edit`](/settings/profile/edit).
 
+[New contract](/forms/new-contract)
+
+:   The new contract form allows a user to ...
+
 # See also
 
 - [Sitemap](/documentation/sitemap)

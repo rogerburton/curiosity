@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Curiosity.Form.Login
   ( Page(..)
-  , ResultPage(..)
   ) where
 
 import           Smart.Html.Dsl                 ( HtmlCanvas )
@@ -104,18 +103,3 @@ loginPage Page {..} = Dsl.SingletonCanvas $ do
             ! A.class_ "u-text-muted"
             ! A.href "/password-reset"
             $ "Forgot password"
-
-
---------------------------------------------------------------------------------
-data ResultPage = Success Text
-                | Failure Text
-
-instance H.ToMarkup ResultPage where
-  toMarkup = \case
-    Success msg -> withText msg
-    Failure msg -> withText msg
-   where
-    withText msg =
-      Render.renderCanvas $ Dsl.SingletonCanvas $
-        H.div ! A.class_ "c-display" $
-          H.code $ H.toMarkup msg

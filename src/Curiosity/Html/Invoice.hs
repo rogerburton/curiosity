@@ -4,14 +4,12 @@ Description: Invoice pages (view and edit).
 -}
 module Curiosity.Html.Invoice
   ( InvoiceView(..)
+  , CreateInvoicePage(..)
   ) where
 
 import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Navbar          ( navbar )
-import qualified Smart.Html.Dsl                as Dsl
-import qualified Smart.Html.Render             as Render
-import           Smart.Html.Shared.Html.Icons   ( svgIconEdit )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -31,3 +29,18 @@ invoiceView invoice hasEditButton = containerLarge $ do
   title' "Invoice" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID" (Invoice._entityId invoice)
+
+
+--------------------------------------------------------------------------------
+data CreateInvoicePage = CreateInvoicePage
+  { _createInvoicePageUserProfile :: User.UserProfile
+    -- ^ The user creating the invoice
+  , _createInvoicePageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup CreateInvoicePage where
+  toMarkup (CreateInvoicePage profile submitUrl) =
+    renderForm profile $ groupLayout $ do
+      title "New invoice"
+      inputText "Invoice name" "name" Nothing Nothing
+      submitButton submitUrl "Create new invoice"

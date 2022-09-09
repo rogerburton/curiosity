@@ -34,6 +34,7 @@ module Curiosity.Data.User
   , userProfileRights
   , UserId(..)
   , UserName(..)
+  , UserDisplayName(..)
   , UserEmailAddr(..)
   , Password(..)
   , Predicate(..)
@@ -163,6 +164,7 @@ data AccessRight = CanVerifyEmailAddr | CanDummy
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName { unUserName :: Text }
                  deriving ( Eq
+                          , Ord
                           , Show
                           , IsString
                           , FromJSON
@@ -172,7 +174,7 @@ newtype UserName = UserName { unUserName :: Text }
                           ) via Text
                  deriving (FromHttpApiData, FromForm) via W.Wrapped "username" Text
 
-newtype UserDisplayName = UserDisplayName Text
+newtype UserDisplayName = UserDisplayName { unUserDisplayName :: Text }
                  deriving ( Eq
                           , Show
                           , IsString

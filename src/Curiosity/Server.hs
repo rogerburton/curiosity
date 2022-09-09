@@ -32,6 +32,7 @@ import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
+import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
@@ -53,15 +54,16 @@ import           Data.Aeson                     ( FromJSON
                                                 , eitherDecode
                                                 )
 import qualified Data.ByteString.Lazy          as BS
+import           Data.List                      ( (!!) )
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
-import Network.WebSockets.Connection
+import           Network.WebSockets.Connection
 import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
-import Servant.API.WebSocket
+import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
@@ -93,6 +95,24 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
+             :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "forms" :> "edit-contract"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "forms" :> "add-expense"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.AddExpensePage
+             :<|> "forms" :> "edit-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.AddExpensePage
+             :<|> "forms" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.RemoveExpensePage
+             :<|> "forms" :> "confirm-contract"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.ConfirmContractPage
 
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
@@ -112,15 +132,59 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
 
-             :<|> "state" :> Get '[B.HTML] Login.ResultPage -- TODO Proper type.
+             :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
-                  :> Post '[B.HTML] Login.ResultPage
+                  :> Post '[B.HTML] Pages.EchoPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
-                  :> Post '[B.HTML] Signup.ResultPage
+                  :> Post '[B.HTML] Pages.EchoPage
+             :<|> "echo" :> "new-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "new-contract-and-add-expense"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-contract"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-contract-and-add-expense"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "add-expense"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Employment.AddExpense
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> ReqBody '[FormUrlEncoded] Employment.AddExpense
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "submit-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
+                  :> Post '[B.HTML] Pages.EchoPage
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
@@ -157,7 +221,14 @@ serverT conf jwtS root dataDir =
   showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
-    :<|> documentEditProfilePage
+    :<|> documentEditProfilePage dataDir
+    :<|> documentCreateContractPage dataDir
+    :<|> documentEditContractPage dataDir
+    :<|> documentAddExpensePage dataDir
+    :<|> documentEditExpensePage dataDir
+    :<|> documentRemoveExpensePage dataDir
+    :<|> documentConfirmContractPage dataDir
+
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
     :<|> documentUnitPage dataDir
@@ -166,8 +237,18 @@ serverT conf jwtS root dataDir =
     :<|> messageSignupSuccess
     :<|> showState
     :<|> showStateAsJson
+
     :<|> echoLogin
     :<|> echoSignup
+    :<|> echoNewContract dataDir
+    :<|> echoNewContractAndAddExpense dataDir
+    :<|> echoSaveContract dataDir
+    :<|> echoSaveContractAndAddExpense dataDir
+    :<|> echoAddExpense dataDir
+    :<|> echoSaveExpense dataDir
+    :<|> echoRemoveExpense dataDir
+    :<|> echoSubmitContract dataDir
+
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> showLoginPage
@@ -276,7 +357,7 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
-    b <- liftIO $ atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
+    b <- liftIO . atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
                                              _rDb
                                              profile
     profiles <- if b
@@ -299,8 +380,8 @@ documentSignupPage = pure $ Signup.Page "/echo/signup"
 messageSignupSuccess :: ServerC m => m Signup.SignupResultPage
 messageSignupSuccess = pure Signup.SignupSuccess
 
-echoSignup :: ServerC m => User.Signup -> m Signup.ResultPage
-echoSignup input = pure $ Signup.Success $ show input
+echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage
+echoSignup input = pure $ Pages.EchoPage $ show input
 
 
 --------------------------------------------------------------------------------
@@ -325,8 +406,8 @@ showLoginPage = pure $ Login.Page "/a/login"
 documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
-echoLogin :: ServerC m => User.Login -> m Login.ResultPage
-echoLogin = pure . Login.Success . show
+echoLogin :: ServerC m => User.Login -> m Pages.EchoPage
+echoLogin = pure . Pages.EchoPage . show
 
 
 --------------------------------------------------------------------------------
@@ -437,6 +518,9 @@ type Private = H.UserAuthentication :> (
                    :> Get '[B.HTML] Pages.ProfilePage
 
              :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
+             :<|> "new" :> "unit" :> Get '[B.HTML] Pages.CreateUnitPage
+             :<|> "new" :> "contract" :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "new" :> "invoice" :> Get '[B.HTML] Pages.CreateInvoicePage
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
@@ -457,6 +541,9 @@ privateT conf authResult =
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
         :<|> (withUser' showCreateEntityPage)
+        :<|> (withUser' showCreateUnitPage)
+        :<|> (withUser' showCreateContractPage)
+        :<|> (withUser' showCreateInvoicePage)
         :<|> (withUser' . handleUserUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
@@ -486,6 +573,23 @@ showCreateEntityPage
   :: ServerC m => User.UserProfile -> m Pages.CreateEntityPage
 showCreateEntityPage profile =
   pure $ Pages.CreateEntityPage profile "/a/new-entity"
+
+showCreateUnitPage :: ServerC m => User.UserProfile -> m Pages.CreateUnitPage
+showCreateUnitPage profile = pure $ Pages.CreateUnitPage profile "/a/new-unit"
+
+showCreateContractPage
+  :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
+showCreateContractPage profile = pure $ Pages.CreateContractPage
+  profile
+  Nothing
+  Employment.emptyCreateContractAll
+  "/a/new-contract"
+  "/a/new-contract-and-add-expense"
+
+showCreateInvoicePage
+  :: ServerC m => User.UserProfile -> m Pages.CreateInvoicePage
+showCreateInvoicePage profile =
+  pure $ Pages.CreateInvoicePage profile "/a/new-invoice"
 
 
 --------------------------------------------------------------------------------
@@ -528,17 +632,224 @@ handleSetUserEmailAddrAsVerified
 handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) profile
   = do
     db     <- asks Rt._rDb
-    output <- liftIO $ atomically $ Rt.setUserEmailAddrAsVerifiedFull
+    output <- liftIO . atomically $ Rt.setUserEmailAddrAsVerifiedFull
       db
       (profile, username)
     pure $ Pages.ActionResult "Set email address as verified" $ case output of
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
-documentEditProfilePage :: ServerC m => m Pages.ProfilePage
-documentEditProfilePage = do
-  profile <- readJson "data/alice.json"
+documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
+documentEditProfilePage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
   pure $ Pages.ProfilePage profile "/echo/profile"
+
+documentCreateContractPage
+  :: ServerC m => FilePath -> m Pages.CreateContractPage
+documentCreateContractPage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
+  let contractAll = Employment.emptyCreateContractAll
+  pure $ Pages.CreateContractPage profile
+                                  Nothing
+                                  contractAll
+                                  "/echo/new-contract"
+                                  "/echo/new-contract-and-add-expense"
+
+-- | Same as documentCreateContractPage, but use an existing form.
+documentEditContractPage
+  :: ServerC m => FilePath -> Text -> m Pages.CreateContractPage
+documentEditContractPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contractAll -> pure $ Pages.CreateContractPage
+      profile
+      (Just key)
+      contractAll
+      (H.toValue $ "/echo/save-contract/" <> key)
+      (H.toValue $ "/echo/save-contract-and-add-expense/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentAddExpensePage
+  :: ServerC m => FilePath -> Text -> m Pages.AddExpensePage
+documentAddExpensePage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right _ -> pure $ Pages.AddExpensePage
+      profile
+      key
+      Nothing
+      Employment.emptyAddExpense
+      (H.toValue $ "/echo/add-expense/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Same as documentAddExpensePage, but use an existing form.
+documentEditExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.AddExpensePage
+documentEditExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right (Employment.CreateContractAll _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.AddExpensePage
+          profile
+          key
+          (Just index)
+          (expenses !! index)
+          (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show index)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentRemoveExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveExpensePage
+documentRemoveExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right (Employment.CreateContractAll _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.RemoveExpensePage
+          profile
+          key
+          index
+          (expenses !! index)
+          (H.toValue $ "/echo/remove-expense/" <> key <> "/" <> show index)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Save a form, generating a new key.
+echoNewContract
+  :: ServerC m
+  => FilePath
+  -> Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewContract dataDir contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
+  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+
+-- | Save a form, then move to the add expense part.
+echoNewContractAndAddExpense
+  :: ServerC m
+  => FilePath
+  -> Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewContractAndAddExpense dataDir contract = do
+  -- TODO This is the same code, but with a different redirect.
+  profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
+  pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+
+-- | Save a form, re-using a key.
+echoSaveContract
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveContract dataDir key contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+    db
+    (profile, key, contract)
+  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+
+-- | Save a form, re-using a key, then move to the add expense part.
+echoSaveContractAndAddExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.CreateContract
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveContractAndAddExpense dataDir key contract = do
+  -- TODO This is the same code, but with a different redirect.
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+    db
+    (profile, key, contract)
+  pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+
+-- | Save an expense, re-using a key and an index.
+echoSaveExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> Employment.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveExpense dataDir key index expense = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeExpenseToContractForm
+    db
+    (profile, key, index, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+echoRemoveExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoRemoveExpense dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.removeExpenseFromContractForm
+    db
+    (profile, key, index)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+documentConfirmContractPage
+  :: ServerC m => FilePath -> Text -> m Pages.ConfirmContractPage
+documentConfirmContractPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contractAll -> pure $ Pages.ConfirmContractPage
+      profile
+      key
+      contractAll
+      "/echo/submit-contract"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+echoAddExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoAddExpense dataDir key expense = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+echoSubmitContract
+  :: ServerC m => FilePath -> Employment.SubmitContract -> m Pages.EchoPage
+echoSubmitContract dataDir (Employment.SubmitContract key) = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  case output of
+    Right contract -> pure . Pages.EchoPage $ show contract
+    Left  _        -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
@@ -666,11 +977,11 @@ withMaybeUserFromUsername username a f = do
 
 
 --------------------------------------------------------------------------------
-showState :: ServerC m => m Login.ResultPage
+showState :: ServerC m => m Pages.EchoPage
 showState = do
   stmDb <- asks Rt._rDb
   db    <- readFullStmDbInHask stmDb
-  pure . Login.Success $ show db
+  pure . Pages.EchoPage $ show db
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.
@@ -750,10 +1061,9 @@ type WebSocketApi = "ws" :> WebSocket
 
 websocket :: ServerC m => Connection -> m ()
 websocket con =
-  liftIO $ withPingThread con 30 (pure ()) $
-    liftIO . forM_ [1..] $ \i -> do
-      sendTextData con (show (i :: Int) :: Text)
-      threadDelay $ 60 * 1000000 -- 60 seconds
+  liftIO $ withPingThread con 30 (pure ()) $ liftIO . forM_ [1 ..] $ \i -> do
+    sendTextData con (show (i :: Int) :: Text)
+    threadDelay $ 60 * 1000000 -- 60 seconds
 
 
 --------------------------------------------------------------------------------

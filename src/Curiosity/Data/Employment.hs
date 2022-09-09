@@ -5,7 +5,14 @@ Module: Curiosity.Data.Employment
 Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
-  ( Contract(..)
+  ( CreateContractAll(..)
+  , CreateContract(..)
+  , emptyCreateContractAll
+  , emptyCreateContract
+  , AddExpense(..)
+  , emptyAddExpense
+  , SubmitContract(..)
+  , Contract(..)
   , ContractId(..)
   , Err(..)
   ) where
@@ -13,7 +20,68 @@ module Curiosity.Data.Employment
 import qualified Commence.Types.Wrapped        as W
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
-import           Web.FormUrlEncoded             ( FromForm(..) )
+import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseUnique
+                                                )
+
+--------------------------------------------------------------------------------
+-- | This represent a form being filled in. In particular, it can represent
+-- invalid inputs. As it is filled, it is kept in a Map, where it is identified
+-- by a key. The form data are validated when they are "submitted", using the
+-- SubmitContract data type below, and the key.
+data CreateContractAll = CreateContractAll CreateContract [AddExpense]
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+data CreateContract = CreateContract
+  { _createContractProject     :: Text
+  , _createContractPO          :: Text
+  , _createContractRole        :: Text
+  , _createContractType        :: Text
+  , _createContractDescription :: Text
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm CreateContract where
+  fromForm f =
+    CreateContract
+      <$> parseUnique "project"     f
+      <*> parseUnique "po"          f
+      <*> parseUnique "role"        f
+      <*> parseUnique "type"        f
+      <*> parseUnique "description" f
+
+emptyCreateContractAll :: CreateContractAll
+emptyCreateContractAll = CreateContractAll emptyCreateContract []
+
+emptyCreateContract :: CreateContract
+emptyCreateContract = CreateContract { _createContractProject     = ""
+                                     , _createContractPO          = ""
+                                     , _createContractRole        = ""
+                                     , _createContractType        = ""
+                                     , _createContractDescription = ""
+                                     }
+
+data AddExpense = AddExpense
+  { _addExpenseAmount :: Int
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm AddExpense where
+  fromForm f = AddExpense <$> parseUnique "amount" f
+
+emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
+
+data SubmitContract = SubmitContract
+  { _submitContractKey :: Text
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm SubmitContract where
+  fromForm f = SubmitContract <$> parseUnique "key" f
 
 
 --------------------------------------------------------------------------------
@@ -36,4 +104,3 @@ newtype ContractId = ContractId { unContractId :: Text }
 
 data Err = Err
   deriving (Eq, Exception, Show)
-
