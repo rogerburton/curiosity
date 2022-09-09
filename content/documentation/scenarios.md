@@ -6,13 +6,13 @@ title: Curiosity
 
 One the main goal of Curiosity is to precisely describe its behavior in terms
 of test scenarios. To do so, Curiosity supports running scripts: they are
-textual sequences of commands that mimic closly what can be done through the
+textual sequences of commands that mimic closely what can be done through the
 web interface.
 
-As part of its test suite, a collection of scenarios are run and their results
-are compared to known sources of truth, called "golden files". This makes sure
-that, as scenarios are created, and as Curiosity evolves, the system continues
-to work as expected, and few bugs can be introduced inadvertantly.
+As part of Curiosity's test suite, a collection of scenarios are run and their
+results are compared to known sources of truth, called "golden files". This
+makes sure that, as scenarios are created, and as Curiosity evolves, the system
+continues to work as expected, and few bugs can be introduced inadvertantly.
 
 # Example data
 
@@ -25,7 +25,10 @@ A specific set of example data is available with Curiosity, called `state-0`.
 (We envision that additional set of data could be created in the future.)
 
 Note: if you are operating Curiosity yourself, you can initialize Curiosity's
-state by running `cty run scenarios/state-0.txt`.
+state by running `cty run scenarios/state-0.txt`. Here is [an example
+scenario](https://github.com/hypered/curiosity/blob/main/scenarios/0.txt), and
+its [corresponding golden
+file](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden).
 
 # `state-0`
 
@@ -40,6 +43,7 @@ system was initialized.
 ## Users
 
 - [Alice](/alice)
+- [Mila](/mila)
 
 ## Legal entities
 
