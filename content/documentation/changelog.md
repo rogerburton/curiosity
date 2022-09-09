@@ -4,6 +4,84 @@ title: Curiosity
 
 # Changelog
 
+## 2022-09-09
+
+Start "user actions", with the email address to be verified as a first action.
+
+- This change the rather crude homepage to a nicer datagrid (to display user
+  profiles with an email address waiting to be verified).
+- The datagrid has links to let user perform actions.
+- A dedicated page to actually perform the action is added. (This acts as a
+  confirmation page.)
+- See [PR-61](https://github.com/hypered/curiosity/pull/61).
+
+First attempt at creating an EDSL (Embedded domain-specific language). When
+`cty run` was demonstrated, it was asked if it supported `if/then/else`
+statements (it doens't). In the case something more powerful than `cty run` is
+needed, one option would be to offer an EDSL. The "E" means that the "language"
+is provided within a host language, in our case Haskell.
+
+- An example script using the EDSL is [visible in the
+  PR](https://github.com/hypered/curiosity/pull/64/files#diff-e1ec2e690f8583bcd58ec147dcad8962ab1492d6ddc33e6f4fa444a0b9e8c267R61-R76).
+- It might be useful in the future to describe business rules a clearly as
+  possible, while making them computer-readable (and executable).
+- See [PR-64](https://github.com/hypered/curiosity/pull/64).
+
+Add the main concepts of the prototype: legal entities, business units,
+employment contracts, and invoices.
+
+- Add HTML views, with exemple JSON files.
+- Update the documentation to refer to them.
+- Begin a form to create a contract. The state of the form is kept within the
+  server, which allows us to have multiple pages if necessary. This is used
+  here to add/edit/delete expenses as part of the main contract. (The form is not
+  yet complete.)
+- Introduce the idea of a set, called `state-0`, of well-known example objects
+  that can be manipulated by test scenarios. See the
+  [documentation](https://smartcoop.sh/documentation/scenarios).
+- See [PR-63](https://github.com/hypered/curiosity/pull/63),
+  [PR-68](https://github.com/hypered/curiosity/pull/68), and
+  [PR-72](https://github.com/hypered/curiosity/pull/72).
+
+Start to expose some data as UBL (in JSON). An example of legal entity can be
+viewed as a UBL `PartyLegalEntity`.
+
+- The structure of that representation is taken from
+  [issue 39](https://github.com/hypered/curiosity/issues/39).
+- See the example in the
+  [documentation](https://smartcoop.sh/documentation/ubl).
+- See [PR-65](https://github.com/hypered/curiosity/pull/65).
+
+Add [Brotli compression](https://en.wikipedia.org/wiki/Brotli) to Nginx. This
+was done as part of improvements to the [web.dev](https://web.dev/measure/)
+metrics but was not yet merged.
+
+- See [PR-66](https://github.com/hypered/curiosity/pull/66).
+
+Some improvements to the code.
+
+- See [PR-67](https://github.com/hypered/curiosity/pull/67) and
+  [PR-58](https://github.com/hypered/curiosity/pull/58).
+
+An auto-reload mechanism used during development is added.
+
+- When used, a change to the source code causes an open web page to be
+  automatically reloaded.
+- See [PR-69](https://github.com/hypered/curiosity/pull/69).
+
+Improve the `cty` command-line.
+
+- Some features supported by `cty` are now available in `cty run` or `cty repl`
+  and vice versa.
+- In particular, `cty run` supports `run`ning scripts (i.e. a script can call
+  other scripts). This is used in a script to set the system to `state-0`,
+  mentioned above.
+- See [PR-70](https://github.com/hypered/curiosity/pull/70).
+
+Add a script to find broken links on [`smartcoop.sh`](https://smartcoop.sh).
+
+- See [PR-71](https://github.com/hypered/curiosity/pull/71).
+
 ## 2022-08-23
 
 A regular user (by opposition to a system user) is now available in the
@@ -148,7 +226,7 @@ may become obsolete as the project evolves.
   - Setup repositories: `smart-design-hs`, `commence`, and `curiosity` (the
     last one is the main repository, the other are supporting libraries).
   - Buy and setup `smartcoop.sh`.
-  - Rent a VM at DigitalOcean. 
+  - Rent a VM at DigitalOcean.
   - Automate the deployment of `smart-design-hs` to `design.smartcoop.sh`.
   - Scripts to deploy to our virtual machine image to `smartcoop.sh`. See demo
     environment below.
