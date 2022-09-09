@@ -1,2 +1,4 @@
-1: legal create one One,S.A. 100200300 BE0100200300
+1: legal create one One S.A. 100200300 BE0100200300
 Legal entity created: LENT-1
+2: legal update one One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One.
+Legal entity updated: one

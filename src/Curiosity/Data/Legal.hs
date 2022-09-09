@@ -7,6 +7,7 @@ Description: Legal entities related datatypes
 module Curiosity.Data.Legal
   ( Entity(..)
   , Create(..)
+  , Update(..)
   , LegalId(..)
   , RegistrationName(..)
   , Err(..)
@@ -21,6 +22,7 @@ import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseUnique
                                                 )
+import           Web.FormUrlEncoded             ( parseMaybe )
 import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
@@ -41,15 +43,27 @@ instance FromForm Create where
       <*> parseUnique "cbe-number" f
       <*> parseUnique "vat-number" f
 
+-- | Represents the input data to update an entity profile.
+data Update = Update
+  { _updateSlug        :: Text
+  , _updateDescription :: Maybe Text
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromForm Update where
+  fromForm f = Update <$> parseUnique "slug" f <*> parseMaybe "description" f
+
 
 --------------------------------------------------------------------------------
 data Entity = Entity
-  { _entityId        :: LegalId
-  , _entitySlug      :: Text
+  { _entityId          :: LegalId
+  , _entitySlug        :: Text
     -- An identifier suitable for URLs
-  , _entityName      :: RegistrationName
-  , _entityCbeNumber :: CbeNumber
-  , _entityVatNumber :: VatNumber -- TODO Is it really useful to habe both ?
+  , _entityName        :: RegistrationName
+  , _entityCbeNumber   :: CbeNumber
+  , _entityVatNumber   :: VatNumber -- TODO Is it really useful to habe both ?
+  , _entityDescription :: Maybe Text
+    -- Public description. Similar to a user profile bio.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

@@ -27,13 +27,14 @@ instance H.ToMarkup EntityView where
   toMarkup (EntityView mprofile entity hasEditButton) =
     renderView' mprofile $ entityView entity hasEditButton
 
-entityView entity hasEditButton = containerLarge $ do
+entityView entity hasEditButton = containerMedium $ do
   title' "Legal entity" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"                (Legal._entityId entity)
     keyValuePair "Registration name" (Legal._entityName entity)
     keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
     keyValuePair "VAT number"        (Legal._entityVatNumber entity)
+    maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
 
 
 --------------------------------------------------------------------------------

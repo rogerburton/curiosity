@@ -43,6 +43,7 @@ data Command =
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
   | CreateBusinessEntity
   | CreateLegalEntity Legal.Create
+  | UpdateLegalEntity Legal.Update
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -334,11 +335,18 @@ parserCreateBusinessEntity :: A.Parser Command
 parserCreateBusinessEntity = pure CreateBusinessEntity
 
 parserLegal :: A.Parser Command
-parserLegal = A.subparser $ A.command
-  "create"
-  ( A.info (parserCreateLegalEntity <**> A.helper)
-  $ A.progDesc "Create a new legal entity"
-  )
+parserLegal =
+  A.subparser
+    $  A.command
+         "create"
+         ( A.info (parserCreateLegalEntity <**> A.helper)
+         $ A.progDesc "Create a new legal entity"
+         )
+    <> A.command
+         "update"
+         ( A.info (parserUpdateLegalEntity <**> A.helper)
+         $ A.progDesc "Update a legal entity"
+         )
 
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
@@ -355,6 +363,28 @@ parserCreateLegalEntity = do
     A.str
     (A.metavar "VAT-NUMER" <> A.help "VAT number (with prefix and leading zero")
   pure $ CreateLegalEntity $ Legal.Create slug name cbeNumber vatNumber
+
+parserUpdateLegalEntity :: A.Parser Command
+parserUpdateLegalEntity = do
+  slug        <- argumentEntitySlug
+  description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
+  pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
+
+argumentEntityId = Legal.LegalId <$> A.argument A.str metavarEntityId
+
+metavarEntityId = A.metavar "LENT-ID" <> A.completer complete <> A.help
+  "A legal entity ID"
+  where complete = A.mkCompleter . const $ pure ["LENT-", "LENT-1", "LENT-2"]
+        -- TODO I'd like to lookup IDs in the state, but here we don't know
+        -- where the state is (it depends on other command-line options).
+
+argumentEntitySlug = A.argument A.str metavarEntitySlug
+
+metavarEntitySlug = A.metavar "SLUG" <> A.completer complete <> A.help
+  "A legal entity slug"
+  where complete = A.mkCompleter . const $ pure ["one", "two", "three"]
+        -- TODO I'd like to lookup slugs in the state, but here we don't
+        -- know where the state is (it depends on other command-line options).
 
 parserUser :: A.Parser Command
 parserUser = A.subparser

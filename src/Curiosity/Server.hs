@@ -988,7 +988,7 @@ withMaybeEntityFromName
   -> (Legal.Entity -> m a)
   -> m a
 withMaybeEntityFromName name a f = do
-  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityByName . Rt._rDb) name
+  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlug . Rt._rDb) name
   maybe (a name) f mentity
 
 

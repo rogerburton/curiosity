@@ -30,7 +30,7 @@ module Curiosity.Runtime
   , createUser
   , checkCredentials
   -- * High-level entity operations
-  , selectEntityByName
+  , selectEntityBySlug
   -- * Form edition
   , newCreateContractForm
   , readCreateContractForm
@@ -286,6 +286,20 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Legal entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntity input -> do
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateLegal
+        _rDb
+        input
+      case output of
+        Right mid -> do
+          case mid of
+            Right () -> do
+              pure
+                ( ExitSuccess
+                , ["Legal entity updated: " <> Legal._updateSlug input]
+                )
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createUser
         _rDb
@@ -330,11 +344,11 @@ handleCommand runtime@Runtime {..} user command = do
                     User.UserName n = User._userCredsName _userProfileCreds
                 in  i <> " " <> n
           pure (ExitSuccess, map f profiles)
-    Command.UpdateUser update -> do
+    Command.UpdateUser input -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
           _rDb
-          update
+          input
       pure (ExitSuccess, [show output])
     Command.SetUserEmailAddrAsVerified username -> do
       output <-
@@ -489,6 +503,7 @@ createLegal db Legal.Create {..} = do
                            _createName
                            _createCbeNumber
                            _createVatNumber
+                           Nothing
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -499,6 +514,20 @@ createLegalFull
 createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
+
+updateLegal db Legal.Update {..} = do
+  mentity <- selectEntityBySlug db _updateSlug
+  case mentity of
+    Just Legal.Entity {..} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == _updateSlug
+                then e { Legal._entityDescription = _updateDescription }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.LegalId
 generateLegalId Data.Db {..} =
@@ -838,9 +867,9 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
 
 userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
-selectEntityByName
+selectEntityBySlug
   :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Legal.Entity)
-selectEntityByName db name = do
+selectEntityBySlug db name = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Legal._entitySlug) records
