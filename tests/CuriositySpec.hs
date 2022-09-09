@@ -4,6 +4,7 @@ module CuriositySpec
 
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
@@ -46,6 +47,17 @@ spec = do
     mapM_
       go
       [ ("one.json"  , "one")
+      ]
+
+  -- Same here.
+  describe "Business unit JSON parser" $ do
+    let go (filename, slug) = it ("Parses " <> filename) $ do
+          Right (result :: Business.Entity) <- parseFile $ "data/" </> filename
+          Business._entitySlug result
+            `shouldBe` slug
+    mapM_
+      go
+      [ ("alpha.json", "alpha")
       ]
 
   -- TODO Check that all the files in data/ are in one of the above lists.
