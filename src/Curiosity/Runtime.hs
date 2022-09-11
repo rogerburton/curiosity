@@ -67,6 +67,8 @@ import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Map                      as M
 import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as TE
+import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
 import qualified Language.Haskell.TH.Syntax    as Syntax
 import qualified Network.HTTP.Types            as HTTP
@@ -123,12 +125,25 @@ boot
   :: MonadIO m
   => Command.Conf -- ^ configuration to boot with.
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf = do
-  _rLoggers <- ML.makeDefaultLoggersWithConf $ _rConf ^. Command.confLogging
-  eDb       <- instantiateDb _rConf
-  pure $ case eDb of
-    Left  err  -> Left err
-    Right _rDb -> Right Runtime { .. }
+boot _rConf =
+  liftIO
+      (  try @SomeException
+      .  ML.makeDefaultLoggersWithConf
+      $  _rConf
+      ^. Command.confLogging
+      )
+    >>= \case
+          Left loggerErrs ->
+            putStrLn @Text
+                (  "Cannot instantiate, logger instantiation failed: "
+                <> show loggerErrs
+                )
+              $> Left (Errs.RuntimeException loggerErrs)
+          Right _rLoggers -> do
+            eDb <- instantiateDb _rConf
+            pure $ case eDb of
+              Left  err  -> Left err
+              Right _rDb -> Right Runtime { .. }
 
 -- | Create a runtime from a given state.
 boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
@@ -147,9 +162,23 @@ reset runtime = do
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
 powerdown runtime@Runtime {..} = do
   mDbSaveErr <- saveDb runtime
+  reportDbSaveErr mDbSaveErr
   -- finally, close loggers.
-  ML.flushAndCloseLoggers _rLoggers
-  pure mDbSaveErr
+  eLoggingCloseErrs <- liftIO . try @SomeException $ ML.flushAndCloseLoggers
+    _rLoggers
+  reportLoggingCloseErrs eLoggingCloseErrs
+  pure $ mDbSaveErr <|> first Errs.RuntimeException eLoggingCloseErrs ^? _Left
+ where
+  reportLoggingCloseErrs eLoggingCloseErrs =
+    when (isLeft eLoggingCloseErrs)
+      .  putStrLn @Text
+      $  "Errors when closing loggers: "
+      <> show eLoggingCloseErrs
+  reportDbSaveErr mDbSaveErr =
+    when (isJust mDbSaveErr)
+      .  putStrLn @Text
+      $  "DB state cannot be saved: "
+      <> show mDbSaveErr
 
 saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
 saveDb runtime =
@@ -159,7 +188,8 @@ saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
 saveDbAs runtime fpath = do
   haskDb <- Data.readFullStmDbInHask $ _rDb runtime
   let bs = Data.serialiseDb haskDb
-  liftIO (try @SomeException (BS.writeFile fpath bs))
+  liftIO
+      (try @SomeException (T.writeFile fpath . TE.decodeUtf8 $ BS.toStrict bs))
     <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 {- | Instantiate the db.
@@ -186,16 +216,20 @@ readDb mpath = case mpath of
   Just fpath -> do
     -- We may want to read the file only when the file exists.
     exists <- liftIO $ doesFileExist fpath
-    if (exists) then fromFile fpath else useEmpty
+    if exists then fromFile fpath else useEmpty
   Nothing -> useEmpty
  where
-  fromFile fpath = do
-    fdata <- liftIO (BS.readFile fpath)
-    -- We may want to deserialise the data only when the data is non-empty.
-    if BS.null fdata
+  fromFile fpath = liftIO (try @SomeException $ T.readFile fpath) >>= \case
+    Left err ->
+      putStrLn @Text ("Unable to read db file: " <> maybe "" T.pack mpath)
+        $> Left (Errs.RuntimeException err)
+    Right fdata ->
+           -- We may want to deserialise the data only when the data is non-empty.
+                   if T.null fdata
       then useEmpty
       else
-        Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
+        Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
+          & either (pure . Left . Errs.knownErr) useState
   useEmpty = Right <$> Data.instantiateEmptyStmDb
   useState = fmap Right . Data.instantiateStmDb
 
@@ -217,8 +251,9 @@ readDbSafe mpath = case mpath of
   Nothing -> useEmpty
  where
   fromFile fpath = do
-    fdata <- liftIO (BS.readFile fpath)
-    Data.deserialiseDb fdata & either (pure . Left . Errs.knownErr) useState
+    fdata <- liftIO (T.readFile fpath)
+    Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
+      & either (pure . Left . Errs.knownErr) useState
   useEmpty = Right <$> Data.instantiateEmptyStmDb
   useState = fmap Right . Data.instantiateStmDb
 
@@ -233,7 +268,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in
+  in 
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
