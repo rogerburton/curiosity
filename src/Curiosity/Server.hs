@@ -66,6 +66,8 @@ import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
 import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
+import qualified Servant.Auth.Server.Internal.Cookie
+                                               as SAuth.Cookie
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
@@ -273,7 +275,7 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> serveData dataDir
     :<|> serveUBL dataDir
     :<|> serveErrors
-    :<|> serveAnyNamespace natTrans ctx root -- serveNamespace' root "alice"
+    :<|> serveAnyNamespace natTrans ctx jwtS conf root -- serveNamespace' root "alice"
     :<|> serveNamespace "mila"
     :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
@@ -1122,32 +1124,40 @@ serveAnyNamespace
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
   -> Server.Context ServerSettings
+  -> SAuth.JWTSettings
+  -> Command.ServerConf
   -> FilePath
   -> Text
   -> Tagged m Application
-serveAnyNamespace natTrans ctx root name = Tagged $ \req sendRes ->
-  let authRes =
-        -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
-        SAuth.runAuthCheck (undefined :: SAuth.AuthCheck User.UserId) req
-     -- try getting the user from the username. 
-      tryNamespace =
-        Server.runHandler . natTrans $ serveNamespace name =<< liftIO authRes
+serveAnyNamespace natTrans ctx jwtSettings Command.ServerConf {..} root name =
+  Tagged $ \req sendRes ->
+    let authRes =
+          -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
+          SAuth.runAuthCheck cookieAuthCheck req
+       -- try getting the user from the username. 
+        tryNamespace =
+          Server.runHandler . natTrans $ serveNamespace name =<< liftIO authRes
 
-      namespaceServerT = serveNamespace @m name
-      namespaceApplication =
-        Server.serveWithContext (Proxy @NamespaceAPI) ctx
-          . hoistServerWithContext (Proxy @NamespaceAPI) settingsProxy natTrans
-          $ namespaceServerT
-  in 
-  -- now we are in IO 
-      tryNamespace >>= \case
-      -- No such user: try to serve documentation.
-      -- We ignore server errors for now.
-        Left _ ->
-          -- unpack the documentation `Application` from `Data.Tagged` and apply it to our request and response send function.
-          let Tagged docApp = serveDocumentation @m root in docApp req sendRes
-        -- User found, use the namespace application.
-        Right _ -> namespaceApplication req sendRes
+        namespaceServerT = serveNamespace @m name
+        namespaceApplication =
+          Server.serveWithContext (Proxy @NamespaceAPI) ctx
+            . hoistServerWithContext (Proxy @NamespaceAPI)
+                                     settingsProxy
+                                     natTrans
+            $ namespaceServerT
+    in 
+    -- now we are in IO 
+        tryNamespace >>= \case
+        -- No such user: try to serve documentation.
+        -- We ignore server errors for now.
+          Left _ ->
+            -- unpack the documentation `Application` from `Data.Tagged` and apply it to our request and response send function.
+            let Tagged docApp = serveDocumentation @m root
+            in  docApp req sendRes
+          -- User found, use the namespace application.
+          Right _ -> namespaceApplication req sendRes
+ where
+  cookieAuthCheck = SAuth.Cookie.cookieAuthCheck _serverCookie jwtSettings
 
 
 serveNamespaceDocumentation
