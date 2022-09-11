@@ -17,6 +17,7 @@ import qualified Commence.Multilogging         as ML
 import           Control.Lens                  as Lens
 import qualified Control.Monad.Log             as L
 import qualified Crypto.JOSE.JWK               as JWK
+import qualified Data.ByteString               as BS
 import qualified Options.Applicative           as A
 import qualified Servant.Auth.Server           as SAuth
 import qualified System.Log.FastLogger         as FL
@@ -75,8 +76,10 @@ defaultLoggingConf :: ML.LoggingConf
 defaultLoggingConf = mkLoggingConf "./curiosity.log"
 
 mkLoggingConf :: FilePath -> ML.LoggingConf
-mkLoggingConf path =
-  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
+mkLoggingConf path = ML.LoggingConf [FL.LogCallback writeStr (pure ())]
+                                    "Curiosity"
+                                    L.levelInfo
+  where writeStr = withFile path AppendMode . flip BS.hPutStr . FL.fromLogStr
 
 flspec :: FilePath -> FL.FileLogSpec
 flspec path = FL.FileLogSpec path 5000 0
@@ -85,13 +88,10 @@ flspec path = FL.FileLogSpec path 5000 0
 --------------------------------------------------------------------------------
 confParser :: A.Parser Conf
 confParser = do
-  _confDbFile <- dbFileParser
+  _confDbFile  <- dbFileParser
   _confLogFile <- A.strOption
-    (  A.long "log"
-    <> A.value "./curiosity.log"
-    <> A.metavar "PATH"
-    <> A.help
-         "A file where to write logs."
+    (A.long "log" <> A.value "./curiosity.log" <> A.metavar "PATH" <> A.help
+      "A file where to write logs."
     )
   pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
