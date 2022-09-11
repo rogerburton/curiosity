@@ -1136,7 +1136,7 @@ serveAnyNamespace natTrans ctx root name = Tagged $ \req sendRes ->
       namespaceServerT = serveNamespace @m name
       namespaceApplication =
         Server.serveWithContext (Proxy @NamespaceAPI) ctx
-          $ hoistServerWithContext (Proxy @NamespaceAPI) settingsProxy natTrans
+          . hoistServerWithContext (Proxy @NamespaceAPI) settingsProxy natTrans
           $ namespaceServerT
   in 
   -- now we are in IO 
@@ -1149,19 +1149,6 @@ serveAnyNamespace natTrans ctx root name = Tagged $ \req sendRes ->
         -- User found, use the namespace application.
         Right _ -> namespaceApplication req sendRes
 
--- Serve a namespace profile if the username exists, or serve static files.
-serveNamespace'
-  :: ServerC m
-  => FilePath
-  -> User.UserName
-  -> SAuth.AuthResult User.UserId
-  -> m Application -- Tagged m Application
-serveNamespace' root username = undefined -- withMaybeUserFromUsername
-  -- username
-  -- (\username -> serveDocumentation root)
-  -- (\profile -> serveDocumentation root)
-  -- -- ^^^ Must be replaced by
-  -- -- (\profile -> someFunction $ Pages.PublicProfileView profile)
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
