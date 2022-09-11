@@ -67,8 +67,8 @@ import           Servant                 hiding ( serve )
 import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.HTML.Blaze            as B
-import qualified Servant.Server                as Server
 import           Servant.RawM.Server            ( RawM )
+import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import           System.FilePath                ( (</>) )
@@ -204,7 +204,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
              -- TODO Make a single handler for any namespace:
-             :<|> "alice"  :> H.UserAuthentication
+             :<|> Capture "path" Text
                   :> RawM
                   -- Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
              :<|> "mila"   :> H.UserAuthentication
@@ -270,7 +270,7 @@ serverT conf jwtS root dataDir =
     :<|> serveData dataDir
     :<|> serveUBL dataDir
     :<|> serveErrors
-    :<|> serveNamespace' root "alice"
+    :<|> undefined -- serveNamespace' root "alice"
     :<|> serveNamespace "mila"
     :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
@@ -1114,13 +1114,18 @@ serveNamespace name authResult = withMaybeUserFromUsername
     )
 
 -- Serve a namespace profile if the username exists, or serve static files.
-serveNamespace' :: ServerC m => FilePath -> User.UserName -> Tagged m Application
-serveNamespace' root username = withMaybeUserFromUsername
-  username
-  (\username -> serveDocumentation root)
-  (\profile -> serveDocumentation root)
-  -- ^^^ Must be replaced by
-  -- (\profile -> someFunction $ Pages.PublicProfileView profile)
+serveNamespace'
+  :: ServerC m
+  => FilePath
+  -> User.UserName
+  -> SAuth.AuthResult User.UserId
+  -> m Application -- Tagged m Application
+serveNamespace' root username = undefined -- withMaybeUserFromUsername
+  -- username
+  -- (\username -> serveDocumentation root)
+  -- (\profile -> serveDocumentation root)
+  -- -- ^^^ Must be replaced by
+  -- -- (\profile -> someFunction $ Pages.PublicProfileView profile)
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
