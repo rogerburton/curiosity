@@ -206,10 +206,8 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Capture "path" Text
                   :> Raw
                   -- Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
-             :<|> "mila"   :> H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
-             :<|> "alpha"  :> H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+             :<|> "mila"   :> NamespaceAPI
+             :<|> "alpha"  :> NamespaceAPI
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
@@ -218,17 +216,22 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Raw -- Catchall for static files (documentation)
                       -- and for a custom 404
 
+-- brittany-disable-next-binding 
+type NamespaceAPI = H.UserAuthentication
+                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+
 -- | This is the main Servant server definition, corresponding to @App@.
 serverT
   :: forall m
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
+  -> Server.Context ServerSettings
   -> Command.ServerConf
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
   -> ServerT App m
-serverT natTrans conf jwtS root dataDir =
+serverT natTrans ctx conf jwtS root dataDir =
   showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -270,7 +273,7 @@ serverT natTrans conf jwtS root dataDir =
     :<|> serveData dataDir
     :<|> serveUBL dataDir
     :<|> serveErrors
-    :<|> serveAnyNamespace natTrans root -- serveNamespace' root "alice"
+    :<|> serveAnyNamespace natTrans ctx root -- serveNamespace' root "alice"
     :<|> serveNamespace "mila"
     :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
@@ -339,10 +342,10 @@ serve
 serve handlerNatTrans conf ctx jwtS root dataDir =
   Servant.serveWithContext appProxy ctx
     $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
-    $ serverT handlerNatTrans conf jwtS root dataDir
- where
-  appProxy      = Proxy @App
-  settingsProxy = Proxy @ServerSettings
+    $ serverT handlerNatTrans ctx conf jwtS root dataDir
+
+appProxy = Proxy @App
+settingsProxy = Proxy @ServerSettings
 
 routingLayout :: forall m . MonadIO m => m Text
 routingLayout = do
@@ -1118,26 +1121,33 @@ serveAnyNamespace
   :: forall m
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
+  -> Server.Context ServerSettings
   -> FilePath
   -> Text
   -> Tagged m Application
-serveAnyNamespace natTrans root name = Tagged $ \req sendRes ->
+serveAnyNamespace natTrans ctx root name = Tagged $ \req sendRes ->
   let authRes =
+        -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
         SAuth.runAuthCheck (undefined :: SAuth.AuthCheck User.UserId) req
      -- try getting the user from the username. 
-      tryUsername = Server.runHandler . natTrans $ withUserFromUsername @m
-        (User.UserName name)
-        pure
+      tryNamespace =
+        Server.runHandler . natTrans $ serveNamespace name =<< liftIO authRes
+
+      namespaceServerT = serveNamespace @m name
+      namespaceApplication =
+        Server.serveWithContext (Proxy @NamespaceAPI) ctx
+          $ hoistServerWithContext (Proxy @NamespaceAPI) settingsProxy natTrans
+          $ namespaceServerT
   in 
   -- now we are in IO 
-      tryUsername >>= \case
+      tryNamespace >>= \case
       -- No such user: try to serve documentation.
       -- We ignore server errors for now.
         Left _ ->
           -- unpack the documentation `Application` from `Data.Tagged` and apply it to our request and response send function.
           let Tagged docApp = serveDocumentation @m root in docApp req sendRes
-        -- User found, convert to raw. 
-        Right user -> undefined
+        -- User found, use the namespace application.
+        Right _ -> namespaceApplication req sendRes
 
 -- Serve a namespace profile if the username exists, or serve static files.
 serveNamespace'
