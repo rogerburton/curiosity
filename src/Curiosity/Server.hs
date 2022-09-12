@@ -1149,11 +1149,15 @@ serveAnyNamespace natTrans ctx jwtSettings Command.ServerConf {..} root name =
     -- now we are in IO 
         tryNamespace >>= \case
         -- No such user: try to serve documentation.
-        -- We ignore server errors for now.
+        -- We ignore server errors for now. TODO Do this only for 404.
           Left _ ->
-            -- unpack the documentation `Application` from `Data.Tagged` and apply it to our request and response send function.
+            -- Unpack the documentation `Application` from `Data.Tagged` and
+            -- apply it to our request and response send function. The captured
+            -- name is put back into the pathInfo so that serveDocumentation
+            -- truly acts form `/`.
             let Tagged docApp = serveDocumentation @m root
-            in  docApp req sendRes
+                req'= req { Wai.pathInfo = name : Wai.pathInfo req }
+            in  docApp req' sendRes
           -- User found, use the namespace application.
           Right _ -> namespaceApplication req sendRes
  where
