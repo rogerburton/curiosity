@@ -21,6 +21,7 @@ module Curiosity.Data
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
+  , deserialiseDbStrict
   -- * Pseudo-random number generation.
   , genRandomText
   , readStdGen
@@ -234,6 +235,10 @@ deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
 deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
 {-# INLINE deserialiseDb #-}
 
+-- | Read an entire db state from bytes.
+deserialiseDbStrict :: forall runtime . ByteString -> Either DbErr (HaskDb runtime)
+deserialiseDbStrict = first (DbDecodeFailed . T.pack) . eitherDecodeStrict 
+{-# INLINE deserialiseDbStrict #-}
 
 --------------------------------------------------------------------------------
 -- We use System.Random.Internal and Sytem.Random.SplitMix to be able to keep

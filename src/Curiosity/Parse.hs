@@ -75,23 +75,22 @@ defaultLoggingConf :: ML.LoggingConf
 defaultLoggingConf = mkLoggingConf "./curiosity.log"
 
 mkLoggingConf :: FilePath -> ML.LoggingConf
-mkLoggingConf path =
-  ML.LoggingConf [FL.LogFile (flspec path) 1024] "Curiosity" L.levelInfo
+mkLoggingConf path = ML.LoggingConf [FL.LogFile (flspec path) 1024]
+                                    "Curiosity"
+                                    L.levelInfo
 
 flspec :: FilePath -> FL.FileLogSpec
-flspec path = FL.FileLogSpec path 5000 0
+flspec path = FL.FileLogSpec path (1024 * 1024) 10
+  -- 1MB, or about 5240 200-character lines, and keeping 10 rotated files.
 
 
 --------------------------------------------------------------------------------
 confParser :: A.Parser Conf
 confParser = do
-  _confDbFile <- dbFileParser
+  _confDbFile  <- dbFileParser
   _confLogFile <- A.strOption
-    (  A.long "log"
-    <> A.value "./curiosity.log"
-    <> A.metavar "PATH"
-    <> A.help
-         "A file where to write logs."
+    (A.long "log" <> A.value "./curiosity.log" <> A.metavar "PATH" <> A.help
+      "A file where to write logs."
     )
   pure Conf {
       -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
