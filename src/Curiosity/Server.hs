@@ -274,7 +274,7 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> serveNamespaceDocumentation "alice"
     :<|> serveEntity
     :<|> websocket
-    :<|> serveAnyNamespace natTrans ctx jwtS conf root
+    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
 
 
 --------------------------------------------------------------------------------
@@ -1112,7 +1112,10 @@ serveNamespace name authResult = withMaybeUserFromUsername
       pure . SS.P.PageL $ Pages.PublicProfileView (Just profile) targetProfile
     )
 
-serveAnyNamespace
+-- | This try to serve a namespace profile (i.e. a user profile or a business
+-- unit profile). If such profile can't be found, this falls back to serving
+-- static assets (including documentation pages).
+serveNamespaceOrStatic
   :: forall m
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
@@ -1122,7 +1125,7 @@ serveAnyNamespace
   -> FilePath
   -> Text
   -> Tagged m Application
-serveAnyNamespace natTrans ctx jwtSettings Command.ServerConf {..} root name =
+serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name =
   Tagged $ \req sendRes ->
     let authRes =
           -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
@@ -1155,7 +1158,6 @@ serveAnyNamespace natTrans ctx jwtSettings Command.ServerConf {..} root name =
           Right _ -> namespaceApplication req sendRes
  where
   cookieAuthCheck = SAuth.Cookie.cookieAuthCheck _serverCookie jwtSettings
-
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
