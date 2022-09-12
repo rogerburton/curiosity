@@ -214,9 +214,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              -- business unit are found.
              :<|> Capture "namespace" Text :> Raw
 
--- brittany-disable-next-binding 
-type NamespaceAPI = H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+-- brittany-disable-next-binding
+type NamespaceAPI = Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+
 
 -- | This is the main Servant server definition, corresponding to @App@.
 serverT
@@ -1130,19 +1130,19 @@ serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root nam
     let authRes =
           -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
           SAuth.runAuthCheck cookieAuthCheck req
-       -- try getting the user from the username. 
+
+        -- Try getting a user or business unit profile from the namespace.
         tryNamespace =
           Server.runHandler . natTrans $ serveNamespace name =<< liftIO authRes
 
-        namespaceServerT = serveNamespace @m name
-        namespaceApplication =
+        pureApplication res =
           Server.serveWithContext (Proxy @NamespaceAPI) ctx
             . hoistServerWithContext (Proxy @NamespaceAPI)
                                      settingsProxy
                                      natTrans
-            $ namespaceServerT
-    in 
-    -- now we are in IO 
+            $ pure res
+    in
+    -- now we are in IO
         tryNamespace >>= \case
         -- No such user: try to serve documentation.
         -- We ignore server errors for now. TODO Do this only for 404.
@@ -1154,8 +1154,8 @@ serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root nam
             let Tagged docApp = serveDocumentation @m root
                 req'= req { Wai.pathInfo = name : Wai.pathInfo req }
             in  docApp req' sendRes
-          -- User found, use the namespace application.
-          Right _ -> namespaceApplication req sendRes
+          -- User or unit found, return it.
+          Right res -> pureApplication res req sendRes
  where
   cookieAuthCheck = SAuth.Cookie.cookieAuthCheck _serverCookie jwtSettings
 
