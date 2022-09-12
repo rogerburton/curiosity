@@ -66,6 +66,8 @@ import           Prelude                 hiding ( Handler )
 import           Servant                 hiding ( serve )
 import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
+import qualified Servant.Auth.Server.Internal.Cookie
+                                               as SAuth.Cookie
 import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
@@ -202,31 +204,32 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "ubl" :> Capture "schema" Text
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
-             -- TODO Make a single handler for any namespace:
-             :<|> "alice"  :> H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
-             :<|> "mila"   :> H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
-             :<|> "alpha"  :> H.UserAuthentication
-                  :> Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
                   :> Get '[B.HTML] Pages.EntityView
              :<|> WebSocketApi
-             :<|> Raw -- Catchall for static files (documentation)
-                      -- and for a custom 404
+             -- Catchall for user profiles and business units. This also serves
+             -- static files (documentation), and a custom 404 when no user or
+             -- business unit are found.
+             :<|> Capture "namespace" Text :> Raw
+
+-- brittany-disable-next-binding
+type NamespaceAPI = Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+
 
 -- | This is the main Servant server definition, corresponding to @App@.
 serverT
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
+  -> Server.Context ServerSettings
+  -> Command.ServerConf
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
   -> ServerT App m
-serverT conf jwtS root dataDir =
+serverT natTrans ctx conf jwtS root dataDir =
   showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -268,13 +271,10 @@ serverT conf jwtS root dataDir =
     :<|> serveData dataDir
     :<|> serveUBL dataDir
     :<|> serveErrors
-    :<|> serveNamespace "alice"
-    :<|> serveNamespace "mila"
-    :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
     :<|> serveEntity
     :<|> websocket
-    :<|> serveDocumentation root
+    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
 
 
 --------------------------------------------------------------------------------
@@ -337,15 +337,15 @@ serve
 serve handlerNatTrans conf ctx jwtS root dataDir =
   Servant.serveWithContext appProxy ctx
     $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
-    $ serverT conf jwtS root dataDir
- where
-  appProxy      = Proxy @App
-  settingsProxy = Proxy @ServerSettings
+    $ serverT handlerNatTrans ctx conf jwtS root dataDir
+
+appProxy = Proxy @App
+settingsProxy = Proxy @ServerSettings
 
 routingLayout :: forall m . MonadIO m => m Text
 routingLayout = do
   let Command.ServerConf {..} = Command.defaultServerConf
-  jwk <- liftIO $ SAuth.generateKey
+  jwk <- liftIO SAuth.generateKey
   let jwtSettings = _serverMkJwtSettings jwk
   let ctx =
         _serverCookie
@@ -549,7 +549,8 @@ type Private = H.UserAuthentication :> (
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
 privateT conf authResult =
-  let withUser' :: forall m a . ServerC m => (User.UserProfile -> m a) -> m a
+  let withUser'
+        :: forall m' a . ServerC m' => (User.UserProfile -> m' a) -> m' a
       withUser' = withUser authResult
   in  (withUser' showProfilePage)
         :<|> (withUser' showProfileAsJson)
@@ -1046,7 +1047,7 @@ showStateAsJson = do
 --------------------------------------------------------------------------------
 -- | Serve the static files for the documentation. This also provides a custom
 -- 404 fallback.
--- serveDocumentation :: FilePath -> Tagged m Application
+serveDocumentation :: ServerC m => FilePath -> Tagged m Application
 serveDocumentation root = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings root)
@@ -1110,6 +1111,53 @@ serveNamespace name authResult = withMaybeUserFromUsername
     (\profile ->
       pure . SS.P.PageL $ Pages.PublicProfileView (Just profile) targetProfile
     )
+
+-- | This try to serve a namespace profile (i.e. a user profile or a business
+-- unit profile). If such profile can't be found, this falls back to serving
+-- static assets (including documentation pages).
+serveNamespaceOrStatic
+  :: forall m
+   . ServerC m
+  => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
+  -> Server.Context ServerSettings
+  -> SAuth.JWTSettings
+  -> Command.ServerConf
+  -> FilePath
+  -> Text
+  -> Tagged m Application
+serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name =
+  Tagged $ \req sendRes ->
+    let authRes =
+          -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
+          SAuth.runAuthCheck cookieAuthCheck req
+
+        -- Try getting a user or business unit profile from the namespace.
+        tryNamespace =
+          Server.runHandler . natTrans $ serveNamespace name =<< liftIO authRes
+
+        pureApplication res =
+          Server.serveWithContext (Proxy @NamespaceAPI) ctx
+            . hoistServerWithContext (Proxy @NamespaceAPI)
+                                     settingsProxy
+                                     natTrans
+            $ pure res
+    in
+    -- now we are in IO
+        tryNamespace >>= \case
+        -- No such user: try to serve documentation.
+        -- We ignore server errors for now. TODO Do this only for 404.
+          Left _ ->
+            -- Unpack the documentation `Application` from `Data.Tagged` and
+            -- apply it to our request and response send function. The captured
+            -- name is put back into the pathInfo so that serveDocumentation
+            -- truly acts form `/`.
+            let Tagged docApp = serveDocumentation @m root
+                req'= req { Wai.pathInfo = name : Wai.pathInfo req }
+            in  docApp req' sendRes
+          -- User or unit found, return it.
+          Right res -> pureApplication res req sendRes
+ where
+  cookieAuthCheck = SAuth.Cookie.cookieAuthCheck _serverCookie jwtSettings
 
 serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
