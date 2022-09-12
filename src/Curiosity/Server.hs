@@ -204,19 +204,15 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "ubl" :> Capture "schema" Text
                   :> Capture "filename" FilePath :> Get '[JSON] Value
              :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
-             -- TODO Make a single handler for any namespace:
-             :<|> Capture "path" Text
-                  :> Raw
-                  -- Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
-             :<|> "mila"   :> NamespaceAPI
-             :<|> "alpha"  :> NamespaceAPI
              :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
                   :> Get '[B.HTML] Pages.EntityView
              :<|> WebSocketApi
-             :<|> Raw -- Catchall for static files (documentation)
-                      -- and for a custom 404
+             -- Catchall for user profiles and business units. This also serves
+             -- static files (documentation), and a custom 404 when no user or
+             -- business unit are found.
+             :<|> Capture "namespace" Text :> Raw
 
 -- brittany-disable-next-binding 
 type NamespaceAPI = H.UserAuthentication
@@ -275,13 +271,10 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> serveData dataDir
     :<|> serveUBL dataDir
     :<|> serveErrors
-    :<|> serveAnyNamespace natTrans ctx jwtS conf root -- serveNamespace' root "alice"
-    :<|> serveNamespace "mila"
-    :<|> serveNamespace "alpha"
     :<|> serveNamespaceDocumentation "alice"
     :<|> serveEntity
     :<|> websocket
-    :<|> serveDocumentation root
+    :<|> serveAnyNamespace natTrans ctx jwtS conf root
 
 
 --------------------------------------------------------------------------------
