@@ -4,6 +4,19 @@ title: Curiosity
 
 # Changelog
 
+## 2022-09-12
+
+Any user or business unit has a public profile page visible at `/username` or
+`/unitname`. The code was mostly done in the past, but it was difficult to
+combine it with serving the static assets or documentation. This is now done.
+[PR-73](See https://github.com/hypered/curiosity/pull/73).
+
+A long-standing issue related to the log file was resolved. It appeared when
+the log file was supposed to be rotated (after growing past some limit), but
+the number of rotated log files to be kept was set to zero. Increasing that
+number solved the problem. See
+[PR-74](https://github.com/hypered/curiosity/pull/74).
+
 ## 2022-09-09
 
 Start "user actions", with the email address to be verified as a first action.
