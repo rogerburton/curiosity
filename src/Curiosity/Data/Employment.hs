@@ -6,10 +6,12 @@ Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
   ( CreateContractAll(..)
+  , CreateContractAll'(..)
   , CreateContractGenInfo(..)
+  , CreateContractLocDates(..)
+  , AddExpense(..)
   , emptyCreateContractAll
   , emptyCreateContractGenInfo
-  , AddExpense(..)
   , emptyAddExpense
   , SubmitContract(..)
   , Contract(..)
@@ -29,9 +31,22 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- invalid inputs. As it is filled, it is kept in a Map, where it is identified
 -- by a key. The form data are validated when they are "submitted", using the
 -- SubmitContract data type below, and the key.
-data CreateContractAll = CreateContractAll CreateContractGenInfo [AddExpense]
+data CreateContractAll = CreateContractAll CreateContractGenInfo
+                                           CreateContractLocDates
+                                           [AddExpense]
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
+
+-- | Same as above, but without the expenses. This is used to group together
+-- the main panels into a `FromForm` instance. Simply leaving out the expenses
+-- would also work but be less explicit.
+data CreateContractAll' = CreateContractAll' CreateContractGenInfo
+                                             CreateContractLocDates
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm CreateContractAll' where
+  fromForm f = CreateContractAll' <$> fromForm f <*> fromForm f
 
 data CreateContractGenInfo = CreateContractGenInfo
   { _createContractProject     :: Text
@@ -52,16 +67,12 @@ instance FromForm CreateContractGenInfo where
       <*> parseUnique "type"        f
       <*> parseUnique "description" f
 
-emptyCreateContractAll :: CreateContractAll
-emptyCreateContractAll = CreateContractAll emptyCreateContractGenInfo []
+data CreateContractLocDates = CreateContractLocDates
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
 
-emptyCreateContractGenInfo :: CreateContractGenInfo
-emptyCreateContractGenInfo = CreateContractGenInfo { _createContractProject     = ""
-                                     , _createContractPO          = ""
-                                     , _createContractRole        = ""
-                                     , _createContractType        = ""
-                                     , _createContractDescription = ""
-                                     }
+instance FromForm CreateContractLocDates where
+  fromForm f = pure CreateContractLocDates
 
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
@@ -72,6 +83,23 @@ data AddExpense = AddExpense
 instance FromForm AddExpense where
   fromForm f = AddExpense <$> parseUnique "amount" f
 
+emptyCreateContractAll :: CreateContractAll
+emptyCreateContractAll =
+  CreateContractAll emptyCreateContractGenInfo emptyCreateContractLocDates []
+
+emptyCreateContractGenInfo :: CreateContractGenInfo
+emptyCreateContractGenInfo = CreateContractGenInfo
+  { _createContractProject     = ""
+  , _createContractPO          = ""
+  , _createContractRole        = ""
+  , _createContractType        = ""
+  , _createContractDescription = ""
+  }
+
+emptyCreateContractLocDates :: CreateContractLocDates
+emptyCreateContractLocDates = CreateContractLocDates
+
+emptyAddExpense :: AddExpense
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
 
 -- | This represents the submittal of a CreateContractAll, identified by its

@@ -268,7 +268,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -647,14 +647,14 @@ modifyEmployments db f =
 newCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Employment.CreateContractGenInfo)
+  -> (User.UserProfile, Employment.CreateContractAll')
   -> STM Text
-newCreateContractForm db (profile, c) = do
+newCreateContractForm db (profile, Employment.CreateContractAll' gi ld) = do
   key <- Data.genRandomText db
   STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
   pure key
  where
-  add key = M.insert (username, key) (Employment.CreateContractAll c [])
+  add key = M.insert (username, key) (Employment.CreateContractAll gi ld [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateContractForm
@@ -671,15 +671,18 @@ readCreateContractForm db (profile, key) = do
 writeCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Text, Employment.CreateContractGenInfo)
+  -> (User.UserProfile, Text, Employment.CreateContractAll')
   -> STM Text
-writeCreateContractForm db (profile, key, c) = do
-  STM.modifyTVar (Data._dbFormCreateContractAll db) save
-  pure key
+writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ld)
+  = do
+    STM.modifyTVar (Data._dbFormCreateContractAll db) save
+    pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(Employment.CreateContractAll _ es) -> Employment.CreateContractAll c es)
+    (\(Employment.CreateContractAll _ _ es) ->
+      Employment.CreateContractAll gi ld es
+    )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
@@ -692,8 +695,8 @@ addExpenseToContractForm db (profile, key, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
-      Employment.CreateContractAll c $ es ++ [expense]
+    (\(Employment.CreateContractAll gi ld es) ->
+      Employment.CreateContractAll gi ld $ es ++ [expense]
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -707,10 +710,10 @@ writeExpenseToContractForm db (profile, key, index, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
+    (\(Employment.CreateContractAll gi ld es) ->
       let f i e = if i == index then expense else e
           es' = zipWith f [0 ..] es
-      in  Employment.CreateContractAll c es'
+      in  Employment.CreateContractAll gi ld es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -724,9 +727,9 @@ removeExpenseFromContractForm db (profile, key, index) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
+    (\(Employment.CreateContractAll gi ld es) ->
       let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
-      in  Employment.CreateContractAll c es'
+      in  Employment.CreateContractAll gi ld es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
