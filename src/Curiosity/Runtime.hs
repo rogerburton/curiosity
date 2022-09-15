@@ -647,7 +647,7 @@ modifyEmployments db f =
 newCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Employment.CreateContract)
+  -> (User.UserProfile, Employment.CreateContractGenInfo)
   -> STM Text
 newCreateContractForm db (profile, c) = do
   key <- Data.genRandomText db
@@ -671,7 +671,7 @@ readCreateContractForm db (profile, key) = do
 writeCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Text, Employment.CreateContract)
+  -> (User.UserProfile, Text, Employment.CreateContractGenInfo)
   -> STM Text
 writeCreateContractForm db (profile, key, c) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save

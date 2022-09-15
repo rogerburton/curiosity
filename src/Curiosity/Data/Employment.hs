@@ -6,9 +6,9 @@ Description: Employment related datatypes
 -}
 module Curiosity.Data.Employment
   ( CreateContractAll(..)
-  , CreateContract(..)
+  , CreateContractGenInfo(..)
   , emptyCreateContractAll
-  , emptyCreateContract
+  , emptyCreateContractGenInfo
   , AddExpense(..)
   , emptyAddExpense
   , SubmitContract(..)
@@ -29,11 +29,11 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- invalid inputs. As it is filled, it is kept in a Map, where it is identified
 -- by a key. The form data are validated when they are "submitted", using the
 -- SubmitContract data type below, and the key.
-data CreateContractAll = CreateContractAll CreateContract [AddExpense]
+data CreateContractAll = CreateContractAll CreateContractGenInfo [AddExpense]
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
-data CreateContract = CreateContract
+data CreateContractGenInfo = CreateContractGenInfo
   { _createContractProject     :: Text
   , _createContractPO          :: Text
   , _createContractRole        :: Text
@@ -43,9 +43,9 @@ data CreateContract = CreateContract
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
-instance FromForm CreateContract where
+instance FromForm CreateContractGenInfo where
   fromForm f =
-    CreateContract
+    CreateContractGenInfo
       <$> parseUnique "project"     f
       <*> parseUnique "po"          f
       <*> parseUnique "role"        f
@@ -53,10 +53,10 @@ instance FromForm CreateContract where
       <*> parseUnique "description" f
 
 emptyCreateContractAll :: CreateContractAll
-emptyCreateContractAll = CreateContractAll emptyCreateContract []
+emptyCreateContractAll = CreateContractAll emptyCreateContractGenInfo []
 
-emptyCreateContract :: CreateContract
-emptyCreateContract = CreateContract { _createContractProject     = ""
+emptyCreateContractGenInfo :: CreateContractGenInfo
+emptyCreateContractGenInfo = CreateContractGenInfo { _createContractProject     = ""
                                      , _createContractPO          = ""
                                      , _createContractRole        = ""
                                      , _createContractType        = ""
@@ -74,6 +74,8 @@ instance FromForm AddExpense where
 
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
 
+-- | This represents the submittal of a CreateContractAll, identified by its
+-- key.
 data SubmitContract = SubmitContract
   { _submitContractKey :: Text
   }

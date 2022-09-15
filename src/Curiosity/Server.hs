@@ -152,24 +152,24 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
              :<|> "echo" :> "new-contract"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractGenInfo
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "new-contract-and-add-expense"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractGenInfo
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "save-contract"
                   :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractGenInfo
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "save-contract-and-add-expense"
                   :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractGenInfo
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -738,7 +738,7 @@ documentRemoveExpensePage dataDir key index = do
 echoNewContract
   :: ServerC m
   => FilePath
-  -> Employment.CreateContract
+  -> Employment.CreateContractGenInfo
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -750,7 +750,7 @@ echoNewContract dataDir contract = do
 echoNewContractAndAddExpense
   :: ServerC m
   => FilePath
-  -> Employment.CreateContract
+  -> Employment.CreateContractGenInfo
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContractAndAddExpense dataDir contract = do
   -- TODO This is the same code, but with a different redirect.
@@ -764,7 +764,7 @@ echoSaveContract
   :: ServerC m
   => FilePath
   -> Text
-  -> Employment.CreateContract
+  -> Employment.CreateContractGenInfo
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -779,7 +779,7 @@ echoSaveContractAndAddExpense
   :: ServerC m
   => FilePath
   -> Text
-  -> Employment.CreateContract
+  -> Employment.CreateContractGenInfo
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContractAndAddExpense dataDir key contract = do
   -- TODO This is the same code, but with a different redirect.
