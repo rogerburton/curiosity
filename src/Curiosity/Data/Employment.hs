@@ -9,6 +9,7 @@ module Curiosity.Data.Employment
   , CreateContractAll'(..)
   , CreateContractGenInfo(..)
   , CreateContractLocDates(..)
+  , CreateContractRisks(..)
   , AddExpense(..)
   , emptyCreateContractAll
   , emptyCreateContractGenInfo
@@ -33,6 +34,7 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- SubmitContract data type below, and the key.
 data CreateContractAll = CreateContractAll CreateContractGenInfo
                                            CreateContractLocDates
+                                           CreateContractRisks
                                            [AddExpense]
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -42,11 +44,12 @@ data CreateContractAll = CreateContractAll CreateContractGenInfo
 -- would also work but be less explicit.
 data CreateContractAll' = CreateContractAll' CreateContractGenInfo
                                              CreateContractLocDates
+                                             CreateContractRisks
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractAll' where
-  fromForm f = CreateContractAll' <$> fromForm f <*> fromForm f
+  fromForm f = CreateContractAll' <$> fromForm f <*> fromForm f <*> fromForm f
 
 data CreateContractGenInfo = CreateContractGenInfo
   { _createContractProject     :: Text
@@ -74,6 +77,13 @@ data CreateContractLocDates = CreateContractLocDates
 instance FromForm CreateContractLocDates where
   fromForm f = pure CreateContractLocDates
 
+data CreateContractRisks = CreateContractRisks
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm CreateContractRisks where
+  fromForm f = pure CreateContractRisks
+
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
   }
@@ -85,7 +95,7 @@ instance FromForm AddExpense where
 
 emptyCreateContractAll :: CreateContractAll
 emptyCreateContractAll =
-  CreateContractAll emptyCreateContractGenInfo emptyCreateContractLocDates []
+  CreateContractAll emptyCreateContractGenInfo emptyCreateContractLocDates emptyCreateContractRisks []
 
 emptyCreateContractGenInfo :: CreateContractGenInfo
 emptyCreateContractGenInfo = CreateContractGenInfo
@@ -98,6 +108,9 @@ emptyCreateContractGenInfo = CreateContractGenInfo
 
 emptyCreateContractLocDates :: CreateContractLocDates
 emptyCreateContractLocDates = CreateContractLocDates
+
+emptyCreateContractRisks :: CreateContractRisks
+emptyCreateContractRisks = CreateContractRisks
 
 emptyAddExpense :: AddExpense
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }

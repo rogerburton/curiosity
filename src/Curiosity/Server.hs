@@ -705,7 +705,7 @@ documentEditExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right (Employment.CreateContractAll _ _ expenses) ->
+    Right (Employment.CreateContractAll _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.AddExpensePage
@@ -723,7 +723,7 @@ documentRemoveExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right (Employment.CreateContractAll _ _ expenses) ->
+    Right (Employment.CreateContractAll _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.RemoveExpensePage
