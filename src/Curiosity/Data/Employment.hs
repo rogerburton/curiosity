@@ -7,6 +7,7 @@ Description: Employment related datatypes
 module Curiosity.Data.Employment
   ( CreateContractAll(..)
   , CreateContractAll'(..)
+  , CreateContractType(..)
   , CreateContractGenInfo(..)
   , CreateContractLocDates(..)
   , CreateContractRisks(..)
@@ -34,6 +35,7 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- by a key. The form data are validated when they are "submitted", using the
 -- SubmitContract data type below, and the key.
 data CreateContractAll = CreateContractAll CreateContractGenInfo
+                                           CreateContractType
                                            CreateContractLocDates
                                            CreateContractRisks
                                            CreateContractInvoice
@@ -45,6 +47,7 @@ data CreateContractAll = CreateContractAll CreateContractGenInfo
 -- the main panels into a `FromForm` instance. Simply leaving out the expenses
 -- would also work but be less explicit.
 data CreateContractAll' = CreateContractAll' CreateContractGenInfo
+                                             CreateContractType
                                              CreateContractLocDates
                                              CreateContractRisks
                                              CreateContractInvoice
@@ -55,6 +58,7 @@ instance FromForm CreateContractAll' where
   fromForm f =
     CreateContractAll'
       <$> fromForm f
+      <*> fromForm f
       <*> fromForm f
       <*> fromForm f
       <*> fromForm f
@@ -77,6 +81,13 @@ instance FromForm CreateContractGenInfo where
       <*> parseUnique "role"        f
       <*> parseUnique "type"        f
       <*> parseUnique "description" f
+
+data CreateContractType = CreateContractType
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm CreateContractType where
+  fromForm f = pure CreateContractType
 
 data CreateContractLocDates = CreateContractLocDates
   deriving (Generic, Eq, Show)
@@ -110,6 +121,7 @@ instance FromForm AddExpense where
 
 emptyCreateContractAll :: CreateContractAll
 emptyCreateContractAll = CreateContractAll emptyCreateContractGenInfo
+                                           emptyCreateContractType
                                            emptyCreateContractLocDates
                                            emptyCreateContractRisks
                                            emptyCreateContractInvoice
@@ -123,6 +135,9 @@ emptyCreateContractGenInfo = CreateContractGenInfo
   , _createContractType        = ""
   , _createContractDescription = ""
   }
+
+emptyCreateContractType :: CreateContractType
+emptyCreateContractType = CreateContractType
 
 emptyCreateContractLocDates :: CreateContractLocDates
 emptyCreateContractLocDates = CreateContractLocDates
