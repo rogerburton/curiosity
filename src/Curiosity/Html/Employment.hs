@@ -49,7 +49,7 @@ data CreateContractPage = CreateContractPage
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile mkey (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractLocDates{} Employment.CreateContractRisks {} expenses) saveUrl addExpenseUrl)
+  toMarkup (CreateContractPage profile mkey (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       title "New employment contract"
       panel "General information" $ do
@@ -262,7 +262,7 @@ data ConfirmContractPage = ConfirmContractPage
   }
 
 instance H.ToMarkup ConfirmContractPage where
-  toMarkup (ConfirmContractPage profile key (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractLocDates {} Employment.CreateContractRisks {} expenses) submitUrl)
+  toMarkup (ConfirmContractPage profile key (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) submitUrl)
     = renderFormLarge profile $ do
       title' "New employment contract"
         .  Just

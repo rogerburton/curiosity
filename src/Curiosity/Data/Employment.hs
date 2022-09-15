@@ -10,6 +10,7 @@ module Curiosity.Data.Employment
   , CreateContractGenInfo(..)
   , CreateContractLocDates(..)
   , CreateContractRisks(..)
+  , CreateContractInvoice(..)
   , AddExpense(..)
   , emptyCreateContractAll
   , emptyCreateContractGenInfo
@@ -35,6 +36,7 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 data CreateContractAll = CreateContractAll CreateContractGenInfo
                                            CreateContractLocDates
                                            CreateContractRisks
+                                           CreateContractInvoice
                                            [AddExpense]
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -45,11 +47,17 @@ data CreateContractAll = CreateContractAll CreateContractGenInfo
 data CreateContractAll' = CreateContractAll' CreateContractGenInfo
                                              CreateContractLocDates
                                              CreateContractRisks
+                                             CreateContractInvoice
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractAll' where
-  fromForm f = CreateContractAll' <$> fromForm f <*> fromForm f <*> fromForm f
+  fromForm f =
+    CreateContractAll'
+      <$> fromForm f
+      <*> fromForm f
+      <*> fromForm f
+      <*> fromForm f
 
 data CreateContractGenInfo = CreateContractGenInfo
   { _createContractProject     :: Text
@@ -84,6 +92,13 @@ data CreateContractRisks = CreateContractRisks
 instance FromForm CreateContractRisks where
   fromForm f = pure CreateContractRisks
 
+data CreateContractInvoice = CreateContractInvoice
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm CreateContractInvoice where
+  fromForm f = pure CreateContractInvoice
+
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
   }
@@ -94,8 +109,11 @@ instance FromForm AddExpense where
   fromForm f = AddExpense <$> parseUnique "amount" f
 
 emptyCreateContractAll :: CreateContractAll
-emptyCreateContractAll =
-  CreateContractAll emptyCreateContractGenInfo emptyCreateContractLocDates emptyCreateContractRisks []
+emptyCreateContractAll = CreateContractAll emptyCreateContractGenInfo
+                                           emptyCreateContractLocDates
+                                           emptyCreateContractRisks
+                                           emptyCreateContractInvoice
+                                           []
 
 emptyCreateContractGenInfo :: CreateContractGenInfo
 emptyCreateContractGenInfo = CreateContractGenInfo
@@ -111,6 +129,9 @@ emptyCreateContractLocDates = CreateContractLocDates
 
 emptyCreateContractRisks :: CreateContractRisks
 emptyCreateContractRisks = CreateContractRisks
+
+emptyCreateContractInvoice :: CreateContractInvoice
+emptyCreateContractInvoice = CreateContractInvoice
 
 emptyAddExpense :: AddExpense
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }

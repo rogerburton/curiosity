@@ -649,12 +649,14 @@ newCreateContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Employment.CreateContractAll')
   -> STM Text
-newCreateContractForm db (profile, Employment.CreateContractAll' gi ld rs) = do
-  key <- Data.genRandomText db
-  STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
-  pure key
+newCreateContractForm db (profile, Employment.CreateContractAll' gi ld rs inv)
+  = do
+    key <- Data.genRandomText db
+    STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
+    pure key
  where
-  add key = M.insert (username, key) (Employment.CreateContractAll gi ld rs [])
+  add key =
+    M.insert (username, key) (Employment.CreateContractAll gi ld rs inv [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateContractForm
@@ -673,15 +675,15 @@ writeCreateContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Employment.CreateContractAll')
   -> STM Text
-writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ld rs)
+writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ld rs inv)
   = do
     STM.modifyTVar (Data._dbFormCreateContractAll db) save
     pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(Employment.CreateContractAll _ _ _ es) ->
-      Employment.CreateContractAll gi ld rs es
+    (\(Employment.CreateContractAll _ _ _ _ es) ->
+      Employment.CreateContractAll gi ld rs inv es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -695,8 +697,8 @@ addExpenseToContractForm db (profile, key, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll gi ld rs es) ->
-      Employment.CreateContractAll gi ld rs $ es ++ [expense]
+    (\(Employment.CreateContractAll gi ld rs inv es) ->
+      Employment.CreateContractAll gi ld rs inv $ es ++ [expense]
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -710,10 +712,10 @@ writeExpenseToContractForm db (profile, key, index, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll gi ld rs es) ->
+    (\(Employment.CreateContractAll gi ld rs inv es) ->
       let f i e = if i == index then expense else e
           es' = zipWith f [0 ..] es
-      in  Employment.CreateContractAll gi ld rs es'
+      in  Employment.CreateContractAll gi ld rs inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -727,9 +729,9 @@ removeExpenseFromContractForm db (profile, key, index) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll gi ld rs es) ->
+    (\(Employment.CreateContractAll gi ld rs inv es) ->
       let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
-      in  Employment.CreateContractAll gi ld rs es'
+      in  Employment.CreateContractAll gi ld rs inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
