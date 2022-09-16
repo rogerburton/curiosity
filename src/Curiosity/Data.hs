@@ -26,9 +26,12 @@ module Curiosity.Data
   , genRandomText
   , readStdGen
   , writeStdGen
+  -- * Re-exports
+  , Command.Command(..)
   ) where
 
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Command        as Command ( Command(..) )
 import qualified Commence.Runtime.Errors       as E
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business

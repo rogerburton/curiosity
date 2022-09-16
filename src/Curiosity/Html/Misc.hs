@@ -34,6 +34,7 @@ module Curiosity.Html.Misc
   , renderView
   , renderView'
   , renderForm
+  , renderForm'
   , renderFormLarge
   , autoReload
   ) where
@@ -119,6 +120,17 @@ header mprofile = H.header $ case mprofile of
       . User._userCredsName
       $ User._userProfileCreds profile
   Nothing -> H.toMarkup navbarWebsite
+
+renderForm' :: Maybe User.UserProfile -> Html -> Html
+renderForm' mprofile content =
+  Render.renderCanvasFullScroll
+    . Dsl.SingletonCanvas
+    $ H.div
+    ! A.class_ "c-app-layout u-scroll-vertical"
+    $ do
+        header mprofile
+        H.main ! A.class_ "u-maximize-width" $ containerMedium $ do
+          H.form $ content
 
 renderForm :: User.UserProfile -> Html -> Html
 renderForm profile content =
