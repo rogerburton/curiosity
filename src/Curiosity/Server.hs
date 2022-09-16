@@ -650,6 +650,11 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
+-- $ documentationPages
+--
+-- The \`document` -prefixed functions display the same page as the \`show`
+-- -prefixed one.
+
 documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
 documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -860,7 +865,7 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
     Right contract -> pure . Pages.EchoPage $ show
-      (contract, Employment.validateCreateContract contract)
+      (contract, Employment.validateCreateContract profile contract)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- TODO Validate the filename (e.g. this can't be a path going up).

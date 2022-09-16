@@ -448,13 +448,17 @@ parserUsers :: A.Parser Command
 parserUsers = do
   predicate <-
     (  A.flag' User.PredicateEmailAddrToVerify
-      $  A.long "email-addr-to-verify"
-      <> A.help "Show users with an email address to verify."
-      )
-      <|> (  A.flag' (User.PredicateHas User.CanVerifyEmailAddr)
-          $  A.long "can-verify-email-addr"
-          <> A.help "Show users with the right to verify email addresses."
-          )
+    $  A.long "email-addr-to-verify"
+    <> A.help "Show users with an email address to verify."
+    )
+    <|> (  A.flag' (User.PredicateHas User.CanCreateContracts)
+        $  A.long "can-create-contracts"
+        <> A.help "Show users with the right to create contracts."
+        )
+    <|> (  A.flag' (User.PredicateHas User.CanVerifyEmailAddr)
+        $  A.long "can-verify-email-addr"
+        <> A.help "Show users with the right to verify email addresses."
+        )
   pure $ FilterUsers predicate
 
 parserCreateUser :: A.Parser Command

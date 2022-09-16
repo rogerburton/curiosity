@@ -30,6 +30,13 @@ spec = do
 
       muser `shouldBe` Nothing
 
+    it ("The first user ID is " <> show (unUserId firstUserId) <> ".") $ do
+      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-2-1.log"
+      let db = _rDb runtime
+      id <- atomically $ generateUserId db
+
+      id `shouldBe` firstUserId
+
     it "Adding a user, returns a user." $ do
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-3.log"
       let db = _rDb runtime

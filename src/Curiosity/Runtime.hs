@@ -40,6 +40,9 @@ module Curiosity.Runtime
   , addExpenseToContractForm
   , writeExpenseToContractForm
   , removeExpenseFromContractForm
+  -- * ID generation
+  , generateUserId
+  , firstUserId
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -428,7 +431,7 @@ handleCommand runtime@Runtime {..} user command = do
                 merror <- submitCreateContractForm' _rDb (profile, input)
                 -- TODO Should we have a type to combine multiple possible errors ?
                 case merror of
-                  Left  _  -> pure . Left $ User.UserNotFound "TODO"
+                  Left (Employment.Err err) -> pure . Left $ User.UserNotFound err
                   Right id -> pure $ Right id
               Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
@@ -759,7 +762,7 @@ submitCreateContractForm db (profile, Employment.SubmitContract key) = do
   minput <- readCreateContractForm db (profile, key)
   case minput of
     Right input -> submitCreateContractForm' db (profile, input)
-    Left  err   -> pure $ Left Employment.Err -- TODO
+    Left  err   -> pure . Left $ Employment.Err (show err)
 
 -- | Attempt to create a contract form and create it.
 submitCreateContractForm'
@@ -768,10 +771,10 @@ submitCreateContractForm'
   -> (User.UserProfile, Employment.CreateContractAll)
   -> STM (Either Employment.Err Employment.ContractId)
 submitCreateContractForm' db (profile, input) = do
-  let mc = Employment.validateCreateContract input
+  let mc = Employment.validateCreateContract profile input
   case mc of
     Right c   -> createEmployment db c
-    Left  err -> pure $ Left Employment.Err -- TODO
+    Left  err -> pure . Left $ Employment.Err (show err)
 
 --------------------------------------------------------------------------------
 createInvoice
@@ -895,7 +898,7 @@ createUser db User.Signup {..} = do
           (User.UserCompletion1 Nothing Nothing Nothing)
           (User.UserCompletion2 Nothing Nothing)
           -- The very first user has plenty of rights:
-          (if newId == "USER-1" then [User.CanVerifyEmailAddr] else [])
+          (if newId == firstUserId then firstUserRights else [])
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     createUserFull db newProfile >>= either STM.throwSTM pure
@@ -927,6 +930,12 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
 generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
 generateUserId Data.Db {..} =
   User.UserId <$> C.bumpCounterPrefix "USER-" _dbNextUserId
+
+firstUserId :: User.UserId
+firstUserId = "USER-1"
+
+firstUserRights :: [User.AccessRight]
+firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
 
 modifyUsers
   :: forall runtime

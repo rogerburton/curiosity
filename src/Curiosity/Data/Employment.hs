@@ -42,6 +42,7 @@ module Curiosity.Data.Employment
   ) where
 
 import qualified Commence.Types.Wrapped        as W
+import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
@@ -201,9 +202,15 @@ instance FromForm SubmitContract where
 -- | Given a contract form, tries to return a proper `Contract` value, although
 -- the ID is dummy. Maybe we should have separate data types (with or without
 -- the ID).
-validateCreateContract :: CreateContractAll -> Either Err Contract
-validateCreateContract = do
-  pure $ Right Contract { _contractId = ContractId "TODO-DUMMY" }
+-- This is a pure function: everything required to perform the validation
+-- should be provided as arguments.
+validateCreateContract
+  :: User.UserProfile -> CreateContractAll -> Either Err Contract
+validateCreateContract profile = do
+  if User.CanCreateContracts `elem` User._userProfileRights profile
+    then pure $ Right Contract { _contractId = ContractId "TODO-DUMMY" }
+    else pure . Left $ Err "User has not the right CanCreateContracts."
+
 
 --------------------------------------------------------------------------------
 -- | This represents a contract in database. TODO The notion of contract
@@ -226,5 +233,5 @@ newtype ContractId = ContractId { unContractId :: Text }
                         ) via Text
                deriving FromForm via W.Wrapped "contract-id" Text
 
-data Err = Err
+data Err = Err Text
   deriving (Eq, Exception, Show)
