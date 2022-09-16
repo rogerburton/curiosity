@@ -859,8 +859,9 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure . Pages.EchoPage $ show contract
-    Left  _        -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+    Right contract -> pure . Pages.EchoPage $ show
+      (contract, Employment.validateCreateContract contract)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView

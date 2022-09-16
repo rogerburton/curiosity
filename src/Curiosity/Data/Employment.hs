@@ -34,6 +34,7 @@ module Curiosity.Data.Employment
   , emptyAddExpense
     -- * Form submittal
   , SubmitContract(..)
+  , validateCreateContract
     -- * Main data representation
   , Contract(..)
   , ContractId(..)
@@ -184,6 +185,8 @@ emptyCreateContractInvoice = CreateContractInvoice
 emptyAddExpense :: AddExpense
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
 
+
+--------------------------------------------------------------------------------
 -- | This represents the submittal of a CreateContractAll, identified by its
 -- key.
 data SubmitContract = SubmitContract
@@ -195,8 +198,17 @@ data SubmitContract = SubmitContract
 instance FromForm SubmitContract where
   fromForm f = SubmitContract <$> parseUnique "key" f
 
+-- | Given a contract form, tries to return a proper `Contract` value, although
+-- the ID is dummy. Maybe we should have separate data types (with or without
+-- the ID).
+validateCreateContract :: CreateContractAll -> Either Err Contract
+validateCreateContract = do
+  pure $ Right Contract { _contractId = ContractId "TODO-DUMMY" }
 
 --------------------------------------------------------------------------------
+-- | This represents a contract in database. TODO The notion of contract
+-- includes more than amployment contract and all should share most of their
+-- structure.
 data Contract = Contract
   { _contractId :: ContractId
   }

@@ -417,9 +417,20 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["User successfully updated."])
         Right (Left err) -> pure (ExitFailure 1, [show err])
         Left  err        -> pure (ExitFailure 1, [show err])
-    Command.CreateEmployment -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createEmployment
-        _rDb
+    Command.CreateEmployment input -> do
+      output <-
+        runAppMSafe runtime
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile -> do
+                merror <- submitCreateContractForm' _rDb (profile, input)
+                -- TODO Should we have a type to combine multiple possible errors ?
+                case merror of
+                  Left  _  -> pure . Left $ User.UserNotFound "TODO"
+                  Right id -> pure $ Right id
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
         Right mid -> do
           case mid of
@@ -613,8 +624,9 @@ modifyLegalEntities db f =
 createEmployment
   :: forall runtime
    . Data.StmDb runtime
+  -> Employment.Contract
   -> STM (Either Employment.Err Employment.ContractId)
-createEmployment db = do
+createEmployment db c = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
@@ -736,6 +748,30 @@ removeExpenseFromContractForm db (profile, key, index) = do
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
+-- | Fetch the contract form from the staging area, then attempt to validate
+-- and create it.
+submitCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.SubmitContract)
+  -> STM (Either Employment.Err Employment.ContractId)
+submitCreateContractForm db (profile, Employment.SubmitContract key) = do
+  minput <- readCreateContractForm db (profile, key)
+  case minput of
+    Right input -> submitCreateContractForm' db (profile, input)
+    Left  err   -> pure $ Left Employment.Err -- TODO
+
+-- | Attempt to create a contract form and create it.
+submitCreateContractForm'
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.CreateContractAll)
+  -> STM (Either Employment.Err Employment.ContractId)
+submitCreateContractForm' db (profile, input) = do
+  let mc = Employment.validateCreateContract input
+  case mc of
+    Right c   -> createEmployment db c
+    Left  err -> pure $ Left Employment.Err -- TODO
 
 --------------------------------------------------------------------------------
 createInvoice
