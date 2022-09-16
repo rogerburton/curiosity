@@ -3,9 +3,18 @@
 {- |
 Module: Curiosity.Data.Employment
 Description: Employment related datatypes
+
+This module contains data types used to represent contracts, both as used when
+filling a form, and used as proper validated data.
+
+See also the [related documentation page](/documentation/objects/invoices).
+
 -}
 module Curiosity.Data.Employment
-  ( CreateContractAll(..)
+  ( -- * Form data representation
+    --
+    -- $formDataTypes
+    CreateContractAll(..)
   , CreateContractAll'(..)
   , CreateContractType(..)
   , CreateContractGenInfo(..)
@@ -13,10 +22,19 @@ module Curiosity.Data.Employment
   , CreateContractRisks(..)
   , CreateContractInvoice(..)
   , AddExpense(..)
+    -- * Empty values
+    --
+    -- $emptyValues
   , emptyCreateContractAll
   , emptyCreateContractGenInfo
+  , emptyCreateContractType
+  , emptyCreateContractLocDates
+  , emptyCreateContractRisks
+  , emptyCreateContractInvoice
   , emptyAddExpense
+    -- * Form submittal
   , SubmitContract(..)
+    -- * Main data representation
   , Contract(..)
   , ContractId(..)
   , Err(..)
@@ -30,10 +48,16 @@ import           Web.FormUrlEncoded             ( FromForm(..)
                                                 )
 
 --------------------------------------------------------------------------------
--- | This represent a form being filled in. In particular, it can represent
--- invalid inputs. As it is filled, it is kept in a Map, where it is identified
--- by a key. The form data are validated when they are "submitted", using the
--- SubmitContract data type below, and the key.
+-- $formDataTypes
+--
+-- A contract form, as displayed on a web page, is made of multiple input
+-- groups (or panels, or even of separate pages). Different data types are
+-- provided to represent those sets of input fields.
+
+-- | This represents a form being filled in. In particular, it can represent
+-- invalid inputs. As it is filled, it is kept in a Map in "Curiosity.Data",
+-- where it is identified by a key. The form data are validated when they are
+-- "submitted", using the `SubmitContract` data type below, and the key.
 data CreateContractAll = CreateContractAll CreateContractGenInfo
                                            CreateContractType
                                            CreateContractLocDates
@@ -118,6 +142,15 @@ data AddExpense = AddExpense
 
 instance FromForm AddExpense where
   fromForm f = AddExpense <$> parseUnique "amount" f
+
+
+--------------------------------------------------------------------------------
+-- $emptyValues
+--
+-- Since forms are designed to be submitted after a confirmation page, it
+-- should be possible to re-display a form with pre-filled values. The initial
+-- form, when no value has been provided by a user, is actually rendering
+-- \"empty" values, defined here.
 
 emptyCreateContractAll :: CreateContractAll
 emptyCreateContractAll = CreateContractAll emptyCreateContractGenInfo
