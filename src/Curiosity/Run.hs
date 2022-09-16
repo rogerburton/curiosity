@@ -1,9 +1,5 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TupleSections #-}
 module Curiosity.Run
   ( run
-  , interpret'
-  , wordsq
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -11,6 +7,7 @@ import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
@@ -18,7 +15,6 @@ import qualified Curiosity.Server              as Srv
 import qualified Data.Aeson                    as Aeson
 import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
-import           Data.List                      ( last )
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import           Network.Socket
@@ -29,10 +25,6 @@ import qualified Options.Applicative           as A
 import qualified System.Console.Haskeline      as HL
 import           System.Directory               ( doesFileExist )
 import           System.Environment             ( lookupEnv )
-import           System.FilePath                ( (</>)
-                                                , takeDirectory
-                                                , takeFileName
-                                                )
 import           System.Posix.User              ( getLoginName )
 
 
@@ -242,74 +234,10 @@ handleRun conf user scriptPath = do
 
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
 interpret runtime user path = do
-  (_, output) <- interpret' runtime user path 0
-  let len     = length $ takeWhile ((== ExitSuccess) . snd3) output
-      output' = take (len + 1) output
-      pad 0 = ""
-      pad 1 = "> "
-      pad n = T.concat (replicate ((n - 1) * 2) ">") <> "> "
-  mapM_ (\(a, _, c) -> putStrLn $ pad a <> c) output'
-  pure $ snd3 . last $ (0, ExitSuccess, "") : output'
-
-snd3 (_, b, _) = b
-thd3 (_, _, c) = c
-
-interpret'
-  :: Rt.Runtime
-  -> User.UserName
-  -> FilePath
-  -> Int
-  -> IO (User.UserName, [(Int, ExitCode, Text)])
-interpret' runtime user path nesting = do
-  content <- readFile path
-  foldlM loop (user, []) $ zip [1 :: Int ..] (T.lines content)
- where
-  dir = takeDirectory path
-  loop (user', acc) (ln, line) = do
-    let (prefix, comment) = T.breakOn "#" line
-        separated         = map T.pack . wordsq $ T.unpack prefix
-        grouped           = T.unwords separated
-    case separated of
-      []               -> pure (user', acc)
-      ["as", username] -> do
-        let output = [show ln <> ": " <> grouped, "Modifiying default user."]
-        pure
-          (User.UserName username, acc ++ map (nesting, ExitSuccess, ) output)
-      ["quit"] -> do
-        let output = [show ln <> ": " <> grouped, "Exiting."]
-        pure (user', acc ++ map (nesting, ExitSuccess, ) output)
-      input -> do
-        let output_ = [show ln <> ": " <> grouped]
-            result =
-              A.execParserPure A.defaultPrefs Command.parserInfo
-                $   T.unpack
-                <$> input
-        case result of
-          A.Success command -> do
-            case command of
-              Command.Reset _ -> do
-                let output = output_ ++ ["Resetting to the empty state."]
-                Rt.reset runtime
-                pure (user', acc ++ map (nesting, ExitSuccess, ) output)
-              Command.Run _ scriptPath -> do
-                (_, output') <- liftIO $ interpret' runtime
-                                                    user
-                                                    (dir </> scriptPath)
-                                                    (succ nesting)
-                pure
-                  ( user'
-                  , acc ++ map (nesting, ExitSuccess, ) output_ ++ output'
-                  )
-              _ -> do
-                (_, output) <- Rt.handleCommand runtime user' command
-                pure
-                  ( user'
-                  , acc ++ map (nesting, ExitSuccess, ) (output_ ++ output)
-                  )
-          A.Failure err ->
-            pure (user', acc ++ [(nesting, ExitFailure 1, show err)])
-          A.CompletionInvoked _ ->
-            pure (user', acc ++ [(nesting, ExitFailure 1, "Shouldn't happen")])
+  output <- Inter.interpretFile runtime user path 0
+  let (exitCode, ls) = Inter.formatOutput output
+  mapM_ putStrLn ls
+  pure exitCode
 
 
 --------------------------------------------------------------------------------
@@ -403,7 +331,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
     Just "quit" -> pure ()
     Just input  -> do
       let result =
-            A.execParserPure A.defaultPrefs Command.parserInfo $ wordsq input
+            A.execParserPure A.defaultPrefs Command.parserInfo $ Inter.wordsq input
       case result of
         A.Success command -> do
           case command of
@@ -426,24 +354,3 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
   prompt  = "> "
 
   output' = HL.outputStrLn . T.unpack
-
-
---------------------------------------------------------------------------------
--- From https://stackoverflow.com/questions/4334897/functionally-split-a-string-by-whitespace-group-by-quotes
-wordsq = outside [] . (' ' :)
-
-add c res = if null res then [[c]] else map (++ [c]) res
-
-outside res xs = case xs of
-  ' ' : ' '  : ys -> outside res $ ' ' : ys
-  ' ' : '\"' : ys -> res ++ inside [] ys
-  ' '        : ys -> res ++ outside [] ys
-  c          : ys -> outside (add c res) ys
-  _               -> res
-
-inside res xs = case xs of
-  ' '  : ' ' : ys -> inside res $ ' ' : ys
-  '\"' : ' ' : ys -> res ++ outside [] (' ' : ys)
-  '\"'       : [] -> res
-  c          : ys -> inside (add c res) ys
-  _               -> res
