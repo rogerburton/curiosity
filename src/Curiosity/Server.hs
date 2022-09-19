@@ -48,6 +48,7 @@ import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
 import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Html.Run            as Pages
+import qualified Curiosity.Html.SimpleContract as Pages
 import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
@@ -97,9 +98,13 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                Pages.LandingPage
                Pages.WelcomePage
              )
+
+             -- Non-authenticated forms, for documentation purpose.
+
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
+
              :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "forms" :> "edit-contract"
                   :> Capture "key" Text
@@ -118,6 +123,19 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "confirm-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
+
+             :<|> "forms" :> "new-simple-contract"
+                  :> Get '[B.HTML] Pages.CreateSimpleContractPage
+             :<|> "forms" :> "edit-simple-contract"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateSimpleContractPage
+             :<|> "forms" :> "select-role"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.SelectRolePage
+             :<|> "forms" :> "confirm-role"
+                  :> Capture "key" Text
+                  :> Capture "role" Text
+                  :> Get '[B.HTML] Pages.ConfirmRolePage
 
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
@@ -151,6 +169,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
+
              :<|> "echo" :> "new-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -195,6 +214,23 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "submit-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
+
+             :<|> "echo" :> "new-simple-contract"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "new-simple-contract-and-select-role"
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-simple-contract-and-select-role"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
 
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
@@ -241,12 +277,18 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage dataDir
+
     :<|> documentCreateContractPage dataDir
     :<|> documentEditContractPage dataDir
     :<|> documentAddExpensePage dataDir
     :<|> documentEditExpensePage dataDir
     :<|> documentRemoveExpensePage dataDir
     :<|> documentConfirmContractPage dataDir
+
+    :<|> documentCreateSimpleContractPage dataDir
+    :<|> documentEditSimpleContractPage dataDir
+    :<|> documentSelectRolePage dataDir
+    :<|> documentConfirmRolePage dataDir
 
     :<|> documentProfilePage dataDir
     :<|> documentEntityPage dataDir
@@ -262,6 +304,7 @@ serverT natTrans ctx conf jwtS root dataDir =
 
     :<|> echoLogin
     :<|> echoSignup
+
     :<|> echoNewContract dataDir
     :<|> echoNewContractAndAddExpense dataDir
     :<|> echoSaveContract dataDir
@@ -270,6 +313,10 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> echoSaveExpense dataDir
     :<|> echoRemoveExpense dataDir
     :<|> echoSubmitContract dataDir
+
+    :<|> echoNewSimpleContract dataDir
+    :<|> echoNewSimpleContractAndSelectRole dataDir
+    :<|> echoSaveSimpleContractAndSelectRole dataDir
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
@@ -868,6 +915,103 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
       (contract, Employment.validateCreateContract profile contract)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
+
+--------------------------------------------------------------------------------
+echoNewSimpleContract
+  :: ServerC m
+  => FilePath
+  -> Employment.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewSimpleContract dataDir contract = do
+  -- profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  -- key <- liftIO . atomically $ Rt.newSimpleCreateContractForm db (profile, contract)
+  let key = "AAAA"
+  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key) NoContent
+
+-- | Save a form, then move to the select role part.
+echoNewSimpleContractAndSelectRole
+  :: ServerC m
+  => FilePath
+  -> Employment.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewSimpleContractAndSelectRole dataDir contract = do
+  -- profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  -- key <- liftIO . atomically $ Rt.newSimpleCreateContractForm db (profile, contract)
+  let key = "AAAA"
+  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
+
+-- | Save a form, re-using a key, then move to the select role part.
+echoSaveSimpleContractAndSelectRole
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveSimpleContractAndSelectRole dataDir key contract = do
+  -- profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  --todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+  --  db
+  --  (profile, key, contract)
+  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
+
+
+--------------------------------------------------------------------------------
+documentCreateSimpleContractPage
+  :: ServerC m => FilePath -> m Pages.CreateSimpleContractPage
+documentCreateSimpleContractPage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
+  let contractAll = Employment.emptyCreateContractAll
+  pure $ Pages.CreateSimpleContractPage profile
+                                        Nothing
+                                        contractAll
+                                        "/echo/new-simple-contract"
+                                        "/echo/new-simple-contract-and-add-expense"
+
+documentEditSimpleContractPage
+  :: ServerC m => FilePath -> Text -> m Pages.CreateSimpleContractPage
+documentEditSimpleContractPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  let contractAll = Employment.emptyCreateContractAll
+  pure $ Pages.CreateSimpleContractPage profile
+                                        Nothing
+                                        contractAll
+                                        "/echo/new-simple-contract"
+                                        "/echo/new-simple-contract-and-add-expense"
+
+documentSelectRolePage
+  :: ServerC m => FilePath -> Text -> m Pages.SelectRolePage
+documentSelectRolePage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  -- output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  let output = Right Employment.emptyCreateContractAll
+  case output of
+    Right _ -> pure $ Pages.SelectRolePage
+      profile
+      key
+      (H.toValue $ "/echo/select-role/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentConfirmRolePage
+  :: ServerC m => FilePath -> Text -> Text -> m Pages.ConfirmRolePage
+documentConfirmRolePage dataDir key role = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  -- output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
+  let output = Right Employment.emptyCreateContractAll
+  case output of
+    Right _ -> pure $ Pages.ConfirmRolePage
+      profile
+      key
+      role
+      (H.toValue $ "/echo/select-role/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+
+--------------------------------------------------------------------------------
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do

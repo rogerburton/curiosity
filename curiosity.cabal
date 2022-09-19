@@ -111,6 +111,8 @@ library
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
     Curiosity.Html.Profile
+    Curiosity.Html.Run
+    Curiosity.Html.SimpleContract
     Curiosity.Interpret
     Curiosity.Parse
     Curiosity.Process
