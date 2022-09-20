@@ -91,6 +91,7 @@ data CreateContractType = CreateContractType
   { _createContractRole        :: Text
   , _createContractDescription :: Text
   , _createContractWorkCountry :: Text
+  , _createContractHasRisks    :: Bool
   }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -101,6 +102,7 @@ instance FromForm CreateContractType where
       <$> parseUnique "role"         f
       <*> parseUnique "description"  f
       <*> parseUnique "work-country" f
+      <*> parseUnique "has-risks"    f
 
 data CreateContractLocDates = CreateContractLocDates
   deriving (Generic, Eq, Show)
@@ -165,6 +167,7 @@ emptyCreateContractType = CreateContractType
     -- the forms.
   , _createContractDescription = ""
   , _createContractWorkCountry = "BE"
+  , _createContractHasRisks = False -- TODO We probably want no default choice here.
   }
 
 emptyCreateContractLocDates :: CreateContractLocDates

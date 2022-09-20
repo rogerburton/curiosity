@@ -66,8 +66,6 @@ instance H.ToMarkup CreateSimpleContractPage where
       autoReload
       title "New simple contract"
 
-      let iconInformation =
-            Just $ OSvgIconDiv @"circle-information" svgIconCircleInformation
       H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
         Alert.AlertDefault
         iconInformation
@@ -76,10 +74,10 @@ instance H.ToMarkup CreateSimpleContractPage where
 
       (! A.id "panel-type") $ panel "Service type" $ groupType contract
                                                                roleLabel
+      panel "Risks" $ groupRisks
       panel "Employment type" $ groupEmployment
       panel "Location and dates" $ do
         inputText "Work dates" "dates" Nothing Nothing
-      panel "Risks" $ groupRisks
       panel "Invoicing" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         mkey
@@ -92,6 +90,9 @@ instance H.ToMarkup CreateSimpleContractPage where
     expenses = SimpleContract._createContractExpenses contract
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
+
+iconInformation =
+  Just $ OSvgIconDiv @"circle-information" svgIconCircleInformation
 
 groupType SimpleContract.CreateContractAll {..} roleLabel = do
   H.div ! A.class_ "o-form-group" $ do
@@ -132,8 +133,10 @@ groupType SimpleContract.CreateContractAll {..} roleLabel = do
     Nothing
     (Just $ SimpleContract._createContractWorkCountry _createContractType)
     False
+  inputRisks $ SimpleContract._createContractHasRisks _createContractType
 
-groupRisks = H.div ! A.class_ "o-form-group" $ do
+-- TODO Same in Employment.Contract.
+inputRisks hasRisks = H.div ! A.class_ "o-form-group" $ do
   H.label ! A.class_ "o-form-group__label" $ "Work risks"
   H.div
     ! A.class_ "o-form-group__controls"
@@ -141,15 +144,24 @@ groupRisks = H.div ! A.class_ "o-form-group" $ do
     ! A.class_ "c-radio-group c-radio-group--inline"
     $ do
         H.div ! A.class_ "c-radio" $ H.label $ do
-          H.input ! A.type_ "radio" ! A.name "radio1"
+          (if not hasRisks then (! A.checked "checked") else identity) $
+            H.input ! A.type_ "radio" ! A.name "has-risks" ! A.value "False"
           "Without risks"
         H.div ! A.class_ "c-radio" $ H.label $ do
-          H.input ! A.type_ "radio" ! A.name "radio1"
+          (if hasRisks then (! A.checked "checked") else identity) $
+            H.input ! A.type_ "radio" ! A.name "has-risks" ! A.value "True"
           "With risks"
         H.p ! A.class_ "c-form-help-text" $ do
           "For your safety and your colleagues safety, if your role "
           "involves risks, you have to select \"With risks\". "
           H.a ! A.class_ "c-link" ! A.href "#" $ "Learn more about risks."
+
+groupRisks = H.div ! A.class_ "o-form-group" $ do
+  H.toMarkup $ Alert.AlertLight
+    Alert.AlertDefault
+    iconInformation
+    "Fill this panel only when you selected \"With risks\" above."
+    Button.NoButton
 
 groupInvoicing = do
   inputText "Client" "client" Nothing Nothing
@@ -428,6 +440,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
             keyValuePair "Description"     _createContractDescription
             keyValuePair "Work country" $ maybe "TODO" identity $ lookupCountry
               _createContractWorkCountry
+            keyValuePair "Work risks"     $ if _createContractHasRisks then "With risks" else "Without risks" :: Text
 
       H.div
         ! A.class_ "u-padding-vertical-l"
