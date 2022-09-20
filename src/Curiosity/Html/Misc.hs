@@ -26,6 +26,7 @@ module Curiosity.Html.Misc
   , buttonGroup
   , buttonBar
   , buttonPrimary
+  , buttonSecondary
 
   -- View
   , editButton
@@ -297,6 +298,15 @@ buttonPrimary submitUrl label =
     $ do
         H.span ! A.class_ "c-button__label" $ H.text label
         divIconCheck
+
+buttonSecondary submitUrl label =
+  H.button
+    ! A.class_ "c-button c-button--secondary"
+    ! A.formaction submitUrl
+    ! A.formmethod "POST"
+    $ H.span
+    ! A.class_ "c-button__content"
+    $ H.span ! A.class_ "c-button__label" $ H.text label
 
 buttonAdd submitUrl label =
   H.button

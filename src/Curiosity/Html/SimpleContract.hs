@@ -69,11 +69,7 @@ instance H.ToMarkup CreateSimpleContractPage where
       autoReload
       title "New simple contract"
 
-      H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
-        Alert.AlertDefault
-        iconInformation
-        "Message about the 3 simple contracts, possible without social shares."
-        Button.NoButton
+      information
 
       (! A.id "panel-type") $ panel "Service type" $ groupType contract
                                                                roleLabel
@@ -82,8 +78,8 @@ instance H.ToMarkup CreateSimpleContractPage where
         mkey
         dates
         addDateUrl
-      panel "Employment type" $ groupEmployment
-      panel "Invoicing" $ groupInvoicing
+      (! A.id "panel-client") $ panel "Client" $ groupClient
+      panel "Invoicing and contract type" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         mkey
         expenses
@@ -96,6 +92,13 @@ instance H.ToMarkup CreateSimpleContractPage where
     expenses = SimpleContract._createContractExpenses contract
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
+
+information =
+  H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
+    Alert.AlertDefault
+    iconInformation
+    "Message about the 3 simple contracts, possible without social shares."
+    Button.NoButton
 
 iconInformation =
   Just $ OSvgIconDiv @"circle-information" svgIconCircleInformation
@@ -204,10 +207,37 @@ groupDates mkey dates submitUrl = do
     , (Just $ "/forms/edit-date/" <> key <> "/" <> show i)
     )
 
+groupClient = do
+  inputText "Client" "client-username" Nothing (Just "The client username.")
+
 groupInvoicing = do
-  inputText "Client" "client" Nothing Nothing
-  inputText "Amount" "amount" Nothing Nothing
-  inputText "VAT"    "vat"    Nothing Nothing
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" $
+      "Amount"
+    H.div ! A.class_ "o-form-group__controls o-form-group__controls--full-width" $ do
+      H.div ! A.class_ "o-flex-bp2 o-flex--spaced-wide o-flex--vertical-center" $ do
+        H.div ! A.class_ "c-input-group" $ do
+          H.div ! A.class_ "c-input-group__input" $
+            H.input ! A.class_ "c-input" ! A.type_ "number" ! A.id "amount"
+          H.div ! A.class_ "c-input-group__append" $ "€"
+        H.div ! A.class_ "c-checkbox" $
+          H.label $ do
+            H.input ! A.type_ "checkbox"
+            "Unknown amount"
+      H.p ! A.class_ "c-form-help-text" $
+        "Enter an amount or select \"Unknown amount\"."
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" $
+      "VAT rate"
+    H.div ! A.class_ "o-form-group__controls o-form-group__controls--full-width" $ do
+      H.div ! A.class_ "o-flex-bp2 o-flex--spaced-wide o-flex--vertical-center" $ do
+        H.div ! A.class_ "c-input-group" $ do
+          H.div ! A.class_ "c-input-group__input" $
+            H.input ! A.class_ "c-input" ! A.id "vat-rate" ! A.value "21"
+          H.div ! A.class_ "c-input-group__append" $ "%"
+        buttonSecondary "#" "Change VAT rate"
+      H.p ! A.class_ "c-form-help-text" $
+        "The normal VAT rate is 21%. In some cases a reduced rate can be applied using the \"Change VAT rate\" button."
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" $ "Include VAT ?"
     H.div
@@ -216,15 +246,26 @@ groupInvoicing = do
       ! A.class_ "c-radio-group c-radio-group--inline"
       $ do
           H.div ! A.class_ "c-radio" $ H.label $ do
-            H.input ! A.type_ "radio" ! A.name "radio2"
-            "Include"
+            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "Included"
+            "VAT Included"
           H.div ! A.class_ "c-radio" $ H.label $ do
-            H.input ! A.type_ "radio" ! A.name "radio2"
-            "Exclude"
-          H.p
-            ! A.class_ "c-form-help-text"
-            $ "Usually, business clients prefer to see amounts VAT excluded."
-  inputText "Down payment" "down-payment" Nothing Nothing
+            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "Excluded"
+            "VAT Excluded"
+  inputText "Prepaid amount" "prepaid-amount" Nothing Nothing
+  inputText "Withholding tax"     "withholding-tax" Nothing Nothing
+  Misc.inputSelect_
+    "contract-type"
+    "Contract type"
+    [ ("none-selected", "Please select a contract type")
+    , ("normal", "Duration-based work contract")
+    , ("artistic", "Task-based artistic contract")
+    , ("artistic-1bis", "1st bis artistic contract")
+    , ("student", "Student work contract")
+    , ("interim", "Interim contract")
+    ]
+    Nothing
+    Nothing
+    False
 
 groupExpenses mkey expenses submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
@@ -258,11 +299,6 @@ groupExpenses mkey expenses submitUrl = do
       ]
     , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
     )
-
-groupEmployment = do
-  inputText "Withholding tax"     "withholding-tax" Nothing Nothing
-  inputText "Student / au cachet" "TODO"            Nothing Nothing
-  inputText "Interim"             "interim"         Nothing Nothing
 
 formKeyValue :: Text -> Text -> H.Html
 formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
