@@ -202,16 +202,16 @@ data SelectRolePage = SelectRolePage
     -- ^ The user creating the simple contract
   , _selectRolePageKey         :: Text
     -- ^ The key of the contract form
-  , _selectRolePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup SelectRolePage where
-  toMarkup (SelectRolePage profile key submitUrl) =
+  toMarkup (SelectRolePage profile key) =
     renderFormLarge profile $ do
       autoReload
       title' "Select role" Nothing
 
       H.div ! A.class_ "c-display" $ do
+        H.h3 "Fonction de création artistique et artisanale"
         H.h4 "Arts du spectacle"
         H.h4 "Arts littéraires"
         H.h4 "Arts plastiques et graphiques"
@@ -254,6 +254,8 @@ instance H.ToMarkup ConfirmRolePage where
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do
             keyValuePair "Role" role
+            H.input ! A.type_ "hidden" ! A.id "role" ! A.name "role" ! A.value
+              (H.toValue role)
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
@@ -342,16 +344,17 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
 instance H.ToMarkup ConfirmSimpleContractPage where
   toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) submitUrl)
     = renderFormLarge profile $ do
-      title' "New employment contract"
+      autoReload
+      title' "New simple contract"
         .  Just
         .  H.toValue
-        $  "/forms/edit-contract/"
+        $  "/forms/edit-simple-contract/"
         <> key
 
       H.div
         ! A.class_ "u-padding-vertical-l"
         $ H.toMarkup
-        $ PanelHeaderAndBody "General information"
+        $ PanelHeaderAndBody "Service type"
         $ H.dl
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do

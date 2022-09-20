@@ -34,12 +34,17 @@ module Curiosity.Runtime
   -- * High-level unit operations
   , selectUnitBySlug
   -- * Form edition
+  -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
   , writeCreateContractForm
   , addExpenseToContractForm
   , writeExpenseToContractForm
   , removeExpenseFromContractForm
+  -- ** Simple Contract
+  , newCreateSimpleContractForm
+  , readCreateSimpleContractForm
+  , addRoleToSimpleContractForm
   -- * ID generation
   , generateUserId
   , firstUserId
@@ -64,6 +69,7 @@ import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
@@ -775,6 +781,51 @@ submitCreateContractForm' db (profile, input) = do
   case mc of
     Right c   -> createEmployment db c
     Left  err -> pure . Left $ Employment.Err (show err)
+
+
+--------------------------------------------------------------------------------
+newCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, SimpleContract.CreateContractAll')
+  -> STM Text
+newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty ld rs inv)
+  = do
+    key <- Data.genRandomText db
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) (add key)
+    pure key
+ where
+  add key =
+    M.insert (username, key) (SimpleContract.CreateContractAll ty ld rs inv [])
+  username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () SimpleContract.CreateContractAll)
+readCreateSimpleContractForm db (profile, key) = do
+  m <- STM.readTVar $ Data._dbFormCreateSimpleContractAll db
+  let mform = M.lookup (username, key) m
+  pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
+
+addRoleToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.SelectRole)
+  -> STM () -- TODO Possible errors
+addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+      let ty' = ty { SimpleContract._createContractRole = role }
+      in SimpleContract.CreateContractAll ty' ld rs inv es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
 
 --------------------------------------------------------------------------------
 createInvoice

@@ -20,6 +20,7 @@ module Curiosity.Data.SimpleContract
   , CreateContractLocDates(..)
   , CreateContractRisks(..)
   , CreateContractInvoice(..)
+  , SelectRole(..)
   , AddExpense(..)
     -- * Empty values
     --
@@ -117,6 +118,15 @@ data CreateContractInvoice = CreateContractInvoice
 
 instance FromForm CreateContractInvoice where
   fromForm f = pure CreateContractInvoice
+
+data SelectRole = SelectRole
+  { _selectRoleRole :: Text
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm SelectRole where
+  fromForm f = SelectRole <$> parseUnique "role" f
 
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
