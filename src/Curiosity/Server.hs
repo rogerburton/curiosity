@@ -35,6 +35,7 @@ import           Curiosity.Data                 ( HaskDb
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
@@ -216,18 +217,18 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Post '[B.HTML] Pages.EchoPage
 
              :<|> "echo" :> "new-simple-contract"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "new-simple-contract-and-select-role"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "save-simple-contract-and-select-role"
                   :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -920,7 +921,7 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
 echoNewSimpleContract
   :: ServerC m
   => FilePath
-  -> Employment.CreateContractAll'
+  -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContract dataDir contract = do
   -- profile <- readJson $ dataDir </> "alice.json"
@@ -933,7 +934,7 @@ echoNewSimpleContract dataDir contract = do
 echoNewSimpleContractAndSelectRole
   :: ServerC m
   => FilePath
-  -> Employment.CreateContractAll'
+  -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectRole dataDir contract = do
   -- profile <- readJson $ dataDir </> "alice.json"
@@ -947,7 +948,7 @@ echoSaveSimpleContractAndSelectRole
   :: ServerC m
   => FilePath
   -> Text
-  -> Employment.CreateContractAll'
+  -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectRole dataDir key contract = do
   -- profile <- readJson $ dataDir </> "alice.json"
@@ -963,7 +964,7 @@ documentCreateSimpleContractPage
   :: ServerC m => FilePath -> m Pages.CreateSimpleContractPage
 documentCreateSimpleContractPage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
-  let contractAll = Employment.emptyCreateContractAll
+  let contractAll = SimpleContract.emptyCreateContractAll
   pure $ Pages.CreateSimpleContractPage profile
                                         Nothing
                                         contractAll
@@ -974,7 +975,7 @@ documentEditSimpleContractPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateSimpleContractPage
 documentEditSimpleContractPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  let contractAll = Employment.emptyCreateContractAll
+  let contractAll = SimpleContract.emptyCreateContractAll
   pure $ Pages.CreateSimpleContractPage profile
                                         Nothing
                                         contractAll

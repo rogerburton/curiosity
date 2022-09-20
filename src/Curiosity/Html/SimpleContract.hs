@@ -14,7 +14,7 @@ module Curiosity.Html.SimpleContract
   , ConfirmSimpleContractPage(..)
   ) where
 
-import qualified Curiosity.Data.Employment     as Employment
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import qualified Smart.Html.Alert              as Alert
@@ -29,7 +29,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data SimpleContractView = SimpleContractView
-  { _contractViewSimpleContract      :: Employment.Contract
+  { _contractViewSimpleContract      :: SimpleContract.Contract
   , _contractViewHasEditButton :: Maybe H.AttributeValue
   }
 
@@ -40,7 +40,7 @@ instance H.ToMarkup SimpleContractView where
 contractView contract hasEditButton = containerLarge $ do
   title' "Employment contract" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
-    keyValuePair "ID" (Employment._contractId contract)
+    keyValuePair "ID" (SimpleContract._contractId contract)
 
 
 --------------------------------------------------------------------------------
@@ -49,14 +49,14 @@ data CreateSimpleContractPage = CreateSimpleContractPage
     -- ^ The user creating the contract
   , _createSimpleContractPageKey           :: Maybe Text
     -- ^ The form editing session key, if the form was already saved
-  , _createSimpleContractContract          :: Employment.CreateContractAll
+  , _createSimpleContractContract          :: SimpleContract.CreateContractAll
     -- ^ The contract being edited
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractType {} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) saveUrl addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       autoReload
       title "New simple contract"
@@ -82,9 +82,9 @@ instance H.ToMarkup CreateSimpleContractPage where
             H.p ! A.class_ "c-form-help-text" $
               "Your most frequently used role has been automatically selected. Click the edit button if you want to select a different role for this work."
 
-        inputText "Work type"
-                  "type"
-                  (Just $ H.toValue _createContractType)
+        inputText "Role"
+                  "role"
+                  (Just $ H.toValue _createContractRole)
                   Nothing
         Misc.inputTextarea "description"
                            "Description"
@@ -170,9 +170,9 @@ groupExpenses mkey expenses submitUrl = do
   display
     :: Text
     -> Int
-    -> Employment.AddExpense
+    -> SimpleContract.AddExpense
     -> ([Text], [(H.Html, Text, Text)], Maybe Text)
-  display key i Employment.AddExpense {..} =
+  display key i SimpleContract.AddExpense {..} =
     ( [show _addExpenseAmount]
     , [ ( Misc.divIconDelete
         , "Remove"
@@ -274,7 +274,7 @@ data AddExpensePage = AddExpensePage
   , _addExpensePageIndex       :: Maybe Int
     -- ^ The index of the expense within CreateContractAll, if it was already
     -- added
-  , _addExpensePageExpense     :: Employment.AddExpense
+  , _addExpensePageExpense     :: SimpleContract.AddExpense
   , _addExpensePageSubmitURL   :: H.AttributeValue
   }
 
@@ -301,7 +301,7 @@ instance H.ToMarkup AddExpensePage where
    where
     label   = if isJust mindex then "Update expense" else "Add expense"
     mamount = if amount /= 0 then Just (H.toValue amount) else Nothing
-    amount  = Employment._addExpenseAmount expense
+    amount  = SimpleContract._addExpenseAmount expense
 
 
 --------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ data RemoveExpensePage = RemoveExpensePage
     -- ^ The key of the contract form
   , _removeExpensePageIndex       :: Int
     -- ^ The index of the expense within CreateContractAll
-  , _removeExpensePageExpense     :: Employment.AddExpense
+  , _removeExpensePageExpense     :: SimpleContract.AddExpense
   , _removeExpensePageSubmitURL   :: H.AttributeValue
   }
 
@@ -327,7 +327,7 @@ instance H.ToMarkup RemoveExpensePage where
       button submitUrl "Remove expense"
    where
     mamount = if amount /= 0 then show amount else "/" :: Text
-    amount  = Employment._addExpenseAmount expense
+    amount  = SimpleContract._addExpenseAmount expense
 
 
 --------------------------------------------------------------------------------
@@ -335,12 +335,12 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
   { _confirmSimpleContractPageUserProfile :: User.UserProfile
     -- ^ The user creating the contract
   , _confirmSimpleContractPageKey         :: Text
-  , _confirmSimpleContractPageContract    :: Employment.CreateContractAll
+  , _confirmSimpleContractPageContract    :: SimpleContract.CreateContractAll
   , _confirmSimpleContractPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractType {} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) submitUrl)
     = renderFormLarge profile $ do
       title' "New employment contract"
         .  Just
@@ -356,10 +356,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do
             keyValuePair "Worker username" username
-            keyValuePair "Project"         _createContractProject
-            keyValuePair "Purchase order"  _createContractPO
             keyValuePair "Role"            _createContractRole
-            keyValuePair "Work type"       _createContractType
             keyValuePair "Description"     _createContractDescription
 
       H.div
@@ -385,7 +382,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
     display
       :: Text
       -> Int
-      -> Employment.AddExpense
+      -> SimpleContract.AddExpense
       -> ([Text], [(H.Html, Text, Text)], Maybe Text)
-    display key i Employment.AddExpense {..} =
+    display key i SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)

@@ -96,6 +96,7 @@ library
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
+    Curiosity.Data.SimpleContract
     Curiosity.Data.User
     Curiosity.Dsl
     Curiosity.Form.Login
