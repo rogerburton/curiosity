@@ -17,18 +17,17 @@ module Curiosity.Data.SimpleContract
     CreateContractAll(..)
   , CreateContractAll'(..)
   , CreateContractType(..)
-  , CreateContractLocDates(..)
   , CreateContractRisks(..)
   , CreateContractInvoice(..)
   , SelectRole(..)
   , AddDate(..)
+  , SelectVAT(..)
   , AddExpense(..)
     -- * Empty values
     --
     -- $emptyValues
   , emptyCreateContractAll
   , emptyCreateContractType
-  , emptyCreateContractLocDates
   , emptyCreateContractRisks
   , emptyCreateContractInvoice
   , emptyAddDate
@@ -63,7 +62,6 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- "submitted", using the `SubmitContract` data type below, and the key.
 data CreateContractAll = CreateContractAll
   { _createContractType     :: CreateContractType
-  , _createContractLocDates :: CreateContractLocDates
   , _createContractRisks    :: CreateContractRisks
   , _createContractInvoice  :: CreateContractInvoice
   , _createContractDates    :: [AddDate]
@@ -76,7 +74,6 @@ data CreateContractAll = CreateContractAll
 -- the main panels into a `FromForm` instance. Simply leaving out the expenses
 -- would also work but be less explicit.
 data CreateContractAll' = CreateContractAll' CreateContractType
-                                             CreateContractLocDates
                                              CreateContractRisks
                                              CreateContractInvoice
   deriving (Generic, Eq, Show)
@@ -86,7 +83,6 @@ instance FromForm CreateContractAll' where
   fromForm f =
     CreateContractAll'
       <$> fromForm f
-      <*> fromForm f
       <*> fromForm f
       <*> fromForm f
 
@@ -107,13 +103,6 @@ instance FromForm CreateContractType where
       <*> parseUnique "work-country" f
       <*> parseUnique "has-risks"    f
 
-data CreateContractLocDates = CreateContractLocDates
-  deriving (Generic, Eq, Show)
-  deriving anyclass (ToJSON, FromJSON)
-
-instance FromForm CreateContractLocDates where
-  fromForm f = pure CreateContractLocDates
-
 data CreateContractRisks = CreateContractRisks
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -122,11 +111,13 @@ instance FromForm CreateContractRisks where
   fromForm f = pure CreateContractRisks
 
 data CreateContractInvoice = CreateContractInvoice
+  { _createContractVAT :: Int
+  }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractInvoice where
-  fromForm f = pure CreateContractInvoice
+  fromForm f = CreateContractInvoice <$> parseUnique "vat" f
 
 data SelectRole = SelectRole
   { _selectRoleRole :: Text
@@ -145,6 +136,15 @@ data AddDate = AddDate
 
 instance FromForm AddDate where
   fromForm f = AddDate <$> parseUnique "date" f
+
+data SelectVAT = SelectVAT
+  { _selectVATRate :: Int
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm SelectVAT where
+  fromForm f = SelectVAT <$> parseUnique "vat" f
 
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
@@ -166,7 +166,6 @@ instance FromForm AddExpense where
 
 emptyCreateContractAll :: CreateContractAll
 emptyCreateContractAll = CreateContractAll emptyCreateContractType
-                                           emptyCreateContractLocDates
                                            emptyCreateContractRisks
                                            emptyCreateContractInvoice
                                            []
@@ -183,14 +182,11 @@ emptyCreateContractType = CreateContractType
   , _createContractHasRisks = False -- TODO We probably want no default choice here.
   }
 
-emptyCreateContractLocDates :: CreateContractLocDates
-emptyCreateContractLocDates = CreateContractLocDates
-
 emptyCreateContractRisks :: CreateContractRisks
 emptyCreateContractRisks = CreateContractRisks
 
 emptyCreateContractInvoice :: CreateContractInvoice
-emptyCreateContractInvoice = CreateContractInvoice
+emptyCreateContractInvoice = CreateContractInvoice { _createContractVAT = 21 }
 
 emptyAddDate :: AddDate
 emptyAddDate = AddDate { _addDateDate = "1970-01-01" }

@@ -12,6 +12,8 @@ module Curiosity.Html.SimpleContract
   , ConfirmRolePage(..)
   , AddDatePage(..)
   , RemoveDatePage(..)
+  , SelectVATPage(..)
+  , ConfirmVATPage(..)
   --, AddExpensePage(..)
   --, RemoveExpensePage(..)
   , ConfirmSimpleContractPage(..)
@@ -60,11 +62,12 @@ data CreateSimpleContractPage = CreateSimpleContractPage
     -- ^ The human text for the role, already looked un in `roles'`.
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
   , _createSimpleContractPageAddDateURL    :: H.AttributeValue
+  , _createSimpleContractPageSelectVATURL  :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addDateUrl addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addDateUrl selectVATUrl  addExpenseUrl)
     = renderFormLarge profile $ do
       autoReload
       title "New simple contract"
@@ -79,7 +82,7 @@ instance H.ToMarkup CreateSimpleContractPage where
         dates
         addDateUrl
       (! A.id "panel-client") $ panel "Client" $ groupClient
-      panel "Invoicing and contract type" $ groupInvoicing
+      (! A.id "panel-invoicing") $ panel "Invoicing and contract type" $ groupInvoicing inv selectVATUrl
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         mkey
         expenses
@@ -89,6 +92,7 @@ instance H.ToMarkup CreateSimpleContractPage where
         submitButton saveUrl "Save changes"
    where
     dates = SimpleContract._createContractDates contract
+    inv = SimpleContract._createContractInvoice contract
     expenses = SimpleContract._createContractExpenses contract
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
@@ -210,7 +214,8 @@ groupDates mkey dates submitUrl = do
 groupClient = do
   inputText "Client" "client-username" Nothing (Just "The client username.")
 
-groupInvoicing = do
+groupInvoicing inv selectVATUrl = do
+  let vat = SimpleContract._createContractVAT inv
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" $
       "Amount"
@@ -233,11 +238,11 @@ groupInvoicing = do
       H.div ! A.class_ "o-flex-bp2 o-flex--spaced-wide o-flex--vertical-center" $ do
         H.div ! A.class_ "c-input-group" $ do
           H.div ! A.class_ "c-input-group__input" $
-            H.input ! A.class_ "c-input" ! A.id "vat-rate" ! A.value "21"
+            H.input ! A.class_ "c-input" ! A.id "vat" ! A.name "vat" ! A.value (H.toValue vat)
           H.div ! A.class_ "c-input-group__append" $ "%"
-        buttonSecondary "#" "Change VAT rate"
+        buttonSecondary selectVATUrl "Change VAT"
       H.p ! A.class_ "c-form-help-text" $
-        "The normal VAT rate is 21%. In some cases a reduced rate can be applied using the \"Change VAT rate\" button."
+        "The normal VAT is 21%. In some cases a reduced rate can be applied using the \"Change VAT rate\" button."
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" $ "Include VAT ?"
     H.div
@@ -480,6 +485,63 @@ instance H.ToMarkup RemoveDatePage where
 
 
 --------------------------------------------------------------------------------
+data SelectVATPage = SelectVATPage
+  { _selectVATPageUserProfile :: User.UserProfile
+    -- ^ The user creating the simple contract
+  , _selectVATPageKey         :: Text
+    -- ^ The key of the contract form
+  }
+
+instance H.ToMarkup SelectVATPage where
+  toMarkup (SelectVATPage profile key) = renderFormLarge profile $ do
+    autoReload
+    title' "Select VAT" Nothing
+
+    displayRate key ("0", "0% For some reason")
+    displayRate key ("6", "6% For some reason")
+    displayRate key ("21", "21% For some reason")
+
+displayRate key (value, label) =
+  H.li
+    $ H.a
+    ! A.href (H.toValue $ "/forms/confirm-vat/" <> key <> "/" <> value)
+    $ H.text label
+
+--------------------------------------------------------------------------------
+data ConfirmVATPage = ConfirmVATPage
+  { _confirmVATPageUserProfile :: User.UserProfile
+    -- ^ The user creating the simple contract
+  , _confirmVATPageKey         :: Text
+    -- ^ The key of the contract form
+  , _confirmVATPageRate        :: Int
+    -- ^ The rate being selected
+  , _confirmVATPageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup ConfirmVATPage where
+  toMarkup (ConfirmVATPage profile key rate submitUrl) =
+    renderFormLarge profile $ do
+      autoReload
+      H.toMarkup
+        $ PanelHeaderAndBody "Confirm selected VAT"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ do
+            keyValuePair "VAT" (show rate <> "%" :: Text)
+            H.input ! A.type_ "hidden" ! A.id "vat" ! A.name "vat" ! A.value
+              (H.toValue rate)
+
+      H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
+        (H.toValue key)
+
+      buttonBar $ do
+        buttonLink
+          (H.toValue $ "/forms/edit-simple-contract/" <> key <> "#panel-invoicing")
+          "Cancel"
+        buttonPrimary submitUrl "Select VAT"
+
+
+--------------------------------------------------------------------------------
 data AddExpensePage = AddExpensePage
   { _addExpensePageUserProfile :: User.UserProfile
     -- ^ The user creating the expense within a contract
@@ -556,7 +618,7 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel submitUrl)
     = renderFormLarge profile $ do
       autoReload
       title' "New simple contract"
