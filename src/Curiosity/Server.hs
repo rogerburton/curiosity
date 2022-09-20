@@ -229,6 +229,18 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "save-simple-contract"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-simple-contract-and-add-date"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "save-simple-contract-and-select-role"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
@@ -327,6 +339,8 @@ serverT natTrans ctx conf jwtS root dataDir =
 
     :<|> echoNewSimpleContract dataDir
     :<|> echoNewSimpleContractAndSelectRole dataDir
+    :<|> echoSaveSimpleContract dataDir
+    :<|> echoSaveSimpleContractAndAddDate dataDir
     :<|> echoSaveSimpleContractAndSelectRole dataDir
     :<|> echoSelectRole dataDir
 
@@ -798,30 +812,54 @@ documentRemoveExpensePage dataDir key index = do
           (H.toValue $ "/echo/remove-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
--- | Save a form, generating a new key.
+-- | Create a form, generating a new key. This is normally used with a
+-- \"Location" header.
+echoNewContract'
+  :: ServerC m
+  => FilePath
+  -> Employment.CreateContractAll'
+  -> m Text
+echoNewContract' dataDir contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
+  pure key
+
+-- | Create a form, generating a new key.
 echoNewContract
   :: ServerC m
   => FilePath
   -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
-  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
+  key <- echoNewContract' dataDir contract
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
 
--- | Save a form, then move to the add expense part.
+-- | Create a form, then move to the add expense part.
 echoNewContractAndAddExpense
   :: ServerC m
   => FilePath
   -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContractAndAddExpense dataDir contract = do
-  -- TODO This is the same code, but with a different redirect.
-  profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
-  key <- liftIO . atomically $ Rt.newCreateContractForm db (profile, contract)
+  key <- echoNewContract' dataDir contract
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+
+-- | Save a form, re-using a key. This is normally used with a \"Location"
+-- header.
+echoSaveContract'
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.CreateContractAll'
+  -> m ()
+echoSaveContract' dataDir key contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+    db
+    (profile, key, contract)
+  pure ()
 
 -- | Save a form, re-using a key.
 echoSaveContract
@@ -831,11 +869,7 @@ echoSaveContract
   -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
-    db
-    (profile, key, contract)
+  echoSaveContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
@@ -846,12 +880,7 @@ echoSaveContractAndAddExpense
   -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContractAndAddExpense dataDir key contract = do
-  -- TODO This is the same code, but with a different redirect.
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
-    db
-    (profile, key, contract)
+  echoSaveContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
 
 -- | Save an expense, re-using a key and an index.
@@ -958,6 +987,44 @@ echoNewSimpleContractAndSelectRole dataDir contract = do
     (profile, contract)
   pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
 
+-- | Save a form, re-using a key. This is normally used with a \"Location"
+-- header.
+echoSaveSimpleContract'
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.CreateContractAll'
+  -> m ()
+echoSaveSimpleContract' dataDir key contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeCreateSimpleContractForm
+    db
+    (profile, key, contract)
+  pure ()
+
+-- | Save a form, re-using a key.
+echoSaveSimpleContract
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveSimpleContract dataDir key contract = do
+  echoSaveSimpleContract' dataDir key contract
+  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key) NoContent
+
+-- | Save a form, re-using a key, then move to the select date part.
+echoSaveSimpleContractAndAddDate
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveSimpleContractAndAddDate dataDir key contract = do
+  echoSaveSimpleContract' dataDir key contract
+  pure $ addHeader @"Location" ("/forms/add-date/" <> key) NoContent
+
 -- | Save a form, re-using a key, then move to the select role part.
 echoSaveSimpleContractAndSelectRole
   :: ServerC m
@@ -966,11 +1033,7 @@ echoSaveSimpleContractAndSelectRole
   -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectRole dataDir key contract = do
-  -- profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
-  --todo    <- liftIO . atomically $ Rt.writeCreateContractForm
-  --  db
-  --  (profile, key, contract)
+  echoSaveSimpleContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
 
 echoSelectRole
@@ -1003,6 +1066,7 @@ documentCreateSimpleContractPage dataDir = do
       contractAll
       roleLabel
       "/echo/new-simple-contract"
+      "/echo/new-simple-contract-and-add-date"
       "/echo/new-simple-contract-and-add-expense"
     Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
 
@@ -1024,8 +1088,9 @@ documentEditSimpleContractPage dataDir key = do
           Nothing
           contractAll
           roleLabel
-          "/echo/new-simple-contract"
-          "/echo/new-simple-contract-and-add-expense"
+          (H.toValue $ "/echo/save-simple-contract/" <> key)
+          (H.toValue $ "/echo/save-simple-contract-and-add-date/" <> key)
+          (H.toValue $ "/echo/save-simple-contract-and-add-expense/" <> key)
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 

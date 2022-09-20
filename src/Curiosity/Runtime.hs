@@ -44,6 +44,7 @@ module Curiosity.Runtime
   -- ** Simple Contract
   , newCreateSimpleContractForm
   , readCreateSimpleContractForm
+  , writeCreateSimpleContractForm
   , addRoleToSimpleContractForm
   -- * ID generation
   , generateUserId
@@ -810,6 +811,24 @@ readCreateSimpleContractForm db (profile, key) = do
   let mform = M.lookup (username, key) m
   pure $ maybe (Left ()) Right mform
   where username = User._userCredsName $ User._userProfileCreds profile
+
+writeCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.CreateContractAll')
+  -> STM Text
+writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll' ty ld rs inv)
+  = do
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+    pure key
+ where
+  -- TODO Return an error when the key is not found.
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll _ _ _ _ es) ->
+      SimpleContract.CreateContractAll ty ld rs inv es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
 
 addRoleToSimpleContractForm
   :: forall runtime

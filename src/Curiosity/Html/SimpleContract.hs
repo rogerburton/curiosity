@@ -57,11 +57,12 @@ data CreateSimpleContractPage = CreateSimpleContractPage
   , _createSimpleContractRoleLabel         :: Text
     -- ^ The human text for the role, already looked un in `roles'`.
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
+  , _createSimpleContractPageAddDateURL    :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addDateUrl addExpenseUrl)
     = renderFormLarge profile $ do
       autoReload
       title "New simple contract"
@@ -75,9 +76,11 @@ instance H.ToMarkup CreateSimpleContractPage where
       (! A.id "panel-type") $ panel "Service type" $ groupType contract
                                                                roleLabel
       panel "Risks" $ groupRisks
+      (! A.id "panel-dates") $ panelStandard "Work dates" $ groupDates
+        mkey
+        expenses
+        addDateUrl
       panel "Employment type" $ groupEmployment
-      panel "Location and dates" $ do
-        inputText "Work dates" "dates" Nothing Nothing
       panel "Invoicing" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         mkey
@@ -162,6 +165,41 @@ groupRisks = H.div ! A.class_ "o-form-group" $ do
     iconInformation
     "Fill this panel only when you selected \"With risks\" above."
     Button.NoButton
+
+-- TODO This is the same editing pattern as groupExpenses: start with an empty
+-- list, then add / delete / edit items. This should be abstracted away.
+groupDates mkey expenses submitUrl = do
+  H.div ! A.class_ "o-form-group" $ do
+    when (null expenses)
+      $ H.div
+      ! A.class_ "c-blank-slate c-blank-slate--bg-alt"
+      $ do
+          H.p
+            ! A.class_ "u-text-muted c-body-1"
+            $ "Select the dates when you'll be working. All the dates must be within the same month."
+          H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl
+                                                          "Add date"
+    case mkey of
+      Just key | not (null expenses) ->
+        Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+      _ -> pure ()
+    when (not $ null expenses) $ buttonGroup $ buttonAdd submitUrl "Add date"
+ where
+  titles = ["Date"]
+  display
+    :: Text
+    -> Int
+    -> SimpleContract.AddExpense
+    -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+  display key i SimpleContract.AddExpense {..} =
+    ( [show _addExpenseAmount]
+    , [ ( Misc.divIconDelete
+        , "Remove"
+        , "/forms/remove-expense/" <> key <> "/" <> show i
+        )
+      ]
+    , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
+    )
 
 groupInvoicing = do
   inputText "Client" "client" Nothing Nothing
