@@ -46,6 +46,9 @@ module Curiosity.Runtime
   , readCreateSimpleContractForm
   , writeCreateSimpleContractForm
   , addRoleToSimpleContractForm
+  , addDateToSimpleContractForm
+  , writeDateToSimpleContractForm
+  , removeDateFromSimpleContractForm
   -- * ID generation
   , generateUserId
   , firstUserId
@@ -798,7 +801,7 @@ newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty ld
     pure key
  where
   add key =
-    M.insert (username, key) (SimpleContract.CreateContractAll ty ld rs inv [])
+    M.insert (username, key) (SimpleContract.CreateContractAll ty ld rs inv [] [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateSimpleContractForm
@@ -824,8 +827,8 @@ writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(SimpleContract.CreateContractAll _ _ _ _ es) ->
-      SimpleContract.CreateContractAll ty ld rs inv es
+    (\(SimpleContract.CreateContractAll _ _ _ _ ds es) ->
+      SimpleContract.CreateContractAll ty ld rs inv ds es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -840,9 +843,57 @@ addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+    (\(SimpleContract.CreateContractAll ty ld rs inv ds es) ->
       let ty' = ty { SimpleContract._createContractRole = role }
-      in  SimpleContract.CreateContractAll ty' ld rs inv es
+      in  SimpleContract.CreateContractAll ty' ld rs inv ds es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addDateToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.AddDate)
+  -> STM () -- TODO Possible errors
+addDateToSimpleContractForm db (profile, key, date) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv ds es) ->
+      SimpleContract.CreateContractAll ty ld rs inv (ds ++ [date]) es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeDateToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, SimpleContract.AddDate)
+  -> STM () -- TODO Possible errors
+writeDateToSimpleContractForm db (profile, key, index, date) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv ds es) ->
+      let f i e = if i == index then date else e
+          ds' = zipWith f [0 ..] ds
+      in  SimpleContract.CreateContractAll ty ld rs inv ds' es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeDateFromSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeDateFromSimpleContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv ds es) ->
+      let ds' = map snd . filter ((/= index) . fst) $ zip [0 ..] ds
+      in  SimpleContract.CreateContractAll ty ld rs inv ds' es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile

@@ -10,6 +10,8 @@ module Curiosity.Html.SimpleContract
   , CreateSimpleContractPage(..)
   , SelectRolePage(..)
   , ConfirmRolePage(..)
+  , AddDatePage(..)
+  , RemoveDatePage(..)
   --, AddExpensePage(..)
   --, RemoveExpensePage(..)
   , ConfirmSimpleContractPage(..)
@@ -78,7 +80,7 @@ instance H.ToMarkup CreateSimpleContractPage where
       panel "Risks" $ groupRisks
       (! A.id "panel-dates") $ panelStandard "Work dates" $ groupDates
         mkey
-        expenses
+        dates
         addDateUrl
       panel "Employment type" $ groupEmployment
       panel "Invoicing" $ groupInvoicing
@@ -90,6 +92,7 @@ instance H.ToMarkup CreateSimpleContractPage where
       groupLayout $ do
         submitButton saveUrl "Save changes"
    where
+    dates = SimpleContract._createContractDates contract
     expenses = SimpleContract._createContractExpenses contract
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
@@ -168,9 +171,9 @@ groupRisks = H.div ! A.class_ "o-form-group" $ do
 
 -- TODO This is the same editing pattern as groupExpenses: start with an empty
 -- list, then add / delete / edit items. This should be abstracted away.
-groupDates mkey expenses submitUrl = do
+groupDates mkey dates submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
-    when (null expenses)
+    when (null dates)
       $ H.div
       ! A.class_ "c-blank-slate c-blank-slate--bg-alt"
       $ do
@@ -180,25 +183,25 @@ groupDates mkey expenses submitUrl = do
           H.div ! A.class_ "c-button-toolbar" $ buttonAdd submitUrl
                                                           "Add date"
     case mkey of
-      Just key | not (null expenses) ->
-        Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+      Just key | not (null dates) ->
+        Misc.table titles (uncurry $ display key) $ zip [0 ..] dates
       _ -> pure ()
-    when (not $ null expenses) $ buttonGroup $ buttonAdd submitUrl "Add date"
+    when (not $ null dates) $ buttonGroup $ buttonAdd submitUrl "Add date"
  where
   titles = ["Date"]
   display
     :: Text
     -> Int
-    -> SimpleContract.AddExpense
+    -> SimpleContract.AddDate
     -> ([Text], [(H.Html, Text, Text)], Maybe Text)
-  display key i SimpleContract.AddExpense {..} =
-    ( [show _addExpenseAmount]
+  display key i SimpleContract.AddDate {..} =
+    ( [_addDateDate]
     , [ ( Misc.divIconDelete
         , "Remove"
-        , "/forms/remove-expense/" <> key <> "/" <> show i
+        , "/forms/remove-date/" <> key <> "/" <> show i
         )
       ]
-    , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
+    , (Just $ "/forms/edit-date/" <> key <> "/" <> show i)
     )
 
 groupInvoicing = do
@@ -381,6 +384,66 @@ instance H.ToMarkup ConfirmRolePage where
 
 
 --------------------------------------------------------------------------------
+data AddDatePage = AddDatePage
+  { _addDatePageUserProfile :: User.UserProfile
+    -- ^ The user creating the date within a contract
+  , _addDatePageKey         :: Text
+    -- ^ The key of the contract form
+  , _addDatePageIndex       :: Maybe Int
+    -- ^ The index of the date within CreateContractAll, if it was already
+    -- added
+  , _addDatePageDate     :: SimpleContract.AddDate
+  , _addDatePageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup AddDatePage where
+  toMarkup (AddDatePage profile key mindex date submitUrl) =
+    renderFormLarge profile $ do
+      title' label Nothing
+
+      panel "Work dates" $ do
+        inputText "Date" "date" mamount Nothing
+
+      H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
+        (H.toValue key)
+      buttonBar $ do
+        buttonLink
+          (H.toValue $ "/forms/edit-contract/" <> key <> "#panel-dates")
+          "Cancel"
+        buttonPrimary submitUrl label
+   where
+    label   = if isJust mindex then "Update date" else "Add date"
+    mamount = if amount /= "1970-01-01" then Just (H.toValue amount) else Nothing
+    amount  = SimpleContract._addDateDate date
+
+
+--------------------------------------------------------------------------------
+data RemoveDatePage = RemoveDatePage
+  { _removeDatePageUserProfile :: User.UserProfile
+    -- ^ The user creating the date within a contract
+  , _removeDatePageKey         :: Text
+    -- ^ The key of the contract form
+  , _removeDatePageIndex       :: Int
+    -- ^ The index of the date within CreateContractAll
+  , _removeDatePageDate     :: SimpleContract.AddDate
+  , _removeDatePageSubmitURL   :: H.AttributeValue
+  }
+
+instance H.ToMarkup RemoveDatePage where
+  toMarkup (RemoveDatePage profile key mindex date submitUrl) =
+    renderFormLarge profile $ do
+      title' "Remove date" Nothing
+
+      panel "Work dates" $ do
+        keyValuePair "Date" mamount
+
+      button submitUrl "Remove date"
+   where
+    mamount = if amount /= "1970-01-01" then amount else "/" :: Text
+    amount  = SimpleContract._addDateDate date
+
+
+--------------------------------------------------------------------------------
 data AddExpensePage = AddExpensePage
   { _addExpensePageUserProfile :: User.UserProfile
     -- ^ The user creating the expense within a contract
@@ -457,7 +520,7 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) roleLabel submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel submitUrl)
     = renderFormLarge profile $ do
       autoReload
       title' "New simple contract"

@@ -137,6 +137,17 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "key" Text
                   :> Capture "role" Text
                   :> Get '[B.HTML] Pages.ConfirmRolePage
+             :<|> "forms" :> "add-date"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.AddDatePage
+             :<|> "forms" :> "edit-date"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.AddDatePage
+             :<|> "forms" :> "remove-date"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.RemoveDatePage
              :<|> "forms" :> "confirm-simple-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmSimpleContractPage
@@ -224,6 +235,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "new-simple-contract-and-add-date"
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "new-simple-contract-and-select-role"
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -238,6 +254,25 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "save-simple-contract-and-add-date"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "add-date"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.AddDate
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-date"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.AddDate
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "remove-date"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -311,6 +346,9 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> documentEditSimpleContractPage dataDir
     :<|> documentSelectRolePage dataDir
     :<|> documentConfirmRolePage dataDir
+    :<|> documentAddDatePage dataDir
+    :<|> documentEditDatePage dataDir
+    :<|> documentRemoveDatePage dataDir
     :<|> documentConfirmSimpleContractPage dataDir
 
     :<|> documentProfilePage dataDir
@@ -338,9 +376,13 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> echoSubmitContract dataDir
 
     :<|> echoNewSimpleContract dataDir
+    :<|> echoNewSimpleContractAndAddDate dataDir
     :<|> echoNewSimpleContractAndSelectRole dataDir
     :<|> echoSaveSimpleContract dataDir
     :<|> echoSaveSimpleContractAndAddDate dataDir
+    :<|> echoAddDate dataDir
+    :<|> echoSaveDate dataDir
+    :<|> echoRemoveDate dataDir
     :<|> echoSaveSimpleContractAndSelectRole dataDir
     :<|> echoSelectRole dataDir
 
@@ -883,6 +925,20 @@ echoSaveContractAndAddExpense dataDir key contract = do
   echoSaveContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
 
+echoAddExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Employment.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoAddExpense dataDir key expense = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    NoContent
+
 -- | Save an expense, re-using a key and an index.
 echoSaveExpense
   :: ServerC m
@@ -931,20 +987,6 @@ documentConfirmContractPage dataDir key = do
       "/echo/submit-contract"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
-echoAddExpense
-  :: ServerC m
-  => FilePath
-  -> Text
-  -> Employment.AddExpense
-  -> m (Headers '[Header "Location" Text] NoContent)
-echoAddExpense dataDir key expense = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
-  pure $ addHeader @"Location"
-    ("/forms/edit-contract/" <> key <> "#panel-expenses")
-    NoContent
-
 echoSubmitContract
   :: ServerC m => FilePath -> Employment.SubmitContract -> m Pages.EchoPage
 echoSubmitContract dataDir (Employment.SubmitContract key) = do
@@ -958,6 +1000,21 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
 
 
 --------------------------------------------------------------------------------
+-- | Create a form, generating a new key. This is normally used with a
+-- \"Location" header.
+echoNewSimpleContract'
+  :: ServerC m
+  => FilePath
+  -> SimpleContract.CreateContractAll'
+  -> m Text
+echoNewSimpleContract' dataDir contract = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
+    db
+    (profile, contract)
+  pure key
+
 -- | Create a form, then move to the confirmation page.
 echoNewSimpleContract
   :: ServerC m
@@ -965,13 +1022,19 @@ echoNewSimpleContract
   -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContract dataDir contract = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
-    db
-    (profile, contract)
+  key <- echoNewSimpleContract' dataDir contract
   pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key)
                                NoContent
+
+-- | Create a form, then move to the add date part.
+echoNewSimpleContractAndAddDate
+  :: ServerC m
+  => FilePath
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewSimpleContractAndAddDate dataDir contract = do
+  key <- echoNewSimpleContract' dataDir contract
+  pure $ addHeader @"Location" ("/forms/add-date/" <> key) NoContent
 
 -- | Create a form, then move to the select role part.
 echoNewSimpleContractAndSelectRole
@@ -980,11 +1043,7 @@ echoNewSimpleContractAndSelectRole
   -> SimpleContract.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectRole dataDir contract = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
-    db
-    (profile, contract)
+  key <- echoNewSimpleContract' dataDir contract
   pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
@@ -1024,6 +1083,54 @@ echoSaveSimpleContractAndAddDate
 echoSaveSimpleContractAndAddDate dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/add-date/" <> key) NoContent
+
+echoAddDate
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.AddDate
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoAddDate dataDir key date = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  liftIO . atomically $ Rt.addDateToSimpleContractForm db (profile, key, date)
+  pure $ addHeader @"Location"
+    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    NoContent
+
+-- | Save a date, re-using a key and an index.
+echoSaveDate
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> SimpleContract.AddDate
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveDate dataDir key index date = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeDateToSimpleContractForm
+    db
+    (profile, key, index, date)
+  pure $ addHeader @"Location"
+    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    NoContent
+
+echoRemoveDate
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoRemoveDate dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.removeDateFromSimpleContractForm
+    db
+    (profile, key, index)
+  pure $ addHeader @"Location"
+    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    NoContent
 
 -- | Save a form, re-using a key, then move to the select role part.
 echoSaveSimpleContractAndSelectRole
@@ -1085,7 +1192,7 @@ documentEditSimpleContractPage dataDir key = do
       case Pages.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.CreateSimpleContractPage
           profile
-          Nothing
+          (Just key)
           contractAll
           roleLabel
           (H.toValue $ "/echo/save-simple-contract/" <> key)
@@ -1124,6 +1231,58 @@ documentConfirmRolePage dataDir key role = do
           roleLabel
           (H.toValue $ "/echo/select-role/" <> key)
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentAddDatePage
+  :: ServerC m => FilePath -> Text -> m Pages.AddDatePage
+documentAddDatePage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right _ -> pure $ Pages.AddDatePage
+      profile
+      key
+      Nothing
+      SimpleContract.emptyAddDate
+      (H.toValue $ "/echo/add-date/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Same as documentAddDatePage, but use an existing form.
+documentEditDatePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.AddDatePage
+documentEditDatePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
+      if index > length dates - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.AddDatePage
+          profile
+          key
+          (Just index)
+          (dates !! index)
+          (H.toValue $ "/echo/save-date/" <> key <> "/" <> show index)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentRemoveDatePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveDatePage
+documentRemoveDatePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
+      if index > length dates - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.RemoveDatePage
+          profile
+          key
+          index
+          (dates !! index)
+          (H.toValue $ "/echo/remove-date/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmSimpleContractPage

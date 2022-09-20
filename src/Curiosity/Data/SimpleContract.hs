@@ -21,6 +21,7 @@ module Curiosity.Data.SimpleContract
   , CreateContractRisks(..)
   , CreateContractInvoice(..)
   , SelectRole(..)
+  , AddDate(..)
   , AddExpense(..)
     -- * Empty values
     --
@@ -30,6 +31,7 @@ module Curiosity.Data.SimpleContract
   , emptyCreateContractLocDates
   , emptyCreateContractRisks
   , emptyCreateContractInvoice
+  , emptyAddDate
   , emptyAddExpense
     -- * Form submittal
   , SubmitContract(..)
@@ -64,6 +66,7 @@ data CreateContractAll = CreateContractAll
   , _createContractLocDates :: CreateContractLocDates
   , _createContractRisks    :: CreateContractRisks
   , _createContractInvoice  :: CreateContractInvoice
+  , _createContractDates    :: [AddDate]
   , _createContractExpenses :: [AddExpense]
   }
   deriving (Generic, Eq, Show)
@@ -134,6 +137,15 @@ data SelectRole = SelectRole
 instance FromForm SelectRole where
   fromForm f = SelectRole <$> parseUnique "role" f
 
+data AddDate = AddDate
+  { _addDateDate :: Text -- TODO Proper type.
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance FromForm AddDate where
+  fromForm f = AddDate <$> parseUnique "date" f
+
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
   }
@@ -158,6 +170,7 @@ emptyCreateContractAll = CreateContractAll emptyCreateContractType
                                            emptyCreateContractRisks
                                            emptyCreateContractInvoice
                                            []
+                                           []
 
 emptyCreateContractType :: CreateContractType
 emptyCreateContractType = CreateContractType
@@ -178,6 +191,9 @@ emptyCreateContractRisks = CreateContractRisks
 
 emptyCreateContractInvoice :: CreateContractInvoice
 emptyCreateContractInvoice = CreateContractInvoice
+
+emptyAddDate :: AddDate
+emptyAddDate = AddDate { _addDateDate = "1970-01-01" }
 
 emptyAddExpense :: AddExpense
 emptyAddExpense = AddExpense { _addExpenseAmount = 0 }
