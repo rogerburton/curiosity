@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TupleSections #-}
 {- |
 Module: Curiosity.Html.SimpleContract
 Description: Employment contract pages (view and edit) for the "simple" (also
@@ -60,7 +61,7 @@ data CreateSimpleContractPage = CreateSimpleContractPage
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) roleLabel saveUrl addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       autoReload
       title "New simple contract"
@@ -73,44 +74,11 @@ instance H.ToMarkup CreateSimpleContractPage where
         "Message about the 3 simple contracts, possible without social shares."
         Button.NoButton
 
-      (! A.id "panel-type") $ panel "Service type" $ do
-        H.div ! A.class_ "o-form-group" $ do
-          H.label ! A.class_ "o-form-group__label" ! A.for "worker" $ "Role"
-          H.div
-            ! A.class_
-                "o-form-group__controls o-form-group__controls--full-width"
-            $ do
-                H.div
-                  ! A.class_ "o-flex o-flex--vertical-center u-maximize-width"
-                  $ do
-                      H.span ! A.class_ "u-spacer-right-s" $ H.text roleLabel
-                      H.button
-                        ! A.class_
-                            "c-button c-button--borderless c-button--icon"
-                        ! A.formaction
-                            "/echo/new-simple-contract-and-select-role"
-                        ! A.formmethod "POST"
-                        $ H.span
-                        ! A.class_ "c-button__content"
-                        $ do
-                            divIconEdit
-                            H.div ! A.class_ "u-sr-accessible" $ "Edit"
-                H.p
-                  ! A.class_ "c-form-help-text"
-                  $ "Your most frequently used role has been automatically selected. Click the edit button if you want to select a different role for this work."
-
-        H.input ! A.type_ "hidden" ! A.id "role" ! A.name "role" ! A.value
-          (H.toValue _createContractRole)
-        Misc.inputTextarea "description"
-                           "Description"
-                           6
-                           "Describe your work (minimum 10 characters)"
-                           _createContractDescription
-                           True
+      (! A.id "panel-type") $ panel "Service type" $ groupType contract
+                                                               roleLabel
       panel "Employment type" $ groupEmployment
       panel "Location and dates" $ do
-        inputText "Work country" "country" Nothing Nothing
-        inputText "Work dates"   "dates"   Nothing Nothing
+        inputText "Work dates" "dates" Nothing Nothing
       panel "Risks" $ groupRisks
       panel "Invoicing" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
@@ -121,8 +89,49 @@ instance H.ToMarkup CreateSimpleContractPage where
       groupLayout $ do
         submitButton saveUrl "Save changes"
    where
+    expenses = SimpleContract._createContractExpenses contract
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
+
+groupType SimpleContract.CreateContractAll {..} roleLabel = do
+  H.div ! A.class_ "o-form-group" $ do
+    H.label ! A.class_ "o-form-group__label" ! A.for "worker" $ "Role"
+    H.div
+      ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
+      $ do
+          H.div
+            ! A.class_ "o-flex o-flex--vertical-center u-maximize-width"
+            $ do
+                H.span ! A.class_ "u-spacer-right-s" $ H.text roleLabel
+                H.button
+                  ! A.class_ "c-button c-button--borderless c-button--icon"
+                  ! A.formaction "/echo/new-simple-contract-and-select-role"
+                  ! A.formmethod "POST"
+                  $ H.span
+                  ! A.class_ "c-button__content"
+                  $ do
+                      divIconEdit
+                      H.div ! A.class_ "u-sr-accessible" $ "Edit"
+          H.p
+            ! A.class_ "c-form-help-text"
+            $ "Your most frequently used role has been automatically selected. Click the edit button if you want to select a different role for this work."
+
+  H.input ! A.type_ "hidden" ! A.id "role" ! A.name "role" ! A.value
+    (H.toValue $ SimpleContract._createContractRole _createContractType)
+  Misc.inputTextarea
+    "description"
+    "Description"
+    6
+    "A description of your work. This will appear on the invoice sent to the client. (Minimum 10 characters.)"
+    (SimpleContract._createContractDescription _createContractType)
+    True
+  Misc.inputSelect_
+    "work-country"
+    "Work country"
+    countries
+    Nothing
+    (Just $ SimpleContract._createContractWorkCountry _createContractType)
+    False
 
 groupRisks = H.div ! A.class_ "o-form-group" $ do
   H.label ! A.class_ "o-form-group__label" $ "Work risks"
@@ -417,6 +426,8 @@ instance H.ToMarkup ConfirmSimpleContractPage where
             keyValuePair "Worker username" username
             keyValuePair "Role"            roleLabel
             keyValuePair "Description"     _createContractDescription
+            keyValuePair "Work country" $ maybe "TODO" identity $ lookupCountry
+              _createContractWorkCountry
 
       H.div
         ! A.class_ "u-padding-vertical-l"
@@ -445,3 +456,262 @@ instance H.ToMarkup ConfirmSimpleContractPage where
       -> ([Text], [(H.Html, Text, Text)], Maybe Text)
     display key i SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)
+
+
+--------------------------------------------------------------------------------
+-- | From https://github.com/noteed/start-web/blob/main/data/countries.sql.
+-- Originally from pycountry.
+countries :: [(Text, Text)]
+countries =
+  [ ("AW", "Aruba")
+  , ("AF", "Afghanistan")
+  , ("AO", "Angola")
+  , ("AI", "Anguilla")
+  , ("AX", "Åland Islands")
+  , ("AL", "Albania")
+  , ("AD", "Andorra")
+  , ("AE", "United Arab Emirates")
+  , ("AR", "Argentina")
+  , ("AM", "Armenia")
+  , ("AS", "American Samoa")
+  , ("AQ", "Antarctica")
+  , ("TF", "French Southern Territories")
+  , ("AG", "Antigua and Barbuda")
+  , ("AU", "Australia")
+  , ("AT", "Austria")
+  , ("AZ", "Azerbaijan")
+  , ("BI", "Burundi")
+  , ("BE", "Belgium")
+  , ("BJ", "Benin")
+  , ("BQ", "Bonaire, Sint Eustatius and Saba")
+  , ("BF", "Burkina Faso")
+  , ("BD", "Bangladesh")
+  , ("BG", "Bulgaria")
+  , ("BH", "Bahrain")
+  , ("BS", "Bahamas")
+  , ("BA", "Bosnia and Herzegovina")
+  , ("BL", "Saint Barthélemy")
+  , ("BY", "Belarus")
+  , ("BZ", "Belize")
+  , ("BM", "Bermuda")
+  , ("BO", "Bolivia, Plurinational State of")
+  , ("BR", "Brazil")
+  , ("BB", "Barbados")
+  , ("BN", "Brunei Darussalam")
+  , ("BT", "Bhutan")
+  , ("BV", "Bouvet Island")
+  , ("BW", "Botswana")
+  , ("CF", "Central African Republic")
+  , ("CA", "Canada")
+  , ("CC", "Cocos , (Keeling) Islands")
+  , ("CH", "Switzerland")
+  , ("CL", "Chile")
+  , ("CN", "China")
+  , ("CI", "Côte d'Ivoire")
+  , ("CM", "Cameroon")
+  , ("CD", "Congo, The Democratic Republic of the")
+  , ("CG", "Congo")
+  , ("CK", "Cook Islands")
+  , ("CO", "Colombia")
+  , ("KM", "Comoros")
+  , ("CV", "Cabo Verde")
+  , ("CR", "Costa Rica")
+  , ("CU", "Cuba")
+  , ("CW", "Curaçao")
+  , ("CX", "Christmas Island")
+  , ("KY", "Cayman Islands")
+  , ("CY", "Cyprus")
+  , ("CZ", "Czechia")
+  , ("DE", "Germany")
+  , ("DJ", "Djibouti")
+  , ("DM", "Dominica")
+  , ("DK", "Denmark")
+  , ("DO", "Dominican Republic")
+  , ("DZ", "Algeria")
+  , ("EC", "Ecuador")
+  , ("EG", "Egypt")
+  , ("ER", "Eritrea")
+  , ("EH", "Western Sahara")
+  , ("ES", "Spain")
+  , ("EE", "Estonia")
+  , ("ET", "Ethiopia")
+  , ("FI", "Finland")
+  , ("FJ", "Fiji")
+  , ("FK", "Falkland Islands , (Malvinas)")
+  , ("FR", "France")
+  , ("FO", "Faroe Islands")
+  , ("FM", "Micronesia, Federated States of")
+  , ("GA", "Gabon")
+  , ("GB", "United Kingdom")
+  , ("GE", "Georgia")
+  , ("GG", "Guernsey")
+  , ("GH", "Ghana")
+  , ("GI", "Gibraltar")
+  , ("GN", "Guinea")
+  , ("GP", "Guadeloupe")
+  , ("GM", "Gambia")
+  , ("GW", "Guinea-Bissau")
+  , ("GQ", "Equatorial Guinea")
+  , ("GR", "Greece")
+  , ("GD", "Grenada")
+  , ("GL", "Greenland")
+  , ("GT", "Guatemala")
+  , ("GF", "French Guiana")
+  , ("GU", "Guam")
+  , ("GY", "Guyana")
+  , ("HK", "Hong Kong")
+  , ("HM", "Heard Island and McDonald Islands")
+  , ("HN", "Honduras")
+  , ("HR", "Croatia")
+  , ("HT", "Haiti")
+  , ("HU", "Hungary")
+  , ("ID", "Indonesia")
+  , ("IM", "Isle of Man")
+  , ("IN", "India")
+  , ("IO", "British Indian Ocean Territory")
+  , ("IE", "Ireland")
+  , ("IR", "Iran, Islamic Republic of")
+  , ("IQ", "Iraq")
+  , ("IS", "Iceland")
+  , ("IL", "Israel")
+  , ("IT", "Italy")
+  , ("JM", "Jamaica")
+  , ("JE", "Jersey")
+  , ("JO", "Jordan")
+  , ("JP", "Japan")
+  , ("KZ", "Kazakhstan")
+  , ("KE", "Kenya")
+  , ("KG", "Kyrgyzstan")
+  , ("KH", "Cambodia")
+  , ("KI", "Kiribati")
+  , ("KN", "Saint Kitts and Nevis")
+  , ("KR", "Korea, Republic of")
+  , ("KW", "Kuwait")
+  , ("LA", "Lao People's Democratic Republic")
+  , ("LB", "Lebanon")
+  , ("LR", "Liberia")
+  , ("LY", "Libya")
+  , ("LC", "Saint Lucia")
+  , ("LI", "Liechtenstein")
+  , ("LK", "Sri Lanka")
+  , ("LS", "Lesotho")
+  , ("LT", "Lithuania")
+  , ("LU", "Luxembourg")
+  , ("LV", "Latvia")
+  , ("MO", "Macao")
+  , ("MF", "Saint Martin , (French part)")
+  , ("MA", "Morocco")
+  , ("MC", "Monaco")
+  , ("MD", "Moldova, Republic of")
+  , ("MG", "Madagascar")
+  , ("MV", "Maldives")
+  , ("MX", "Mexico")
+  , ("MH", "Marshall Islands")
+  , ("MK", "North Macedonia")
+  , ("ML", "Mali")
+  , ("MT", "Malta")
+  , ("MM", "Myanmar")
+  , ("ME", "Montenegro")
+  , ("MN", "Mongolia")
+  , ("MP", "Northern Mariana Islands")
+  , ("MZ", "Mozambique")
+  , ("MR", "Mauritania")
+  , ("MS", "Montserrat")
+  , ("MQ", "Martinique")
+  , ("MU", "Mauritius")
+  , ("MW", "Malawi")
+  , ("MY", "Malaysia")
+  , ("YT", "Mayotte")
+  , ("NA", "Namibia")
+  , ("NC", "New Caledonia")
+  , ("NE", "Niger")
+  , ("NF", "Norfolk Island")
+  , ("NG", "Nigeria")
+  , ("NI", "Nicaragua")
+  , ("NU", "Niue")
+  , ("NL", "Netherlands")
+  , ("NO", "Norway")
+  , ("NP", "Nepal")
+  , ("NR", "Nauru")
+  , ("NZ", "New Zealand")
+  , ("OM", "Oman")
+  , ("PK", "Pakistan")
+  , ("PA", "Panama")
+  , ("PN", "Pitcairn")
+  , ("PE", "Peru")
+  , ("PH", "Philippines")
+  , ("PW", "Palau")
+  , ("PG", "Papua New Guinea")
+  , ("PL", "Poland")
+  , ("PR", "Puerto Rico")
+  , ("KP", "Korea, Democratic People's Republic of")
+  , ("PT", "Portugal")
+  , ("PY", "Paraguay")
+  , ("PS", "Palestine, State of")
+  , ("PF", "French Polynesia")
+  , ("QA", "Qatar")
+  , ("RE", "Réunion")
+  , ("RO", "Romania")
+  , ("RU", "Russian Federation")
+  , ("RW", "Rwanda")
+  , ("SA", "Saudi Arabia")
+  , ("SD", "Sudan")
+  , ("SN", "Senegal")
+  , ("SG", "Singapore")
+  , ("GS", "South Georgia and the South Sandwich Islands")
+  , ("SH", "Saint Helena, Ascension and Tristan da Cunha")
+  , ("SJ", "Svalbard and Jan Mayen")
+  , ("SB", "Solomon Islands")
+  , ("SL", "Sierra Leone")
+  , ("SV", "El Salvador")
+  , ("SM", "San Marino")
+  , ("SO", "Somalia")
+  , ("PM", "Saint Pierre and Miquelon")
+  , ("RS", "Serbia")
+  , ("SS", "South Sudan")
+  , ("ST", "Sao Tome and Principe")
+  , ("SR", "Suriname")
+  , ("SK", "Slovakia")
+  , ("SI", "Slovenia")
+  , ("SE", "Sweden")
+  , ("SZ", "Eswatini")
+  , ("SX", "Sint Maarten , (Dutch part)")
+  , ("SC", "Seychelles")
+  , ("SY", "Syrian Arab Republic")
+  , ("TC", "Turks and Caicos Islands")
+  , ("TD", "Chad")
+  , ("TG", "Togo")
+  , ("TH", "Thailand")
+  , ("TJ", "Tajikistan")
+  , ("TK", "Tokelau")
+  , ("TM", "Turkmenistan")
+  , ("TL", "Timor-Leste")
+  , ("TO", "Tonga")
+  , ("TT", "Trinidad and Tobago")
+  , ("TN", "Tunisia")
+  , ("TR", "Turkey")
+  , ("TV", "Tuvalu")
+  , ("TW", "Taiwan, Province of China")
+  , ("TZ", "Tanzania, United Republic of")
+  , ("UG", "Uganda")
+  , ("UA", "Ukraine")
+  , ("UM", "United States Minor Outlying Islands")
+  , ("UY", "Uruguay")
+  , ("US", "United States")
+  , ("UZ", "Uzbekistan")
+  , ("VA", "Holy See , (Vatican City State)")
+  , ("VC", "Saint Vincent and the Grenadines")
+  , ("VE", "Venezuela, Bolivarian Republic of")
+  , ("VG", "Virgin Islands, British")
+  , ("VI", "Virgin Islands, U.S.")
+  , ("VN", "Viet Nam")
+  , ("VU", "Vanuatu")
+  , ("WF", "Wallis and Futuna")
+  , ("WS", "Samoa")
+  , ("YE", "Yemen")
+  , ("ZA", "South Africa")
+  , ("ZM", "Zambia")
+  , ("ZW", "Zimbabwe")
+  ]
+
+lookupCountry code = lookup code countries

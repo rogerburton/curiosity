@@ -26,6 +26,10 @@ title: Curiosity
 
 :   The new contract form allows a user to ...
 
+[New simple contract](/forms/new-simple-contract)
+
+:   The new contract form allows a user to ...
+
 # See also
 
 - [Sitemap](/documentation/sitemap)

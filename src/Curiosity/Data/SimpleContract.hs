@@ -90,13 +90,17 @@ instance FromForm CreateContractAll' where
 data CreateContractType = CreateContractType
   { _createContractRole        :: Text
   , _createContractDescription :: Text
+  , _createContractWorkCountry :: Text
   }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractType where
   fromForm f =
-    CreateContractType <$> parseUnique "role" f <*> parseUnique "description" f
+    CreateContractType
+      <$> parseUnique "role"         f
+      <*> parseUnique "description"  f
+      <*> parseUnique "work-country" f
 
 data CreateContractLocDates = CreateContractLocDates
   deriving (Generic, Eq, Show)
@@ -157,8 +161,10 @@ emptyCreateContractType :: CreateContractType
 emptyCreateContractType = CreateContractType
   { _createContractRole        = "coloriste"
     -- TODO Proper type, and proper default value (probably to be set in the
-    -- user profile).
+    -- user profile). The value here is looked up to display the right label in
+    -- the forms.
   , _createContractDescription = ""
+  , _createContractWorkCountry = "BE"
   }
 
 emptyCreateContractLocDates :: CreateContractLocDates
