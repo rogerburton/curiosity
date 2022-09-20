@@ -59,11 +59,13 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- invalid inputs. As it is filled, it is kept in a Map in "Curiosity.Data",
 -- where it is identified by a key. The form data are validated when they are
 -- "submitted", using the `SubmitContract` data type below, and the key.
-data CreateContractAll = CreateContractAll CreateContractType
-                                           CreateContractLocDates
-                                           CreateContractRisks
-                                           CreateContractInvoice
-                                           [AddExpense]
+data CreateContractAll = CreateContractAll
+  { _createContractType     :: CreateContractType
+  , _createContractLocDates :: CreateContractLocDates
+  , _createContractRisks    :: CreateContractRisks
+  , _createContractInvoice  :: CreateContractInvoice
+  , _createContractExpenses :: [AddExpense]
+  }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -94,9 +96,7 @@ data CreateContractType = CreateContractType
 
 instance FromForm CreateContractType where
   fromForm f =
-    CreateContractType
-      <$> parseUnique "role"        f
-      <*> parseUnique "description" f
+    CreateContractType <$> parseUnique "role" f <*> parseUnique "description" f
 
 data CreateContractLocDates = CreateContractLocDates
   deriving (Generic, Eq, Show)
@@ -155,7 +155,9 @@ emptyCreateContractAll = CreateContractAll emptyCreateContractType
 
 emptyCreateContractType :: CreateContractType
 emptyCreateContractType = CreateContractType
-  { _createContractRole        = ""
+  { _createContractRole        = "coloriste"
+    -- TODO Proper type, and proper default value (probably to be set in the
+    -- user profile).
   , _createContractDescription = ""
   }
 

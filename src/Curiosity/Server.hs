@@ -937,9 +937,12 @@ echoNewSimpleContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContract dataDir contract = do
   profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
-  key <- liftIO . atomically $ Rt.newCreateSimpleContractForm db (profile, contract)
-  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key) NoContent
+  db      <- asks Rt._rDb
+  key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
+    db
+    (profile, contract)
+  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key)
+                               NoContent
 
 -- | Create a form, then move to the select role part.
 echoNewSimpleContractAndSelectRole
@@ -949,8 +952,10 @@ echoNewSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectRole dataDir contract = do
   profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
-  key <- liftIO . atomically $ Rt.newCreateSimpleContractForm db (profile, contract)
+  db      <- asks Rt._rDb
+  key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
+    db
+    (profile, contract)
   pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the select role part.
@@ -962,7 +967,7 @@ echoSaveSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectRole dataDir key contract = do
   -- profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
+  db <- asks Rt._rDb
   --todo    <- liftIO . atomically $ Rt.writeCreateContractForm
   --  db
   --  (profile, key, contract)
@@ -987,24 +992,41 @@ documentCreateSimpleContractPage
 documentCreateSimpleContractPage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
   let contractAll = SimpleContract.emptyCreateContractAll
-  pure $ Pages.CreateSimpleContractPage profile
-                                        Nothing
-                                        contractAll
-                                        "/echo/new-simple-contract"
-                                        "/echo/new-simple-contract-and-add-expense"
+      role        = SimpleContract._createContractRole
+        $ SimpleContract._createContractType contractAll
+  -- This acts like a validation pass. Some higher level function to do that should
+  -- exists. TODO
+  case Pages.lookupRoleLabel role of
+    Just roleLabel -> pure $ Pages.CreateSimpleContractPage
+      profile
+      Nothing
+      contractAll
+      roleLabel
+      "/echo/new-simple-contract"
+      "/echo/new-simple-contract-and-add-expense"
+    Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
 
 documentEditSimpleContractPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateSimpleContractPage
 documentEditSimpleContractPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
-    Right contractAll -> pure $ Pages.CreateSimpleContractPage profile
-                                        Nothing
-                                        contractAll
-                                        "/echo/new-simple-contract"
-                                        "/echo/new-simple-contract-and-add-expense"
+    Right contractAll -> do
+      let role = SimpleContract._createContractRole
+            $ SimpleContract._createContractType contractAll
+      case Pages.lookupRoleLabel role of
+        Just roleLabel -> pure $ Pages.CreateSimpleContractPage
+          profile
+          Nothing
+          contractAll
+          roleLabel
+          "/echo/new-simple-contract"
+          "/echo/new-simple-contract-and-add-expense"
+        Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentSelectRolePage
@@ -1012,25 +1034,31 @@ documentSelectRolePage
 documentSelectRolePage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
-    Right _ -> pure $ Pages.SelectRolePage
-      profile
-      key
-    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+    Right _ -> pure $ Pages.SelectRolePage profile key
+    Left  _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmRolePage
   :: ServerC m => FilePath -> Text -> Text -> m Pages.ConfirmRolePage
 documentConfirmRolePage dataDir key role = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
-    Right _ -> pure $ Pages.ConfirmRolePage
-      profile
-      key
-      role
-      (H.toValue $ "/echo/select-role/" <> key)
+    Right _ -> do
+      case Pages.lookupRoleLabel role of
+        Just roleLabel -> pure $ Pages.ConfirmRolePage
+          profile
+          key
+          role
+          roleLabel
+          (H.toValue $ "/echo/select-role/" <> key)
+        Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmSimpleContractPage
@@ -1038,13 +1066,21 @@ documentConfirmSimpleContractPage
 documentConfirmSimpleContractPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
-    Right contractAll -> pure $ Pages.ConfirmSimpleContractPage
-      profile
-      key
-      contractAll
-      "/echo/submit-simple-contract"
+    Right contractAll -> do
+      let role = SimpleContract._createContractRole
+            $ SimpleContract._createContractType contractAll
+      case Pages.lookupRoleLabel role of
+        Just roleLabel -> pure $ Pages.ConfirmSimpleContractPage
+          profile
+          key
+          contractAll
+          roleLabel
+          "/echo/submit-simple-contract"
+        Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 

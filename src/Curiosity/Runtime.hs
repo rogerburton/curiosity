@@ -437,7 +437,8 @@ handleCommand runtime@Runtime {..} user command = do
                 merror <- submitCreateContractForm' _rDb (profile, input)
                 -- TODO Should we have a type to combine multiple possible errors ?
                 case merror of
-                  Left (Employment.Err err) -> pure . Left $ User.UserNotFound err
+                  Left (Employment.Err err) ->
+                    pure . Left $ User.UserNotFound err
                   Right id -> pure $ Right id
               Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
@@ -815,13 +816,14 @@ addRoleToSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, SimpleContract.SelectRole)
   -> STM () -- TODO Possible errors
-addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) = do
-  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
+  do
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
     (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
       let ty' = ty { SimpleContract._createContractRole = role }
-      in SimpleContract.CreateContractAll ty' ld rs inv es
+      in  SimpleContract.CreateContractAll ty' ld rs inv es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile

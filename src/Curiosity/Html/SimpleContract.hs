@@ -12,16 +12,18 @@ module Curiosity.Html.SimpleContract
   --, AddExpensePage(..)
   --, RemoveExpensePage(..)
   , ConfirmSimpleContractPage(..)
+  , lookupRoleLabel
   ) where
 
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
+import           Data.List                      ( lookup )
 import qualified Smart.Html.Alert              as Alert
 import qualified Smart.Html.Button             as Button
-import           Smart.Html.Shared.Html.Icons
 import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
+import           Smart.Html.Shared.Html.Icons
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -29,8 +31,8 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data SimpleContractView = SimpleContractView
-  { _contractViewSimpleContract      :: SimpleContract.Contract
-  , _contractViewHasEditButton :: Maybe H.AttributeValue
+  { _contractViewSimpleContract :: SimpleContract.Contract
+  , _contractViewHasEditButton  :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup SimpleContractView where
@@ -51,41 +53,54 @@ data CreateSimpleContractPage = CreateSimpleContractPage
     -- ^ The form editing session key, if the form was already saved
   , _createSimpleContractContract          :: SimpleContract.CreateContractAll
     -- ^ The contract being edited
+  , _createSimpleContractRoleLabel         :: Text
+    -- ^ The human text for the role, already looked un in `roles'`.
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) saveUrl addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) roleLabel saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       autoReload
       title "New simple contract"
 
-      let iconInformation = Just
-            $ OSvgIconDiv @"circle-information" svgIconCircleInformation
-      H.div ! A.class_ "u-spacer-bottom-l" $
-        H.toMarkup $ Alert.Alert Alert.AlertDefault iconInformation "Message about the 3 simple contracts, possible without social shares." Button.NoButton
+      let iconInformation =
+            Just $ OSvgIconDiv @"circle-information" svgIconCircleInformation
+      H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
+        Alert.AlertDefault
+        iconInformation
+        "Message about the 3 simple contracts, possible without social shares."
+        Button.NoButton
 
       (! A.id "panel-type") $ panel "Service type" $ do
         H.div ! A.class_ "o-form-group" $ do
           H.label ! A.class_ "o-form-group__label" ! A.for "worker" $ "Role"
-          H.div ! A.class_ "o-form-group__controls o-form-group__controls--full-width" $ do
-            H.div ! A.class_ "o-flex o-flex--vertical-center u-maximize-width" $ do
-              H.span ! A.class_ "u-spacer-right-s" $
-                "Art and craft creation > Entertainment arts > Dancer"
-              H.button ! A.class_ "c-button c-button--borderless c-button--icon"
-                       ! A.formaction "/echo/new-simple-contract-and-select-role"
-                       ! A.formmethod "POST" $
-                H.span ! A.class_ "c-button__content" $ do
-                  divIconEdit
-                  H.div ! A.class_ "u-sr-accessible" $ "Edit"
-            H.p ! A.class_ "c-form-help-text" $
-              "Your most frequently used role has been automatically selected. Click the edit button if you want to select a different role for this work."
+          H.div
+            ! A.class_
+                "o-form-group__controls o-form-group__controls--full-width"
+            $ do
+                H.div
+                  ! A.class_ "o-flex o-flex--vertical-center u-maximize-width"
+                  $ do
+                      H.span ! A.class_ "u-spacer-right-s" $ H.text roleLabel
+                      H.button
+                        ! A.class_
+                            "c-button c-button--borderless c-button--icon"
+                        ! A.formaction
+                            "/echo/new-simple-contract-and-select-role"
+                        ! A.formmethod "POST"
+                        $ H.span
+                        ! A.class_ "c-button__content"
+                        $ do
+                            divIconEdit
+                            H.div ! A.class_ "u-sr-accessible" $ "Edit"
+                H.p
+                  ! A.class_ "c-form-help-text"
+                  $ "Your most frequently used role has been automatically selected. Click the edit button if you want to select a different role for this work."
 
-        inputText "Role"
-                  "role"
-                  (Just $ H.toValue _createContractRole)
-                  Nothing
+        H.input ! A.type_ "hidden" ! A.id "role" ! A.name "role" ! A.value
+          (H.toValue _createContractRole)
         Misc.inputTextarea "description"
                            "Description"
                            6
@@ -205,33 +220,69 @@ data SelectRolePage = SelectRolePage
   }
 
 instance H.ToMarkup SelectRolePage where
-  toMarkup (SelectRolePage profile key) =
-    renderFormLarge profile $ do
-      autoReload
-      title' "Select role" Nothing
+  toMarkup (SelectRolePage profile key) = renderFormLarge profile $ do
+    autoReload
+    title' "Select role" Nothing
 
-      H.div ! A.class_ "c-display" $ do
-        H.h3 "Fonction de création artistique et artisanale"
-        H.h4 "Arts du spectacle"
-        H.h4 "Arts littéraires"
-        H.h4 "Arts plastiques et graphiques"
-        H.ul $ do
-          mapM_ (\(sym, label) -> H.li $ H.a ! A.href (H.toValue $ "/forms/confirm-role/" <> key <> "/" <> sym) $ H.text label)
-            [ ("coloriste", "Coloriste")
-            , ("dessinateur", "Dessinateur-rice / illustrateur-rice")
-            , ("graffitiste", "Graffitiste / graffeur-euse")
-            , ("graphiste", "Graphiste / infographiste / webdesigner-euse")
-            , ("graveur", "Graveur-euse / sérigraphe")
-            , ("peintre", "Peintre-esse")
-            , ("performeur", "Performeur-euse")
-            , ("photographe", "Photographe")
-            , ("plasticien", "Plasticien-ne / installateur-rice 3d")
-            , ("scenographe", "Scénographe")
-            , ("sculpteur", "Sculpteur-rice")
-            , ("body-painter", "Body-painter")
-            , ("autre", "Autre")
-            ]
-        H.h4 "Architecture / mode / design / décoration"
+    H.div ! A.class_ "c-display" $ do
+      mapM_ (displayRole0 key) roles
+
+displayRole0 key (Role0 title roles1) = do
+  H.h3 $ H.text title
+  mapM_ (displayRole1 key) roles1
+
+displayRole1 key (Role1 title roles) = do
+  H.h4 $ H.text title
+  H.ul $ mapM_ (displayRole key) roles
+
+displayRole key (value, label) =
+  H.li
+    $ H.a
+    ! A.href (H.toValue $ "/forms/confirm-role/" <> key <> "/" <> value)
+    $ H.text label
+
+data Role0 = Role0 Text [Role1]
+
+data Role1 = Role1 Text [Role]
+
+type Role = (Text, Text)
+
+roles :: [Role0]
+roles =
+  [ Role0
+      "Fonction de création artistique et artisanale"
+      [ Role1 "Arts du spectacle" []
+      , Role1 "Arts littéraires"  []
+      , Role1
+        "Arts plastiques et graphiques"
+        [ ("coloriste"   , "Coloriste")
+        , ("dessinateur", "Dessinateur-rice / illustrateur-rice")
+        , ("graffitiste" , "Graffitiste / graffeur-euse")
+        , ("graphiste", "Graphiste / infographiste / webdesigner-euse")
+        , ("graveur"     , "Graveur-euse / sérigraphe")
+        , ("peintre"     , "Peintre-esse")
+        , ("performeur"  , "Performeur-euse")
+        , ("photographe" , "Photographe")
+        , ("plasticien", "Plasticien-ne / installateur-rice 3d")
+        , ("scenographe" , "Scénographe")
+        , ("sculpteur"   , "Sculpteur-rice")
+        , ("body-painter", "Body-painter")
+        , ("autre"       , "Autre")
+        ]
+      , Role1 "Architecture / mode / design / décoration" []
+      ]
+  ]
+
+-- Flatten the roles hierarchy, adding upper titles to the labels.
+roles' :: [Role]
+roles' = concatMap go0 roles
+ where
+  go0 (Role0 title0 roles1) = concatMap (go1 title0) roles1
+  go1 title0 (Role1 title1 roles) = map (go title0 title1) roles
+  go title0 title1 (value, label) =
+    (value, unwords [title0, ">", title1, ">", label])
+
+lookupRoleLabel role = lookup role roles'
 
 
 --------------------------------------------------------------------------------
@@ -242,18 +293,21 @@ data ConfirmRolePage = ConfirmRolePage
     -- ^ The key of the contract form
   , _confirmRolePageRole        :: Text
     -- ^ The role being selected
+  , _confirmRolePageLabel       :: Text
+    -- ^ The human text for the role, already looked up in `roles'`.
   , _confirmRolePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmRolePage where
-  toMarkup (ConfirmRolePage profile key role submitUrl) =
+  toMarkup (ConfirmRolePage profile key role label submitUrl) =
     renderFormLarge profile $ do
       autoReload
-      H.toMarkup $ PanelHeaderAndBody "Confirm selected role"
+      H.toMarkup
+        $ PanelHeaderAndBody "Confirm selected role"
         $ H.dl
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do
-            keyValuePair "Role" role
+            keyValuePair "Role" label
             H.input ! A.type_ "hidden" ! A.id "role" ! A.name "role" ! A.value
               (H.toValue role)
 
@@ -338,11 +392,13 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
     -- ^ The user creating the contract
   , _confirmSimpleContractPageKey         :: Text
   , _confirmSimpleContractPageContract    :: SimpleContract.CreateContractAll
+  , _confirmSimpleContractPageRoleLabel   :: Text
+    -- ^ The human text for the role, already looked up in `roles'`.
   , _confirmSimpleContractPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractLocDates{} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} expenses) roleLabel submitUrl)
     = renderFormLarge profile $ do
       autoReload
       title' "New simple contract"
@@ -359,7 +415,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
         $ do
             keyValuePair "Worker username" username
-            keyValuePair "Role"            _createContractRole
+            keyValuePair "Role"            roleLabel
             keyValuePair "Description"     _createContractDescription
 
       H.div
