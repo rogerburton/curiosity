@@ -50,6 +50,9 @@ module Curiosity.Runtime
   , writeDateToSimpleContractForm
   , removeDateFromSimpleContractForm
   , addVATToSimpleContractForm
+  , addExpenseToSimpleContractForm
+  , writeExpenseToSimpleContractForm
+  , removeExpenseFromSimpleContractForm
   -- * ID generation
   , generateUserId
   , firstUserId
@@ -912,6 +915,54 @@ addVATToSimpleContractForm db (profile, key, SimpleContract.SelectVAT rate) =
     (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
       let inv' = inv { SimpleContract._createContractVAT = rate }
       in  SimpleContract.CreateContractAll ty rs inv' ds es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addExpenseToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.AddExpense)
+  -> STM () -- TODO Possible errors
+addExpenseToSimpleContractForm db (profile, key, expense) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+      SimpleContract.CreateContractAll ty ld rs inv $ es ++ [expense]
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeExpenseToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, SimpleContract.AddExpense)
+  -> STM () -- TODO Possible errors
+writeExpenseToSimpleContractForm db (profile, key, index, expense) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+      let f i e = if i == index then expense else e
+          es' = zipWith f [0 ..] es
+      in  SimpleContract.CreateContractAll ty ld rs inv es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeExpenseFromSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeExpenseFromSimpleContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
+      in  SimpleContract.CreateContractAll ty ld rs inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile

@@ -14,8 +14,8 @@ module Curiosity.Html.SimpleContract
   , RemoveDatePage(..)
   , SelectVATPage(..)
   , ConfirmVATPage(..)
-  --, AddExpensePage(..)
-  --, RemoveExpensePage(..)
+  , SimpleContractAddExpensePage(..)
+  , SimpleContractRemoveExpensePage(..)
   , ConfirmSimpleContractPage(..)
   , lookupRoleLabel
   ) where
@@ -63,12 +63,16 @@ data CreateSimpleContractPage = CreateSimpleContractPage
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
   , _createSimpleContractPageSelectRoleURL :: H.AttributeValue
   , _createSimpleContractPageAddDateURL    :: H.AttributeValue
+  , _createSimpleContractPageEditDateURL   :: Text
+  , _createSimpleContractPageRemoveDateBaseURL :: Text
   , _createSimpleContractPageSelectVATURL  :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
+  , _createSimpleContractPageEditExpenseBaseURL :: Text
+  , _createSimpleContractPageRemoveExpenseBaseURL :: Text
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl selectRoleUrl addDateUrl selectVATUrl  addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl selectRoleUrl addDateUrl editDateBaseUrl removeDateBaseUrl selectVATUrl addExpenseUrl editExpenseBaseUrl removeExpenseBaseUrl)
     = renderFormLarge profile $ do
       title "New simple contract"
 
@@ -79,12 +83,16 @@ instance H.ToMarkup CreateSimpleContractPage where
                                                                selectRoleUrl
       panel "Risks" $ groupRisks
       (! A.id "panel-dates") $ panelStandard "Work dates" $ groupDates
+        editDateBaseUrl
+        removeDateBaseUrl
         mkey
         dates
         addDateUrl
       (! A.id "panel-client") $ panel "Client" $ groupClient
       (! A.id "panel-invoicing") $ panel "Invoicing and contract type" $ groupInvoicing inv selectVATUrl
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
+        editExpenseBaseUrl
+        removeExpenseBaseUrl
         mkey
         expenses
         addExpenseUrl
@@ -179,7 +187,7 @@ groupRisks = H.div ! A.class_ "o-form-group" $ do
 
 -- TODO This is the same editing pattern as groupExpenses: start with an empty
 -- list, then add / delete / edit items. This should be abstracted away.
-groupDates mkey dates submitUrl = do
+groupDates editDateBaseUrl removeDateBaseUrl mkey dates submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
     when (null dates)
       $ H.div
@@ -206,10 +214,10 @@ groupDates mkey dates submitUrl = do
     ( [_addDateDate]
     , [ ( Misc.divIconDelete
         , "Remove"
-        , "/forms/remove-date/" <> key <> "/" <> show i
+        , removeDateBaseUrl <> key <> "/" <> show i
         )
       ]
-    , (Just $ "/forms/edit-date/" <> key <> "/" <> show i)
+    , (Just $ editDateBaseUrl <> key <> "/" <> show i)
     )
 
 groupClient = do
@@ -276,7 +284,7 @@ groupInvoicing inv selectVATUrl = do
     Nothing
     False
 
-groupExpenses mkey expenses submitUrl = do
+groupExpenses editExpenseBaseUrl removeExpenseBaseUrl mkey expenses submitUrl = do
   H.div ! A.class_ "o-form-group" $ do
     when (null expenses)
       $ H.div
@@ -303,10 +311,10 @@ groupExpenses mkey expenses submitUrl = do
     ( [show _addExpenseAmount]
     , [ ( Misc.divIconDelete
         , "Remove"
-        , "/forms/remove-expense/" <> key <> "/" <> show i
+        , removeExpenseBaseUrl <> key <> "/" <> show i
         )
       ]
-    , (Just $ "/forms/edit-expense/" <> key <> "/" <> show i)
+    , (Just $ editExpenseBaseUrl <> key <> "/" <> show i)
     )
 
 formKeyValue :: Text -> Text -> H.Html
@@ -320,31 +328,32 @@ formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
 
 --------------------------------------------------------------------------------
 data SelectRolePage = SelectRolePage
-  { _selectRolePageUserProfile :: User.UserProfile
+  { _selectRolePageUserProfile        :: User.UserProfile
     -- ^ The user creating the simple contract
-  , _selectRolePageKey         :: Text
+  , _selectRolePageKey                :: Text
     -- ^ The key of the contract form
+  , _selectRolePageConfirmRoleBaseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup SelectRolePage where
-  toMarkup (SelectRolePage profile key) = renderFormLarge profile $ do
+  toMarkup (SelectRolePage profile key confirmRoleBaseUrl) = renderFormLarge profile $ do
     title' "Select role" Nothing
 
     H.div ! A.class_ "c-display" $ do
-      mapM_ (displayRole0 key) roles
+      mapM_ (displayRole0 confirmRoleBaseUrl key) roles
 
-displayRole0 key (Role0 title roles1) = do
+displayRole0 confirmRoleBaseUrl key (Role0 title roles1) = do
   H.h3 $ H.text title
-  mapM_ (displayRole1 key) roles1
+  mapM_ (displayRole1 confirmRoleBaseUrl key) roles1
 
-displayRole1 key (Role1 title roles) = do
+displayRole1 confirmRoleBaseUrl key (Role1 title roles) = do
   H.h4 $ H.text title
-  H.ul $ mapM_ (displayRole key) roles
+  H.ul $ mapM_ (displayRole confirmRoleBaseUrl key) roles
 
-displayRole key (value, label) =
+displayRole confirmRoleBaseUrl key (value, label) =
   H.li
     $ H.a
-    ! A.href (H.toValue $ "/forms/confirm-role/" <> key <> "/" <> value)
+    ! A.href (confirmRoleBaseUrl <> H.toValue (key <> "/" <> value))
     $ H.text label
 
 data Role0 = Role0 Text [Role1]
@@ -488,24 +497,25 @@ instance H.ToMarkup RemoveDatePage where
 
 --------------------------------------------------------------------------------
 data SelectVATPage = SelectVATPage
-  { _selectVATPageUserProfile :: User.UserProfile
+  { _selectVATPageUserProfile       :: User.UserProfile
     -- ^ The user creating the simple contract
-  , _selectVATPageKey         :: Text
+  , _selectVATPageKey               :: Text
     -- ^ The key of the contract form
+  , _selectVATPageConfirmVatBaseUrl :: H.AttributeValue
   }
 
 instance H.ToMarkup SelectVATPage where
-  toMarkup (SelectVATPage profile key) = renderFormLarge profile $ do
+  toMarkup (SelectVATPage profile key confirmVatBaseUrl) = renderFormLarge profile $ do
     title' "Select VAT" Nothing
 
-    displayRate key ("0", "0% For some reason")
-    displayRate key ("6", "6% For some reason")
-    displayRate key ("21", "21% For some reason")
+    displayRate confirmVatBaseUrl key ("0", "0% For some reason")
+    displayRate confirmVatBaseUrl key ("6", "6% For some reason")
+    displayRate confirmVatBaseUrl key ("21", "21% For some reason")
 
-displayRate key (value, label) =
+displayRate confirmVatBaseUrl key (value, label) =
   H.li
     $ H.a
-    ! A.href (H.toValue $ "/forms/confirm-vat/" <> key <> "/" <> value)
+    ! A.href (confirmVatBaseUrl <> H.toValue ( key <> "/" <> value))
     $ H.text label
 
 --------------------------------------------------------------------------------
@@ -542,7 +552,7 @@ instance H.ToMarkup ConfirmVATPage where
 
 
 --------------------------------------------------------------------------------
-data AddExpensePage = AddExpensePage
+data SimpleContractAddExpensePage = SimpleContractAddExpensePage
   { _addExpensePageUserProfile :: User.UserProfile
     -- ^ The user creating the expense within a contract
   , _addExpensePageKey         :: Text
@@ -554,8 +564,8 @@ data AddExpensePage = AddExpensePage
   , _addExpensePageSubmitURL   :: H.AttributeValue
   }
 
-instance H.ToMarkup AddExpensePage where
-  toMarkup (AddExpensePage profile key mindex expense submitUrl) =
+instance H.ToMarkup SimpleContractAddExpensePage where
+  toMarkup (SimpleContractAddExpensePage profile key mindex expense submitUrl) =
     renderFormLarge profile $ do
       title' label Nothing
 
@@ -581,7 +591,7 @@ instance H.ToMarkup AddExpensePage where
 
 
 --------------------------------------------------------------------------------
-data RemoveExpensePage = RemoveExpensePage
+data SimpleContractRemoveExpensePage = SimpleContractRemoveExpensePage
   { _removeExpensePageUserProfile :: User.UserProfile
     -- ^ The user creating the expense within a contract
   , _removeExpensePageKey         :: Text
@@ -592,8 +602,8 @@ data RemoveExpensePage = RemoveExpensePage
   , _removeExpensePageSubmitURL   :: H.AttributeValue
   }
 
-instance H.ToMarkup RemoveExpensePage where
-  toMarkup (RemoveExpensePage profile key mindex expense submitUrl) =
+instance H.ToMarkup SimpleContractRemoveExpensePage where
+  toMarkup (SimpleContractRemoveExpensePage profile key mindex expense submitUrl) =
     renderFormLarge profile $ do
       title' "Remove expense" Nothing
 

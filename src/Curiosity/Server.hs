@@ -106,56 +106,68 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
 
-             :<|> "forms" :> "new-contract" :> Get '[B.HTML] Pages.CreateContractPage
-             :<|> "forms" :> "edit-contract"
+             :<|> "forms" :> "new" :> "contract"
+                  :> Get '[B.HTML] Pages.CreateContractPage
+             :<|> "forms" :> "edit" :> "contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.CreateContractPage
-             :<|> "forms" :> "add-expense"
+             :<|> "forms" :> "edit" :> "contract" :> "add-expense"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.AddExpensePage
-             :<|> "forms" :> "edit-expense"
+             :<|> "forms" :> "edit" :> "contract" :> "edit-expense"
                   :> Capture "key" Text
                   :> Capture "index" Int
                   :> Get '[B.HTML] Pages.AddExpensePage
-             :<|> "forms" :> "remove-expense"
+             :<|> "forms" :> "edit" :> "contract" :> "remove-expense"
                   :> Capture "key" Text
                   :> Capture "index" Int
                   :> Get '[B.HTML] Pages.RemoveExpensePage
-             :<|> "forms" :> "confirm-contract"
+             :<|> "forms" :> "edit" :> "contract" :> "confirm-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
 
-             :<|> "forms" :> "new-simple-contract"
+             :<|> "forms" :> "new" :> "simple-contract"
                   :> Get '[B.HTML] Pages.CreateSimpleContractPage
-             :<|> "forms" :> "edit-simple-contract"
+             :<|> "forms" :> "edit" :> "simple-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.CreateSimpleContractPage
-             :<|> "forms" :> "select-role"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "select-role"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.SelectRolePage
-             :<|> "forms" :> "confirm-role"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-role"
                   :> Capture "key" Text
                   :> Capture "role" Text
                   :> Get '[B.HTML] Pages.ConfirmRolePage
-             :<|> "forms" :> "add-date"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "add-date"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.AddDatePage
-             :<|> "forms" :> "edit-date"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "edit-date"
                   :> Capture "key" Text
                   :> Capture "index" Int
                   :> Get '[B.HTML] Pages.AddDatePage
-             :<|> "forms" :> "remove-date"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "remove-date"
                   :> Capture "key" Text
                   :> Capture "index" Int
                   :> Get '[B.HTML] Pages.RemoveDatePage
-             :<|> "forms" :> "select-vat"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "select-vat"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.SelectVATPage
-             :<|> "forms" :> "confirm-vat"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-vat"
                   :> Capture "key" Text
                   :> Capture "rate" Int
                   :> Get '[B.HTML] Pages.ConfirmVATPage
-             :<|> "forms" :> "confirm-simple-contract"
+             :<|> "forms" :> "edit" :> "simple-contract" :> "add-expense"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
+             :<|> "forms" :> "edit" :> "simple-contract" :> "edit-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
+             :<|> "forms" :> "edit" :> "simple-contract" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> Get '[B.HTML] Pages.SimpleContractRemoveExpensePage
+             :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-simple-contract"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmSimpleContractPage
 
@@ -257,6 +269,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "new-simple-contract-and-add-expense"
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "save-simple-contract"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
@@ -276,6 +293,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                               NoContent
                                             )
              :<|> "echo" :> "save-simple-contract-and-select-vat"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-simple-contract-and-add-expense"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -309,6 +332,25 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "select-vat"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.SelectVAT
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "simple-contract" :> "add-expense"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.AddExpense
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "simple-contract" :> "save-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.AddExpense
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "simple-contract" :> "remove-expense"
+                  :> Capture "key" Text
+                  :> Capture "index" Int
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -375,6 +417,9 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> documentRemoveDatePage dataDir
     :<|> documentSelectVATPage dataDir
     :<|> documentConfirmVATPage dataDir
+    :<|> documentSimpleContractAddExpensePage dataDir
+    :<|> documentSimpleContractEditExpensePage dataDir
+    :<|> documentSimpleContractRemoveExpensePage dataDir
     :<|> documentConfirmSimpleContractPage dataDir
 
     :<|> documentProfilePage dataDir
@@ -405,15 +450,20 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> echoNewSimpleContractAndSelectRole dataDir
     :<|> echoNewSimpleContractAndAddDate dataDir
     :<|> echoNewSimpleContractAndSelectVAT dataDir
+    :<|> echoNewSimpleContractAndAddExpense dataDir
     :<|> echoSaveSimpleContract dataDir
     :<|> echoSaveSimpleContractAndSelectRole dataDir
     :<|> echoSaveSimpleContractAndAddDate dataDir
     :<|> echoSaveSimpleContractAndSelectVAT dataDir
+    :<|> echoSaveSimpleContractAndAddExpense dataDir
     :<|> echoSelectRole dataDir
     :<|> echoAddDate dataDir
     :<|> echoSaveDate dataDir
     :<|> echoRemoveDate dataDir
     :<|> echoSelectVAT dataDir
+    :<|> echoSimpleContractAddExpense dataDir
+    :<|> echoSimpleContractSaveExpense dataDir
+    :<|> echoSimpleContractRemoveExpense dataDir
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
@@ -904,7 +954,7 @@ echoNewContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
   key <- echoNewContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/confirm-contract/" <> key) NoContent
 
 -- | Create a form, then move to the add expense part.
 echoNewContractAndAddExpense
@@ -914,7 +964,7 @@ echoNewContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContractAndAddExpense dataDir contract = do
   key <- echoNewContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key) NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
 -- header.
@@ -941,7 +991,7 @@ echoSaveContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
   echoSaveContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/confirm-contract/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/confirm-contract/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
 echoSaveContractAndAddExpense
@@ -952,7 +1002,7 @@ echoSaveContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContractAndAddExpense dataDir key contract = do
   echoSaveContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key) NoContent
 
 echoAddExpense
   :: ServerC m
@@ -965,7 +1015,7 @@ echoAddExpense dataDir key expense = do
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addExpenseToContractForm db (profile, key, expense)
   pure $ addHeader @"Location"
-    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    ("/forms/edit/contract/" <> key <> "#panel-expenses")
     NoContent
 
 -- | Save an expense, re-using a key and an index.
@@ -983,7 +1033,7 @@ echoSaveExpense dataDir key index expense = do
     db
     (profile, key, index, expense)
   pure $ addHeader @"Location"
-    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    ("/forms/edit/contract/" <> key <> "#panel-expenses")
     NoContent
 
 echoRemoveExpense
@@ -999,7 +1049,7 @@ echoRemoveExpense dataDir key index = do
     db
     (profile, key, index)
   pure $ addHeader @"Location"
-    ("/forms/edit-contract/" <> key <> "#panel-expenses")
+    ("/forms/edit/contract/" <> key <> "#panel-expenses")
     NoContent
 
 documentConfirmContractPage
@@ -1052,7 +1102,7 @@ echoNewSimpleContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContract dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key)
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/confirm-simple-contract/" <> key)
                                NoContent
 
 -- | Create a form, then move to the select role part.
@@ -1063,7 +1113,7 @@ echoNewSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectRole dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-role/" <> key) NoContent
 
 -- | Create a form, then move to the add date part.
 echoNewSimpleContractAndAddDate
@@ -1073,7 +1123,7 @@ echoNewSimpleContractAndAddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndAddDate dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/add-date/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-date/" <> key) NoContent
 
 -- | Create a form, then move to the select VAT part.
 echoNewSimpleContractAndSelectVAT
@@ -1083,7 +1133,17 @@ echoNewSimpleContractAndSelectVAT
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectVAT dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/select-vat/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-vat/" <> key) NoContent
+
+-- | Create a form, then move to the add expense part.
+echoNewSimpleContractAndAddExpense
+  :: ServerC m
+  => FilePath
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewSimpleContractAndAddExpense dataDir contract = do
+  key <- echoNewSimpleContract' dataDir contract
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-expense/" <> key) NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
 -- header.
@@ -1110,7 +1170,7 @@ echoSaveSimpleContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContract dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/confirm-simple-contract/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the select role part.
 echoSaveSimpleContractAndSelectRole
@@ -1121,7 +1181,7 @@ echoSaveSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectRole dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-role/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the select date part.
 echoSaveSimpleContractAndAddDate
@@ -1132,7 +1192,7 @@ echoSaveSimpleContractAndAddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndAddDate dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/add-date/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-date/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the select VAT part.
 echoSaveSimpleContractAndSelectVAT
@@ -1143,7 +1203,18 @@ echoSaveSimpleContractAndSelectVAT
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectVAT dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/select-vat/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-vat/" <> key) NoContent
+
+-- | Save a form, re-using a key, then move to the add expense part.
+echoSaveSimpleContractAndAddExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveSimpleContractAndAddExpense dataDir key contract = do
+  echoSaveSimpleContract' dataDir key contract
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-expense/" <> key) NoContent
 
 echoSelectRole
   :: ServerC m
@@ -1155,7 +1226,7 @@ echoSelectRole dataDir key role = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addRoleToSimpleContractForm db (profile, key, role)
-  pure $ addHeader @"Location" ("/forms/edit-simple-contract/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/" <> key) NoContent
 
 echoAddDate
   :: ServerC m
@@ -1168,7 +1239,7 @@ echoAddDate dataDir key date = do
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addDateToSimpleContractForm db (profile, key, date)
   pure $ addHeader @"Location"
-    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    ("/forms/edit/simple-contract/" <> key <> "#panel-dates")
     NoContent
 
 -- | Save a date, re-using a key and an index.
@@ -1186,7 +1257,7 @@ echoSaveDate dataDir key index date = do
     db
     (profile, key, index, date)
   pure $ addHeader @"Location"
-    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    ("/forms/edit/simple-contract/" <> key <> "#panel-dates")
     NoContent
 
 echoRemoveDate
@@ -1202,7 +1273,7 @@ echoRemoveDate dataDir key index = do
     db
     (profile, key, index)
   pure $ addHeader @"Location"
-    ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
+    ("/forms/edit/simple-contract/" <> key <> "#panel-dates")
     NoContent
 
 echoSelectVAT
@@ -1215,7 +1286,55 @@ echoSelectVAT dataDir key rate = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addVATToSimpleContractForm db (profile, key, rate)
-  pure $ addHeader @"Location" ("/forms/edit-simple-contract/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/simple-contract/" <> key) NoContent
+
+echoSimpleContractAddExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSimpleContractAddExpense dataDir key expense = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  liftIO . atomically $ Rt.addExpenseToSimpleContractForm db (profile, key, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+-- | Save an expense, re-using a key and an index.
+echoSimpleContractSaveExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> SimpleContract.AddExpense
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSimpleContractSaveExpense dataDir key index expense = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.writeExpenseToSimpleContractForm
+    db
+    (profile, key, index, expense)
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
+    NoContent
+
+echoSimpleContractRemoveExpense
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSimpleContractRemoveExpense dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  todo    <- liftIO . atomically $ Rt.removeExpenseFromSimpleContractForm
+    db
+    (profile, key, index)
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
+    NoContent
 
 
 --------------------------------------------------------------------------------
@@ -1237,8 +1356,12 @@ documentCreateSimpleContractPage dataDir = do
       "/echo/new-simple-contract"
       "/echo/new-simple-contract-and-select-role"
       "/echo/new-simple-contract-and-add-date"
+      "#" -- Should not appear
+      "#" -- Should not appear
       "/echo/new-simple-contract-and-select-vat"
       "/echo/new-simple-contract-and-add-expense"
+      "#" -- Should not appear
+      "#" -- Should not appear
     Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
 
 documentEditSimpleContractPage
@@ -1262,8 +1385,12 @@ documentEditSimpleContractPage dataDir key = do
           (H.toValue $ "/echo/save-simple-contract/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-select-role/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-add-date/" <> key)
+          "/forms/edit/simple-contract/edit-date/"
+          "/forms/edit/simple-contract/remove-date/"
           (H.toValue $ "/echo/save-simple-contract-and-select-vat/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-add-expense/" <> key)
+          "/forms/edit/simple-contract/edit-expense/"
+          "/forms/edit/simple-contract/remove-expense/"
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1276,7 +1403,7 @@ documentSelectRolePage dataDir key = do
     db
     (profile, key)
   case output of
-    Right _ -> pure $ Pages.SelectRolePage profile key
+    Right _ -> pure $ Pages.SelectRolePage profile key "/forms/edit/simple-contract/confirm-role/"
     Left  _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmRolePage
@@ -1360,7 +1487,7 @@ documentSelectVATPage dataDir key = do
     db
     (profile, key)
   case output of
-    Right _ -> pure $ Pages.SelectVATPage profile key
+    Right _ -> pure $ Pages.SelectVATPage profile key "/forms/edit/simple-contract/confirm-vat/"
     Left  _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmVATPage
@@ -1378,6 +1505,58 @@ documentConfirmVATPage dataDir key rate = do
           key
           rate
           (H.toValue $ "/echo/select-vat/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentSimpleContractAddExpensePage
+  :: ServerC m => FilePath -> Text -> m Pages.SimpleContractAddExpensePage
+documentSimpleContractAddExpensePage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right _ -> pure $ Pages.SimpleContractAddExpensePage
+      profile
+      key
+      Nothing
+      SimpleContract.emptyAddExpense
+      (H.toValue $ "/echo/simple-contract/add-expense/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Same as documentSimpleContractAddExpensePage, but use an existing form.
+documentSimpleContractEditExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractAddExpensePage
+documentSimpleContractEditExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right (SimpleContract.CreateContractAll _ _ _ _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.SimpleContractAddExpensePage
+          profile
+          key
+          (Just index)
+          (expenses !! index)
+          (H.toValue $ "/echo/simple-contract/save-expense/" <> key <> "/" <> show index)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+documentSimpleContractRemoveExpensePage
+  :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractRemoveExpensePage
+documentSimpleContractRemoveExpensePage dataDir key index = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right (SimpleContract.CreateContractAll _ _ _ _ expenses) ->
+      if index > length expenses - 1
+        then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+        else pure $ Pages.SimpleContractRemoveExpensePage
+          profile
+          key
+          index
+          (expenses !! index)
+          (H.toValue $ "/echo/simple-contract/remove-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmSimpleContractPage
