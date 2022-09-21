@@ -69,7 +69,6 @@ data CreateSimpleContractPage = CreateSimpleContractPage
 instance H.ToMarkup CreateSimpleContractPage where
   toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addDateUrl selectVATUrl  addExpenseUrl)
     = renderFormLarge profile $ do
-      autoReload
       title "New simple contract"
 
       information
@@ -256,6 +255,9 @@ groupInvoicing inv selectVATUrl = do
           H.div ! A.class_ "c-radio" $ H.label $ do
             H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "Excluded"
             "VAT Excluded"
+          H.p
+            ! A.class_ "c-form-help-text"
+            $ "Specify if the above amount includes VAT or not."
   inputText "Prepaid amount" "prepaid-amount" Nothing Nothing
   inputText "Withholding tax"     "withholding-tax" Nothing Nothing
   Misc.inputSelect_
@@ -324,7 +326,6 @@ data SelectRolePage = SelectRolePage
 
 instance H.ToMarkup SelectRolePage where
   toMarkup (SelectRolePage profile key) = renderFormLarge profile $ do
-    autoReload
     title' "Select role" Nothing
 
     H.div ! A.class_ "c-display" $ do
@@ -404,7 +405,6 @@ data ConfirmRolePage = ConfirmRolePage
 instance H.ToMarkup ConfirmRolePage where
   toMarkup (ConfirmRolePage profile key role label submitUrl) =
     renderFormLarge profile $ do
-      autoReload
       H.toMarkup
         $ PanelHeaderAndBody "Confirm selected role"
         $ H.dl
@@ -494,7 +494,6 @@ data SelectVATPage = SelectVATPage
 
 instance H.ToMarkup SelectVATPage where
   toMarkup (SelectVATPage profile key) = renderFormLarge profile $ do
-    autoReload
     title' "Select VAT" Nothing
 
     displayRate key ("0", "0% For some reason")
@@ -521,7 +520,6 @@ data ConfirmVATPage = ConfirmVATPage
 instance H.ToMarkup ConfirmVATPage where
   toMarkup (ConfirmVATPage profile key rate submitUrl) =
     renderFormLarge profile $ do
-      autoReload
       H.toMarkup
         $ PanelHeaderAndBody "Confirm selected VAT"
         $ H.dl
@@ -620,7 +618,6 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
 instance H.ToMarkup ConfirmSimpleContractPage where
   toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel submitUrl)
     = renderFormLarge profile $ do
-      autoReload
       title' "New simple contract"
         .  Just
         .  H.toValue

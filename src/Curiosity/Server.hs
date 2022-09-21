@@ -263,6 +263,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "save-simple-contract-and-select-role"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
              :<|> "echo" :> "save-simple-contract-and-add-date"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
@@ -272,6 +278,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "save-simple-contract-and-select-vat"
                   :> Capture "key" Text
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "select-role"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.SelectRole
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -291,18 +303,6 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "remove-date"
                   :> Capture "key" Text
                   :> Capture "index" Int
-                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
-                                              NoContent
-                                            )
-             :<|> "echo" :> "save-simple-contract-and-select-role"
-                  :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
-                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
-                                              NoContent
-                                            )
-             :<|> "echo" :> "select-role"
-                  :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] SimpleContract.SelectRole
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -406,13 +406,13 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> echoNewSimpleContractAndAddDate dataDir
     :<|> echoNewSimpleContractAndSelectVAT dataDir
     :<|> echoSaveSimpleContract dataDir
+    :<|> echoSaveSimpleContractAndSelectRole dataDir
     :<|> echoSaveSimpleContractAndAddDate dataDir
     :<|> echoSaveSimpleContractAndSelectVAT dataDir
+    :<|> echoSelectRole dataDir
     :<|> echoAddDate dataDir
     :<|> echoSaveDate dataDir
     :<|> echoRemoveDate dataDir
-    :<|> echoSaveSimpleContractAndSelectRole dataDir
-    :<|> echoSelectRole dataDir
     :<|> echoSelectVAT dataDir
 
     :<|> partialUsernameBlocklist
@@ -1112,6 +1112,17 @@ echoSaveSimpleContract dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/confirm-simple-contract/" <> key) NoContent
 
+-- | Save a form, re-using a key, then move to the select role part.
+echoSaveSimpleContractAndSelectRole
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.CreateContractAll'
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveSimpleContractAndSelectRole dataDir key contract = do
+  echoSaveSimpleContract' dataDir key contract
+  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
+
 -- | Save a form, re-using a key, then move to the select date part.
 echoSaveSimpleContractAndAddDate
   :: ServerC m
@@ -1133,6 +1144,18 @@ echoSaveSimpleContractAndSelectVAT
 echoSaveSimpleContractAndSelectVAT dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
   pure $ addHeader @"Location" ("/forms/select-vat/" <> key) NoContent
+
+echoSelectRole
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> SimpleContract.SelectRole
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSelectRole dataDir key role = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  liftIO . atomically $ Rt.addRoleToSimpleContractForm db (profile, key, role)
+  pure $ addHeader @"Location" ("/forms/edit-simple-contract/" <> key) NoContent
 
 echoAddDate
   :: ServerC m
@@ -1181,29 +1204,6 @@ echoRemoveDate dataDir key index = do
   pure $ addHeader @"Location"
     ("/forms/edit-simple-contract/" <> key <> "#panel-dates")
     NoContent
-
--- | Save a form, re-using a key, then move to the select role part.
-echoSaveSimpleContractAndSelectRole
-  :: ServerC m
-  => FilePath
-  -> Text
-  -> SimpleContract.CreateContractAll'
-  -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveSimpleContractAndSelectRole dataDir key contract = do
-  echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/select-role/" <> key) NoContent
-
-echoSelectRole
-  :: ServerC m
-  => FilePath
-  -> Text
-  -> SimpleContract.SelectRole
-  -> m (Headers '[Header "Location" Text] NoContent)
-echoSelectRole dataDir key role = do
-  profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  liftIO . atomically $ Rt.addRoleToSimpleContractForm db (profile, key, role)
-  pure $ addHeader @"Location" ("/forms/edit-simple-contract/" <> key) NoContent
 
 echoSelectVAT
   :: ServerC m
