@@ -1235,6 +1235,7 @@ documentCreateSimpleContractPage dataDir = do
       contractAll
       roleLabel
       "/echo/new-simple-contract"
+      "/echo/new-simple-contract-and-select-role"
       "/echo/new-simple-contract-and-add-date"
       "/echo/new-simple-contract-and-select-vat"
       "/echo/new-simple-contract-and-add-expense"
@@ -1259,6 +1260,7 @@ documentEditSimpleContractPage dataDir key = do
           contractAll
           roleLabel
           (H.toValue $ "/echo/save-simple-contract/" <> key)
+          (H.toValue $ "/echo/save-simple-contract-and-select-role/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-add-date/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-select-vat/" <> key)
           (H.toValue $ "/echo/save-simple-contract-and-add-expense/" <> key)

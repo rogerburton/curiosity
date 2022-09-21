@@ -61,13 +61,14 @@ data CreateSimpleContractPage = CreateSimpleContractPage
   , _createSimpleContractRoleLabel         :: Text
     -- ^ The human text for the role, already looked un in `roles'`.
   , _createSimpleContractPageSaveURL       :: H.AttributeValue
+  , _createSimpleContractPageSelectRoleURL :: H.AttributeValue
   , _createSimpleContractPageAddDateURL    :: H.AttributeValue
   , _createSimpleContractPageSelectVATURL  :: H.AttributeValue
   , _createSimpleContractPageAddExpenseURL :: H.AttributeValue
   }
 
 instance H.ToMarkup CreateSimpleContractPage where
-  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl addDateUrl selectVATUrl  addExpenseUrl)
+  toMarkup (CreateSimpleContractPage profile mkey contract roleLabel saveUrl selectRoleUrl addDateUrl selectVATUrl  addExpenseUrl)
     = renderFormLarge profile $ do
       title "New simple contract"
 
@@ -75,6 +76,7 @@ instance H.ToMarkup CreateSimpleContractPage where
 
       (! A.id "panel-type") $ panel "Service type" $ groupType contract
                                                                roleLabel
+                                                               selectRoleUrl
       panel "Risks" $ groupRisks
       (! A.id "panel-dates") $ panelStandard "Work dates" $ groupDates
         mkey
@@ -106,7 +108,7 @@ information =
 iconInformation =
   Just $ OSvgIconDiv @"circle-information" svgIconCircleInformation
 
-groupType SimpleContract.CreateContractAll {..} roleLabel = do
+groupType SimpleContract.CreateContractAll {..} roleLabel selectRoleUrl = do
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" ! A.for "worker" $ "Role"
     H.div
@@ -118,7 +120,7 @@ groupType SimpleContract.CreateContractAll {..} roleLabel = do
                 H.span ! A.class_ "u-spacer-right-s" $ H.text roleLabel
                 H.button
                   ! A.class_ "c-button c-button--borderless c-button--icon"
-                  ! A.formaction "/echo/new-simple-contract-and-select-role"
+                  ! A.formaction selectRoleUrl
                   ! A.formmethod "POST"
                   $ H.span
                   ! A.class_ "c-button__content"
