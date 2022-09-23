@@ -88,7 +88,7 @@ instance H.ToMarkup CreateSimpleContractPage where
         mkey
         dates
         addDateUrl
-      (! A.id "panel-client") $ panel "Client" $ groupClient
+      (! A.id "panel-client") $ panel "Client" $ groupClient client
       (! A.id "panel-invoicing") $ panel "Invoicing and contract type" $ groupInvoicing inv selectVATUrl
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         editExpenseBaseUrl
@@ -101,6 +101,7 @@ instance H.ToMarkup CreateSimpleContractPage where
         submitButton saveUrl "Save changes"
    where
     dates = SimpleContract._createContractDates contract
+    client = SimpleContract._createContractClient contract
     inv = SimpleContract._createContractInvoice contract
     expenses = SimpleContract._createContractExpenses contract
     username =
@@ -220,11 +221,16 @@ groupDates editDateBaseUrl removeDateBaseUrl mkey dates submitUrl = do
     , (Just $ editDateBaseUrl <> key <> "/" <> show i)
     )
 
-groupClient = do
-  inputText "Client" "client-username" Nothing (Just "The client username.")
+groupClient SimpleContract.CreateContractClient {..} = do
+  inputText "Client" "client-username" musername (Just "The client username.")
+ where
+  musername = (H.toValue . User.unUserName) <$> _createContractClientUsername
 
 groupInvoicing inv selectVATUrl = do
   let vat = SimpleContract._createContractVAT inv
+      amount = SimpleContract._createContractAmount inv
+      prepaid = SimpleContract._createContractPrepaidAmount inv
+      whtax = SimpleContract._createContractWithholdingTax inv
   H.div ! A.class_ "o-form-group" $ do
     H.label ! A.class_ "o-form-group__label" $
       "Amount"
@@ -232,7 +238,7 @@ groupInvoicing inv selectVATUrl = do
       H.div ! A.class_ "o-flex-bp2 o-flex--spaced-wide o-flex--vertical-center" $ do
         H.div ! A.class_ "c-input-group" $ do
           H.div ! A.class_ "c-input-group__input" $
-            H.input ! A.class_ "c-input" ! A.type_ "number" ! A.id "amount"
+            H.input ! A.class_ "c-input" ! A.type_ "number" ! A.id "amount" ! A.name "amount" ! A.value (H.toValue amount)
           H.div ! A.class_ "c-input-group__append" $ "€"
         H.div ! A.class_ "c-checkbox" $
           H.label $ do
@@ -260,16 +266,16 @@ groupInvoicing inv selectVATUrl = do
       ! A.class_ "c-radio-group c-radio-group--inline"
       $ do
           H.div ! A.class_ "c-radio" $ H.label $ do
-            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "Included"
+            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "True"
             "VAT Included"
           H.div ! A.class_ "c-radio" $ H.label $ do
-            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "Excluded"
+            H.input ! A.type_ "radio" ! A.name "vat-incl-excl" ! A.value "False"
             "VAT Excluded"
           H.p
             ! A.class_ "c-form-help-text"
             $ "Specify if the above amount includes VAT or not."
-  inputText "Prepaid amount" "prepaid-amount" Nothing Nothing
-  inputText "Withholding tax"     "withholding-tax" Nothing Nothing
+  inputText "Prepaid amount" "prepaid-amount" (Just $ H.toValue prepaid) Nothing
+  inputText "Withholding tax"     "withholding-tax" (Just $ H.toValue whtax) Nothing
   Misc.inputSelect_
     "contract-type"
     "Contract type"
@@ -410,11 +416,12 @@ data ConfirmRolePage = ConfirmRolePage
     -- ^ The role being selected
   , _confirmRolePageLabel       :: Text
     -- ^ The human text for the role, already looked up in `roles'`.
+  , _confirmRolePageEditURL     :: H.AttributeValue
   , _confirmRolePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmRolePage where
-  toMarkup (ConfirmRolePage profile key role label submitUrl) =
+  toMarkup (ConfirmRolePage profile key role label editUrl submitUrl) =
     renderFormLarge profile $ do
       H.toMarkup
         $ PanelHeaderAndBody "Confirm selected role"
@@ -429,9 +436,7 @@ instance H.ToMarkup ConfirmRolePage where
         (H.toValue key)
 
       buttonBar $ do
-        buttonLink
-          (H.toValue $ "/forms/edit-simple-contract/" <> key <> "#panel-type")
-          "Cancel"
+        buttonLink editUrl "Cancel"
         buttonPrimary submitUrl "Select role"
 
 
@@ -444,12 +449,13 @@ data AddDatePage = AddDatePage
   , _addDatePageIndex       :: Maybe Int
     -- ^ The index of the date within CreateContractAll, if it was already
     -- added
-  , _addDatePageDate     :: SimpleContract.AddDate
+  , _addDatePageDate        :: SimpleContract.AddDate
+  , _addDatePageEditURL     :: H.AttributeValue
   , _addDatePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup AddDatePage where
-  toMarkup (AddDatePage profile key mindex date submitUrl) =
+  toMarkup (AddDatePage profile key mindex date editUrl submitUrl) =
     renderFormLarge profile $ do
       title' label Nothing
 
@@ -459,9 +465,7 @@ instance H.ToMarkup AddDatePage where
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       buttonBar $ do
-        buttonLink
-          (H.toValue $ "/forms/edit-contract/" <> key <> "#panel-dates")
-          "Cancel"
+        buttonLink editUrl "Cancel"
         buttonPrimary submitUrl label
    where
     label   = if isJust mindex then "Update date" else "Add date"
@@ -526,11 +530,12 @@ data ConfirmVATPage = ConfirmVATPage
     -- ^ The key of the contract form
   , _confirmVATPageRate        :: Int
     -- ^ The rate being selected
+  , _confirmVATPageEditURL     :: H.AttributeValue
   , _confirmVATPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmVATPage where
-  toMarkup (ConfirmVATPage profile key rate submitUrl) =
+  toMarkup (ConfirmVATPage profile key rate editUrl submitUrl) =
     renderFormLarge profile $ do
       H.toMarkup
         $ PanelHeaderAndBody "Confirm selected VAT"
@@ -545,9 +550,7 @@ instance H.ToMarkup ConfirmVATPage where
         (H.toValue key)
 
       buttonBar $ do
-        buttonLink
-          (H.toValue $ "/forms/edit-simple-contract/" <> key <> "#panel-invoicing")
-          "Cancel"
+        buttonLink editUrl "Cancel"
         buttonPrimary submitUrl "Select VAT"
 
 
@@ -561,11 +564,12 @@ data SimpleContractAddExpensePage = SimpleContractAddExpensePage
     -- ^ The index of the expense within CreateContractAll, if it was already
     -- added
   , _addExpensePageExpense     :: SimpleContract.AddExpense
+  , _addExpensePageEditURL     :: H.AttributeValue
   , _addExpensePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup SimpleContractAddExpensePage where
-  toMarkup (SimpleContractAddExpensePage profile key mindex expense submitUrl) =
+  toMarkup (SimpleContractAddExpensePage profile key mindex expense editUrl submitUrl) =
     renderFormLarge profile $ do
       title' label Nothing
 
@@ -580,9 +584,7 @@ instance H.ToMarkup SimpleContractAddExpensePage where
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
       buttonBar $ do
-        buttonLink
-          (H.toValue $ "/forms/edit-contract/" <> key <> "#panel-expenses")
-          "Cancel"
+        buttonLink editUrl "Cancel"
         buttonPrimary submitUrl label
    where
     label   = if isJust mindex then "Update expense" else "Add expense"
@@ -624,17 +626,16 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
   , _confirmSimpleContractPageContract    :: SimpleContract.CreateContractAll
   , _confirmSimpleContractPageRoleLabel   :: Text
     -- ^ The human text for the role, already looked up in `roles'`.
+  , _confirmSimpleContractPageEditURL     :: Maybe H.AttributeValue
   , _confirmSimpleContractPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractClient {..} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel meditUrl submitUrl)
     = renderFormLarge profile $ do
-      title' "New simple contract"
-        .  Just
-        .  H.toValue
-        $  "/forms/edit-simple-contract/"
-        <> key
+      title' "New simple contract" meditUrl
+
+      validationErrors
 
       H.div
         ! A.class_ "u-padding-vertical-l"
@@ -653,6 +654,54 @@ instance H.ToMarkup ConfirmSimpleContractPage where
       H.div
         ! A.class_ "u-padding-vertical-l"
         $ H.toMarkup
+        $ PanelHeaderAndBody "Risks"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
+            H.p
+              ! A.class_ "u-text-muted c-body-1"
+              $ ""
+
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
+        $ PanelHeaderAndBody "Work dates"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ if null dates
+            then H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
+              H.p
+                ! A.class_ "u-text-muted c-body-1"
+                $ "At least one date is required."
+            else H.ul $
+                   mapM_ (H.li . H.text . SimpleContract._addDateDate) dates
+
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
+        $ PanelHeaderAndBody "Client"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ case mClientUsername of
+            Nothing ->
+              H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
+                H.p
+                  ! A.class_ "u-text-muted c-body-1"
+                  $ "A client must be selected."
+            Just clientUsername ->
+              keyValuePair "Client username" clientUsername
+
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
+        $ PanelHeaderAndBody "Invoicing and contract type"
+        $ H.dl
+        ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+        $ "TODO"
+
+      H.div
+        ! A.class_ "u-padding-vertical-l"
+        $ H.toMarkup
         $ PanelHeaderAndBody "Expenses"
         $ H.dl
         ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
@@ -660,15 +709,16 @@ instance H.ToMarkup ConfirmSimpleContractPage where
             then H.div ! A.class_ "c-blank-slate c-blank-slate--bg-alt" $ do
               H.p
                 ! A.class_ "u-text-muted c-body-1"
-                $ "You have no expenses right now."
+                $ "You have added no expenses."
             else Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
-      button submitUrl "Submit contract"
+      button submitUrl "Submit contract" -- TODO Add edit button
    where
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
+    mClientUsername = User.unUserName <$> _createContractClientUsername
     titles = ["Amount"]
     display
       :: Text
@@ -677,6 +727,16 @@ instance H.ToMarkup ConfirmSimpleContractPage where
       -> ([Text], [(H.Html, Text, Text)], Maybe Text)
     display key i SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)
+
+validationErrors =
+  H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
+    Alert.AlertError
+    iconError
+    "Validation errors, if any."
+    Button.NoButton
+
+iconError =
+  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
 
 
 --------------------------------------------------------------------------------

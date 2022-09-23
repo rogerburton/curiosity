@@ -18,6 +18,7 @@ module Curiosity.Data.SimpleContract
   , CreateContractAll'(..)
   , CreateContractType(..)
   , CreateContractRisks(..)
+  , CreateContractClient(..)
   , CreateContractInvoice(..)
   , SelectRole(..)
   , AddDate(..)
@@ -46,7 +47,12 @@ import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , lookupMaybe
+                                                , parseMaybe
                                                 , parseUnique
+                                                )
+import           Web.HttpApiData                ( FromHttpApiData(..)
+                                                , parseQueryParams
                                                 )
 
 --------------------------------------------------------------------------------
@@ -63,6 +69,7 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 data CreateContractAll = CreateContractAll
   { _createContractType     :: CreateContractType
   , _createContractRisks    :: CreateContractRisks
+  , _createContractClient   :: CreateContractClient
   , _createContractInvoice  :: CreateContractInvoice
   , _createContractDates    :: [AddDate]
   , _createContractExpenses :: [AddExpense]
@@ -75,6 +82,7 @@ data CreateContractAll = CreateContractAll
 -- would also work but be less explicit.
 data CreateContractAll' = CreateContractAll' CreateContractType
                                              CreateContractRisks
+                                             CreateContractClient
                                              CreateContractInvoice
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -83,6 +91,7 @@ instance FromForm CreateContractAll' where
   fromForm f =
     CreateContractAll'
       <$> fromForm f
+      <*> fromForm f
       <*> fromForm f
       <*> fromForm f
 
@@ -110,14 +119,44 @@ data CreateContractRisks = CreateContractRisks
 instance FromForm CreateContractRisks where
   fromForm f = pure CreateContractRisks
 
-data CreateContractInvoice = CreateContractInvoice
-  { _createContractVAT :: Int
+data CreateContractClient = CreateContractClient
+  { _createContractClientUsername :: Maybe User.UserName
   }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
+instance FromForm CreateContractClient where
+  fromForm f = CreateContractClient <$> p f
+    -- TODO Make it a re-usable function.
+    -- or add this non-empty logic directly to the UserName data type.
+    where p f = case (parseQueryParams <=< lookupMaybe "client-username") f of
+            Left err -> Left err
+            Right (Just "") -> Right Nothing
+            Right value -> Right value
+
+data CreateContractInvoice = CreateContractInvoice
+  { _createContractAmount         :: Int
+  , _createContractVAT            :: Int
+  , _createContractIsVATIncl      :: Maybe Bool -- TODO VATInclOrExcl
+  , _createContractPrepaidAmount  :: Int
+  , _createContractWithholdingTax :: Int
+  , _createContractContractType   :: Text -- TODO Enum
+  }
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
+data VATInclOrExcl = VATIncl | VATExcl
+  deriving (Generic, Eq, Show)
+  deriving anyclass (ToJSON, FromJSON)
+
 instance FromForm CreateContractInvoice where
-  fromForm f = CreateContractInvoice <$> parseUnique "vat" f
+  fromForm f = CreateContractInvoice
+    <$> parseUnique "amount"          f
+    <*> parseUnique "vat"             f
+    <*> parseMaybe  "vat-incl-excl"   f
+    <*> parseUnique "prepaid-amount"  f
+    <*> parseUnique "withholding-tax" f
+    <*> parseUnique "contract-type"   f
 
 data SelectRole = SelectRole
   { _selectRoleRole :: Text
@@ -167,6 +206,7 @@ instance FromForm AddExpense where
 emptyCreateContractAll :: CreateContractAll
 emptyCreateContractAll = CreateContractAll emptyCreateContractType
                                            emptyCreateContractRisks
+                                           emptyCreateContractClient
                                            emptyCreateContractInvoice
                                            []
                                            []
@@ -185,8 +225,18 @@ emptyCreateContractType = CreateContractType
 emptyCreateContractRisks :: CreateContractRisks
 emptyCreateContractRisks = CreateContractRisks
 
+emptyCreateContractClient :: CreateContractClient
+emptyCreateContractClient = CreateContractClient { _createContractClientUsername = Nothing }
+
 emptyCreateContractInvoice :: CreateContractInvoice
-emptyCreateContractInvoice = CreateContractInvoice { _createContractVAT = 21 }
+emptyCreateContractInvoice = CreateContractInvoice
+  { _createContractAmount         = 0
+  , _createContractVAT            = 21
+  , _createContractIsVATIncl      = Nothing
+  , _createContractPrepaidAmount  = 0
+  , _createContractWithholdingTax = 1111
+  , _createContractContractType   = "none-selected"
+  }
 
 emptyAddDate :: AddDate
 emptyAddDate = AddDate { _addDateDate = "1970-01-01" }

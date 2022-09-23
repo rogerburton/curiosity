@@ -798,14 +798,14 @@ newCreateSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, SimpleContract.CreateContractAll')
   -> STM Text
-newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs inv)
+newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs cl inv)
   = do
     key <- Data.genRandomText db
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) (add key)
     pure key
  where
   add key =
-    M.insert (username, key) (SimpleContract.CreateContractAll ty rs inv [] [])
+    M.insert (username, key) (SimpleContract.CreateContractAll ty rs cl inv [] [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateSimpleContractForm
@@ -824,15 +824,15 @@ writeCreateSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, SimpleContract.CreateContractAll')
   -> STM Text
-writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll' ty rs inv)
+writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll' ty rs cl inv)
   = do
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
     pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(SimpleContract.CreateContractAll _ _ _ ds es) ->
-      SimpleContract.CreateContractAll ty rs inv ds es
+    (\(SimpleContract.CreateContractAll _ _ _ _ ds es) ->
+      SimpleContract.CreateContractAll ty rs cl inv ds es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -847,9 +847,9 @@ addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
       let ty' = ty { SimpleContract._createContractRole = role }
-      in  SimpleContract.CreateContractAll ty' rs inv ds es
+      in  SimpleContract.CreateContractAll ty' rs cl inv ds es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -863,8 +863,8 @@ addDateToSimpleContractForm db (profile, key, date) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
-      SimpleContract.CreateContractAll ty rs inv (ds ++ [date]) es
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      SimpleContract.CreateContractAll ty rs cl inv (ds ++ [date]) es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -878,10 +878,10 @@ writeDateToSimpleContractForm db (profile, key, index, date) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
       let f i e = if i == index then date else e
           ds' = zipWith f [0 ..] ds
-      in  SimpleContract.CreateContractAll ty rs inv ds' es
+      in  SimpleContract.CreateContractAll ty rs cl inv ds' es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -895,9 +895,9 @@ removeDateFromSimpleContractForm db (profile, key, index) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
       let ds' = map snd . filter ((/= index) . fst) $ zip [0 ..] ds
-      in  SimpleContract.CreateContractAll ty rs inv ds' es
+      in  SimpleContract.CreateContractAll ty rs cl inv ds' es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -912,9 +912,9 @@ addVATToSimpleContractForm db (profile, key, SimpleContract.SelectVAT rate) =
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty rs inv ds es) ->
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
       let inv' = inv { SimpleContract._createContractVAT = rate }
-      in  SimpleContract.CreateContractAll ty rs inv' ds es
+      in  SimpleContract.CreateContractAll ty rs cl inv' ds es
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -928,8 +928,8 @@ addExpenseToSimpleContractForm db (profile, key, expense) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
-      SimpleContract.CreateContractAll ty ld rs inv $ es ++ [expense]
+    (\(SimpleContract.CreateContractAll ty ld cl rs inv es) ->
+      SimpleContract.CreateContractAll ty ld cl rs inv $ es ++ [expense]
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -943,10 +943,10 @@ writeExpenseToSimpleContractForm db (profile, key, index, expense) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+    (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
       let f i e = if i == index then expense else e
           es' = zipWith f [0 ..] es
-      in  SimpleContract.CreateContractAll ty ld rs inv es'
+      in  SimpleContract.CreateContractAll ty ld rs cl inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -960,9 +960,9 @@ removeExpenseFromSimpleContractForm db (profile, key, index) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
-    (\(SimpleContract.CreateContractAll ty ld rs inv es) ->
+    (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
       let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
-      in  SimpleContract.CreateContractAll ty ld rs inv es'
+      in  SimpleContract.CreateContractAll ty ld rs cl inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile

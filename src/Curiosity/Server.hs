@@ -1422,6 +1422,7 @@ documentConfirmRolePage dataDir key role = do
           key
           role
           roleLabel
+          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-type")
           (H.toValue $ "/echo/select-role/" <> key)
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
@@ -1438,6 +1439,7 @@ documentAddDatePage dataDir key = do
       key
       Nothing
       SimpleContract.emptyAddDate
+      (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-dates")
       (H.toValue $ "/echo/add-date/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1449,7 +1451,7 @@ documentEditDatePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
-    Right (SimpleContract.CreateContractAll _ _ _ dates _) ->
+    Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
       if index > length dates - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.AddDatePage
@@ -1457,6 +1459,7 @@ documentEditDatePage dataDir key index = do
           key
           (Just index)
           (dates !! index)
+          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-dates")
           (H.toValue $ "/echo/save-date/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1467,7 +1470,7 @@ documentRemoveDatePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
-    Right (SimpleContract.CreateContractAll _ _ _ dates _) ->
+    Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
       if index > length dates - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.RemoveDatePage
@@ -1504,6 +1507,7 @@ documentConfirmVATPage dataDir key rate = do
           profile
           key
           rate
+          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-invoicing")
           (H.toValue $ "/echo/select-vat/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1519,6 +1523,7 @@ documentSimpleContractAddExpensePage dataDir key = do
       key
       Nothing
       SimpleContract.emptyAddExpense
+      (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-expenses")
       (H.toValue $ "/echo/simple-contract/add-expense/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1530,7 +1535,7 @@ documentSimpleContractEditExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
-    Right (SimpleContract.CreateContractAll _ _ _ _ expenses) ->
+    Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.SimpleContractAddExpensePage
@@ -1538,6 +1543,7 @@ documentSimpleContractEditExpensePage dataDir key index = do
           key
           (Just index)
           (expenses !! index)
+          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-expenses")
           (H.toValue $ "/echo/simple-contract/save-expense/" <> key <> "/" <> show index)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1548,7 +1554,7 @@ documentSimpleContractRemoveExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
-    Right (SimpleContract.CreateContractAll _ _ _ _ expenses) ->
+    Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.SimpleContractRemoveExpensePage
@@ -1577,6 +1583,7 @@ documentConfirmSimpleContractPage dataDir key = do
           key
           contractAll
           roleLabel
+          (Just . H.toValue $ "/forms/edit/simple-contract/" <> key)
           "/echo/submit-simple-contract"
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
