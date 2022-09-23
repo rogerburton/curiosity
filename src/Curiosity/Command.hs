@@ -17,6 +17,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
 import qualified Data.Text                     as T
@@ -57,6 +58,7 @@ data Command =
     -- ^ High-level operations on users.
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
+  | FormNewSimpleContract SimpleContract.CreateContractAll'
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -245,6 +247,12 @@ parser =
            "invoice"
            ( A.info (parserInvoice <**> A.helper)
            $ A.progDesc "Commands related to invoices"
+           )
+
+      <> A.command
+           "forms"
+           (A.info (parserForms <**> A.helper) $ A.progDesc
+             "Fill and validate forms (i.e. data in the staging area)"
            )
 
       <> A.command
@@ -534,6 +542,34 @@ parserInvoice = A.subparser $ A.command
 
 parserCreateInvoice :: A.Parser Command
 parserCreateInvoice = pure CreateInvoice
+
+parserForms :: A.Parser Command
+parserForms = A.subparser $ A.command
+  "simple-contract"
+  ( A.info (parserFormSimpleContract <**> A.helper)
+  $ A.progDesc "Fill and validate forms"
+  )
+
+parserFormSimpleContract :: A.Parser Command
+parserFormSimpleContract = A.subparser $ A.command
+  "new"
+  ( A.info (parserFormNewSimpleContract <**> A.helper)
+  $ A.progDesc "Fill and validate forms"
+  )
+
+parserFormNewSimpleContract :: A.Parser Command
+parserFormNewSimpleContract = do
+  amount <- A.option
+    A.auto
+    (A.long "amount" <> A.value 0 <> A.help "Invoicing amount." <> A.metavar
+      "EURO"
+    )
+  pure $ FormNewSimpleContract SimpleContract.emptyCreateContractAll'
+    { SimpleContract._createContractInvoice' =
+      SimpleContract.emptyCreateContractInvoice
+        { SimpleContract._createContractAmount = amount
+        }
+    }
 
 -- TODO I'm using subcommands to have all queue names appear in `--help` but
 -- the word COMMAND seems wrong:

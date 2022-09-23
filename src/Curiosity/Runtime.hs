@@ -466,6 +466,24 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Invoice created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.FormNewSimpleContract input -> do
+      output <-
+        runAppMSafe runtime
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile -> do
+                key <- newCreateSimpleContractForm _rDb (profile, input)
+                pure $ Right key
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
+      case output of
+        Right mkey -> do
+          case mkey of
+            Right key -> do
+              pure (ExitSuccess, ["Simple contract form created: " <> key])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
@@ -793,6 +811,7 @@ submitCreateContractForm' db (profile, input) = do
 
 
 --------------------------------------------------------------------------------
+-- | Create a new form instance in the staging area.
 newCreateSimpleContractForm
   :: forall runtime
    . Data.StmDb runtime
@@ -804,8 +823,8 @@ newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs
     STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) (add key)
     pure key
  where
-  add key =
-    M.insert (username, key) (SimpleContract.CreateContractAll ty rs cl inv [] [])
+  add key = M.insert (username, key)
+                     (SimpleContract.CreateContractAll ty rs cl inv [] [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateSimpleContractForm

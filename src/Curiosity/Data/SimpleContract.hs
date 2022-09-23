@@ -28,6 +28,7 @@ module Curiosity.Data.SimpleContract
     --
     -- $emptyValues
   , emptyCreateContractAll
+  , emptyCreateContractAll'
   , emptyCreateContractType
   , emptyCreateContractRisks
   , emptyCreateContractInvoice
@@ -80,10 +81,12 @@ data CreateContractAll = CreateContractAll
 -- | Same as above, but without the expenses. This is used to group together
 -- the main panels into a `FromForm` instance. Simply leaving out the expenses
 -- would also work but be less explicit.
-data CreateContractAll' = CreateContractAll' CreateContractType
-                                             CreateContractRisks
-                                             CreateContractClient
-                                             CreateContractInvoice
+data CreateContractAll' = CreateContractAll'
+  { _createContractType'    :: CreateContractType
+  , _createContractRisks'   :: CreateContractRisks
+  , _createContractClient'  :: CreateContractClient
+  , _createContractInvoice' :: CreateContractInvoice
+  }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -129,10 +132,11 @@ instance FromForm CreateContractClient where
   fromForm f = CreateContractClient <$> p f
     -- TODO Make it a re-usable function.
     -- or add this non-empty logic directly to the UserName data type.
-    where p f = case (parseQueryParams <=< lookupMaybe "client-username") f of
-            Left err -> Left err
-            Right (Just "") -> Right Nothing
-            Right value -> Right value
+   where
+    p f = case (parseQueryParams <=< lookupMaybe "client-username") f of
+      Left  err       -> Left err
+      Right (Just "") -> Right Nothing
+      Right value     -> Right value
 
 data CreateContractInvoice = CreateContractInvoice
   { _createContractAmount         :: Int
@@ -150,13 +154,14 @@ data VATInclOrExcl = VATIncl | VATExcl
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractInvoice where
-  fromForm f = CreateContractInvoice
-    <$> parseUnique "amount"          f
-    <*> parseUnique "vat"             f
-    <*> parseMaybe  "vat-incl-excl"   f
-    <*> parseUnique "prepaid-amount"  f
-    <*> parseUnique "withholding-tax" f
-    <*> parseUnique "contract-type"   f
+  fromForm f =
+    CreateContractInvoice
+      <$> parseUnique "amount" f
+      <*> parseUnique "vat"    f
+      <*> parseMaybe "vat-incl-excl" f
+      <*> parseUnique "prepaid-amount"  f
+      <*> parseUnique "withholding-tax" f
+      <*> parseUnique "contract-type"   f
 
 data SelectRole = SelectRole
   { _selectRoleRole :: Text
@@ -211,6 +216,12 @@ emptyCreateContractAll = CreateContractAll emptyCreateContractType
                                            []
                                            []
 
+emptyCreateContractAll' :: CreateContractAll'
+emptyCreateContractAll' = CreateContractAll' emptyCreateContractType
+                                             emptyCreateContractRisks
+                                             emptyCreateContractClient
+                                             emptyCreateContractInvoice
+
 emptyCreateContractType :: CreateContractType
 emptyCreateContractType = CreateContractType
   { _createContractRole        = "coloriste"
@@ -219,14 +230,15 @@ emptyCreateContractType = CreateContractType
     -- the forms.
   , _createContractDescription = ""
   , _createContractWorkCountry = "BE"
-  , _createContractHasRisks = False -- TODO We probably want no default choice here.
+  , _createContractHasRisks    = False -- TODO We probably want no default choice here.
   }
 
 emptyCreateContractRisks :: CreateContractRisks
 emptyCreateContractRisks = CreateContractRisks
 
 emptyCreateContractClient :: CreateContractClient
-emptyCreateContractClient = CreateContractClient { _createContractClientUsername = Nothing }
+emptyCreateContractClient =
+  CreateContractClient { _createContractClientUsername = Nothing }
 
 emptyCreateContractInvoice :: CreateContractInvoice
 emptyCreateContractInvoice = CreateContractInvoice
@@ -264,11 +276,12 @@ instance FromForm SubmitContract where
 -- should be provided as arguments.
 validateCreateSimpleContract
   :: User.UserProfile -> CreateContractAll -> Either [Err] Contract
-validateCreateSimpleContract profile CreateContractAll {..} =
-  if null errors then Right contract else Left errors
+validateCreateSimpleContract profile CreateContractAll {..} = if null errors
+  then Right contract
+  else Left errors
  where
   contract = Contract { _contractId = ContractId "TODO-DUMMY" }
-  errors = concat
+  errors   = concat
     [ if User.CanCreateContracts `elem` User._userProfileRights profile
       then []
       else [Err "User has not the right CanCreateContracts."]
@@ -299,5 +312,7 @@ newtype ContractId = ContractId { unContractId :: Text }
                         ) via Text
                deriving FromForm via W.Wrapped "contract-id" Text
 
-data Err = Err { unErr :: Text }
+data Err = Err
+  { unErr :: Text
+  }
   deriving (Eq, Exception, Show)
