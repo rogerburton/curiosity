@@ -1,0 +1,4 @@
+as mila
+forms simple-contract new --amount "-100"
+forms simple-contract new
+forms simple-contract new --amount 100

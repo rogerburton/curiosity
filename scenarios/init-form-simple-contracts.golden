@@ -1,0 +1,8 @@
+1: as mila
+Modifiying default user.
+2: forms simple-contract new --amount -100
+UserNotFound "mila"
+3: forms simple-contract new
+UserNotFound "mila"
+4: forms simple-contract new --amount 100
+UserNotFound "mila"

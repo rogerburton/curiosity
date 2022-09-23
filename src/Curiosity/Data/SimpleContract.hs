@@ -34,7 +34,7 @@ module Curiosity.Data.SimpleContract
   , emptyCreateContractInvoice
   , emptyAddDate
   , emptyAddExpense
-    -- * Form submittal
+    -- * Form submittal and validation
   , SubmitContract(..)
   , validateCreateSimpleContract
     -- * Main data representation

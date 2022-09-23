@@ -1087,7 +1087,7 @@ echoNewSimpleContract'
   -> SimpleContract.CreateContractAll'
   -> m Text
 echoNewSimpleContract' dataDir contract = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   key     <- liftIO . atomically $ Rt.newCreateSimpleContractForm
     db
@@ -1154,7 +1154,7 @@ echoSaveSimpleContract'
   -> SimpleContract.CreateContractAll'
   -> m ()
 echoSaveSimpleContract' dataDir key contract = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeCreateSimpleContractForm
     db
@@ -1223,7 +1223,7 @@ echoSelectRole
   -> SimpleContract.SelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSelectRole dataDir key role = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addRoleToSimpleContractForm db (profile, key, role)
   pure $ addHeader @"Location" ("/forms/edit/simple-contract/" <> key) NoContent
@@ -1235,7 +1235,7 @@ echoAddDate
   -> SimpleContract.AddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoAddDate dataDir key date = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addDateToSimpleContractForm db (profile, key, date)
   pure $ addHeader @"Location"
@@ -1251,7 +1251,7 @@ echoSaveDate
   -> SimpleContract.AddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveDate dataDir key index date = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeDateToSimpleContractForm
     db
@@ -1267,7 +1267,7 @@ echoRemoveDate
   -> Int
   -> m (Headers '[Header "Location" Text] NoContent)
 echoRemoveDate dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.removeDateFromSimpleContractForm
     db
@@ -1283,7 +1283,7 @@ echoSelectVAT
   -> SimpleContract.SelectVAT
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSelectVAT dataDir key rate = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addVATToSimpleContractForm db (profile, key, rate)
   pure $ addHeader @"Location" ("/forms/edit/simple-contract/" <> key) NoContent
@@ -1295,7 +1295,7 @@ echoSimpleContractAddExpense
   -> SimpleContract.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSimpleContractAddExpense dataDir key expense = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   liftIO . atomically $ Rt.addExpenseToSimpleContractForm db (profile, key, expense)
   pure $ addHeader @"Location"
@@ -1311,7 +1311,7 @@ echoSimpleContractSaveExpense
   -> SimpleContract.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSimpleContractSaveExpense dataDir key index expense = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.writeExpenseToSimpleContractForm
     db
@@ -1327,7 +1327,7 @@ echoSimpleContractRemoveExpense
   -> Int
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSimpleContractRemoveExpense dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   todo    <- liftIO . atomically $ Rt.removeExpenseFromSimpleContractForm
     db
@@ -1341,7 +1341,7 @@ echoSimpleContractRemoveExpense dataDir key index = do
 documentCreateSimpleContractPage
   :: ServerC m => FilePath -> m Pages.CreateSimpleContractPage
 documentCreateSimpleContractPage dataDir = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   let contractAll = SimpleContract.emptyCreateContractAll
       role        = SimpleContract._createContractRole
         $ SimpleContract._createContractType contractAll
@@ -1367,7 +1367,7 @@ documentCreateSimpleContractPage dataDir = do
 documentEditSimpleContractPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateSimpleContractPage
 documentEditSimpleContractPage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
@@ -1397,7 +1397,7 @@ documentEditSimpleContractPage dataDir key = do
 documentSelectRolePage
   :: ServerC m => FilePath -> Text -> m Pages.SelectRolePage
 documentSelectRolePage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
@@ -1409,7 +1409,7 @@ documentSelectRolePage dataDir key = do
 documentConfirmRolePage
   :: ServerC m => FilePath -> Text -> Text -> m Pages.ConfirmRolePage
 documentConfirmRolePage dataDir key role = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
@@ -1430,7 +1430,7 @@ documentConfirmRolePage dataDir key role = do
 documentAddDatePage
   :: ServerC m => FilePath -> Text -> m Pages.AddDatePage
 documentAddDatePage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1447,7 +1447,7 @@ documentAddDatePage dataDir key = do
 documentEditDatePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.AddDatePage
 documentEditDatePage dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1466,7 +1466,7 @@ documentEditDatePage dataDir key index = do
 documentRemoveDatePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveDatePage
 documentRemoveDatePage dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1484,7 +1484,7 @@ documentRemoveDatePage dataDir key index = do
 documentSelectVATPage
   :: ServerC m => FilePath -> Text -> m Pages.SelectVATPage
 documentSelectVATPage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
@@ -1496,7 +1496,7 @@ documentSelectVATPage dataDir key = do
 documentConfirmVATPage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.ConfirmVATPage
 documentConfirmVATPage dataDir key rate = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
@@ -1514,7 +1514,7 @@ documentConfirmVATPage dataDir key rate = do
 documentSimpleContractAddExpensePage
   :: ServerC m => FilePath -> Text -> m Pages.SimpleContractAddExpensePage
 documentSimpleContractAddExpensePage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1531,7 +1531,7 @@ documentSimpleContractAddExpensePage dataDir key = do
 documentSimpleContractEditExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractAddExpensePage
 documentSimpleContractEditExpensePage dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1550,7 +1550,7 @@ documentSimpleContractEditExpensePage dataDir key index = do
 documentSimpleContractRemoveExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractRemoveExpensePage
 documentSimpleContractRemoveExpensePage dataDir key index = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
@@ -1568,7 +1568,7 @@ documentSimpleContractRemoveExpensePage dataDir key index = do
 documentConfirmSimpleContractPage
   :: ServerC m => FilePath -> Text -> m Pages.ConfirmSimpleContractPage
 documentConfirmSimpleContractPage dataDir key = do
-  profile <- readJson $ dataDir </> "alice.json"
+  profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
     db
