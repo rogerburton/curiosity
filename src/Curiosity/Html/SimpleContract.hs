@@ -29,6 +29,7 @@ import qualified Smart.Html.Button             as Button
 import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
 import           Smart.Html.Shared.Html.Icons
+import           Smart.Html.Shared.Types        ( Body(..) )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -624,6 +625,8 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
     -- ^ The user creating the contract
   , _confirmSimpleContractPageKey         :: Text
   , _confirmSimpleContractPageContract    :: SimpleContract.CreateContractAll
+  , _confirmSimpleContractPageErrors      :: [SimpleContract.Err]
+    -- Validation errors, if any.
   , _confirmSimpleContractPageRoleLabel   :: Text
     -- ^ The human text for the role, already looked up in `roles'`.
   , _confirmSimpleContractPageEditURL     :: Maybe H.AttributeValue
@@ -631,11 +634,11 @@ data ConfirmSimpleContractPage = ConfirmSimpleContractPage
   }
 
 instance H.ToMarkup ConfirmSimpleContractPage where
-  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractClient {..} SimpleContract.CreateContractInvoice{} dates expenses) roleLabel meditUrl submitUrl)
+  toMarkup (ConfirmSimpleContractPage profile key (SimpleContract.CreateContractAll SimpleContract.CreateContractType {..} SimpleContract.CreateContractRisks{} SimpleContract.CreateContractClient {..} SimpleContract.CreateContractInvoice{} dates expenses) errors roleLabel meditUrl submitUrl)
     = renderFormLarge profile $ do
       title' "New simple contract" meditUrl
 
-      validationErrors
+      validationErrors errors
 
       H.div
         ! A.class_ "u-padding-vertical-l"
@@ -728,12 +731,15 @@ instance H.ToMarkup ConfirmSimpleContractPage where
     display key i SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)
 
-validationErrors =
-  H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
-    Alert.AlertError
-    iconError
-    "Validation errors, if any."
-    Button.NoButton
+validationErrors errors =
+  if null errors
+  then mempty
+  else
+    H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
+      Alert.AlertError
+      iconError
+      (Body $ "Validation errors: " <> show (map SimpleContract.unErr errors))
+      Button.NoButton
 
 iconError =
   Just $ OSvgIconDiv @"circle-error" svgIconCircleError

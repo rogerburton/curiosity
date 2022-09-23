@@ -35,7 +35,7 @@ module Curiosity.Data.SimpleContract
   , emptyAddExpense
     -- * Form submittal
   , SubmitContract(..)
-  , validateCreateContract
+  , validateCreateSimpleContract
     -- * Main data representation
   , Contract(..)
   , ContractId(..)
@@ -262,12 +262,20 @@ instance FromForm SubmitContract where
 -- the ID).
 -- This is a pure function: everything required to perform the validation
 -- should be provided as arguments.
-validateCreateContract
-  :: User.UserProfile -> CreateContractAll -> Either Err Contract
-validateCreateContract profile = do
-  if User.CanCreateContracts `elem` User._userProfileRights profile
-    then pure $ Right Contract { _contractId = ContractId "TODO-DUMMY" }
-    else pure . Left $ Err "User has not the right CanCreateContracts."
+validateCreateSimpleContract
+  :: User.UserProfile -> CreateContractAll -> Either [Err] Contract
+validateCreateSimpleContract profile CreateContractAll {..} =
+  if null errors then Right contract else Left errors
+ where
+  contract = Contract { _contractId = ContractId "TODO-DUMMY" }
+  errors = concat
+    [ if User.CanCreateContracts `elem` User._userProfileRights profile
+      then []
+      else [Err "User has not the right CanCreateContracts."]
+    , if _createContractAmount _createContractInvoice < 1
+      then [Err "Amount to invoice must be strictly positive."]
+      else []
+    ]
 
 
 --------------------------------------------------------------------------------
@@ -291,5 +299,5 @@ newtype ContractId = ContractId { unContractId :: Text }
                         ) via Text
                deriving FromForm via W.Wrapped "contract-id" Text
 
-data Err = Err Text
+data Err = Err { unErr :: Text }
   deriving (Eq, Exception, Show)
