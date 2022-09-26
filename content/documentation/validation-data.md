@@ -38,6 +38,14 @@ Countries
 
     The list [as JSON](/partials/countries.json).
 
+VAT rates
+
+:   VAT rates that can be selected in contracts come from a closed list:
+
+    <!--# include virtual="/partials/vat-rates" -->
+
+    The list [as JSON](/partials/vat-rates.json).
+
 # See also
 
 - [state-0](/documentation/state-0)

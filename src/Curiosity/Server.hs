@@ -368,6 +368,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
 
+             :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
+
              :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
 
@@ -489,6 +492,8 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> partialRolesAsJson
     :<|> partialCountries
     :<|> partialCountriesAsJson
+    :<|> partialVatRates
+    :<|> partialVatRatesAsJson
     :<|> partialPermissions
     :<|> partialPermissionsAsJson
 
@@ -681,6 +686,20 @@ partialCountries =
 
 partialCountriesAsJson :: ServerC m => m [(Text, Text)]
 partialCountriesAsJson = pure Country.countries
+
+
+--------------------------------------------------------------------------------
+partialVatRates :: ServerC m => m H.Html
+partialVatRates =
+  pure . H.ul $ mapM_ displayVatRate SimpleContract.vatRates
+ where
+  displayVatRate (value, label) =
+    H.li $ do
+      H.text label
+      H.code $ H.text value
+
+partialVatRatesAsJson :: ServerC m => m [(Text, Text)]
+partialVatRatesAsJson = pure SimpleContract.vatRates
 
 
 --------------------------------------------------------------------------------
