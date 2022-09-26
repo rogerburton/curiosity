@@ -24,3 +24,11 @@ the necessary data and set the system state as desired.
 A specific set of example data is available with Curiosity, called
 [`state-0`](/documentation/state-0). (We envision that additional set of data
 could be created in the future.)
+
+# Validation data
+
+The behavior of the system (in particular regarding its validation rules) is
+often dependent on static data: data that are considered part of the system
+definition. Those data can be for instance hard-coded in the source code. The
+data driving the system are visible and explained in the documentation in the
+[validation data page](/documentation/validation-data).
