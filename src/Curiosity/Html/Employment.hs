@@ -49,7 +49,7 @@ data CreateContractPage = CreateContractPage
   }
 
 instance H.ToMarkup CreateContractPage where
-  toMarkup (CreateContractPage profile mkey (Employment.CreateContractAll Employment.CreateContract {..} expenses) saveUrl addExpenseUrl)
+  toMarkup (CreateContractPage profile mkey (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractType {} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) saveUrl addExpenseUrl)
     = renderFormLarge profile $ do
       title "New employment contract"
       panel "General information" $ do
@@ -81,18 +81,16 @@ instance H.ToMarkup CreateContractPage where
                            "Describe your work (minimum 10 characters)"
                            _createContractDescription
                            True
-
+      panel "Employment type" $ groupEmployment
       panel "Location and dates" $ do
         inputText "Work country" "country" Nothing Nothing
         inputText "Work dates"   "dates"   Nothing Nothing
-
       panel "Risks" $ groupRisks
       panel "Invoicing" $ groupInvoicing
       (! A.id "panel-expenses") $ panelStandard "Expenses" $ groupExpenses
         mkey
         expenses
         addExpenseUrl
-      panel "Employment type" $ groupEmployment
 
       groupLayout $ do
         submitButton saveUrl "Save changes"
@@ -262,7 +260,7 @@ data ConfirmContractPage = ConfirmContractPage
   }
 
 instance H.ToMarkup ConfirmContractPage where
-  toMarkup (ConfirmContractPage profile key (Employment.CreateContractAll Employment.CreateContract {..} expenses) submitUrl)
+  toMarkup (ConfirmContractPage profile key (Employment.CreateContractAll Employment.CreateContractGenInfo {..} Employment.CreateContractType {} Employment.CreateContractLocDates{} Employment.CreateContractRisks{} Employment.CreateContractInvoice{} expenses) submitUrl)
     = renderFormLarge profile $ do
       title' "New employment contract"
         .  Just

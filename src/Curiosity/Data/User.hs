@@ -165,7 +165,7 @@ data UserCompletion2 = UserCompletion2
   deriving anyclass (ToJSON, FromJSON)
 
 -- Enable/disable some accesses.
-data AccessRight = CanVerifyEmailAddr | CanDummy
+data AccessRight = CanCreateContracts | CanVerifyEmailAddr
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 

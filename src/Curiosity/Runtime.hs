@@ -40,6 +40,9 @@ module Curiosity.Runtime
   , addExpenseToContractForm
   , writeExpenseToContractForm
   , removeExpenseFromContractForm
+  -- * ID generation
+  , generateUserId
+  , firstUserId
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -268,7 +271,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -417,9 +420,20 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["User successfully updated."])
         Right (Left err) -> pure (ExitFailure 1, [show err])
         Left  err        -> pure (ExitFailure 1, [show err])
-    Command.CreateEmployment -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createEmployment
-        _rDb
+    Command.CreateEmployment input -> do
+      output <-
+        runAppMSafe runtime
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile -> do
+                merror <- submitCreateContractForm' _rDb (profile, input)
+                -- TODO Should we have a type to combine multiple possible errors ?
+                case merror of
+                  Left (Employment.Err err) -> pure . Left $ User.UserNotFound err
+                  Right id -> pure $ Right id
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
         Right mid -> do
           case mid of
@@ -613,8 +627,9 @@ modifyLegalEntities db f =
 createEmployment
   :: forall runtime
    . Data.StmDb runtime
+  -> Employment.Contract
   -> STM (Either Employment.Err Employment.ContractId)
-createEmployment db = do
+createEmployment db c = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
@@ -647,14 +662,16 @@ modifyEmployments db f =
 newCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Employment.CreateContract)
+  -> (User.UserProfile, Employment.CreateContractAll')
   -> STM Text
-newCreateContractForm db (profile, c) = do
-  key <- Data.genRandomText db
-  STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
-  pure key
+newCreateContractForm db (profile, Employment.CreateContractAll' gi ty ld rs inv)
+  = do
+    key <- Data.genRandomText db
+    STM.modifyTVar (Data._dbFormCreateContractAll db) (add key)
+    pure key
  where
-  add key = M.insert (username, key) (Employment.CreateContractAll c [])
+  add key =
+    M.insert (username, key) (Employment.CreateContractAll gi ty ld rs inv [])
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateContractForm
@@ -671,15 +688,18 @@ readCreateContractForm db (profile, key) = do
 writeCreateContractForm
   :: forall runtime
    . Data.StmDb runtime
-  -> (User.UserProfile, Text, Employment.CreateContract)
+  -> (User.UserProfile, Text, Employment.CreateContractAll')
   -> STM Text
-writeCreateContractForm db (profile, key, c) = do
-  STM.modifyTVar (Data._dbFormCreateContractAll db) save
-  pure key
+writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ty ld rs inv)
+  = do
+    STM.modifyTVar (Data._dbFormCreateContractAll db) save
+    pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(Employment.CreateContractAll _ es) -> Employment.CreateContractAll c es)
+    (\(Employment.CreateContractAll _ _ _ _ _ es) ->
+      Employment.CreateContractAll gi ty ld rs inv es
+    )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
@@ -692,8 +712,8 @@ addExpenseToContractForm db (profile, key, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
-      Employment.CreateContractAll c $ es ++ [expense]
+    (\(Employment.CreateContractAll gi ty ld rs inv es) ->
+      Employment.CreateContractAll gi ty ld rs inv $ es ++ [expense]
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -707,10 +727,10 @@ writeExpenseToContractForm db (profile, key, index, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
+    (\(Employment.CreateContractAll gi ty ld rs inv es) ->
       let f i e = if i == index then expense else e
           es' = zipWith f [0 ..] es
-      in  Employment.CreateContractAll c es'
+      in  Employment.CreateContractAll gi ty ld rs inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
@@ -724,13 +744,37 @@ removeExpenseFromContractForm db (profile, key, index) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
-    (\(Employment.CreateContractAll c es) ->
+    (\(Employment.CreateContractAll gi ty ld rs inv es) ->
       let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
-      in  Employment.CreateContractAll c es'
+      in  Employment.CreateContractAll gi ty ld rs inv es'
     )
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
+-- | Fetch the contract form from the staging area, then attempt to validate
+-- and create it.
+submitCreateContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.SubmitContract)
+  -> STM (Either Employment.Err Employment.ContractId)
+submitCreateContractForm db (profile, Employment.SubmitContract key) = do
+  minput <- readCreateContractForm db (profile, key)
+  case minput of
+    Right input -> submitCreateContractForm' db (profile, input)
+    Left  err   -> pure . Left $ Employment.Err (show err)
+
+-- | Attempt to create a contract form and create it.
+submitCreateContractForm'
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Employment.CreateContractAll)
+  -> STM (Either Employment.Err Employment.ContractId)
+submitCreateContractForm' db (profile, input) = do
+  let mc = Employment.validateCreateContract profile input
+  case mc of
+    Right c   -> createEmployment db c
+    Left  err -> pure . Left $ Employment.Err (show err)
 
 --------------------------------------------------------------------------------
 createInvoice
@@ -854,7 +898,7 @@ createUser db User.Signup {..} = do
           (User.UserCompletion1 Nothing Nothing Nothing)
           (User.UserCompletion2 Nothing Nothing)
           -- The very first user has plenty of rights:
-          (if newId == "USER-1" then [User.CanVerifyEmailAddr] else [])
+          (if newId == firstUserId then firstUserRights else [])
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     createUserFull db newProfile >>= either STM.throwSTM pure
@@ -886,6 +930,12 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
 generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
 generateUserId Data.Db {..} =
   User.UserId <$> C.bumpCounterPrefix "USER-" _dbNextUserId
+
+firstUserId :: User.UserId
+firstUserId = "USER-1"
+
+firstUserRights :: [User.AccessRight]
+firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
 
 modifyUsers
   :: forall runtime

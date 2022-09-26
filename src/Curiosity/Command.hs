@@ -15,6 +15,7 @@ module Curiosity.Command
 
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
@@ -54,7 +55,7 @@ data Command =
   | UpdateUser (S.DBUpdate User.UserProfile)
   | SetUserEmailAddrAsVerified User.UserName
     -- ^ High-level operations on users.
-  | CreateEmployment
+  | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
@@ -447,13 +448,17 @@ parserUsers :: A.Parser Command
 parserUsers = do
   predicate <-
     (  A.flag' User.PredicateEmailAddrToVerify
-      $  A.long "email-addr-to-verify"
-      <> A.help "Show users with an email address to verify."
-      )
-      <|> (  A.flag' (User.PredicateHas User.CanVerifyEmailAddr)
-          $  A.long "can-verify-email-addr"
-          <> A.help "Show users with the right to verify email addresses."
-          )
+    $  A.long "email-addr-to-verify"
+    <> A.help "Show users with an email address to verify."
+    )
+    <|> (  A.flag' (User.PredicateHas User.CanCreateContracts)
+        $  A.long "can-create-contracts"
+        <> A.help "Show users with the right to create contracts."
+        )
+    <|> (  A.flag' (User.PredicateHas User.CanVerifyEmailAddr)
+        $  A.long "can-verify-email-addr"
+        <> A.help "Show users with the right to verify email addresses."
+        )
   pure $ FilterUsers predicate
 
 parserCreateUser :: A.Parser Command
@@ -517,7 +522,8 @@ parserEmployment = A.subparser $ A.command
   )
 
 parserCreateEmployment :: A.Parser Command
-parserCreateEmployment = pure CreateEmployment
+parserCreateEmployment =
+  pure $ CreateEmployment Employment.emptyCreateContractAll
 
 parserInvoice :: A.Parser Command
 parserInvoice = A.subparser $ A.command

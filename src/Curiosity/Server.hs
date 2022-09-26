@@ -152,24 +152,24 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
              :<|> "echo" :> "new-contract"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "new-contract-and-add-expense"
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "save-contract"
                   :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "save-contract-and-add-expense"
                   :> Capture "key" Text
-                  :> ReqBody '[FormUrlEncoded] Employment.CreateContract
+                  :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -650,6 +650,11 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
+-- $ documentationPages
+--
+-- The \`document` -prefixed functions display the same page as the \`show`
+-- -prefixed one.
+
 documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
 documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -705,7 +710,7 @@ documentEditExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right (Employment.CreateContractAll _ expenses) ->
+    Right (Employment.CreateContractAll _ _ _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.AddExpensePage
@@ -723,7 +728,7 @@ documentRemoveExpensePage dataDir key index = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right (Employment.CreateContractAll _ expenses) ->
+    Right (Employment.CreateContractAll _ _ _ _ _ expenses) ->
       if index > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.RemoveExpensePage
@@ -738,7 +743,7 @@ documentRemoveExpensePage dataDir key index = do
 echoNewContract
   :: ServerC m
   => FilePath
-  -> Employment.CreateContract
+  -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -750,7 +755,7 @@ echoNewContract dataDir contract = do
 echoNewContractAndAddExpense
   :: ServerC m
   => FilePath
-  -> Employment.CreateContract
+  -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContractAndAddExpense dataDir contract = do
   -- TODO This is the same code, but with a different redirect.
@@ -764,7 +769,7 @@ echoSaveContract
   :: ServerC m
   => FilePath
   -> Text
-  -> Employment.CreateContract
+  -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
   profile <- readJson $ dataDir </> "alice.json"
@@ -779,7 +784,7 @@ echoSaveContractAndAddExpense
   :: ServerC m
   => FilePath
   -> Text
-  -> Employment.CreateContract
+  -> Employment.CreateContractAll'
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContractAndAddExpense dataDir key contract = do
   -- TODO This is the same code, but with a different redirect.
@@ -859,8 +864,9 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure . Pages.EchoPage $ show contract
-    Left  _        -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+    Right contract -> pure . Pages.EchoPage $ show
+      (contract, Employment.validateCreateContract profile contract)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- TODO Validate the filename (e.g. this can't be a path going up).
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
