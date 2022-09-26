@@ -7,25 +7,21 @@ title: Curiosity
 
 ## Users
 
-Usernames from the following list cannot be used:
-
-<!--# include virtual="/partials/username-blocklist" -->
-
-The list [as JSON](/partials/username-blocklist.json).
+Some usernames cannot be used. A list of blocked usernames is [available
+here](/documentation/validation-data#users)
 
 ## Simple contracts
 
-See [state-0](/documentation/scenarios#simple-contract) for example data,
-displayed with validation errors.
+Example data
 
-Roles mentioned in contracts come from a closed list:
+:   See [state-0](/documentation/state-0#simple-contract) for example data,
+    displayed with validation errors.
 
-<!--# include virtual="/partials/roles" -->
+Some validation data are used to describe and validate contracts. See
+[validation data]( (/documentation/validation-data#simple-contracts).
 
-The list [as JSON](/partials/roles.json).
+# See also
 
-Countries mentioned in contracts come from a closed list:
-
-<!--# include virtual="/partials/countries" -->
-
-The list [as JSON](/partials/countries.json).
+- [state-0](/documentation/state-0)
+- [Validation data](/documentation/validation-data)
+- [Live data](/documentation/live-data)

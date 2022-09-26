@@ -31,6 +31,7 @@ module Curiosity.Runtime
   , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
+  , readLegalEntities
   -- * High-level unit operations
   , selectUnitBySlug
   -- * Form edition
@@ -1216,6 +1217,13 @@ selectEntityBySlug db name = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Legal._entitySlug) records
+
+readLegalEntities
+  :: forall runtime . Data.StmDb runtime -> STM [Legal.Entity]
+readLegalEntities db = do
+  let tvar = Data._dbLegalEntities db
+  records <- STM.readTVar tvar
+  pure records
 
 selectUnitBySlug
   :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Entity)

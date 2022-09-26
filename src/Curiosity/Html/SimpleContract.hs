@@ -469,9 +469,7 @@ instance H.ToMarkup SelectVATPage where
   toMarkup (SelectVATPage profile key confirmVatBaseUrl) = renderFormLarge profile $ do
     title' "Select VAT" Nothing
 
-    displayRate confirmVatBaseUrl key ("0", "0% For some reason")
-    displayRate confirmVatBaseUrl key ("6", "6% For some reason")
-    displayRate confirmVatBaseUrl key ("21", "21% For some reason")
+    H.ul $ mapM_ (displayRate confirmVatBaseUrl key) SimpleContract.vatRates
 
 displayRate confirmVatBaseUrl key (value, label) =
   H.li

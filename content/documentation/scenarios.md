@@ -21,58 +21,30 @@ through the web interface) a specific test scenario can be tedious if the
 system is initially empty. Fortunately, scripts can also be used to generate
 the necessary data and set the system state as desired.
 
-A specific set of example data is available with Curiosity, called `state-0`.
-(We envision that additional set of data could be created in the future.)
+A specific set of example data is available with Curiosity, called
+[`state-0`](/documentation/state-0). (We envision that additional set of data
+could be created in the future.)
 
-Note: if you are operating Curiosity yourself, you can initialize Curiosity's
-state by running `cty run scenarios/state-0.txt`. Here is [an example
-scenario](https://github.com/hypered/curiosity/blob/main/scenarios/0.txt), and
-its [corresponding golden
-file](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden).
+# Validation data
 
-# `state-0`
+The behavior of the system (in particular regarding its validation rules) is
+often dependent on static data: data that are considered part of the system
+definition. Those data can be for instance hard-coded in the source code. The
+data driving the system are visible and explained in the documentation in the
+[validation data page](/documentation/validation-data).
 
-We intend `state-0` to serve as common knowledge among the team working with
-Curiosity. Here, we detail what it is comprised of.
+# Live data
 
-Note: sometimes, we provide links to specific pages of the web application.
-When those pages are displaying the live application state, it is possible that
-the underlying data have changed and are no longer how they were when the
-system was initialized.
+In addition to the above static validation data, parts of the system depend on
+live data. For instance, the rights a user has can evolve over time. The static
+validation data are presented in the documentation, and usually the live data
+are visible in the application itself.
 
-## Users
+Still, some live data can be considered as some kind of system configuration
+and change slowly enough they deserve to be documented too. This is the case
+for instance of the legal entities: in a production system, they would stay
+almost always the same, but in a prototype, it is useful to be able to
+dynamically add, edit, and remove them in specific test scenarios.
 
-- [Alice](/alice)
-- [Mila](/mila)
-
-## Legal entities
-
-- [One S.A.](/entity/one)
-
-## Business units
-
-- [Alpha](/alpha)
-
-## Forms
-
-Forms data are held separately from the rest of the regular objects in what we
-call the _staging area_. This is a place in memory where form data can be
-edited and eventually submitted. When they are submitted, they are validated
-against various rules. Only if they pass such validation, data are recorded in
-the regular state.
-
-In the staging area, invalid data can reside. The user can amend the data as
-much as they desire. Interestingly, this allows us to have example data in the
-staging area that will fail validation, and this can be used to exemplify
-validation rules.
-
-### Simple contract
-
-- [Amount `-100`](/forms/edit/simple-contract/confirm-simple-contract/TBPJLIUG)
-- [Amount `0`](/forms/edit/simple-contract/confirm-simple-contract/HNONWPTG)
-- [Amount `100`](/forms/edit/simple-contract/confirm-simple-contract/RZEMQMNF)
-
-Note: the validation rules are visible in the [source
-code](/haddock/src/Curiosity.Data.SimpleContract.html#validateCreateSimpleContract).
-We should try to expose them more clearly, both in the documentation, and in
-the code.
+This kind of live data have their own [documentation
+page](/documentation/live-data).
