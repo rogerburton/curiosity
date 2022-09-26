@@ -18,6 +18,7 @@ module Curiosity.Data.User
   , UserCompletion1(..)
   , UserCompletion2(..)
   , AccessRight(..)
+  , permissions
   , userProfileCreds
   , userProfileId
   , userProfileDisplayName
@@ -166,8 +167,11 @@ data UserCompletion2 = UserCompletion2
 
 -- Enable/disable some accesses.
 data AccessRight = CanCreateContracts | CanVerifyEmailAddr
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Enum, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
+
+permissions :: [AccessRight]
+permissions = [toEnum 0..]
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName { unUserName :: Text }

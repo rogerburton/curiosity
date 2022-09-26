@@ -368,6 +368,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
 
+             :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
+
              -- live data
              :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
@@ -486,6 +489,8 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> partialRolesAsJson
     :<|> partialCountries
     :<|> partialCountriesAsJson
+    :<|> partialPermissions
+    :<|> partialPermissionsAsJson
 
     -- live data
     :<|> partialLegalEntities
@@ -676,6 +681,18 @@ partialCountries =
 
 partialCountriesAsJson :: ServerC m => m [(Text, Text)]
 partialCountriesAsJson = pure Country.countries
+
+
+--------------------------------------------------------------------------------
+partialPermissions :: ServerC m => m H.Html
+partialPermissions =
+  pure . H.ul $ mapM_ displayPermission User.permissions
+ where
+  displayPermission p =
+    H.li $ H.code . H.text $ show p
+
+partialPermissionsAsJson :: ServerC m => m [User.AccessRight]
+partialPermissionsAsJson = pure User.permissions
 
 
 --------------------------------------------------------------------------------

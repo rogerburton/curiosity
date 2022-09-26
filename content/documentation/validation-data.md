@@ -9,7 +9,8 @@ Validation data are driving the system behavior, similarly to its source code
 (validation data can actually be hard-coded within the source code, but not
 necessarily). They are considered part of the system (i.e. a change in the
 source code or the validation data would both result in a new system version
-number).
+number). [Permissions](/documentation/permissions) are presented on their own
+page.
 
 ## Users
 
@@ -42,3 +43,4 @@ Countries
 - [state-0](/documentation/state-0)
 - [Validation rules](/documentation/validation)
 - [Live data](/documentation/live-data)
+- [Permissions](/documentation/permissions)
