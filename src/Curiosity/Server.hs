@@ -33,6 +33,7 @@ import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Country        as Country
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.SimpleContract as SimpleContract
@@ -358,6 +359,12 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
+             :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
+
+             :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
+
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
@@ -467,6 +474,11 @@ serverT natTrans ctx conf jwtS root dataDir =
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
+    :<|> partialRoles
+    :<|> partialRolesAsJson
+    :<|> partialCountries
+    :<|> partialCountriesAsJson
+
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> showSetUserEmailAddrAsVerifiedPage
@@ -614,6 +626,45 @@ partialUsernameBlocklist =
 
 partialUsernameBlocklistAsJson :: ServerC m => m [User.UserName]
 partialUsernameBlocklistAsJson = pure User.usernameBlocklist
+
+
+--------------------------------------------------------------------------------
+partialRoles :: ServerC m => m H.Html
+partialRoles =
+  pure . H.ul $ mapM_ displayRole0 SimpleContract.roles
+ where
+  displayRole0 (SimpleContract.Role0 title roles1) = do
+    H.li $ do
+      H.text title
+      H.ul $ mapM_ displayRole1 roles1
+
+  displayRole1 (SimpleContract.Role1 title roles) = do
+    H.li $ do
+      H.text title
+      H.ul $ mapM_ displayRole roles
+
+  displayRole (value, label) =
+    H.li $ do
+      H.text label
+      H.code $ H.text value
+
+partialRolesAsJson :: ServerC m => m [SimpleContract.Role0]
+partialRolesAsJson = pure SimpleContract.roles
+
+
+--------------------------------------------------------------------------------
+partialCountries :: ServerC m => m H.Html
+partialCountries =
+  pure . H.ul $ mapM_ displayCountry Country.countries
+ where
+  displayCountry (value, label) =
+    H.li $ do
+      H.text label
+      H.code $ H.text value
+
+partialCountriesAsJson :: ServerC m => m [(Text, Text)]
+partialCountriesAsJson = pure Country.countries
+
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
@@ -1347,7 +1398,7 @@ documentCreateSimpleContractPage dataDir = do
         $ SimpleContract._createContractType contractAll
   -- This acts like a validation pass. Some higher level function to do that should
   -- exists. TODO
-  case Pages.lookupRoleLabel role of
+  case SimpleContract.lookupRoleLabel role of
     Just roleLabel -> pure $ Pages.CreateSimpleContractPage
       profile
       Nothing
@@ -1376,7 +1427,7 @@ documentEditSimpleContractPage dataDir key = do
     Right contractAll -> do
       let role = SimpleContract._createContractRole
             $ SimpleContract._createContractType contractAll
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.CreateSimpleContractPage
           profile
           (Just key)
@@ -1416,7 +1467,7 @@ documentConfirmRolePage dataDir key role = do
     (profile, key)
   case output of
     Right _ -> do
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmRolePage
           profile
           key
@@ -1578,7 +1629,7 @@ documentConfirmSimpleContractPage dataDir key = do
       let role = SimpleContract._createContractRole
             $ SimpleContract._createContractType contractAll
           errors = SimpleContract.validateCreateSimpleContract' profile contractAll
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmSimpleContractPage
           profile
           key
