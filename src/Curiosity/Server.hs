@@ -78,7 +78,9 @@ import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import           System.FilePath                ( (</>) )
+import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5              as H
+import qualified Text.Blaze.Html5.Attributes   as A
 import qualified Text.Blaze.Renderer.Text      as R
                                                 ( renderMarkup )
 import           Text.Blaze.Renderer.Utf8       ( renderMarkup )
@@ -356,6 +358,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                               NoContent
                                             )
 
+             -- static data
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
@@ -364,6 +367,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
+
+             -- live data
+             :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
@@ -472,12 +479,17 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> echoSimpleContractSaveExpense dataDir
     :<|> echoSimpleContractRemoveExpense dataDir
 
+    -- static data
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> partialRoles
     :<|> partialRolesAsJson
     :<|> partialCountries
     :<|> partialCountriesAsJson
+
+    -- live data
+    :<|> partialLegalEntities
+    :<|> partialLegalEntitiesAsJson
 
     :<|> showLoginPage
     :<|> showSignupPage
@@ -664,6 +676,25 @@ partialCountries =
 
 partialCountriesAsJson :: ServerC m => m [(Text, Text)]
 partialCountriesAsJson = pure Country.countries
+
+
+--------------------------------------------------------------------------------
+partialLegalEntities :: ServerC m => m H.Html
+partialLegalEntities = do
+  db       <- asks Rt._rDb
+  entities <- liftIO . atomically $ Rt.readLegalEntities db
+  pure . H.ul $ mapM_ displayEntity entities
+ where
+  displayEntity Legal.Entity {..} =
+    H.li $ do
+      H.a ! A.href (H.toValue $ "/entity/" <> _entitySlug) $
+        H.text (Legal.unRegistrationName _entityName)
+
+partialLegalEntitiesAsJson :: ServerC m => m [Legal.Entity]
+partialLegalEntitiesAsJson = do
+  db       <- asks Rt._rDb
+  entities <- liftIO . atomically $ Rt.readLegalEntities db
+  pure entities
 
 
 --------------------------------------------------------------------------------

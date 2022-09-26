@@ -56,3 +56,8 @@ code](/haddock/src/Curiosity.Data.SimpleContract.html#validateCreateSimpleContra
 We should try to expose them more clearly, both in the documentation, and in
 the code.
 
+# See also
+
+- [Validation rules](/documentation/validation)
+- [Validation data](/documentation/validation-data)
+- [Live data](/documentation/live-data)

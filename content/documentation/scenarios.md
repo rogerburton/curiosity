@@ -32,3 +32,19 @@ often dependent on static data: data that are considered part of the system
 definition. Those data can be for instance hard-coded in the source code. The
 data driving the system are visible and explained in the documentation in the
 [validation data page](/documentation/validation-data).
+
+# Live data
+
+In addition to the above static validation data, parts of the system depend on
+live data. For instance, the rights a user has can evolve over time. The static
+validation data are presented in the documentation, and usually the live data
+are visible in the application itself.
+
+Still, some live data can be considered as some kind of system configuration
+and change slowly enough they deserve to be documented too. This is the case
+for instance of the legal entities: in a production system, they would stay
+almost always the same, but in a prototype, it is useful to be able to
+dynamically add, edit, and remove them in specific test scenarios.
+
+This kind of live data have their own [documentation
+page](/documentation/live-data).

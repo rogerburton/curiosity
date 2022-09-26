@@ -19,3 +19,9 @@ Example data
 
 Some validation data are used to describe and validate contracts. See
 [validation data]( (/documentation/validation-data#simple-contracts).
+
+# See also
+
+- [state-0](/documentation/state-0)
+- [Validation data](/documentation/validation-data)
+- [Live data](/documentation/live-data)

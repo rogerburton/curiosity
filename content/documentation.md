@@ -13,6 +13,7 @@ title: Curiosity
 - [Environments](/documentation/environments)
 - [Forms](/documentation/forms)
 - [Library documentation](/documentation/library)
+- [Live data](/documentation/live-data)
 - [Man pages](/documentation/man-pages)
 - [Messages](/documentation/messages)
 - [Objects](/documentation/objects)
