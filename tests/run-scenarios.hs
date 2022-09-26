@@ -38,7 +38,7 @@ mkGoldenTest path = do
 -- Similar to Run.handleRun, but capturing the output.
 run :: FilePath -> IO [Text]
 run scriptPath = do
-  runtime     <- Rt.boot P.defaultConf >>= either throwIO pure
-  (_, output) <- Run.interpret' runtime "system" scriptPath 0
+  runtime <- Rt.boot P.defaultConf >>= either throwIO pure
+  output  <- Run.interpretFile runtime "system" scriptPath 0
   Rt.powerdown runtime
   pure $ map (\(_ ,_ , c) -> c)  output

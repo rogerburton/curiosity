@@ -14,6 +14,9 @@ rendered as HTML pages:
 - [`curiosity(7)`](/documentation/clis/curiosity.7)
 - [`cty(1)`](/documentation/clis/cty.1)
 
+It is also possible to submit individual commands through a [web
+interface](/run).
+
 # Quick start
 
 This quick start section assumes you have SSH access to the Linux user `alice`

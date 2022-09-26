@@ -47,6 +47,8 @@ import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
 import qualified Curiosity.Html.Profile        as Pages
+import qualified Curiosity.Html.Run            as Pages
+import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
@@ -134,6 +136,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[B.HTML] Pages.InvoiceView
 
              :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
+
+             :<|> "run" :> H.UserAuthentication :> Get '[B.HTML] Pages.RunPage
+             :<|> "a" :> "run" :> H.UserAuthentication
+                  :> ReqBody '[FormUrlEncoded] Data.Command
+                  :> Post '[B.HTML] Pages.EchoPage
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
@@ -247,6 +254,9 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> documentContractPage dataDir
     :<|> documentInvoicePage dataDir
     :<|> messageSignupSuccess
+
+    :<|> showRun
+    :<|> handleRun
     :<|> showState
     :<|> showStateAsJson
 
@@ -1028,6 +1038,30 @@ withMaybeUnitFromName name a f = do
 
 
 --------------------------------------------------------------------------------
+showRun :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.RunPage
+showRun authResult = withMaybeUser
+  authResult
+  (\_ -> pure $ Pages.RunPage Nothing "/a/run")
+  (\profile -> pure $ Pages.RunPage (Just profile) "/a/run")
+
+handleRun
+  :: ServerC m
+  => SAuth.AuthResult User.UserId
+  -> Data.Command
+  -> m Pages.EchoPage
+handleRun authResult (Data.Command cmd) = withMaybeUser
+  authResult
+  (\_ -> run Nothing >>= pure . Pages.EchoPage)
+  (\profile -> run (Just profile) >>= pure . Pages.EchoPage)
+ where
+  run mprofile = do
+    runtime <- ask
+    output <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
+    let (_, ls) = Inter.formatOutput output
+    pure $ unlines ls
+    where
+      username = maybe (User.UserName "nobody") (User._userCredsName . User._userProfileCreds) mprofile
+
 showState :: ServerC m => m Pages.EchoPage
 showState = do
   stmDb <- asks Rt._rDb
@@ -1125,8 +1159,8 @@ serveNamespaceOrStatic
   -> FilePath
   -> Text
   -> Tagged m Application
-serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name =
-  Tagged $ \req sendRes ->
+serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name
+  = Tagged $ \req sendRes ->
     let authRes =
           -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
           SAuth.runAuthCheck cookieAuthCheck req
@@ -1152,7 +1186,7 @@ serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root nam
             -- name is put back into the pathInfo so that serveDocumentation
             -- truly acts form `/`.
             let Tagged docApp = serveDocumentation @m root
-                req'= req { Wai.pathInfo = name : Wai.pathInfo req }
+                req'          = req { Wai.pathInfo = name : Wai.pathInfo req }
             in  docApp req' sendRes
           -- User or unit found, return it.
           Right res -> pureApplication res req sendRes
