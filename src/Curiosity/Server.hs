@@ -33,6 +33,7 @@ import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
                                                 )
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Country        as Country
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.SimpleContract as SimpleContract
@@ -361,6 +362,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
 
+             :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
+
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
@@ -472,6 +476,8 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> partialUsernameBlocklistAsJson
     :<|> partialRoles
     :<|> partialRolesAsJson
+    :<|> partialCountries
+    :<|> partialCountriesAsJson
 
     :<|> showLoginPage
     :<|> showSignupPage
@@ -644,6 +650,21 @@ partialRoles =
 
 partialRolesAsJson :: ServerC m => m [SimpleContract.Role0]
 partialRolesAsJson = pure SimpleContract.roles
+
+
+--------------------------------------------------------------------------------
+partialCountries :: ServerC m => m H.Html
+partialCountries =
+  pure . H.ul $ mapM_ displayCountry Country.countries
+ where
+  displayCountry (value, label) =
+    H.li $ do
+      H.text label
+      H.code $ H.text value
+
+partialCountriesAsJson :: ServerC m => m [(Text, Text)]
+partialCountriesAsJson = pure Country.countries
+
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
