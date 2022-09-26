@@ -50,6 +50,10 @@ module Curiosity.Data.SimpleContract
   , Role(..)
   , roles
   , lookupRoleLabel
+    -- * VAT rates
+    --
+    -- $vatRates
+  , vatRates
   ) where
 
 import qualified Commence.Types.Wrapped        as W
@@ -388,3 +392,16 @@ roles' = concatMap go0 roles
     (value, unwords [title0, ">", title1, ">", label])
 
 lookupRoleLabel role = lookup role roles'
+
+--------------------------------------------------------------------------------
+-- $vatRates
+--
+-- List of possible VAT rates with their reason.
+
+-- | List of possible VAT rates with their reason.
+vatRates :: [(Text, Text)]
+vatRates =
+  [ ("0", "0% For some reason")
+  , ("6", "6% For some reason")
+  , ("21", "21% For some reason")
+  ]
