@@ -42,11 +42,20 @@ module Curiosity.Data.SimpleContract
   , Contract(..)
   , ContractId(..)
   , Err(..)
+    -- * Roles
+    --
+    -- $roles
+  , Role0(..)
+  , Role1(..)
+  , Role(..)
+  , roles
+  , lookupRoleLabel
   ) where
 
 import qualified Commence.Types.Wrapped        as W
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
+import           Data.List                      ( lookup )
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , lookupMaybe
@@ -322,3 +331,58 @@ data Err = Err
   { unErr :: Text
   }
   deriving (Eq, Exception, Show)
+
+
+--------------------------------------------------------------------------------
+-- $role
+--
+-- List of possible roles, when filling a simple contract form. Roles are
+-- actually aranged in a three-level hierarchy: `Role0` at the top, `Role1`
+-- below, then the actual `Role` at the bottom.
+
+-- | Top level of the role hierarchy.
+data Role0 = Role0 Text [Role1]
+
+-- | Intermediate level of the role hierarchy.
+data Role1 = Role1 Text [Role]
+
+-- | A role is represented by a symbol (that can be used in database and APIs)
+-- and a label meant for humans.
+type Role = (Text, Text)
+
+roles :: [Role0]
+roles =
+  [ Role0
+      "Fonction de création artistique et artisanale"
+      [ Role1 "Arts du spectacle" []
+      , Role1 "Arts littéraires"  []
+      , Role1
+        "Arts plastiques et graphiques"
+        [ ("coloriste"   , "Coloriste")
+        , ("dessinateur", "Dessinateur-rice / illustrateur-rice")
+        , ("graffitiste" , "Graffitiste / graffeur-euse")
+        , ("graphiste", "Graphiste / infographiste / webdesigner-euse")
+        , ("graveur"     , "Graveur-euse / sérigraphe")
+        , ("peintre"     , "Peintre-esse")
+        , ("performeur"  , "Performeur-euse")
+        , ("photographe" , "Photographe")
+        , ("plasticien", "Plasticien-ne / installateur-rice 3d")
+        , ("scenographe" , "Scénographe")
+        , ("sculpteur"   , "Sculpteur-rice")
+        , ("body-painter", "Body-painter")
+        , ("autre"       , "Autre")
+        ]
+      , Role1 "Architecture / mode / design / décoration" []
+      ]
+  ]
+
+-- Flatten the roles hierarchy, adding upper titles to the labels.
+roles' :: [Role]
+roles' = concatMap go0 roles
+ where
+  go0 (Role0 title0 roles1) = concatMap (go1 title0) roles1
+  go1 title0 (Role1 title1 roles) = map (go title0 title1) roles
+  go title0 title1 (value, label) =
+    (value, unwords [title0, ">", title1, ">", label])
+
+lookupRoleLabel role = lookup role roles'

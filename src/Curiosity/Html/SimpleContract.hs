@@ -17,7 +17,6 @@ module Curiosity.Html.SimpleContract
   , SimpleContractAddExpensePage(..)
   , SimpleContractRemoveExpensePage(..)
   , ConfirmSimpleContractPage(..)
-  , lookupRoleLabel
   ) where
 
 import qualified Curiosity.Data.SimpleContract as SimpleContract
@@ -347,13 +346,13 @@ instance H.ToMarkup SelectRolePage where
     title' "Select role" Nothing
 
     H.div ! A.class_ "c-display" $ do
-      mapM_ (displayRole0 confirmRoleBaseUrl key) roles
+      mapM_ (displayRole0 confirmRoleBaseUrl key) SimpleContract.roles
 
-displayRole0 confirmRoleBaseUrl key (Role0 title roles1) = do
+displayRole0 confirmRoleBaseUrl key (SimpleContract.Role0 title roles1) = do
   H.h3 $ H.text title
   mapM_ (displayRole1 confirmRoleBaseUrl key) roles1
 
-displayRole1 confirmRoleBaseUrl key (Role1 title roles) = do
+displayRole1 confirmRoleBaseUrl key (SimpleContract.Role1 title roles) = do
   H.h4 $ H.text title
   H.ul $ mapM_ (displayRole confirmRoleBaseUrl key) roles
 
@@ -362,49 +361,6 @@ displayRole confirmRoleBaseUrl key (value, label) =
     $ H.a
     ! A.href (confirmRoleBaseUrl <> H.toValue (key <> "/" <> value))
     $ H.text label
-
-data Role0 = Role0 Text [Role1]
-
-data Role1 = Role1 Text [Role]
-
-type Role = (Text, Text)
-
-roles :: [Role0]
-roles =
-  [ Role0
-      "Fonction de création artistique et artisanale"
-      [ Role1 "Arts du spectacle" []
-      , Role1 "Arts littéraires"  []
-      , Role1
-        "Arts plastiques et graphiques"
-        [ ("coloriste"   , "Coloriste")
-        , ("dessinateur", "Dessinateur-rice / illustrateur-rice")
-        , ("graffitiste" , "Graffitiste / graffeur-euse")
-        , ("graphiste", "Graphiste / infographiste / webdesigner-euse")
-        , ("graveur"     , "Graveur-euse / sérigraphe")
-        , ("peintre"     , "Peintre-esse")
-        , ("performeur"  , "Performeur-euse")
-        , ("photographe" , "Photographe")
-        , ("plasticien", "Plasticien-ne / installateur-rice 3d")
-        , ("scenographe" , "Scénographe")
-        , ("sculpteur"   , "Sculpteur-rice")
-        , ("body-painter", "Body-painter")
-        , ("autre"       , "Autre")
-        ]
-      , Role1 "Architecture / mode / design / décoration" []
-      ]
-  ]
-
--- Flatten the roles hierarchy, adding upper titles to the labels.
-roles' :: [Role]
-roles' = concatMap go0 roles
- where
-  go0 (Role0 title0 roles1) = concatMap (go1 title0) roles1
-  go1 title0 (Role1 title1 roles) = map (go title0 title1) roles
-  go title0 title1 (value, label) =
-    (value, unwords [title0, ">", title1, ">", label])
-
-lookupRoleLabel role = lookup role roles'
 
 
 --------------------------------------------------------------------------------

@@ -1347,7 +1347,7 @@ documentCreateSimpleContractPage dataDir = do
         $ SimpleContract._createContractType contractAll
   -- This acts like a validation pass. Some higher level function to do that should
   -- exists. TODO
-  case Pages.lookupRoleLabel role of
+  case SimpleContract.lookupRoleLabel role of
     Just roleLabel -> pure $ Pages.CreateSimpleContractPage
       profile
       Nothing
@@ -1376,7 +1376,7 @@ documentEditSimpleContractPage dataDir key = do
     Right contractAll -> do
       let role = SimpleContract._createContractRole
             $ SimpleContract._createContractType contractAll
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.CreateSimpleContractPage
           profile
           (Just key)
@@ -1416,7 +1416,7 @@ documentConfirmRolePage dataDir key role = do
     (profile, key)
   case output of
     Right _ -> do
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmRolePage
           profile
           key
@@ -1578,7 +1578,7 @@ documentConfirmSimpleContractPage dataDir key = do
       let role = SimpleContract._createContractRole
             $ SimpleContract._createContractType contractAll
           errors = SimpleContract.validateCreateSimpleContract' profile contractAll
-      case Pages.lookupRoleLabel role of
+      case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmSimpleContractPage
           profile
           key
