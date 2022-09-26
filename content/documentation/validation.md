@@ -15,17 +15,23 @@ The list [as JSON](/partials/username-blocklist.json).
 
 ## Simple contracts
 
-See [state-0](/documentation/scenarios#simple-contract) for example data,
-displayed with validation errors.
+Example data
 
-Roles mentioned in contracts come from a closed list:
+:   See [state-0](/documentation/state-0#simple-contract) for example data,
+    displayed with validation errors.
 
-<!--# include virtual="/partials/roles" -->
+Roles
 
-The list [as JSON](/partials/roles.json).
+:   Roles mentioned in contracts come from a closed list:
 
-Countries mentioned in contracts come from a closed list:
+    <!--# include virtual="/partials/roles" -->
 
-<!--# include virtual="/partials/countries" -->
+    The list [as JSON](/partials/roles.json).
 
-The list [as JSON](/partials/countries.json).
+Countries
+
+:   Countries mentioned in contracts come from a closed list:
+
+    <!--# include virtual="/partials/countries" -->
+
+    The list [as JSON](/partials/countries.json).
