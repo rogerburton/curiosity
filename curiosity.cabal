@@ -94,6 +94,7 @@ library
     Curiosity.Data.Business
     Curiosity.Data.Command
     Curiosity.Data.Counter
+    Curiosity.Data.Country
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
