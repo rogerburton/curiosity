@@ -342,9 +342,11 @@ data Err = Err
 
 -- | Top level of the role hierarchy.
 data Role0 = Role0 Text [Role1]
+  deriving (Generic, FromJSON, ToJSON)
 
 -- | Intermediate level of the role hierarchy.
 data Role1 = Role1 Text [Role]
+  deriving (Generic, FromJSON, ToJSON)
 
 -- | A role is represented by a symbol (that can be used in database and APIs)
 -- and a label meant for humans.

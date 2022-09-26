@@ -358,6 +358,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
+             :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
+
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
 
@@ -467,6 +470,9 @@ serverT natTrans ctx conf jwtS root dataDir =
 
     :<|> partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
+    :<|> partialRoles
+    :<|> partialRolesAsJson
+
     :<|> showLoginPage
     :<|> showSignupPage
     :<|> showSetUserEmailAddrAsVerifiedPage
@@ -614,6 +620,30 @@ partialUsernameBlocklist =
 
 partialUsernameBlocklistAsJson :: ServerC m => m [User.UserName]
 partialUsernameBlocklistAsJson = pure User.usernameBlocklist
+
+
+--------------------------------------------------------------------------------
+partialRoles :: ServerC m => m H.Html
+partialRoles =
+  pure . H.ul $ mapM_ displayRole0 SimpleContract.roles
+ where
+  displayRole0 (SimpleContract.Role0 title roles1) = do
+    H.li $ do
+      H.text title
+      H.ul $ mapM_ displayRole1 roles1
+
+  displayRole1 (SimpleContract.Role1 title roles) = do
+    H.li $ do
+      H.text title
+      H.ul $ mapM_ displayRole roles
+
+  displayRole (value, label) =
+    H.li $ do
+      H.text label
+      H.code $ H.text value
+
+partialRolesAsJson :: ServerC m => m [SimpleContract.Role0]
+partialRolesAsJson = pure SimpleContract.roles
 
 --------------------------------------------------------------------------------
 showLoginPage :: ServerC m => m Login.Page
