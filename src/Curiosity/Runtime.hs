@@ -484,6 +484,21 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Simple contract form created: " <> key])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.FormValidateSimpleContract input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mcontract <- readCreateSimpleContractForm _rDb (profile, input)
+          case mcontract of
+            Right contract -> do
+              case
+                  SimpleContract.validateCreateSimpleContract profile contract
+                of
+                  Right c -> pure (ExitSuccess, ["Simple contract is valid"])
+                  Left errs ->
+                    pure (ExitFailure 1, map SimpleContract.unErr errs)
+            Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify

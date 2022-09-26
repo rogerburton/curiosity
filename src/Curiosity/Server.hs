@@ -1577,9 +1577,7 @@ documentConfirmSimpleContractPage dataDir key = do
     Right contractAll -> do
       let role = SimpleContract._createContractRole
             $ SimpleContract._createContractType contractAll
-          errors = case SimpleContract.validateCreateSimpleContract profile contractAll of
-            Left errs -> errs
-            Right _ -> []
+          errors = SimpleContract.validateCreateSimpleContract' profile contractAll
       case Pages.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmSimpleContractPage
           profile

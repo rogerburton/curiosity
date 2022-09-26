@@ -37,6 +37,7 @@ module Curiosity.Data.SimpleContract
     -- * Form submittal and validation
   , SubmitContract(..)
   , validateCreateSimpleContract
+  , validateCreateSimpleContract'
     -- * Main data representation
   , Contract(..)
   , ContractId(..)
@@ -289,6 +290,11 @@ validateCreateSimpleContract profile CreateContractAll {..} = if null errors
       then [Err "Amount to invoice must be strictly positive."]
       else []
     ]
+
+-- | Similar to `validateCreateSimpleContract` but throw away the returned
+-- contract, i.e. keep only the errors.
+validateCreateSimpleContract' profile contract = either identity (const []) $
+  validateCreateSimpleContract profile contract
 
 
 --------------------------------------------------------------------------------

@@ -59,6 +59,7 @@ data Command =
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
   | FormNewSimpleContract SimpleContract.CreateContractAll'
+  | FormValidateSimpleContract Text -- TODO Use SubmitContract.
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -551,11 +552,18 @@ parserForms = A.subparser $ A.command
   )
 
 parserFormSimpleContract :: A.Parser Command
-parserFormSimpleContract = A.subparser $ A.command
-  "new"
-  ( A.info (parserFormNewSimpleContract <**> A.helper)
-  $ A.progDesc "Fill and validate forms"
-  )
+parserFormSimpleContract =
+  A.subparser
+    $  A.command
+         "new"
+         ( A.info (parserFormNewSimpleContract <**> A.helper)
+         $ A.progDesc "Create a new form session"
+         )
+    <> A.command
+         "validate"
+         ( A.info (parserFormValidateSimpleContract <**> A.helper)
+         $ A.progDesc "Run validation rules against a form"
+         )
 
 parserFormNewSimpleContract :: A.Parser Command
 parserFormNewSimpleContract = do
@@ -570,6 +578,13 @@ parserFormNewSimpleContract = do
         { SimpleContract._createContractAmount = amount
         }
     }
+
+parserFormValidateSimpleContract :: A.Parser Command
+parserFormValidateSimpleContract = do
+  key <- A.argument
+    A.str
+    (A.metavar "KEY" <> A.help "A simple contract form identifier.")
+  pure $ FormValidateSimpleContract key
 
 -- TODO I'm using subcommands to have all queue names appear in `--help` but
 -- the word COMMAND seems wrong:
