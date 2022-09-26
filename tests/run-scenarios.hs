@@ -1,7 +1,7 @@
 -- | Run scripts similarly to `cty run`, ensuring their outputs are identical
 -- to "golden" (expected) results.
+import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as P
-import qualified Curiosity.Run                 as Run
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.Text                     as T
 import           System.FilePath
@@ -39,6 +39,6 @@ mkGoldenTest path = do
 run :: FilePath -> IO [Text]
 run scriptPath = do
   runtime <- Rt.boot P.defaultConf >>= either throwIO pure
-  output  <- Run.interpretFile runtime "system" scriptPath 0
+  output  <- Inter.interpretFile runtime "system" scriptPath 0
   Rt.powerdown runtime
   pure $ map (\(_ ,_ , c) -> c)  output

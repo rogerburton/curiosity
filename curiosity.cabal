@@ -92,6 +92,7 @@ library
     Curiosity.Command
     Curiosity.Data
     Curiosity.Data.Business
+    Curiosity.Data.Command
     Curiosity.Data.Counter
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
@@ -179,6 +180,7 @@ test-suite curiosity-tests
   other-modules:
       CuriositySpec
     , Curiosity.DataSpec
+    , Curiosity.RunSpec
     , Curiosity.RuntimeSpec
   type: exitcode-stdio-1.0
   main-is: Spec.hs

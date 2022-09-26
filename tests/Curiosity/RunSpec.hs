@@ -2,7 +2,7 @@ module Curiosity.RunSpec
   ( spec
   ) where
 
-import           Curiosity.Run
+import           Curiosity.Interpret
 import           Test.Hspec
 
 
