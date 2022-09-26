@@ -38,6 +38,7 @@ import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.List                     as L
@@ -73,6 +74,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
     -- ^ The internal representation of a StdGen.
   , _dbFormCreateContractAll ::
       datastore (Map (User.UserName, Text) Employment.CreateContractAll)
+  , _dbFormCreateSimpleContractAll ::
+      datastore (Map (User.UserName, Text) SimpleContract.CreateContractAll)
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -99,6 +102,7 @@ emptyHask = Db
 
   (pure $ randomGenState 42) -- Deterministic initial seed.
   (pure mempty)
+  (pure mempty)
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -116,6 +120,7 @@ instantiateStmDb Db
 
   , _dbRandomGenState        = Identity seedRandomGenState
   , _dbFormCreateContractAll = Identity seedFormCreateContractAll
+  , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
   }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
@@ -134,6 +139,7 @@ instantiateStmDb Db
 
     _dbRandomGenState        <- STM.newTVar seedRandomGenState
     _dbFormCreateContractAll <- STM.newTVar seedFormCreateContractAll
+    _dbFormCreateSimpleContractAll <- STM.newTVar seedFormCreateSimpleContractAll
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -158,6 +164,7 @@ resetStmDb' stmDb = do
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
+  STM.writeTVar (_dbFormCreateSimpleContractAll stmDb) seedFormCreateSimpleContractAll
  where
   Db
     { _dbNextBusinessId   = C.CounterValue (Identity seedNextBusinessId)
@@ -172,6 +179,7 @@ resetStmDb' stmDb = do
     , _dbEmployments      = Identity seedEmployments
 
     , _dbFormCreateContractAll = Identity seedFormCreateContractAll
+    , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
     } = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -202,6 +210,7 @@ readFullStmDbInHask' stmDb = do
 
   _dbRandomGenState        <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
   _dbFormCreateContractAll <- pure <$> STM.readTVar (_dbFormCreateContractAll stmDb)
+  _dbFormCreateSimpleContractAll <- pure <$> STM.readTVar (_dbFormCreateSimpleContractAll stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the

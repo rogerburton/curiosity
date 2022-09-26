@@ -52,3 +52,27 @@ system was initialized.
 ## Business units
 
 - [Alpha](/alpha)
+
+## Forms
+
+Forms data are held separately from the rest of the regular objects in what we
+call the _staging area_. This is a place in memory where form data can be
+edited and eventually submitted. When they are submitted, they are validated
+against various rules. Only if they pass such validation, data are recorded in
+the regular state.
+
+In the staging area, invalid data can reside. The user can amend the data as
+much as they desire. Interestingly, this allows us to have example data in the
+staging area that will fail validation, and this can be used to exemplify
+validation rules.
+
+### Simple contract
+
+- [Amount `-100`](/forms/edit/simple-contract/confirm-simple-contract/TBPJLIUG)
+- [Amount `0`](/forms/edit/simple-contract/confirm-simple-contract/HNONWPTG)
+- [Amount `100`](/forms/edit/simple-contract/confirm-simple-contract/RZEMQMNF)
+
+Note: the validation rules are visible in the [source
+code](/haddock/src/Curiosity.Data.SimpleContract.html#validateCreateSimpleContract).
+We should try to expose them more clearly, both in the documentation, and in
+the code.

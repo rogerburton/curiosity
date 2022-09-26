@@ -96,6 +96,7 @@ library
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
+    Curiosity.Data.SimpleContract
     Curiosity.Data.User
     Curiosity.Dsl
     Curiosity.Form.Login
@@ -111,6 +112,8 @@ library
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
     Curiosity.Html.Profile
+    Curiosity.Html.Run
+    Curiosity.Html.SimpleContract
     Curiosity.Interpret
     Curiosity.Parse
     Curiosity.Process

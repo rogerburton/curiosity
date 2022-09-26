@@ -34,12 +34,25 @@ module Curiosity.Runtime
   -- * High-level unit operations
   , selectUnitBySlug
   -- * Form edition
+  -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
   , writeCreateContractForm
   , addExpenseToContractForm
   , writeExpenseToContractForm
   , removeExpenseFromContractForm
+  -- ** Simple Contract
+  , newCreateSimpleContractForm
+  , readCreateSimpleContractForm
+  , writeCreateSimpleContractForm
+  , addRoleToSimpleContractForm
+  , addDateToSimpleContractForm
+  , writeDateToSimpleContractForm
+  , removeDateFromSimpleContractForm
+  , addVATToSimpleContractForm
+  , addExpenseToSimpleContractForm
+  , writeExpenseToSimpleContractForm
+  , removeExpenseFromSimpleContractForm
   -- * ID generation
   , generateUserId
   , firstUserId
@@ -64,6 +77,7 @@ import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
@@ -431,7 +445,8 @@ handleCommand runtime@Runtime {..} user command = do
                 merror <- submitCreateContractForm' _rDb (profile, input)
                 -- TODO Should we have a type to combine multiple possible errors ?
                 case merror of
-                  Left (Employment.Err err) -> pure . Left $ User.UserNotFound err
+                  Left (Employment.Err err) ->
+                    pure . Left $ User.UserNotFound err
                   Right id -> pure $ Right id
               Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
       case output of
@@ -451,6 +466,39 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Invoice created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.FormNewSimpleContract input -> do
+      output <-
+        runAppMSafe runtime
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile -> do
+                key <- newCreateSimpleContractForm _rDb (profile, input)
+                pure $ Right key
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
+      case output of
+        Right mkey -> do
+          case mkey of
+            Right key -> do
+              pure (ExitSuccess, ["Simple contract form created: " <> key])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.FormValidateSimpleContract input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mcontract <- readCreateSimpleContractForm _rDb (profile, input)
+          case mcontract of
+            Right contract -> do
+              case
+                  SimpleContract.validateCreateSimpleContract profile contract
+                of
+                  Right c -> pure (ExitSuccess, ["Simple contract is valid"])
+                  Left errs ->
+                    pure (ExitFailure 1, map SimpleContract.unErr errs)
+            Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
       let transaction rt _ = do
             users <- filterUsers rt User.PredicateEmailAddrToVerify
@@ -775,6 +823,184 @@ submitCreateContractForm' db (profile, input) = do
   case mc of
     Right c   -> createEmployment db c
     Left  err -> pure . Left $ Employment.Err (show err)
+
+
+--------------------------------------------------------------------------------
+-- | Create a new form instance in the staging area.
+newCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, SimpleContract.CreateContractAll')
+  -> STM Text
+newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs cl inv)
+  = do
+    key <- Data.genRandomText db
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) (add key)
+    pure key
+ where
+  add key = M.insert (username, key)
+                     (SimpleContract.CreateContractAll ty rs cl inv [] [])
+  username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () SimpleContract.CreateContractAll)
+readCreateSimpleContractForm db (profile, key) = do
+  m <- STM.readTVar $ Data._dbFormCreateSimpleContractAll db
+  let mform = M.lookup (username, key) m
+  pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
+
+writeCreateSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.CreateContractAll')
+  -> STM Text
+writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll' ty rs cl inv)
+  = do
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+    pure key
+ where
+  -- TODO Return an error when the key is not found.
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll _ _ _ _ ds es) ->
+      SimpleContract.CreateContractAll ty rs cl inv ds es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addRoleToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.SelectRole)
+  -> STM () -- TODO Possible errors
+addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
+  do
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      let ty' = ty { SimpleContract._createContractRole = role }
+      in  SimpleContract.CreateContractAll ty' rs cl inv ds es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addDateToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.AddDate)
+  -> STM () -- TODO Possible errors
+addDateToSimpleContractForm db (profile, key, date) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      SimpleContract.CreateContractAll ty rs cl inv (ds ++ [date]) es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeDateToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, SimpleContract.AddDate)
+  -> STM () -- TODO Possible errors
+writeDateToSimpleContractForm db (profile, key, index, date) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      let f i e = if i == index then date else e
+          ds' = zipWith f [0 ..] ds
+      in  SimpleContract.CreateContractAll ty rs cl inv ds' es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeDateFromSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeDateFromSimpleContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      let ds' = map snd . filter ((/= index) . fst) $ zip [0 ..] ds
+      in  SimpleContract.CreateContractAll ty rs cl inv ds' es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addVATToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.SelectVAT)
+  -> STM () -- TODO Possible errors
+addVATToSimpleContractForm db (profile, key, SimpleContract.SelectVAT rate) =
+  do
+    STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
+      let inv' = inv { SimpleContract._createContractVAT = rate }
+      in  SimpleContract.CreateContractAll ty rs cl inv' ds es
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+addExpenseToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, SimpleContract.AddExpense)
+  -> STM () -- TODO Possible errors
+addExpenseToSimpleContractForm db (profile, key, expense) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld cl rs inv es) ->
+      SimpleContract.CreateContractAll ty ld cl rs inv $ es ++ [expense]
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+writeExpenseToSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int, SimpleContract.AddExpense)
+  -> STM () -- TODO Possible errors
+writeExpenseToSimpleContractForm db (profile, key, index, expense) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
+      let f i e = if i == index then expense else e
+          es' = zipWith f [0 ..] es
+      in  SimpleContract.CreateContractAll ty ld rs cl inv es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
+removeExpenseFromSimpleContractForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text, Int)
+  -> STM () -- TODO Possible errors
+removeExpenseFromSimpleContractForm db (profile, key, index) = do
+  STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
+ where
+  save = M.adjust
+    (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
+      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
+      in  SimpleContract.CreateContractAll ty ld rs cl inv es'
+    )
+    (username, key)
+  username = User._userCredsName $ User._userProfileCreds profile
+
 
 --------------------------------------------------------------------------------
 createInvoice

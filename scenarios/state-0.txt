@@ -2,3 +2,4 @@ reset
 run init-users.txt
 run init-entities.txt
 run init-units.txt
+run init-form-simple-contracts.txt
