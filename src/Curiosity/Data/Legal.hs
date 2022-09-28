@@ -8,7 +8,7 @@ module Curiosity.Data.Legal
   ( Entity(..)
   , Create(..)
   , Update(..)
-  , LegalId(..)
+  , EntityId(..)
   , RegistrationName(..)
   , Err(..)
   , encodeUBL
@@ -56,7 +56,7 @@ instance FromForm Update where
 
 --------------------------------------------------------------------------------
 data Entity = Entity
-  { _entityId          :: LegalId
+  { _entityId          :: EntityId
   , _entitySlug        :: Text
     -- An identifier suitable for URLs
   , _entityName        :: RegistrationName
@@ -69,7 +69,7 @@ data Entity = Entity
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Record ID of the form LENT-xxx.
-newtype LegalId = LegalId { unLegalId :: Text }
+newtype EntityId = EntityId { unEntityId :: Text }
                deriving (Eq, Show)
                deriving ( IsString
                         , FromJSON

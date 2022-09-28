@@ -5,10 +5,10 @@ Module: Curiosity.Data.Business
 Description: Business entities related datatypes
 -}
 module Curiosity.Data.Business
-  ( Entity(..)
+  ( Unit(..)
   , Create(..)
   , Update(..)
-  , BusinessId(..)
+  , UnitId(..)
   , Err(..)
   ) where
 
@@ -43,8 +43,8 @@ instance FromForm Update where
 
 
 --------------------------------------------------------------------------------
-data Entity = Entity
-  { _entityId          :: BusinessId
+data Unit = Unit
+  { _entityId          :: UnitId
   , _entitySlug        :: Text
     -- An identifier suitable for URLs
   , _entityName        :: Text
@@ -54,7 +54,7 @@ data Entity = Entity
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Record ID of the form BENT-xxx.
-newtype BusinessId = BusinessId { unBusinessId :: Text }
+newtype UnitId = UnitId { unUnitId :: Text }
                deriving (Eq, Show)
                deriving ( IsString
                         , FromJSON
@@ -62,7 +62,7 @@ newtype BusinessId = BusinessId { unBusinessId :: Text }
                         , H.ToMarkup
                         , H.ToValue
                         ) via Text
-               deriving FromForm via W.Wrapped "business-id" Text
+               deriving FromForm via W.Wrapped "unit-id" Text
 
 data Err = Err
   deriving (Eq, Exception, Show)
