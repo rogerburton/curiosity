@@ -60,7 +60,7 @@ a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextBusinessId   :: C.CounterValue datastore Int
-  , _dbBusinessEntities :: datastore [Business.Entity]
+  , _dbBusinessEntities :: datastore [Business.Unit]
   , _dbNextLegalId      :: C.CounterValue datastore Int
   , _dbLegalEntities    :: datastore [Legal.Entity]
   , _dbNextUserId       :: C.CounterValue datastore Int

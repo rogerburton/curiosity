@@ -364,7 +364,7 @@ parserUpdateBusinessEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateBusinessEntity $ Business.Update slug (Just description)
 
-argumentUnitId = Legal.LegalId <$> A.argument A.str metavarUnitId
+argumentUnitId = Legal.EntityId <$> A.argument A.str metavarUnitId
 
 metavarUnitId = A.metavar "BENT-ID" <> A.completer complete <> A.help
   "A business unit ID"
@@ -416,7 +416,7 @@ parserUpdateLegalEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
 
-argumentEntityId = Legal.LegalId <$> A.argument A.str metavarEntityId
+argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 
 metavarEntityId = A.metavar "LENT-ID" <> A.completer complete <> A.help
   "A legal entity ID"

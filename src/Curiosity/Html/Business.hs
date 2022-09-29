@@ -19,7 +19,7 @@ import qualified Text.Blaze.Html5.Attributes   as A
 data UnitView = UnitView
   { _unitViewUser          :: Maybe User.UserProfile
     -- ^ The logged-in user, if any.
-  , _unitViewUnit          :: Business.Entity
+  , _unitViewUnit          :: Business.Unit
   , _unitViewHasEditButton :: Maybe H.AttributeValue
   }
 

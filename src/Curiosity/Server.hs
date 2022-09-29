@@ -1863,7 +1863,7 @@ withMaybeEntityFromName name a f = do
 -- | Run a handler, ensuring a business unit can be obtained from the given
 -- ame, or throw an error.
 withUnitFromName
-  :: forall m a . ServerC m => Text -> (Business.Entity -> m a) -> m a
+  :: forall m a . ServerC m => Text -> (Business.Unit -> m a) -> m a
 withUnitFromName name f = withMaybeUnitFromName name
                                                 (noSuchUserErr . show) -- TODO unit, not user
                                                 f
@@ -1878,7 +1878,7 @@ withMaybeUnitFromName
    . ServerC m
   => Text
   -> (Text -> m a)
-  -> (Business.Entity -> m a)
+  -> (Business.Unit -> m a)
   -> m a
 withMaybeUnitFromName name a f = do
   munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name

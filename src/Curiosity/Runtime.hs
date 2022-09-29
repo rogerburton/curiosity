@@ -327,7 +327,7 @@ handleCommand runtime@Runtime {..} user command = do
       case output of
         Right mid -> do
           case mid of
-            Right (Business.BusinessId id) -> do
+            Right (Business.UnitId id) -> do
               pure (ExitSuccess, ["Business entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
@@ -352,7 +352,7 @@ handleCommand runtime@Runtime {..} user command = do
       case output of
         Right mid -> do
           case mid of
-            Right (Legal.LegalId id) -> do
+            Right (Legal.EntityId id) -> do
               pure (ExitSuccess, ["Legal entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
@@ -571,20 +571,20 @@ createBusiness
   :: forall runtime
    . Data.StmDb runtime
   -> Business.Create
-  -> STM (Either Business.Err Business.BusinessId)
+  -> STM (Either Business.Err Business.UnitId)
 createBusiness db Business.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Entity newId _createSlug _createName Nothing
+    let new = Business.Unit newId _createSlug _createName Nothing
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull
   :: forall runtime
    . Data.StmDb runtime
-  -> Business.Entity
-  -> STM (Either Business.Err Business.BusinessId)
+  -> Business.Unit
+  -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
   modifyBusinessEntities db (++ [new])
   pure . Right $ Business._entityId new
@@ -592,7 +592,7 @@ createBusinessFull db new = do
 updateBusiness db Business.Update {..} = do
   mentity <- selectUnitBySlug db _updateSlug
   case mentity of
-    Just Business.Entity {..} -> do
+    Just Business.Unit {..} -> do
       let replaceOlder entities =
             [ if Business._entitySlug e == _updateSlug
                 then e { Business._entityDescription = _updateDescription }
@@ -604,14 +604,14 @@ updateBusiness db Business.Update {..} = do
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 generateBusinessId
-  :: forall runtime . Data.StmDb runtime -> STM Business.BusinessId
+  :: forall runtime . Data.StmDb runtime -> STM Business.UnitId
 generateBusinessId Data.Db {..} =
-  Business.BusinessId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
+  Business.UnitId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
 
 modifyBusinessEntities
   :: forall runtime
    . Data.StmDb runtime
-  -> ([Business.Entity] -> [Business.Entity])
+  -> ([Business.Unit] -> [Business.Unit])
   -> STM ()
 modifyBusinessEntities db f =
   let tvar = Data._dbBusinessEntities db in STM.modifyTVar tvar f
@@ -622,7 +622,7 @@ createLegal
   :: forall runtime
    . Data.StmDb runtime
   -> Legal.Create
-  -> STM (Either Legal.Err Legal.LegalId)
+  -> STM (Either Legal.Err Legal.EntityId)
 createLegal db Legal.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
@@ -640,7 +640,7 @@ createLegalFull
   :: forall runtime
    . Data.StmDb runtime
   -> Legal.Entity
-  -> STM (Either Legal.Err Legal.LegalId)
+  -> STM (Either Legal.Err Legal.EntityId)
 createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
@@ -659,9 +659,9 @@ updateLegal db Legal.Update {..} = do
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
-generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.LegalId
+generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.EntityId
 generateLegalId Data.Db {..} =
-  Legal.LegalId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
+  Legal.EntityId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
 
 modifyLegalEntities
   :: forall runtime
@@ -1156,10 +1156,10 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
 
 generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
 generateUserId Data.Db {..} =
-  User.UserId <$> C.bumpCounterPrefix "USER-" _dbNextUserId
+  User.UserId <$> C.bumpCounterPrefix User.userIdPrefix _dbNextUserId
 
 firstUserId :: User.UserId
-firstUserId = "USER-1"
+firstUserId = User.UserId $ User.userIdPrefix <> "1"
 
 firstUserRights :: [User.AccessRight]
 firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
@@ -1226,7 +1226,7 @@ readLegalEntities db = do
   pure records
 
 selectUnitBySlug
-  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Entity)
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Unit)
 selectUnitBySlug db name = do
   let tvar = Data._dbBusinessEntities db
   records <- STM.readTVar tvar

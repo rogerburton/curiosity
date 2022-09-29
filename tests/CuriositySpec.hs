@@ -52,7 +52,7 @@ spec = do
   -- Same here.
   describe "Business unit JSON parser" $ do
     let go (filename, slug) = it ("Parses " <> filename) $ do
-          Right (result :: Business.Entity) <- parseFile $ "data/" </> filename
+          Right (result :: Business.Unit) <- parseFile $ "data/" </> filename
           Business._entitySlug result
             `shouldBe` slug
     mapM_
