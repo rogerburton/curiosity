@@ -26,13 +26,16 @@ module Curiosity.Runtime
   , canPerform
   , setUserEmailAddrAsVerifiedFull
   , selectUserById
+  , selectUserByIdResolved
   , selectUserByUsername
+  , selectUserByUsernameResolved
   , filterUsers
   , createUser
   , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
   , selectEntityBySlugResolved
+  , selectEntitiesWhereUserId
   , readLegalEntities
   -- * High-level unit operations
   , selectUnitBySlug
@@ -85,6 +88,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
+import           Data.List                      ( lookup )
 import qualified Data.Map                      as M
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
@@ -1090,6 +1094,15 @@ selectUserById db id = do
   let usersTVar = Data._dbUserProfiles db
   STM.readTVar usersTVar <&> find ((== id) . S.dbId)
 
+selectUserByIdResolved db id = do
+  let usersTVar = Data._dbUserProfiles db
+  users' <- STM.readTVar usersTVar
+  case find ((== id) . S.dbId) users' of
+    Just user -> do
+      entities <- selectEntitiesWhereUserId db $ User._userProfileId user
+      pure $ Just (user, entities)
+    Nothing -> pure Nothing
+
 selectUserByUsername
   :: forall runtime
    . Data.StmDb runtime
@@ -1100,6 +1113,21 @@ selectUserByUsername db username = do
   users' <- STM.readTVar usersTVar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
+
+selectUserByUsernameResolved
+  :: forall runtime
+   . Data.StmDb runtime
+  -> User.UserName
+  -> STM (Maybe (User.UserProfile, [Legal.EntityAndRole]))
+selectUserByUsernameResolved db username = do
+  let usersTVar = Data._dbUserProfiles db
+  users' <- STM.readTVar usersTVar
+  case find ((== username) . User._userCredsName . User._userProfileCreds)
+              users' of
+    Just user -> do
+      entities <- selectEntitiesWhereUserId db $ User._userProfileId user
+      pure $ Just (user, entities)
+    Nothing -> pure Nothing
 
 filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
 filterUsers runtime predicate = do
@@ -1237,6 +1265,17 @@ selectEntityBySlugResolved db name = do
         else pure . Just . (entity,) $ map (\(Just u, role) -> Legal.ActingUser u role) musers
     Nothing -> pure Nothing
 
+-- | Select legal entities where the given user ID is "acting".
+selectEntitiesWhereUserId
+  :: forall runtime . Data.StmDb runtime -> User.UserId -> STM [Legal.EntityAndRole]
+selectEntitiesWhereUserId db uid = do
+  let tvar = Data._dbLegalEntities db
+  records <- STM.readTVar tvar
+  pure $ mapMaybe getEntityAndRole records
+ where
+  getRole = lookup uid . map (\(Legal.ActingUserId uid' role) -> (uid', role)) . Legal._entityUsersAndRoles
+  getEntityAndRole e = Legal.EntityAndRole e <$> getRole e
+
 readLegalEntities
   :: forall runtime . Data.StmDb runtime -> STM [Legal.Entity]
 readLegalEntities db = do
@@ -1257,6 +1296,7 @@ withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 --------------------------------------------------------------------------------
 -- TODO Integrity check:
 -- All UserIds must resolve: _entityUsersAndRoles.
+-- List containing UserIds should not have duplicates: _entityUsersAndRoles.
 
 
 --------------------------------------------------------------------------------

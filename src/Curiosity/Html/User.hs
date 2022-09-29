@@ -8,6 +8,7 @@ module Curiosity.Html.User
   , PublicProfileView(..)
   ) where
 
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
@@ -29,8 +30,8 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data ProfilePage = ProfilePage
-  { _profilePageUserProfile :: User.UserProfile
-  , _profilePageSubmitURL   :: H.AttributeValue
+  { _profilePageUserProfile      :: User.UserProfile
+  , _profilePageSubmitURL        :: H.AttributeValue
   }
 
 instance H.ToMarkup ProfilePage where
@@ -165,11 +166,12 @@ contractCreate1 =
 
 data ProfileView = ProfileView
   { _profileViewUserProfile   :: User.UserProfile
+  , _profileViewEntitiesAndRoles :: [Legal.EntityAndRole]
   , _profileViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup ProfileView where
-  toMarkup (ProfileView profile hasEditButton) =
+  toMarkup (ProfileView profile entities hasEditButton) =
     Render.renderCanvasFullScroll
       . Dsl.SingletonCanvas
       $ H.div
@@ -181,14 +183,14 @@ instance H.ToMarkup ProfileView where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          withSideMenuFullScroll menu $ profileView profile hasEditButton
+          withSideMenuFullScroll menu $ profileView profile entities hasEditButton
 
 menu :: SideMenu
 menu = SideMenuWithActive []
                           (SideMenuItem "User profile" "/settings/profile")
                           [SideMenuItem "Dummy" "/settings/dummy"]
 
-profileView profile hasEditButton =
+profileView profile entities hasEditButton =
   containerMedium $ H.div ! A.class_ "u-spacer-bottom-xl" $ do
     title' "User profile" hasEditButton
     H.dl
@@ -245,6 +247,14 @@ profileView profile hasEditButton =
             )
           keyValuePair "Rights"
                        (show . User._userProfileRights $ profile :: Text)
+    title' "Related entities" Nothing
+    H.ul $ mapM_ displayEntities entities
+
+displayEntities (Legal.EntityAndRole entity role) =
+  H.li $ do
+    H.a ! A.href (H.toValue $ "/entity/" <> Legal._entitySlug entity) $
+      H.text . Legal.unRegistrationName $ Legal._entityName entity
+    H.code . H.text $ show role
 
 data PublicProfileView = PublicProfileView
   { _publicProfileViewUserProfile   :: (Maybe User.UserProfile)

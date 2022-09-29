@@ -12,6 +12,7 @@ module Curiosity.Data.Legal
   , RegistrationName(..)
   , ActingUserId(..)
   , ActingUser(..)
+  , EntityAndRole(..)
   , Err(..)
   , encodeUBL
   , toUBL
@@ -126,7 +127,12 @@ data ActingRole = Titular | Director | Administrator
   deriving (Eq, Generic, Show)
   deriving (FromJSON, ToJSON)
 
+-- | A user and their role within an entity.
 data ActingUser = ActingUser User.UserProfile ActingRole
+
+-- | The inverse of `ActingUser`: an entity in which a user acts, with the role
+-- of the user.
+data EntityAndRole = EntityAndRole Entity ActingRole
 
 data Err = Err
   deriving (Eq, Exception, Show)
