@@ -60,7 +60,7 @@ a container type of the database.
 -}
 data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   { _dbNextBusinessId   :: C.CounterValue datastore Int
-  , _dbBusinessEntities :: datastore [Business.Unit]
+  , _dbBusinessUnits    :: datastore [Business.Unit]
   , _dbNextLegalId      :: C.CounterValue datastore Int
   , _dbLegalEntities    :: datastore [Legal.Entity]
   , _dbNextUserId       :: C.CounterValue datastore Int
@@ -108,7 +108,7 @@ instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
 instantiateStmDb Db
   { _dbNextBusinessId   = C.CounterValue (Identity seedNextBusinessId)
-  , _dbBusinessEntities = Identity seedBusinessEntities
+  , _dbBusinessUnits    = Identity seedBusinessUnits
   , _dbNextLegalId      = C.CounterValue (Identity seedNextLegalId)
   , _dbLegalEntities    = Identity seedLegalEntities
   , _dbNextUserId       = C.CounterValue (Identity seedNextUserId)
@@ -127,7 +127,7 @@ instantiateStmDb Db
   -- instantiation under a single STM transaction (@atomically@).
     liftIO . STM.atomically $ do
     _dbNextBusinessId   <- C.newCounter seedNextBusinessId
-    _dbBusinessEntities <- STM.newTVar seedBusinessEntities
+    _dbBusinessUnits    <- STM.newTVar seedBusinessUnits
     _dbNextLegalId      <- C.newCounter seedNextLegalId
     _dbLegalEntities    <- STM.newTVar seedLegalEntities
     _dbNextUserId       <- C.newCounter seedNextUserId
@@ -153,7 +153,7 @@ resetStmDb = liftIO . STM.atomically . resetStmDb'
 
 resetStmDb' stmDb = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
-  STM.writeTVar (_dbBusinessEntities stmDb) seedBusinessEntities
+  STM.writeTVar (_dbBusinessUnits stmDb) seedBusinessUnits
   C.writeCounter (_dbNextLegalId stmDb) seedNextLegalId
   STM.writeTVar (_dbLegalEntities stmDb) seedLegalEntities
   C.writeCounter (_dbNextUserId stmDb) seedNextUserId
@@ -168,7 +168,7 @@ resetStmDb' stmDb = do
  where
   Db
     { _dbNextBusinessId   = C.CounterValue (Identity seedNextBusinessId)
-    , _dbBusinessEntities = Identity seedBusinessEntities
+    , _dbBusinessUnits    = Identity seedBusinessUnits
     , _dbNextLegalId      = C.CounterValue (Identity seedNextLegalId)
     , _dbLegalEntities    = Identity seedLegalEntities
     , _dbNextUserId       = C.CounterValue (Identity seedNextUserId)
@@ -198,7 +198,7 @@ readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
 
 readFullStmDbInHask' stmDb = do
   _dbNextBusinessId   <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
-  _dbBusinessEntities <- pure <$> STM.readTVar (_dbBusinessEntities stmDb)
+  _dbBusinessUnits    <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
   _dbNextLegalId      <- pure <$> C.readCounter (_dbNextLegalId stmDb)
   _dbLegalEntities    <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
   _dbNextUserId       <- pure <$> C.readCounter (_dbNextUserId stmDb)

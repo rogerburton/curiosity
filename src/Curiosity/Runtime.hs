@@ -586,7 +586,7 @@ createBusinessFull
   -> Business.Unit
   -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
-  modifyBusinessEntities db (++ [new])
+  modifyBusinessUnits db (++ [new])
   pure . Right $ Business._entityId new
 
 updateBusiness db Business.Update {..} = do
@@ -599,7 +599,7 @@ updateBusiness db Business.Update {..} = do
                 else e
             | e <- entities
             ]
-      modifyBusinessEntities db replaceOlder
+      modifyBusinessUnits db replaceOlder
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
@@ -608,13 +608,13 @@ generateBusinessId
 generateBusinessId Data.Db {..} =
   Business.UnitId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
 
-modifyBusinessEntities
+modifyBusinessUnits
   :: forall runtime
    . Data.StmDb runtime
   -> ([Business.Unit] -> [Business.Unit])
   -> STM ()
-modifyBusinessEntities db f =
-  let tvar = Data._dbBusinessEntities db in STM.modifyTVar tvar f
+modifyBusinessUnits db f =
+  let tvar = Data._dbBusinessUnits db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------
@@ -1228,7 +1228,7 @@ readLegalEntities db = do
 selectUnitBySlug
   :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Unit)
 selectUnitBySlug db name = do
-  let tvar = Data._dbBusinessEntities db
+  let tvar = Data._dbBusinessUnits db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Business._entitySlug) records
 
