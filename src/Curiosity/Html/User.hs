@@ -1,8 +1,8 @@
 {- |
-Module: Curiosity.Html.Profile
+Module: Curiosity.Html.User
 Description: Profile pages (view and edit).
 -}
-module Curiosity.Html.Profile
+module Curiosity.Html.User
   ( ProfilePage(..)
   , ProfileView(..)
   , PublicProfileView(..)

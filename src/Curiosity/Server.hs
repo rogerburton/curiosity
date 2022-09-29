@@ -48,9 +48,9 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
-import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
+import qualified Curiosity.Html.User           as Pages
 import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
