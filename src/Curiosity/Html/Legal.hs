@@ -20,14 +20,16 @@ data EntityView = EntityView
   { _entityViewUser          :: Maybe User.UserProfile
     -- ^ The logged-in user, if any.
   , _entityViewEntity        :: Legal.Entity
+  , _entityViewUsersAndRoles :: [Legal.ActingUser]
+    -- ^ The resolved users for `_entityUsersAndRoles`.
   , _entityViewHasEditButton :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup EntityView where
-  toMarkup (EntityView mprofile entity hasEditButton) =
-    renderView' mprofile $ entityView entity hasEditButton
+  toMarkup (EntityView mprofile entity users hasEditButton) =
+    renderView' mprofile $ entityView entity users hasEditButton
 
-entityView entity hasEditButton = containerMedium $ do
+entityView entity users hasEditButton = containerMedium $ do
   title' "Legal entity" hasEditButton
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"                (Legal._entityId entity)
@@ -35,6 +37,16 @@ entityView entity hasEditButton = containerMedium $ do
     keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
     keyValuePair "VAT number"        (Legal._entityVatNumber entity)
     maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
+
+  title' "Acting users" Nothing
+  H.ul $ mapM_ displayActingUser users
+
+displayActingUser (Legal.ActingUser u role) =
+  H.li $ do
+    H.a ! A.href (H.toValue $ "/" <> username) $ H.text username
+    H.code . H.text $ show role
+
+  where username = User.unUserName . User._userCredsName . User._userProfileCreds $ u
 
 
 --------------------------------------------------------------------------------

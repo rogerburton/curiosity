@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 module Curiosity.Runtime
   ( IOErr(..)
@@ -31,6 +32,7 @@ module Curiosity.Runtime
   , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
+  , selectEntityBySlugResolved
   , readLegalEntities
   -- * High-level unit operations
   , selectUnitBySlug
@@ -634,6 +636,7 @@ createLegal db Legal.Create {..} = do
                            _createCbeNumber
                            _createVatNumber
                            Nothing
+                           []
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -1218,6 +1221,22 @@ selectEntityBySlug db name = do
   records <- STM.readTVar tvar
   pure $ find ((== name) . Legal._entitySlug) records
 
+selectEntityBySlugResolved
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe (Legal.Entity, [Legal.ActingUser]))
+selectEntityBySlugResolved db name = do
+  let tvar = Data._dbLegalEntities db
+  records <- STM.readTVar tvar
+  case find ((== name) . Legal._entitySlug) records of
+    Just entity -> do
+      let select (Legal.ActingUserId uid role) = do
+            muser <- selectUserById db uid
+            pure (muser, role)
+      musers <- mapM select $ Legal._entityUsersAndRoles entity
+      if any (isNothing . fst) musers
+        then pure Nothing -- TODO Error
+        else pure . Just . (entity,) $ map (\(Just u, role) -> Legal.ActingUser u role) musers
+    Nothing -> pure Nothing
+
 readLegalEntities
   :: forall runtime . Data.StmDb runtime -> STM [Legal.Entity]
 readLegalEntities db = do
@@ -1233,6 +1252,12 @@ selectUnitBySlug db name = do
   pure $ find ((== name) . Business._entitySlug) records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
+
+
+--------------------------------------------------------------------------------
+-- TODO Integrity check:
+-- All UserIds must resolve: _entityUsersAndRoles.
+
 
 --------------------------------------------------------------------------------
 newtype IOErr = FileDoesntExistErr FilePath

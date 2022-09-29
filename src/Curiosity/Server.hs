@@ -1722,7 +1722,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView Nothing entity (Just "#")
+  pure $ Pages.EntityView Nothing entity [] (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -1834,10 +1834,10 @@ withMaybeUserFromUsername username a f = do
 
 
 --------------------------------------------------------------------------------
--- | Run a handler, ensuring a user profile can be obtained from the given
--- username, or throw an error.
+-- | Run a handler, ensuring a legal entity can be obtained from the given
+-- slug, or throw an error.
 withEntityFromName
-  :: forall m a . ServerC m => Text -> (Legal.Entity -> m a) -> m a
+  :: forall m a . ServerC m => Text -> (Legal.Entity -> [Legal.ActingUser] -> m a) -> m a
 withEntityFromName name f = withMaybeEntityFromName name
                                                     (noSuchUserErr . show) -- TODO entity, not user
                                                     f
@@ -1852,11 +1852,11 @@ withMaybeEntityFromName
    . ServerC m
   => Text
   -> (Text -> m a)
-  -> (Legal.Entity -> m a)
+  -> (Legal.Entity -> [Legal.ActingUser] -> m a)
   -> m a
 withMaybeEntityFromName name a f = do
-  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlug . Rt._rDb) name
-  maybe (a name) f mentity
+  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlugResolved . Rt._rDb) name
+  maybe (a name) (uncurry f) mentity
 
 
 --------------------------------------------------------------------------------
@@ -2051,11 +2051,11 @@ serveNamespaceDocumentation username = withUserFromUsername
 --------------------------------------------------------------------------------
 serveEntity
   :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.EntityView
-serveEntity authResult name = withEntityFromName name $ \targetEntity ->
+serveEntity authResult name = withEntityFromName name $ \targetEntity users ->
   withMaybeUser
     authResult
-    (const . pure $ Pages.EntityView Nothing targetEntity Nothing)
-    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
+    (const . pure $ Pages.EntityView Nothing targetEntity users Nothing)
+    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity users (Just "#"))
 
 
 --------------------------------------------------------------------------------
