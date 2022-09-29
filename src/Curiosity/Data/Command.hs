@@ -10,27 +10,9 @@ module Curiosity.Data.Command
   ( Command(..)
   ) where
 
-import qualified Commence.Runtime.Errors       as Errs
-import qualified Commence.Runtime.Storage      as Storage
-import qualified Commence.Types.Secret         as Secret
-import qualified Commence.Types.Wrapped        as W
-import           Control.Lens
-import qualified Curiosity.Html.Errors         as Pages
-import           Data.Aeson
-import qualified Data.Text                     as T
-import qualified Data.Text.Lazy                as LT
-import qualified Network.HTTP.Types            as HTTP
-import qualified Servant.Auth.Server           as SAuth
-import qualified Smart.Server.Page.Navbar      as Nav
-import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
-import qualified Text.Blaze.Html5.Attributes   as A
-import           Text.Blaze.Renderer.Text       ( renderMarkup )
 import           Web.FormUrlEncoded             ( FromForm(..)
-                                                , parseMaybe
                                                 , parseUnique
                                                 )
-import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------

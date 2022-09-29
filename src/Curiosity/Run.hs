@@ -2,7 +2,6 @@ module Curiosity.Run
   ( run
   ) where
 
-import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
