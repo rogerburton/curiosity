@@ -114,10 +114,12 @@ emptyHask = Db (pure 1)
                (pure 1)
                (pure mempty)
 
-               (pure $ randomGenState 42) -- Deterministic initial seed.
+               (pure initialGenState)
                (pure mempty)
                (pure mempty)
                (pure mempty)
+
+initialGenState = randomGenState 42 -- Deterministic initial seed.
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
@@ -168,12 +170,13 @@ resetStmDb' stmDb = do
   C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
+  STM.writeTVar (_dbRandomGenState stmDb) seedRandomGenState
   STM.writeTVar (_dbFormCreateQuotationAll stmDb) seedFormCreateQuotationAll
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
   STM.writeTVar (_dbFormCreateSimpleContractAll stmDb)
                 seedFormCreateSimpleContractAll
  where
-  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
+  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
     = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
