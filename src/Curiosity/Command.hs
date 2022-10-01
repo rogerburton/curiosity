@@ -17,6 +17,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
@@ -56,6 +57,7 @@ data Command =
   | UpdateUser (S.DBUpdate User.UserProfile)
   | SetUserEmailAddrAsVerified User.UserName
     -- ^ High-level operations on users.
+  | SignQuotation Quotation.QuotationId
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
   | EmitInvoice Text
@@ -254,6 +256,12 @@ parser =
            "employment"
            ( A.info (parserEmployment <**> A.helper)
            $ A.progDesc "Commands related to employment contracts"
+           )
+
+      <> A.command
+           "quotation"
+           ( A.info (parserQuotation <**> A.helper)
+           $ A.progDesc "Commands related to quotations"
            )
 
       <> A.command
@@ -557,6 +565,21 @@ parserEmployment = A.subparser $ A.command
 parserCreateEmployment :: A.Parser Command
 parserCreateEmployment =
   pure $ CreateEmployment Employment.emptyCreateContractAll
+
+parserQuotation :: A.Parser Command
+parserQuotation =
+  A.subparser
+    $  A.command
+         "sign"
+         ( A.info (parserSignQuotation <**> A.helper)
+         $ A.progDesc "Accept (sign) a quotation"
+         )
+
+parserSignQuotation :: A.Parser Command
+parserSignQuotation = do
+  id <- A.argument A.str
+                   (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
+  pure $ SignQuotation id
 
 parserInvoice :: A.Parser Command
 parserInvoice =
