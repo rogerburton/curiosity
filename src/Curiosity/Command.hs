@@ -66,7 +66,7 @@ data Command =
     -- ^ Notify the system that a payment matching an invoice was done.
   | SendReminder Text
     -- ^ Send an email to remind of an unpaid invoice.
-  | FormNewQuotation
+  | FormNewQuotation Quotation.CreateQuotationAll
     -- ^ Create a new instance of the quotation creation form.
   | FormValidateQuotation Text
     -- ^ Run validation rules only (the same ones used in `FormSubmitQuotation`).
@@ -642,7 +642,7 @@ parserFormQuotation =
          )
 
 parserFormNewQuotation :: A.Parser Command
-parserFormNewQuotation = pure $ FormNewQuotation
+parserFormNewQuotation = pure $ FormNewQuotation Quotation.emptyCreateQuotationAll
 
 parserFormValidateQuotation :: A.Parser Command
 parserFormValidateQuotation = do

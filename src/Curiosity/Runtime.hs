@@ -83,6 +83,7 @@ import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
@@ -473,6 +474,24 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Invoice created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.FormNewQuotation input -> do
+      output <-
+        runAppMSafe runtime
+        .   liftIO
+        .   STM.atomically
+        $   selectUserByUsername _rDb user
+        >>= \case
+              Just profile -> do
+                key <- newCreateQuotationForm _rDb (profile, input)
+                pure $ Right key
+              Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
+      case output of
+        Right mkey -> do
+          case mkey of
+            Right key -> do
+              pure (ExitSuccess, ["Quotation form created: " <> key])
+            Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
@@ -831,6 +850,24 @@ submitCreateContractForm' db (profile, input) = do
   case mc of
     Right c   -> createEmployment db c
     Left  err -> pure . Left $ Employment.Err (show err)
+
+
+--------------------------------------------------------------------------------
+-- | Create a new form instance in the staging area.
+newCreateQuotationForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Quotation.CreateQuotationAll)
+  -> STM Text
+newCreateQuotationForm db (profile, Quotation.CreateQuotationAll)
+  = do
+    key <- Data.genRandomText db
+    STM.modifyTVar (Data._dbFormCreateQuotationAll db) (add key)
+    pure key
+ where
+  add key = M.insert (username, key)
+                     Quotation.CreateQuotationAll
+  username = User._userCredsName $ User._userProfileCreds profile
 
 
 --------------------------------------------------------------------------------
