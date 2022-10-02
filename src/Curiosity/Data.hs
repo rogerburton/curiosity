@@ -36,6 +36,7 @@ import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Command        as Command
                                                 ( Command(..) )
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
@@ -87,6 +88,9 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
       datastore (Map (User.UserName, Text) Employment.CreateContractAll)
   , _dbFormCreateSimpleContractAll ::
       datastore (Map (User.UserName, Text) SimpleContract.CreateContractAll)
+
+  , _dbNextEmailId :: C.CounterValue datastore Int
+  , _dbEmails      :: datastore [Email.Email]
   }
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
@@ -124,11 +128,14 @@ emptyHask = Db (pure 1)
                (pure mempty)
                (pure mempty)
 
+               (pure 1)
+               (pure mempty)
+
 initialGenState = randomGenState 42 -- Deterministic initial seed.
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
+instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll, _dbNextEmailId = C.CounterValue (Identity seedNextEmailId), _dbEmails = Identity seedEmails }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
@@ -153,6 +160,9 @@ instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusin
     _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
     _dbFormCreateSimpleContractAll <- STM.newTVar
       seedFormCreateSimpleContractAll
+
+    _dbNextEmailId                 <- C.newCounter seedNextEmailId
+    _dbEmails                      <- STM.newTVar seedEmails
     pure Db { .. }
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
@@ -184,8 +194,11 @@ resetStmDb' stmDb = do
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
   STM.writeTVar (_dbFormCreateSimpleContractAll stmDb)
                 seedFormCreateSimpleContractAll
+
+  C.writeCounter (_dbNextEmailId stmDb) seedNextEmailId
+  STM.writeTVar (_dbEmails stmDb) seedEmails
  where
-  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
+  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll, _dbNextEmailId = C.CounterValue (Identity seedNextEmailId), _dbEmails = Identity seedEmails }
     = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -215,16 +228,19 @@ readFullStmDbInHask' stmDb = do
   _dbOrders                 <- pure <$> STM.readTVar (_dbOrders stmDb)
   _dbNextInvoiceId          <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
   _dbInvoices               <- pure <$> STM.readTVar (_dbInvoices stmDb)
-  _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
+  _dbNextEmploymentId       <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
   _dbEmployments            <- pure <$> STM.readTVar (_dbEmployments stmDb)
 
   _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
   _dbFormCreateQuotationAll <- pure
     <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
-  _dbFormCreateContractAll <- pure
+  _dbFormCreateContractAll  <- pure
     <$> STM.readTVar (_dbFormCreateContractAll stmDb)
   _dbFormCreateSimpleContractAll <- pure
     <$> STM.readTVar (_dbFormCreateSimpleContractAll stmDb)
+
+  _dbNextEmailId            <- pure <$> C.readCounter (_dbNextEmailId stmDb)
+  _dbEmails                 <- pure <$> STM.readTVar (_dbEmails stmDb)
   pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the

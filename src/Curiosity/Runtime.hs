@@ -80,6 +80,7 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
@@ -526,7 +527,7 @@ handleCommand runtime@Runtime {..} user command = do
         Just profile -> do
           mid <- submitCreateQuotationForm _rDb (profile, input)
           case mid of
-            Right id -> pure (ExitSuccess, ["Quotation form validated.", "Quotation created: " <> Quotation.unQuotationId id])
+            Right id -> pure (ExitSuccess, ["Quotation form validated.", "Quotation created: " <> Quotation.unQuotationId id, "Quotation sent to client: " <> Quotation.unQuotationId id])
             Left err -> pure (ExitFailure 1, [Quotation.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
@@ -542,9 +543,9 @@ handleCommand runtime@Runtime {..} user command = do
     Command.EmitInvoice input ->
       liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
         Just profile -> do
-          mid <- invoiceOrder _rDb (profile, input)
-          case mid of
-            Right id -> pure (ExitSuccess, ["Invoice created: " <> Invoice.unInvoiceId id])
+          mids <- invoiceOrder _rDb (profile, input)
+          case mids of
+            Right (id0, id1) -> pure (ExitSuccess, ["Invoice created: " <> Invoice.unInvoiceId id0, "Internal (proxy) invoice created: " <> Invoice.unInvoiceId id1, "Invoice sent to client: " <> Invoice.unInvoiceId id0])
             Left err -> pure (ExitFailure 1, [Order.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
@@ -842,12 +843,23 @@ invoiceOrder
   :: forall runtime
    . Data.StmDb runtime
   -> (User.UserProfile, Order.OrderId)
-  -> STM (Either Order.Err Invoice.InvoiceId)
-invoiceOrder db _ = do
-  mid <- createInvoice db
-  case mid of
-    Right id -> pure $ Right id
+  -> STM (Either Order.Err (Invoice.InvoiceId, Invoice.InvoiceId))
+invoiceOrder db (profile, _) = do
+  mids <- STM.catchSTM (Right <$> createTwoInvoices db) (pure . Left)
+  case mids of
+    Right (id0, id1) -> do
+      -- Invoices created, do the rest of the atomic process.
+      createEmail db Email.InvoiceEmail $ User._userProfileEmailAddr profile
+      -- TODO The email address should be the one from the client.
+      pure $ Right (id0, id1)
     Left (Invoice.Err err) -> pure $ Left $ Order.Err err
+
+createTwoInvoices db = do
+  mid0 <- createInvoice db
+  mid1 <- createInvoice db
+  case (mid0, mid1) of
+    (Right id0, Right id1) -> pure (id0, id1)
+    _ -> STM.throwSTM $ Invoice.Err "Failed to create invoices."
 
 
 --------------------------------------------------------------------------------
@@ -1049,7 +1061,10 @@ submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
       mid <- submitCreateQuotationForm' db (profile, input)
       case mid of
         Right _ -> do
+          -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
+          createEmail db Email.QuotationEmail $ User._userProfileEmailAddr profile
+          -- TODO The email address should be the one from the client.
           pure mid
         _ -> pure mid
     Left  err   -> pure . Left $ Quotation.Err (show err)
@@ -1273,6 +1288,44 @@ modifyInvoices
   -> ([Invoice.Invoice] -> [Invoice.Invoice])
   -> STM ()
 modifyInvoices db f = let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+createEmail
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Email.EmailTemplate
+  -> User.UserEmailAddr
+  -> STM (Either Email.Err Email.EmailId)
+createEmail db template emailAddr = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateEmailId db
+    let new = Email.Email newId template emailAddr
+    createEmailFull db new >>= either STM.throwSTM pure
+
+createEmailFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Email.Email
+  -> STM (Either Email.Err Email.EmailId)
+createEmailFull db new = do
+  modifyEmails db (++ [new])
+  pure . Right $ Email._emailId new
+
+generateEmailId
+  :: forall runtime . Data.StmDb runtime -> STM Email.EmailId
+generateEmailId Data.Db {..} =
+  Email.EmailId <$> C.bumpCounterPrefix "EMAIL-" _dbNextEmailId
+
+modifyEmails
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Email.Email] -> [Email.Email])
+  -> STM ()
+modifyEmails db f =
+  let tvar = Data._dbEmails db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------
