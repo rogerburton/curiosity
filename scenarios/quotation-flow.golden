@@ -11,7 +11,7 @@ User created: USER-3
 8: user update USER-3 Charlie I'm Charlie, a Client in the quotation-flow scenario.
 User updated: USER-3
 10: as susie
-Modifiying default user.
+Modifying default user.
 11: forms quotation new
 Quotation form created: TBPJLIUG
 13: forms quotation submit TBPJLIUG
@@ -19,11 +19,11 @@ Quotation form validated.
 Quotation created: QUOT-1
 Quotation sent to client: QUOT-1
 15: as charlie
-Modifiying default user.
+Modifying default user.
 16: quotation sign QUOT-1
 Order created: ORD-1
 18: as susie
-Modifiying default user.
+Modifying default user.
 19: invoice emit --from ORD-1
 Invoice created: INV-1
 Internal (proxy) invoice created: INV-2
@@ -32,7 +32,7 @@ Remittance advice (using proxy bank account) created: REM-1
 Remittance advice (using business unit bank account) created: REM-2
 Invoice sent to client: INV-1
 21: as system
-Modifiying default user.
+Modifying default user.
 22: reminder send INV-1
 Reminder for invoice sent: INV-1
 23: payment match INV-1

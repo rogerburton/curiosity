@@ -25,7 +25,7 @@ Business entity created: BENT-1
 Business unit updated: alpha
 5: run init-form-simple-contracts.txt
 1: as mila
-Modifiying default user.
+Modifying default user.
 2: forms simple-contract new --amount -100
 Simple contract form created: TBPJLIUG
 3: forms simple-contract new

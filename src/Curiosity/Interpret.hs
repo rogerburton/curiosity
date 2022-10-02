@@ -47,7 +47,7 @@ interpret' runtime user dir content nesting = do
     case separated of
       []               -> pure (user', acc)
       ["as", username] -> do
-        let output = [show ln <> ": " <> grouped, "Modifiying default user."]
+        let output = [show ln <> ": " <> grouped, "Modifying default user."]
         pure
           (User.UserName username, acc ++ map (nesting, ExitSuccess, ) output)
       ["quit"] -> do
