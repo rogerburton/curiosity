@@ -424,6 +424,7 @@ handleCommand runtime@Runtime {..} user command = do
                     User.UserName n = User._userCredsName _userProfileCreds
                 in  i <> " " <> n
           pure (ExitSuccess, map f profiles)
+        Left err -> pure (ExitFailure 1, [show err])
     Command.UpdateUser input -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
@@ -517,10 +518,10 @@ handleCommand runtime@Runtime {..} user command = do
               case
                   Quotation.validateCreateQuotation profile contract
                 of
-                  Right c -> pure (ExitSuccess, ["Quotation form is valid."])
+                  Right _ -> pure (ExitSuccess, ["Quotation form is valid."])
                   Left errs ->
                     pure (ExitFailure 1, map Quotation.unErr errs)
-            Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
+            Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormSubmitQuotation input ->
@@ -589,10 +590,10 @@ handleCommand runtime@Runtime {..} user command = do
               case
                   SimpleContract.validateCreateSimpleContract profile contract
                 of
-                  Right c -> pure (ExitSuccess, ["Simple contract form is valid."])
+                  Right _ -> pure (ExitSuccess, ["Simple contract form is valid."])
                   Left errs ->
                     pure (ExitFailure 1, map SimpleContract.unErr errs)
-            Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
+            Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
@@ -628,30 +629,11 @@ setUserEmailAddrAsVerifiedFull db (user, input) = transaction
       else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
 
 canPerform :: Syntax.Name -> Data.StmDb runtime -> User.UserProfile -> STM Bool
-canPerform action db User.UserProfile {..}
+canPerform action _ User.UserProfile {..}
   | action == 'User.SetUserEmailAddrAsVerified
   = pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
   | otherwise
   = pure False
-
--- | Given an initial state, applies a list of commands, returning the list of
--- new (intermediate and final) states.
-interpret
-  :: Data.HaskDb Runtime
-  -> User.UserName
-  -> [Command.Command]
-  -> IO [(ExitCode, [Text], Data.HaskDb Runtime)]
-interpret = loop []
- where
-  -- TODO Maybe it would be more efficient to thread a runtime instate of a
-  -- state (that needs to be "booted" over and over again).
-  loop acc _  _    []               = pure $ reverse acc
-  loop acc st user (command : rest) = do
-    runtime        <- boot' st "/tmp/curiosity-xxx.log"
-    (code, output) <- handleCommand runtime user command
-    st'            <- Data.readFullStmDbInHask $ _rDb runtime
-    loop ((code, output, st') : acc) st' user rest
-                     -- TODO Is is possible to also log to a list ?
 
 instance S.DBTransaction AppM STM where
   liftTxn =
@@ -687,7 +669,7 @@ createBusinessFull db new = do
 updateBusiness db Business.Update {..} = do
   mentity <- selectUnitBySlug db _updateSlug
   case mentity of
-    Just Business.Unit {..} -> do
+    Just Business.Unit {} -> do
       let replaceOlder entities =
             [ if Business._entitySlug e == _updateSlug
                 then e { Business._entityDescription = _updateDescription }
@@ -744,7 +726,7 @@ createLegalFull db new = do
 updateLegal db Legal.Update {..} = do
   mentity <- selectEntityBySlug db _updateSlug
   case mentity of
-    Just Legal.Entity {..} -> do
+    Just Legal.Entity {} -> do
       let replaceOlder entities =
             [ if Legal._entitySlug e == _updateSlug
                 then e { Legal._entityDescription = _updateDescription }
@@ -774,7 +756,7 @@ createQuotation
    . Data.StmDb runtime
   -> Quotation.Quotation
   -> STM (Either Quotation.Err Quotation.QuotationId)
-createQuotation db c = do
+createQuotation db _ = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
@@ -919,7 +901,7 @@ createEmployment
    . Data.StmDb runtime
   -> Employment.Contract
   -> STM (Either Employment.Err Employment.ContractId)
-createEmployment db c = do
+createEmployment db _ = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
@@ -1013,12 +995,12 @@ writeExpenseToContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int, Employment.AddExpense)
   -> STM () -- TODO Possible errors
-writeExpenseToContractForm db (profile, key, index, expense) = do
+writeExpenseToContractForm db (profile, key, idx, expense) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
     (\(Employment.CreateContractAll gi ty ld rs inv es) ->
-      let f i e = if i == index then expense else e
+      let f i e = if i == idx then expense else e
           es' = zipWith f [0 ..] es
       in  Employment.CreateContractAll gi ty ld rs inv es'
     )
@@ -1030,12 +1012,12 @@ removeExpenseFromContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
-removeExpenseFromContractForm db (profile, key, index) = do
+removeExpenseFromContractForm db (profile, key, idx) = do
   STM.modifyTVar (Data._dbFormCreateContractAll db) save
  where
   save = M.adjust
     (\(Employment.CreateContractAll gi ty ld rs inv es) ->
-      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
+      let es' = map snd . filter ((/= idx) . fst) $ zip [0 ..] es
       in  Employment.CreateContractAll gi ty ld rs inv es'
     )
     (username, key)
@@ -1212,12 +1194,12 @@ writeDateToSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int, SimpleContract.AddDate)
   -> STM () -- TODO Possible errors
-writeDateToSimpleContractForm db (profile, key, index, date) = do
+writeDateToSimpleContractForm db (profile, key, idx, date) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
     (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
-      let f i e = if i == index then date else e
+      let f i e = if i == idx then date else e
           ds' = zipWith f [0 ..] ds
       in  SimpleContract.CreateContractAll ty rs cl inv ds' es
     )
@@ -1229,12 +1211,12 @@ removeDateFromSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
-removeDateFromSimpleContractForm db (profile, key, index) = do
+removeDateFromSimpleContractForm db (profile, key, idx) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
     (\(SimpleContract.CreateContractAll ty rs cl inv ds es) ->
-      let ds' = map snd . filter ((/= index) . fst) $ zip [0 ..] ds
+      let ds' = map snd . filter ((/= idx) . fst) $ zip [0 ..] ds
       in  SimpleContract.CreateContractAll ty rs cl inv ds' es
     )
     (username, key)
@@ -1277,12 +1259,12 @@ writeExpenseToSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int, SimpleContract.AddExpense)
   -> STM () -- TODO Possible errors
-writeExpenseToSimpleContractForm db (profile, key, index, expense) = do
+writeExpenseToSimpleContractForm db (profile, key, idx, expense) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
     (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
-      let f i e = if i == index then expense else e
+      let f i e = if i == idx then expense else e
           es' = zipWith f [0 ..] es
       in  SimpleContract.CreateContractAll ty ld rs cl inv es'
     )
@@ -1294,12 +1276,12 @@ removeExpenseFromSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
-removeExpenseFromSimpleContractForm db (profile, key, index) = do
+removeExpenseFromSimpleContractForm db (profile, key, idx) = do
   STM.modifyTVar (Data._dbFormCreateSimpleContractAll db) save
  where
   save = M.adjust
     (\(SimpleContract.CreateContractAll ty ld rs cl inv es) ->
-      let es' = map snd . filter ((/= index) . fst) $ zip [0 ..] es
+      let es' = map snd . filter ((/= idx) . fst) $ zip [0 ..] es
       in  SimpleContract.CreateContractAll ty ld rs cl inv es'
     )
     (username, key)
@@ -1345,7 +1327,7 @@ matchPayment
    . Data.StmDb runtime
   -> Invoice.InvoiceId
   -> STM (Either Invoice.Err (RemittanceAdv.RemittanceAdvId, RemittanceAdv.RemittanceAdvId))
-matchPayment db iid = do
+matchPayment db _ = do
   mids <- STM.catchSTM (Right <$> createTwoRemittanceAdvs db) (pure . Left)
   pure mids
 
@@ -1520,16 +1502,16 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
   else do
     mprofile <- selectUserById db newProfileId
     case mprofile of
-      Just profile -> existsErr
-      Nothing      -> createNew
+      Just _  -> existsErr
+      Nothing -> createNew
  where
   username     = newProfile ^. User.userProfileCreds . User.userCredsName
   newProfileId = S.dbId newProfile
   createNew    = do
     mprofile <- selectUserByUsername db username
     case mprofile of
-      Just profile -> existsErr
-      Nothing      -> do
+      Just _  -> existsErr
+      Nothing -> do
         modifyUsers db (++ [newProfile])
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
