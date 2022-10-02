@@ -119,11 +119,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[B.HTML] Pages.AddExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "edit-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.AddExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "remove-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.RemoveExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "confirm-contract"
                   :> Capture "key" Text
@@ -146,11 +146,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[B.HTML] Pages.AddDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "edit-date"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.AddDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "remove-date"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.RemoveDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "select-vat"
                   :> Capture "key" Text
@@ -164,11 +164,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "edit-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "remove-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.SimpleContractRemoveExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-simple-contract"
                   :> Capture "key" Text
@@ -237,14 +237,14 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "save-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> ReqBody '[FormUrlEncoded] Employment.AddExpense
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "remove-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -321,14 +321,14 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "save-date"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> ReqBody '[FormUrlEncoded] SimpleContract.AddDate
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "remove-date"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -346,14 +346,14 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "simple-contract" :> "save-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> ReqBody '[FormUrlEncoded] SimpleContract.AddExpense
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
              :<|> "echo" :> "simple-contract" :> "remove-expense"
                   :> Capture "key" Text
-                  :> Capture "index" Int
+                  :> Capture "idx" Int
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
@@ -1020,38 +1020,38 @@ documentAddExpensePage dataDir key = do
 -- | Same as documentAddExpensePage, but use an existing form.
 documentEditExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.AddExpensePage
-documentEditExpensePage dataDir key index = do
+documentEditExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
     Right (Employment.CreateContractAll _ _ _ _ _ expenses) ->
-      if index > length expenses - 1
+      if idx > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.AddExpensePage
           profile
           key
-          (Just index)
-          (expenses !! index)
-          (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show index)
+          (Just idx)
+          (expenses !! idx)
+          (H.toValue $ "/echo/save-expense/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentRemoveExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveExpensePage
-documentRemoveExpensePage dataDir key index = do
+documentRemoveExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
     Right (Employment.CreateContractAll _ _ _ _ _ expenses) ->
-      if index > length expenses - 1
+      if idx > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.RemoveExpensePage
           profile
           key
-          index
-          (expenses !! index)
-          (H.toValue $ "/echo/remove-expense/" <> key <> "/" <> show index)
+          idx
+          (expenses !! idx)
+          (H.toValue $ "/echo/remove-expense/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Create a form, generating a new key. This is normally used with a
@@ -1098,7 +1098,8 @@ echoSaveContract'
 echoSaveContract' dataDir key contract = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeCreateContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeCreateContractForm
     db
     (profile, key, contract)
   pure ()
@@ -1147,12 +1148,13 @@ echoSaveExpense
   -> Int
   -> Employment.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveExpense dataDir key index expense = do
+echoSaveExpense dataDir key idx expense = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeExpenseToContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeExpenseToContractForm
     db
-    (profile, key, index, expense)
+    (profile, key, idx, expense)
   pure $ addHeader @"Location"
     ("/forms/edit/contract/" <> key <> "#panel-expenses")
     NoContent
@@ -1163,12 +1165,13 @@ echoRemoveExpense
   -> Text
   -> Int
   -> m (Headers '[Header "Location" Text] NoContent)
-echoRemoveExpense dataDir key index = do
+echoRemoveExpense dataDir key idx = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.removeExpenseFromContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.removeExpenseFromContractForm
     db
-    (profile, key, index)
+    (profile, key, idx)
   pure $ addHeader @"Location"
     ("/forms/edit/contract/" <> key <> "#panel-expenses")
     NoContent
@@ -1277,7 +1280,8 @@ echoSaveSimpleContract'
 echoSaveSimpleContract' dataDir key contract = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeCreateSimpleContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeCreateSimpleContractForm
     db
     (profile, key, contract)
   pure ()
@@ -1371,12 +1375,13 @@ echoSaveDate
   -> Int
   -> SimpleContract.AddDate
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSaveDate dataDir key index date = do
+echoSaveDate dataDir key idx date = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeDateToSimpleContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeDateToSimpleContractForm
     db
-    (profile, key, index, date)
+    (profile, key, idx, date)
   pure $ addHeader @"Location"
     ("/forms/edit/simple-contract/" <> key <> "#panel-dates")
     NoContent
@@ -1387,12 +1392,13 @@ echoRemoveDate
   -> Text
   -> Int
   -> m (Headers '[Header "Location" Text] NoContent)
-echoRemoveDate dataDir key index = do
+echoRemoveDate dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.removeDateFromSimpleContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.removeDateFromSimpleContractForm
     db
-    (profile, key, index)
+    (profile, key, idx)
   pure $ addHeader @"Location"
     ("/forms/edit/simple-contract/" <> key <> "#panel-dates")
     NoContent
@@ -1431,12 +1437,13 @@ echoSimpleContractSaveExpense
   -> Int
   -> SimpleContract.AddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSimpleContractSaveExpense dataDir key index expense = do
+echoSimpleContractSaveExpense dataDir key idx expense = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.writeExpenseToSimpleContractForm
+  -- TODO Take care of the return value.
+  _       <- liftIO . atomically $ Rt.writeExpenseToSimpleContractForm
     db
-    (profile, key, index, expense)
+    (profile, key, idx, expense)
   pure $ addHeader @"Location"
     ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
     NoContent
@@ -1447,12 +1454,13 @@ echoSimpleContractRemoveExpense
   -> Text
   -> Int
   -> m (Headers '[Header "Location" Text] NoContent)
-echoSimpleContractRemoveExpense dataDir key index = do
+echoSimpleContractRemoveExpense dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  todo    <- liftIO . atomically $ Rt.removeExpenseFromSimpleContractForm
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.removeExpenseFromSimpleContractForm
     db
-    (profile, key, index)
+    (profile, key, idx)
   pure $ addHeader @"Location"
     ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
     NoContent
@@ -1567,39 +1575,39 @@ documentAddDatePage dataDir key = do
 -- | Same as documentAddDatePage, but use an existing form.
 documentEditDatePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.AddDatePage
-documentEditDatePage dataDir key index = do
+documentEditDatePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
-      if index > length dates - 1
+      if idx > length dates - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.AddDatePage
           profile
           key
-          (Just index)
-          (dates !! index)
+          (Just idx)
+          (dates !! idx)
           (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-dates")
-          (H.toValue $ "/echo/save-date/" <> key <> "/" <> show index)
+          (H.toValue $ "/echo/save-date/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentRemoveDatePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.RemoveDatePage
-documentRemoveDatePage dataDir key index = do
+documentRemoveDatePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
-      if index > length dates - 1
+      if idx > length dates - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.RemoveDatePage
           profile
           key
-          index
-          (dates !! index)
-          (H.toValue $ "/echo/remove-date/" <> key <> "/" <> show index)
+          idx
+          (dates !! idx)
+          (H.toValue $ "/echo/remove-date/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentSelectVATPage
@@ -1651,39 +1659,39 @@ documentSimpleContractAddExpensePage dataDir key = do
 -- | Same as documentSimpleContractAddExpensePage, but use an existing form.
 documentSimpleContractEditExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractAddExpensePage
-documentSimpleContractEditExpensePage dataDir key index = do
+documentSimpleContractEditExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
-      if index > length expenses - 1
+      if idx > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.SimpleContractAddExpensePage
           profile
           key
-          (Just index)
-          (expenses !! index)
+          (Just idx)
+          (expenses !! idx)
           (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-expenses")
-          (H.toValue $ "/echo/simple-contract/save-expense/" <> key <> "/" <> show index)
+          (H.toValue $ "/echo/simple-contract/save-expense/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentSimpleContractRemoveExpensePage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractRemoveExpensePage
-documentSimpleContractRemoveExpensePage dataDir key index = do
+documentSimpleContractRemoveExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
-      if index > length expenses - 1
+      if idx > length expenses - 1
         then Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
         else pure $ Pages.SimpleContractRemoveExpensePage
           profile
           key
-          index
-          (expenses !! index)
-          (H.toValue $ "/echo/simple-contract/remove-expense/" <> key <> "/" <> show index)
+          idx
+          (expenses !! idx)
+          (H.toValue $ "/echo/simple-contract/remove-expense/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmSimpleContractPage
@@ -1962,10 +1970,10 @@ handleRun
   -> m Pages.EchoPage
 handleRun authResult (Data.Command cmd) = withMaybeUser
   authResult
-  (\_ -> run Nothing >>= pure . Pages.EchoPage)
-  (\profile -> run (Just profile) >>= pure . Pages.EchoPage)
+  (\_ -> run' Nothing >>= pure . Pages.EchoPage)
+  (\profile -> run' (Just profile) >>= pure . Pages.EchoPage)
  where
-  run mprofile = do
+  run' mprofile = do
     runtime <- ask
     output <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
     let (_, ls) = Inter.formatOutput output
@@ -2049,7 +2057,7 @@ serveNamespace name authResult = withMaybeUserFromUsername
   withTargetProfile
 
  where
-  withName (User.UserName name) = SS.P.PageR <$> serveUnit authResult name
+  withName (User.UserName name') = SS.P.PageR <$> serveUnit authResult name'
   withTargetProfile targetProfile = withMaybeUser
     authResult
     (const . pure . SS.P.PageL $ Pages.PublicProfileView Nothing targetProfile)
