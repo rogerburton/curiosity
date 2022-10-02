@@ -86,6 +86,7 @@ import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
+import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
@@ -545,7 +546,7 @@ handleCommand runtime@Runtime {..} user command = do
         Just profile -> do
           mids <- invoiceOrder _rDb (profile, input)
           case mids of
-            Right (id0, id1) -> pure (ExitSuccess, ["Invoice created: " <> Invoice.unInvoiceId id0, "Internal (proxy) invoice created: " <> Invoice.unInvoiceId id1, "Invoice sent to client: " <> Invoice.unInvoiceId id0])
+            Right (id0, id1, id2, id3) -> pure (ExitSuccess, ["Invoice created: " <> Invoice.unInvoiceId id0, "Internal (proxy) invoice created: " <> Invoice.unInvoiceId id1, "Generating payment for " <> Invoice.unInvoiceId id1 <> "...", "Remittance advice (using proxy bank account) created: " <> RemittanceAdv.unRemittanceAdvId id2, "Remittance advice (using business unit bank account) created: " <> RemittanceAdv.unRemittanceAdvId id3, "Invoice sent to client: " <> Invoice.unInvoiceId id0])
             Left err -> pure (ExitFailure 1, [Order.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
@@ -843,23 +844,61 @@ invoiceOrder
   :: forall runtime
    . Data.StmDb runtime
   -> (User.UserProfile, Order.OrderId)
-  -> STM (Either Order.Err (Invoice.InvoiceId, Invoice.InvoiceId))
+  -> STM (Either Order.Err (Invoice.InvoiceId, Invoice.InvoiceId, RemittanceAdv.RemittanceAdvId, RemittanceAdv.RemittanceAdvId))
 invoiceOrder db (profile, _) = do
   mids <- STM.catchSTM (Right <$> createTwoInvoices db) (pure . Left)
   case mids of
-    Right (id0, id1) -> do
-      -- Invoices created, do the rest of the atomic process.
+    Right (id0, id1, id2, id3) -> do
+      -- Invoices and remittance advices created, do the rest of the atomic process.
       createEmail db Email.InvoiceEmail $ User._userProfileEmailAddr profile
       -- TODO The email address should be the one from the client.
-      pure $ Right (id0, id1)
+      pure $ Right (id0, id1, id2, id3)
     Left (Invoice.Err err) -> pure $ Left $ Order.Err err
 
 createTwoInvoices db = do
   mid0 <- createInvoice db
   mid1 <- createInvoice db
-  case (mid0, mid1) of
-    (Right id0, Right id1) -> pure (id0, id1)
+  mid2 <- createRemittanceAdv db
+  mid3 <- createRemittanceAdv db
+  case (mid0, mid1, mid2, mid3) of
+    (Right id0, Right id1, Right id2, Right id3) -> pure (id0, id1, id2, id3)
     _ -> STM.throwSTM $ Invoice.Err "Failed to create invoices."
+
+
+--------------------------------------------------------------------------------
+createRemittanceAdv
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either RemittanceAdv.Err RemittanceAdv.RemittanceAdvId)
+createRemittanceAdv db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateRemittanceAdvId db
+    let new = RemittanceAdv.RemittanceAdv newId
+    createRemittanceAdvFull db new >>= either STM.throwSTM pure
+
+createRemittanceAdvFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> RemittanceAdv.RemittanceAdv
+  -> STM (Either RemittanceAdv.Err RemittanceAdv.RemittanceAdvId)
+createRemittanceAdvFull db new = do
+  modifyRemittanceAdvs db (++ [new])
+  pure . Right $ RemittanceAdv._remittanceAdvId new
+
+generateRemittanceAdvId
+  :: forall runtime . Data.StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
+generateRemittanceAdvId Data.Db {..} =
+  RemittanceAdv.RemittanceAdvId <$> C.bumpCounterPrefix "REM-" _dbNextRemittanceAdvId
+
+modifyRemittanceAdvs
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([RemittanceAdv.RemittanceAdv] -> [RemittanceAdv.RemittanceAdv])
+  -> STM ()
+modifyRemittanceAdvs db f =
+  let tvar = Data._dbRemittanceAdvs db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------

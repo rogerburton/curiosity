@@ -101,6 +101,7 @@ library
     Curiosity.Data.Legal
     Curiosity.Data.Order
     Curiosity.Data.Quotation
+    Curiosity.Data.RemittanceAdv
     Curiosity.Data.SimpleContract
     Curiosity.Data.User
     Curiosity.Dsl
