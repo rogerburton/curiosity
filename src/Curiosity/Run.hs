@@ -256,6 +256,9 @@ handleViewQueues conf user queues = do
       -- TODO Check first if the user has the necessary rights to handle this
       -- queue.
       handleViewQueue conf user Command.EmailAddrToVerify
+    _ -> do
+      putStrLn @Text "TODO handleViewQueues"
+      exitFailure
 
 
 --------------------------------------------------------------------------------
