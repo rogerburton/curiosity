@@ -17,6 +17,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
@@ -65,7 +66,7 @@ data Command =
     -- ^ Generate and invoice and send an email with it (or a link to it).
   | MatchPayment Text
     -- ^ Notify the system that a payment matching an invoice was done.
-  | SendReminder Text
+  | SendReminder Invoice.InvoiceId
     -- ^ Send an email to remind of an unpaid invoice.
   | FormNewQuotation Quotation.CreateQuotationAll
     -- ^ Create a new instance of the quotation creation form.

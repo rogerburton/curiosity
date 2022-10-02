@@ -46,7 +46,7 @@ newtype EmailId = EmailId { unEmailId :: Text }
                         ) via Text
                deriving FromForm via W.Wrapped "email-id" Text
 
-data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail
+data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail | InvoiceReminderEmail
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 

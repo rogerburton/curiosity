@@ -550,6 +550,11 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [Order.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
+    Command.SendReminder input ->
+      -- TODO Check this is the "system" user ?
+      liftIO . STM.atomically $ do
+        createEmail _rDb Email.InvoiceReminderEmail "TODO client email addr"
+        pure (ExitSuccess, ["Reminder for invoice sent: " <> Invoice.unInvoiceId input])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
