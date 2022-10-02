@@ -6,7 +6,15 @@
 -- In the future this might be useful to try to express complex business rules
 -- clearly, possibly for non-developers.
 module Curiosity.Dsl
-  ( reset
+  ( Run(..)
+  , run
+  , reset
+  , db0
+  , state
+  , user
+  , signup
+  , can
+  , example
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -70,13 +78,13 @@ example = do
   signup "alice" "a" "alice@example.com"
   signup "bob"   "b" "bob@example.com"
 
-  mprofile <- user "alice"
-  a        <- case mprofile of
+  mprofilea <- user "alice"
+  a         <- case mprofilea of
     Just profile -> profile `can` 'User.SetUserEmailAddrAsVerified
     Nothing      -> pure False
 
-  mprofile <- user "bob"
-  b        <- case mprofile of
+  mprofileb <- user "bob"
+  b         <- case mprofileb of
     Just profile -> profile `can` 'User.SetUserEmailAddrAsVerified
     Nothing      -> pure False
 
