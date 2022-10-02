@@ -113,28 +113,28 @@ data CreateContractType = CreateContractType
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractType where
-  fromForm f = pure CreateContractType
+  fromForm _ = pure CreateContractType
 
 data CreateContractLocDates = CreateContractLocDates
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractLocDates where
-  fromForm f = pure CreateContractLocDates
+  fromForm _ = pure CreateContractLocDates
 
 data CreateContractRisks = CreateContractRisks
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractRisks where
-  fromForm f = pure CreateContractRisks
+  fromForm _ = pure CreateContractRisks
 
 data CreateContractInvoice = CreateContractInvoice
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractInvoice where
-  fromForm f = pure CreateContractInvoice
+  fromForm _ = pure CreateContractInvoice
 
 data AddExpense = AddExpense
   { _addExpenseAmount :: Int
