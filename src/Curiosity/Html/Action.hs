@@ -72,11 +72,11 @@ setUserEmailAddrAsVerifiedForm username = H.form $ do
 data ActionResult = ActionResult Text Text
 
 instance H.ToMarkup ActionResult where
-  toMarkup (ActionResult title msg) = fullScrollWrapper . panelWrapper $ do
-    H.toMarkup $ actionResultPanel title msg
+  toMarkup (ActionResult title_ msg) = fullScrollWrapper . panelWrapper $ do
+    H.toMarkup $ actionResultPanel title_ msg
 
-actionResultPanel title msg =
-  PanelHeaderAndBody (Types.Title title) $ H.code $ H.text msg
+actionResultPanel title_ msg =
+  PanelHeaderAndBody (Types.Title title_) $ H.code $ H.text msg
 
 
 --------------------------------------------------------------------------------
