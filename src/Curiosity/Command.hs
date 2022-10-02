@@ -64,7 +64,7 @@ data Command =
   | CreateInvoice
   | EmitInvoice Order.OrderId
     -- ^ Generate and invoice and send an email with it (or a link to it).
-  | MatchPayment Text
+  | MatchPayment Invoice.InvoiceId
     -- ^ Notify the system that a payment matching an invoice was done.
   | SendReminder Invoice.InvoiceId
     -- ^ Send an email to remind of an unpaid invoice.

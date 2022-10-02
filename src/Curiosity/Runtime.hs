@@ -555,6 +555,13 @@ handleCommand runtime@Runtime {..} user command = do
       liftIO . STM.atomically $ do
         createEmail _rDb Email.InvoiceReminderEmail "TODO client email addr"
         pure (ExitSuccess, ["Reminder for invoice sent: " <> Invoice.unInvoiceId input])
+    Command.MatchPayment input ->
+      -- TODO Check this is the "system" user ?
+      liftIO . STM.atomically $ do
+        mids <- matchPayment _rDb input
+        case mids of
+          Right (id0, id1) -> pure (ExitSuccess, ["Generating payment for " <> Invoice.unInvoiceId input <> "...", "Remittance advice (using client bank account) created: " <> RemittanceAdv.unRemittanceAdvId id0, "Remittance advice (using business unit bank account) created: " <> RemittanceAdv.unRemittanceAdvId id1])
+          Left err -> pure (ExitFailure 1, [Invoice.unErr err])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
@@ -1333,6 +1340,21 @@ modifyInvoices
   -> STM ()
 modifyInvoices db f = let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
 
+matchPayment
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Invoice.InvoiceId
+  -> STM (Either Invoice.Err (RemittanceAdv.RemittanceAdvId, RemittanceAdv.RemittanceAdvId))
+matchPayment db iid = do
+  mids <- STM.catchSTM (Right <$> createTwoRemittanceAdvs db) (pure . Left)
+  pure mids
+
+createTwoRemittanceAdvs db = do
+  mid0 <- createRemittanceAdv db
+  mid1 <- createRemittanceAdv db
+  case (mid0, mid1) of
+    (Right id0, Right id1) -> pure (id0, id1)
+    _ -> STM.throwSTM $ Invoice.Err "Failed to create remittance advices."
 
 --------------------------------------------------------------------------------
 createEmail
