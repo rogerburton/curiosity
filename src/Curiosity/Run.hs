@@ -63,7 +63,7 @@ run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget pat
     Rt.powerdown runtime
     exitSuccess
 
-run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget path) (Command.User user))
+run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget _) (Command.User user))
   = do
     runtime <- Rt.boot conf >>= either throwIO pure
     let handleExceptions = (`catch` P.shutdown runtime . Just)
@@ -86,17 +86,17 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
     Command.MemoryTarget -> handleServe conf serverConf'
     Command.StateFileTarget path ->
       handleServe conf { P._confDbFile = Just path } serverConf'
-    Command.UnixDomainTarget path -> do
+    Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget (Command.Run conf scriptPath) target (Command.User user))
+run (Command.CommandWithTarget (Command.Run _ scriptPath) target (Command.User user))
   = case target of
     Command.MemoryTarget -> do
       handleRun P.defaultConf user scriptPath
     Command.StateFileTarget path -> do
       handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath
-    Command.UnixDomainTarget path -> do
+    Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
 
@@ -158,7 +158,7 @@ run (Command.CommandWithTarget (Command.ViewQueue name) target (Command.User use
         handleViewQueue P.defaultConf user name
       Command.StateFileTarget path -> do
         handleViewQueue P.defaultConf { P._confDbFile = Just path } user name
-      Command.UnixDomainTarget path -> do
+      Command.UnixDomainTarget _ -> do
         putStrLn @Text "TODO"
         exitFailure
 
@@ -169,7 +169,7 @@ run (Command.CommandWithTarget (Command.ViewQueues queues) target (Command.User 
         handleViewQueues P.defaultConf user queues
       Command.StateFileTarget path -> do
         handleViewQueues P.defaultConf { P._confDbFile = Just path } user queues
-      Command.UnixDomainTarget path -> do
+      Command.UnixDomainTarget _ -> do
         putStrLn @Text "TODO"
         exitFailure
 
@@ -181,7 +181,7 @@ run (Command.CommandWithTarget Command.Step target (Command.User user)) = do
       handleCommand P.defaultConf { P._confDbFile = Just path }
                     user
                     Command.Step
-    Command.UnixDomainTarget path -> do
+    Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
 
@@ -200,7 +200,7 @@ run (Command.CommandWithTarget (Command.ShowId i) target (Command.User user)) =
         handleShowId P.defaultConf user i
       Command.StateFileTarget path -> do
         handleShowId P.defaultConf { P._confDbFile = Just path } user i
-      Command.UnixDomainTarget path -> do
+      Command.UnixDomainTarget _ -> do
         putStrLn @Text "TODO"
         exitFailure
 
