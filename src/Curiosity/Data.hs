@@ -39,6 +39,7 @@ import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
@@ -70,6 +71,8 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
   , _dbUserProfiles     :: datastore [User.UserProfile]
   , _dbNextQuotationId  :: C.CounterValue datastore Int
   , _dbQuotations       :: datastore [Quotation.Quotation]
+  , _dbNextOrderId      :: C.CounterValue datastore Int
+  , _dbOrders           :: datastore [Order.Order]
   , _dbNextInvoiceId    :: C.CounterValue datastore Int
   , _dbInvoices         :: datastore [Invoice.Invoice]
   , _dbNextEmploymentId :: C.CounterValue datastore Int
@@ -113,6 +116,8 @@ emptyHask = Db (pure 1)
                (pure mempty)
                (pure 1)
                (pure mempty)
+               (pure 1)
+               (pure mempty)
 
                (pure initialGenState)
                (pure mempty)
@@ -123,7 +128,7 @@ initialGenState = randomGenState 42 -- Deterministic initial seed.
 
 instantiateStmDb
   :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
+instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
   =
   -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
   -- instantiation under a single STM transaction (@atomically@).
@@ -136,6 +141,8 @@ instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusin
     _dbUserProfiles                <- STM.newTVar seedProfiles
     _dbNextQuotationId             <- C.newCounter seedNextQuotationId
     _dbQuotations                  <- STM.newTVar seedQuotations
+    _dbNextOrderId                 <- C.newCounter seedNextOrderId
+    _dbOrders                      <- STM.newTVar seedOrders
     _dbNextInvoiceId               <- C.newCounter seedNextInvoiceId
     _dbInvoices                    <- STM.newTVar seedInvoices
     _dbNextEmploymentId            <- C.newCounter seedNextEmploymentId
@@ -165,6 +172,8 @@ resetStmDb' stmDb = do
   STM.writeTVar (_dbUserProfiles stmDb) seedProfiles
   C.writeCounter (_dbNextQuotationId stmDb) seedNextQuotationId
   STM.writeTVar (_dbQuotations stmDb) seedQuotations
+  C.writeCounter (_dbNextOrderId stmDb) seedNextOrderId
+  STM.writeTVar (_dbOrders stmDb) seedOrders
   C.writeCounter (_dbNextInvoiceId stmDb) seedNextInvoiceId
   STM.writeTVar (_dbInvoices stmDb) seedInvoices
   C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
@@ -176,7 +185,7 @@ resetStmDb' stmDb = do
   STM.writeTVar (_dbFormCreateSimpleContractAll stmDb)
                 seedFormCreateSimpleContractAll
  where
-  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
+  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll }
     = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
@@ -202,6 +211,8 @@ readFullStmDbInHask' stmDb = do
   _dbUserProfiles           <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
   _dbNextQuotationId        <- pure <$> C.readCounter (_dbNextQuotationId stmDb)
   _dbQuotations             <- pure <$> STM.readTVar (_dbQuotations stmDb)
+  _dbNextOrderId            <- pure <$> C.readCounter (_dbNextOrderId stmDb)
+  _dbOrders                 <- pure <$> STM.readTVar (_dbOrders stmDb)
   _dbNextInvoiceId          <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
   _dbInvoices               <- pure <$> STM.readTVar (_dbInvoices stmDb)
   _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)

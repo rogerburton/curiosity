@@ -98,6 +98,7 @@ library
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
+    Curiosity.Data.Order
     Curiosity.Data.Quotation
     Curiosity.Data.SimpleContract
     Curiosity.Data.User

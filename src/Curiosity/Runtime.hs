@@ -83,6 +83,7 @@ import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
@@ -529,6 +530,15 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [Quotation.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
+    Command.SignQuotation input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mid <- signQuotation _rDb (profile, input)
+          case mid of
+            Right id -> pure (ExitSuccess, ["Order created: " <> Order.unOrderId id])
+            Left err -> pure (ExitFailure 1, [Quotation.unErr err])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
@@ -770,6 +780,54 @@ modifyQuotations
   -> STM ()
 modifyQuotations db f =
   let tvar = Data._dbQuotations db in STM.modifyTVar tvar f
+
+signQuotation
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Quotation.QuotationId)
+     -- ^ TODO SignQuotation data type, including e.g. the signature data.
+  -> STM (Either Quotation.Err Order.OrderId)
+signQuotation db _ = do
+  mid <- createOrder db
+  case mid of
+    Right id -> pure $ Right id
+    Left (Order.Err err) -> pure $ Left $ Quotation.Err err
+
+
+--------------------------------------------------------------------------------
+createOrder
+  :: forall runtime
+   . Data.StmDb runtime
+  -> STM (Either Order.Err Order.OrderId)
+createOrder db = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateOrderId db
+    let new = Order.Order newId
+    createOrderFull db new >>= either STM.throwSTM pure
+
+createOrderFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Order.Order
+  -> STM (Either Order.Err Order.OrderId)
+createOrderFull db new = do
+  modifyOrders db (++ [new])
+  pure . Right $ Order._orderId new
+
+generateOrderId
+  :: forall runtime . Data.StmDb runtime -> STM Order.OrderId
+generateOrderId Data.Db {..} =
+  Order.OrderId <$> C.bumpCounterPrefix "ORD-" _dbNextOrderId
+
+modifyOrders
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Order.Order] -> [Order.Order])
+  -> STM ()
+modifyOrders db f =
+  let tvar = Data._dbOrders db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------
