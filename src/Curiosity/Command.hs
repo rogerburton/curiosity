@@ -70,10 +70,10 @@ data Command =
     -- ^ Create a new instance of the quotation creation form.
   | FormValidateQuotation Text
     -- ^ Run validation rules only (the same ones used in `FormSubmitQuotation`).
-  | FormSubmitQuotation Text
+  | FormSubmitQuotation Quotation.SubmitQuotation
     -- ^ Submit a quotation.
   | FormNewSimpleContract SimpleContract.CreateContractAll'
-  | FormValidateSimpleContract Text -- TODO Use SubmitContract.
+  | FormValidateSimpleContract Text
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -654,7 +654,7 @@ parserFormSubmitQuotation :: A.Parser Command
 parserFormSubmitQuotation = do
   key <- A.argument A.str
                     (A.metavar "KEY" <> A.help "A quotation form identifier.")
-  pure $ FormSubmitQuotation key
+  pure $ FormSubmitQuotation $ Quotation.SubmitQuotation key
 
 
 --------------------------------------------------------------------------------

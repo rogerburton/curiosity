@@ -505,6 +505,30 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Quotation form created: " <> key])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.FormValidateQuotation input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mcontract <- readCreateQuotationForm _rDb (profile, input)
+          case mcontract of
+            Right contract -> do
+              case
+                  Quotation.validateCreateQuotation profile contract
+                of
+                  Right c -> pure (ExitSuccess, ["Quotation form is valid."])
+                  Left errs ->
+                    pure (ExitFailure 1, map Quotation.unErr errs)
+            Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
+    Command.FormSubmitQuotation input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mid <- submitCreateQuotationForm _rDb (profile, input)
+          case mid of
+            Right id -> pure (ExitSuccess, ["Quotation form validated.", "Quotation created: " <> Quotation.unQuotationId id])
+            Left err -> pure (ExitFailure 1, [Quotation.unErr err])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
@@ -532,7 +556,7 @@ handleCommand runtime@Runtime {..} user command = do
               case
                   SimpleContract.validateCreateSimpleContract profile contract
                 of
-                  Right c -> pure (ExitSuccess, ["Simple contract is valid"])
+                  Right c -> pure (ExitSuccess, ["Simple contract form is valid."])
                   Left errs ->
                     pure (ExitFailure 1, map SimpleContract.unErr errs)
             Left errs -> pure (ExitFailure 1, ["Key not found: " <> input])
@@ -712,6 +736,43 @@ modifyLegalEntities db f =
 
 
 --------------------------------------------------------------------------------
+createQuotation
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Quotation.Quotation
+  -> STM (Either Quotation.Err Quotation.QuotationId)
+createQuotation db c = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateQuotationId db
+    let new = Quotation.Quotation newId
+    createQuotationFull db new >>= either STM.throwSTM pure
+
+createQuotationFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Quotation.Quotation
+  -> STM (Either Quotation.Err Quotation.QuotationId)
+createQuotationFull db new = do
+  modifyQuotations db (++ [new])
+  pure . Right $ Quotation._quotationId new
+
+generateQuotationId
+  :: forall runtime . Data.StmDb runtime -> STM Quotation.QuotationId
+generateQuotationId Data.Db {..} =
+  Quotation.QuotationId <$> C.bumpCounterPrefix "QUOT-" _dbNextQuotationId
+
+modifyQuotations
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Quotation.Quotation] -> [Quotation.Quotation])
+  -> STM ()
+modifyQuotations db f =
+  let tvar = Data._dbQuotations db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
 createEmployment
   :: forall runtime
    . Data.StmDb runtime
@@ -852,7 +913,7 @@ submitCreateContractForm db (profile, Employment.SubmitContract key) = do
     Right input -> submitCreateContractForm' db (profile, input)
     Left  err   -> pure . Left $ Employment.Err (show err)
 
--- | Attempt to create a contract form and create it.
+-- | Attempt to validate a contract form and create it.
 submitCreateContractForm'
   :: forall runtime
    . Data.StmDb runtime
@@ -882,6 +943,51 @@ newCreateQuotationForm db (profile, Quotation.CreateQuotationAll)
                      Quotation.CreateQuotationAll
   username = User._userCredsName $ User._userProfileCreds profile
 
+readCreateQuotationForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () Quotation.CreateQuotationAll)
+readCreateQuotationForm = readForm Data._dbFormCreateQuotationAll
+
+deleteCreateQuotationForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM () -- TODO Error
+deleteCreateQuotationForm = deleteForm Data._dbFormCreateQuotationAll
+
+-- | Fetch the quotation form from the staging area, then attempt to validate
+-- and create it. If successfull, the form is deleted.
+submitCreateQuotationForm
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Quotation.SubmitQuotation)
+  -> STM (Either Quotation.Err Quotation.QuotationId)
+submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
+  minput <- readCreateQuotationForm db (profile, key)
+  case minput of
+    Right input -> do
+      mid <- submitCreateQuotationForm' db (profile, input)
+      case mid of
+        Right _ -> do
+          deleteCreateQuotationForm db (profile, key)
+          pure mid
+        _ -> pure mid
+    Left  err   -> pure . Left $ Quotation.Err (show err)
+
+-- | Attempt to validate a quotation form and create it.
+submitCreateQuotationForm'
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Quotation.CreateQuotationAll)
+  -> STM (Either Quotation.Err Quotation.QuotationId)
+submitCreateQuotationForm' db (profile, input) = do
+  let mc = Quotation.validateCreateQuotation profile input
+  case mc of
+    Right c   -> createQuotation db c
+    Left  err -> pure . Left $ Quotation.Err (show err)
+
 
 --------------------------------------------------------------------------------
 -- | Create a new form instance in the staging area.
@@ -905,11 +1011,7 @@ readCreateSimpleContractForm
    . Data.StmDb runtime
   -> (User.UserProfile, Text)
   -> STM (Either () SimpleContract.CreateContractAll)
-readCreateSimpleContractForm db (profile, key) = do
-  m <- STM.readTVar $ Data._dbFormCreateSimpleContractAll db
-  let mform = M.lookup (username, key) m
-  pure $ maybe (Left ()) Right mform
-  where username = User._userCredsName $ User._userProfileCreds profile
+readCreateSimpleContractForm = readForm Data._dbFormCreateSimpleContractAll
 
 writeCreateSimpleContractForm
   :: forall runtime
@@ -1341,6 +1443,32 @@ selectUnitBySlug db name = do
   pure $ find ((== name) . Business._entitySlug) records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
+
+
+--------------------------------------------------------------------------------
+readForm
+  :: forall runtime a
+   . (Data.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
+  -> Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM (Either () a)
+readForm getTVar db (profile, key) = do
+  m <- STM.readTVar $ getTVar db
+  let mform = M.lookup (username, key) m
+  pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
+
+deleteForm
+  :: forall runtime a
+   . (Data.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
+  -> Data.StmDb runtime
+  -> (User.UserProfile, Text)
+  -> STM ()
+deleteForm getTVar db (profile, key) =
+  let tvar = getTVar db
+      f = M.delete (username, key)
+  in STM.modifyTVar tvar f
+  where username = User._userCredsName $ User._userProfileCreds profile
 
 
 --------------------------------------------------------------------------------
