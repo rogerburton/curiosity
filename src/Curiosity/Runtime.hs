@@ -539,6 +539,15 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [Quotation.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
+    Command.EmitInvoice input ->
+      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+        Just profile -> do
+          mid <- invoiceOrder _rDb (profile, input)
+          case mid of
+            Right id -> pure (ExitSuccess, ["Invoice created: " <> Invoice.unInvoiceId id])
+            Left err -> pure (ExitFailure 1, [Order.unErr err])
+        Nothing ->
+          pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormNewSimpleContract input -> do
       output <-
         runAppMSafe runtime
@@ -828,6 +837,17 @@ modifyOrders
   -> STM ()
 modifyOrders db f =
   let tvar = Data._dbOrders db in STM.modifyTVar tvar f
+
+invoiceOrder
+  :: forall runtime
+   . Data.StmDb runtime
+  -> (User.UserProfile, Order.OrderId)
+  -> STM (Either Order.Err Invoice.InvoiceId)
+invoiceOrder db _ = do
+  mid <- createInvoice db
+  case mid of
+    Right id -> pure $ Right id
+    Left (Invoice.Err err) -> pure $ Left $ Order.Err err
 
 
 --------------------------------------------------------------------------------

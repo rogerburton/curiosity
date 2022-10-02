@@ -35,4 +35,6 @@ newtype InvoiceId = InvoiceId { unInvoiceId :: Text }
                deriving FromForm via W.Wrapped "invoice-id" Text
 
 data Err = Err
+  { unErr :: Text
+  }
   deriving (Eq, Exception, Show)

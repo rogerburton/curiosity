@@ -17,6 +17,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
@@ -60,7 +61,7 @@ data Command =
   | SignQuotation Quotation.QuotationId
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
-  | EmitInvoice Text
+  | EmitInvoice Order.OrderId
     -- ^ Generate and invoice and send an email with it (or a link to it).
   | MatchPayment Text
     -- ^ Notify the system that a payment matching an invoice was done.
@@ -602,7 +603,7 @@ parserEmitInvoice :: A.Parser Command
 parserEmitInvoice = do
   id <- A.strOption $ A.long "from" <> A.metavar "ORDER-ID" <> A.help
     "An order identifier."
-  pure $ EmitInvoice id
+  pure $ EmitInvoice $ Order.OrderId id
 
 
 --------------------------------------------------------------------------------
