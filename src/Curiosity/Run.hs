@@ -1,5 +1,6 @@
 module Curiosity.Run
   ( run
+  , handleRun'
   ) where
 
 import qualified Commence.Runtime.Errors       as Errs
@@ -230,6 +231,14 @@ handleRun conf user scriptPath = do
   code    <- interpret runtime user scriptPath
   Rt.powerdown runtime
   exitWith code
+
+-- | Similar to `handleRun`, but capturing the output. This is used in tests.
+handleRun' :: FilePath -> IO [Text]
+handleRun' scriptPath = do
+  runtime <- Rt.boot P.defaultConf >>= either throwIO pure
+  output  <- Inter.interpretFile runtime "system" scriptPath 0
+  Rt.powerdown runtime
+  pure $ map (\(_ ,_ , c) -> c)  output
 
 interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
 interpret runtime user path = do

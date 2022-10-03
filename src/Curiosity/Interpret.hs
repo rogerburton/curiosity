@@ -3,6 +3,7 @@ module Curiosity.Interpret
   ( interpretFile
   , interpret'
   , formatOutput
+  , listScenarios
   , wordsq
   ) where
 
@@ -15,6 +16,7 @@ import qualified Options.Applicative           as A
 import           System.FilePath                ( (</>)
                                                 , takeDirectory
                                                 )
+import qualified System.FilePath.Glob          as Glob
 
 
 --------------------------------------------------------------------------------
@@ -99,6 +101,12 @@ formatOutput output =
   in (snd3 . last $ (0, ExitSuccess, "") : output', ls)
 
 snd3 (_, b, _) = b
+
+
+--------------------------------------------------------------------------------
+listScenarios :: FilePath -> IO [FilePath]
+listScenarios scenariosDir = sort <$> Glob.globDir1 pat scenariosDir
+  where pat = Glob.compile "*.txt"
 
 
 --------------------------------------------------------------------------------
