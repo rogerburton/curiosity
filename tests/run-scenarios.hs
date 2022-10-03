@@ -1,7 +1,6 @@
 -- | Run scripts similarly to `cty run`, ensuring their outputs are identical
 -- to "golden" (expected) results.
 import qualified Curiosity.Interpret           as Inter
-import qualified Curiosity.Run                 as Run
 import qualified Data.Text                     as T
 import           System.FilePath
 
@@ -23,6 +22,6 @@ mkGoldenTest path = do
   pure $ Silver.goldenVsAction testName goldenPath action convert
  where
   action :: IO [Text]
-  action = Run.handleRun' path
+  action = Inter.handleRun' path
 
   convert = T.unlines

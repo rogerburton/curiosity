@@ -19,6 +19,13 @@ module Curiosity.Server
 
     -- * Type-aliases for convenience
   , ServerSettings
+
+    -- * Scenarios
+    --
+    -- $scenarios
+  , showScenario
+  , partialScenarios
+  , partialScenariosAsJson
   ) where
 
 import qualified Commence.JSON.Pretty          as JP
@@ -77,7 +84,7 @@ import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
-import           System.FilePath                ( (</>) )
+import           System.FilePath                ( (</>), takeBaseName )
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -196,6 +203,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "a" :> "run" :> H.UserAuthentication
                   :> ReqBody '[FormUrlEncoded] Data.Command
                   :> Post '[B.HTML] Pages.EchoPage
+
+             :<|> "scenarios"
+                  :> Capture "name" FilePath
+                  :> Get '[B.HTML] H.Html
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
@@ -374,6 +385,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
 
+             :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
+             :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
+
              -- live data
              :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
              :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
@@ -414,8 +428,9 @@ serverT
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
+  -> FilePath
   -> ServerT App m
-serverT natTrans ctx conf jwtS root dataDir =
+serverT natTrans ctx conf jwtS root dataDir scenariosDir =
   showHomePage
     :<|> documentLoginPage
     :<|> documentSignupPage
@@ -451,6 +466,7 @@ serverT natTrans ctx conf jwtS root dataDir =
 
     :<|> showRun
     :<|> handleRun
+    :<|> showScenario scenariosDir
     :<|> showState
     :<|> showStateAsJson
 
@@ -496,6 +512,8 @@ serverT natTrans ctx conf jwtS root dataDir =
     :<|> partialVatRatesAsJson
     :<|> partialPermissions
     :<|> partialPermissionsAsJson
+    :<|> partialScenarios scenariosDir
+    :<|> partialScenariosAsJson scenariosDir
 
     -- live data
     :<|> partialLegalEntities
@@ -553,6 +571,7 @@ run conf@Command.ServerConf {..} runtime = liftIO $ do
                                jwtS
                                _serverStaticDir
                                _serverDataDir
+                               _serverScenariosDir
   ctx jwtS =
     _serverCookie
       Server.:. jwtS
@@ -571,11 +590,12 @@ serve
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
+  -> FilePath
   -> Wai.Application
-serve handlerNatTrans conf ctx jwtS root dataDir =
+serve handlerNatTrans conf ctx jwtS root dataDir scenariosDir =
   Servant.serveWithContext appProxy ctx
     $ hoistServerWithContext appProxy settingsProxy handlerNatTrans
-    $ serverT handlerNatTrans ctx conf jwtS root dataDir
+    $ serverT handlerNatTrans ctx conf jwtS root dataDir scenariosDir
 
 appProxy = Proxy @App
 settingsProxy = Proxy @ServerSettings
@@ -1981,6 +2001,36 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
     where
       username = maybe (User.UserName "nobody") (User._userCredsName . User._userProfileCreds) mprofile
 
+
+--------------------------------------------------------------------------------
+-- $scenarios
+--
+-- Expose @cty run@ scenarios found in the @`scenarios/`@ directory.
+
+showScenario :: ServerC m => FilePath -> FilePath -> m H.Html
+showScenario scenariosDir name = do
+  let path = scenariosDir </> name <> ".txt"
+  output <- liftIO $ Inter.handleRun' path
+  pure . H.code . H.pre $ H.text $ unlines output
+
+partialScenarios :: ServerC m => FilePath -> m H.Html
+partialScenarios scenariosDir = do
+  names <- listScenarioNames scenariosDir
+  pure . H.ul $ mapM_ displayScenario names
+ where
+  displayScenario name = H.li $ do
+    H.a ! A.href (H.toValue $ "/scenarios/" <> name) $ H.code $ H.string name
+
+partialScenariosAsJson :: ServerC m => FilePath -> m [FilePath]
+partialScenariosAsJson = listScenarioNames
+
+listScenarioNames scenariosDir = do
+  paths <- liftIO $ Inter.listScenarios scenariosDir
+  let names = map takeBaseName paths
+  pure names
+
+
+--------------------------------------------------------------------------------
 showState :: ServerC m => m Pages.EchoPage
 showState = do
   stmDb <- asks Rt._rDb

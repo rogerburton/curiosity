@@ -48,3 +48,9 @@ dynamically add, edit, and remove them in specific test scenarios.
 
 This kind of live data have their own [documentation
 page](/documentation/live-data).
+
+# Scenarios
+
+<!--# include virtual="/partials/scenarios" -->
+
+The list [as JSON](/partials/scenarios.json).

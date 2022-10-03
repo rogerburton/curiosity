@@ -1,6 +1,9 @@
 {-# LANGUAGE TupleSections #-}
 module Curiosity.Interpret
-  ( interpretFile
+  ( handleRun
+  , handleRun'
+  , interpretFile
+  , interpret
   , interpret'
   , formatOutput
   , listScenarios
@@ -9,6 +12,7 @@ module Curiosity.Interpret
 
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import           Data.List                      ( last )
 import qualified Data.Text                     as T
@@ -17,6 +21,35 @@ import           System.FilePath                ( (</>)
                                                 , takeDirectory
                                                 )
 import qualified System.FilePath.Glob          as Glob
+
+
+--------------------------------------------------------------------------------
+handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
+handleRun conf user scriptPath = do
+  runtime <- Rt.boot conf >>= either throwIO pure
+  code    <- interpret runtime user scriptPath
+  Rt.powerdown runtime
+  exitWith code
+
+-- | Similar to `handleRun`, but capturing the output, and logging elsewhere
+-- than normally: this is used in tests and in the `/scenarios` handler.
+handleRun' :: FilePath -> IO [Text]
+handleRun' scriptPath = do
+  let conf = P.Conf
+               { P._confLogging = P.mkLoggingConf "/tmp/cty-serve-explore.log"
+               , P._confDbFile = Nothing
+               }
+  runtime <- Rt.boot conf >>= either throwIO pure
+  output  <- interpretFile runtime "system" scriptPath 0
+  Rt.powerdown runtime
+  pure $ map (\(_ ,_ , c) -> c)  output
+
+interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
+interpret runtime user path = do
+  output <- interpretFile runtime user path 0
+  let (exitCode, ls) = formatOutput output
+  mapM_ putStrLn ls
+  pure exitCode
 
 
 --------------------------------------------------------------------------------
