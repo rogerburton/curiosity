@@ -24,6 +24,8 @@ module Curiosity.Server
     --
     -- $scenarios
   , showScenario
+  , showScenarioState
+  , showScenarioStateAsJson
   , partialScenarios
   , partialScenariosAsJson
   ) where
@@ -207,6 +209,16 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "scenarios"
                   :> Capture "name" FilePath
                   :> Get '[B.HTML] H.Html
+             :<|> "scenarios"
+                  :> Capture "name" FilePath
+                  :> Capture "nbr" Int
+                  :> "state"
+                  :> Get '[B.HTML] H.Html
+             :<|> "scenarios"
+                  :> Capture "name" FilePath
+                  :> Capture "nbr" Int
+                  :> "state.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
@@ -467,6 +479,8 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showRun
     :<|> handleRun
     :<|> showScenario scenariosDir
+    :<|> showScenarioState scenariosDir
+    :<|> showScenarioStateAsJson scenariosDir
     :<|> showState
     :<|> showStateAsJson
 
@@ -2010,8 +2024,33 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
 showScenario :: ServerC m => FilePath -> FilePath -> m H.Html
 showScenario scenariosDir name = do
   let path = scenariosDir </> name <> ".txt"
-  output <- liftIO $ Inter.handleRun' path
-  pure . H.code . H.pre $ H.text $ unlines output
+  ts <- liftIO $ Inter.handleRun' path
+  pure . H.code . H.pre $ mapM_ displayTrace ts
+ where
+  displayTrace Inter.Trace {..} = do
+    H.text $ Inter.pad traceNesting <> show traceLineNbr <> ": " <> traceCommand <> "    "
+    H.a ! A.href (H.toValue $ "/scenarios/" <> name <> "/" <> show traceNumber <> "/state.json") $ "View state"
+    H.text "\n"
+    mapM_ (\o -> H.text o >> H.text "\n") traceOutput
+    mapM_ displayTrace traceNested
+
+-- | Show the state after a specific command, given as its number within the
+-- script.
+showScenarioState :: ServerC m => FilePath -> FilePath -> Int -> m H.Html
+showScenarioState scenariosDir name nbr = do
+  let path = scenariosDir </> name <> ".txt"
+  ts <- liftIO $ Inter.handleRun' path
+  let ts' = Inter.flatten ts
+  pure . H.code . H.pre $ H.text $ show . Inter.traceState $ ts' !! nbr
+
+showScenarioStateAsJson :: ServerC m => FilePath -> FilePath -> Int -> m
+  (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+showScenarioStateAsJson scenariosDir name nbr = do
+  let path = scenariosDir </> name <> ".txt"
+  ts <- liftIO $ Inter.handleRun' path
+  let ts' = Inter.flatten ts
+      db  = Inter.traceState $ ts' !! nbr -- TODO Proper input validation
+  pure $ JP.PrettyJSON db
 
 partialScenarios :: ServerC m => FilePath -> m H.Html
 partialScenarios scenariosDir = do
