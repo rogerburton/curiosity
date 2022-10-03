@@ -2031,7 +2031,7 @@ showScenario scenariosDir name = do
     H.text $ Inter.pad traceNesting <> show traceLineNbr <> ": " <> traceCommand <> "    "
     H.a ! A.href (H.toValue $ "/scenarios/" <> name <> "/" <> show traceNumber <> "/state.json") $ "View state"
     H.text "\n"
-    mapM_ (\o -> H.text o >> H.text "\n") traceOutput
+    mapM_ (\o -> H.text (Inter.pad traceNesting) >> H.text o >> H.text "\n") traceOutput
     mapM_ displayTrace traceNested
 
 -- | Show the state after a specific command, given as its number within the
