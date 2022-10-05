@@ -37,6 +37,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 , readFullStmDbInHask
@@ -626,6 +627,12 @@ routingLayout = do
           Server.:. Server.EmptyContext
   pure $ layoutWithContext (Proxy @App) ctx
 
+-- | Call a `Curiosity.Runtime` operation in a handler.
+withRuntime :: ServerC m => Rt.RunM a -> m a
+withRuntime f = do
+  runtime <- ask
+  Rt.runRunM runtime f
+
 
 --------------------------------------------------------------------------------
 -- | Show the landing page when the user is not logged in, or the welcome page
@@ -641,9 +648,9 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
-    b <- liftIO . atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
-                                             _rDb
-                                             profile
+    b <- liftIO . atomically $ Core.canPerform 'User.SetUserEmailAddrAsVerified
+                                               _rDb
+                                               profile
     profiles <- if b
       then
         Just
@@ -807,10 +814,7 @@ handleSignup input@User.Signup {..} =
   ML.localEnv (<> "HTTP" <> "Signup")
     $   do
           ML.info $ "Signing up new user: " <> show username <> "..."
-          db <- asks Rt._rDb
-          S.liftTxn @m @STM
-            $ S.dbUpdate @m db (User.UserCreateGeneratingUserId input)
-          -- Rt.withRuntimeAtomically Rt.createUser input
+          withRuntime $ Rt.createUser input
     >>= \case
           Right uid -> do
             ML.info
@@ -1905,8 +1909,8 @@ withMaybeUserFromUsername
   -> (User.UserProfile -> m a)
   -> m a
 withMaybeUserFromUsername username a f = do
-  mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsername . Rt._rDb)
-                                       username
+  db <- asks Rt._rDb
+  mprofile <- liftIO $ Rt.selectUserByUsername db username
   maybe (a username) f mprofile
 
 -- | Similar to `withUserFromUsername`, but also returns the related entities.

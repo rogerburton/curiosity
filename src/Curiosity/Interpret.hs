@@ -125,7 +125,7 @@ interpret' runtime user dir content nesting = go user [] 0
           A.Success command -> do
             case command of
               Command.Reset _ -> do
-                Rt.reset runtime
+                Rt.runRunM runtime $ Rt.reset
                 st <- Rt.state runtime
                 let t = trace ["Resetting to the empty state."] ExitSuccess [] st
                     acc' = acc ++ [t]

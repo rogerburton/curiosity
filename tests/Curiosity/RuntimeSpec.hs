@@ -2,9 +2,10 @@ module Curiosity.RuntimeSpec
   ( spec
   ) where
 
+import           Curiosity.Core
 import           Curiosity.Data
 import           Curiosity.Data.User
-import           Curiosity.Runtime
+import           Curiosity.Runtime              (boot', _rDb)
 import           Test.Hspec
 
 

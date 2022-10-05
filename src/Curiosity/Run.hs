@@ -59,7 +59,7 @@ run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget pat
   = do
     runtime <-
       Rt.boot conf { P._confDbFile = Just path } >>= either throwIO pure
-    Rt.reset runtime
+    Rt.runRunM runtime $ Rt.reset
     Rt.powerdown runtime
     exitSuccess
 
@@ -323,7 +323,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
           case command of
             -- We ignore the Configuration here. Probably this should be moved
             -- to Rt.handleCommand too.
-            Command.Reset _          -> Rt.reset runtime
+            Command.Reset _          -> Rt.runRunM runtime $ Rt.reset
             Command.Run _ scriptPath -> do
               code <- liftIO $ Inter.interpret runtime user scriptPath
               case code of

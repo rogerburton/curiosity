@@ -90,6 +90,7 @@ library
   hs-source-dirs: src
   exposed-modules:
     Curiosity.Command
+    Curiosity.Core
     Curiosity.Data
     Curiosity.Data.Business
     Curiosity.Data.Command

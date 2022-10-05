@@ -12,7 +12,6 @@ module Curiosity.Data
   , emptyHask
   , instantiateStmDb
   , instantiateEmptyStmDb
-  , resetStmDb
   , resetStmDb'
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
@@ -174,11 +173,6 @@ instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusin
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
-
--- | Reset all values of the `Db` product type from `STM.STM` to the empty
--- state.
-resetStmDb :: forall runtime m . MonadIO m => StmDb runtime -> m ()
-resetStmDb = liftIO . STM.atomically . resetStmDb'
 
 resetStmDb' stmDb = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId

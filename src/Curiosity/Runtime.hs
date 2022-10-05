@@ -11,6 +11,7 @@ module Curiosity.Runtime
   , rDb
   , rLoggers
   , AppM(..)
+  , RunM(..)
   , boot
   , boot'
   , reset
@@ -22,11 +23,10 @@ module Curiosity.Runtime
   , saveDb
   , saveDbAs
   , runAppMSafe
+  , runRunM
   , withRuntimeAtomically
   -- * High-level user operations
-  , canPerform
   , setUserEmailAddrAsVerifiedFull
-  , selectUserById
   , selectUserByIdResolved
   , selectUserByUsername
   , selectUserByUsernameResolved
@@ -60,9 +60,6 @@ module Curiosity.Runtime
   , addExpenseToSimpleContractForm
   , writeExpenseToSimpleContractForm
   , removeExpenseFromSimpleContractForm
-  -- * ID generation
-  , generateUserId
-  , firstUserId
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -78,6 +75,7 @@ import "exceptions" Control.Monad.Catch         ( MonadCatch
                                                 , MonadThrow
                                                 )
 import qualified Curiosity.Command             as Command
+import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
@@ -148,6 +146,34 @@ runAppMSafe runtime AppM {..} =
     . runExceptT
     $ runReaderT runAppM runtime
 
+-- | `RunM` is basically STM operations (from `Curiosity.Core`) together with
+-- the ability to do IO for logging.
+newtype RunM a = RunM { unRunM :: ReaderT Runtime IO a }
+  deriving ( Functor
+           , Applicative
+           , Monad
+           , MonadIO
+           , MonadReader Runtime
+           , MonadError IOException
+           , MonadThrow
+           , MonadCatch
+           , MonadMask
+           )
+
+runRunM
+  :: forall a m
+   . MonadIO m
+  => Runtime
+  -> RunM a
+  -> m a
+runRunM runtime RunM {..} = liftIO $ runReaderT unRunM runtime
+
+-- | Support for logging for the application
+instance ML.MonadAppNameLogMulti RunM where
+  askLoggers = asks _rLoggers
+  localLoggers modLogger =
+    local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
+
 
 --------------------------------------------------------------------------------
 -- | Boot up a runtime.
@@ -184,11 +210,16 @@ boot' db logsPath = do
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
   pure $ Runtime { .. }
 
--- | Reset the database to the empty state
-reset runtime = do
-  Data.resetStmDb $ _rDb runtime
+-- | Reset the database to the empty state.
+reset :: RunM ()
+reset = do
+  ML.localEnv (<> "Command" <> "Reset") $
+    ML.info $ "Resetting to the empty state."
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.reset db
 
--- | Power down the application: attempting to save the DB state in given file, if possible, and reporting errors otherwise.
+-- | Power down the application: attempting to save the DB state in given file,
+-- if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
 powerdown runtime@Runtime {..} = do
   mDbSaveErr <- saveDb runtime
@@ -325,15 +356,11 @@ handleCommand
 handleCommand runtime@Runtime {..} user command = do
   case command of
     Command.State useHs -> do
-      output <-
-        runAppMSafe runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
-      case output of
-        Right value -> do
-          let value' = if useHs
-                then show value
-                else LT.toStrict (Aeson.encodeToLazyText value)
-          pure (ExitSuccess, [value'])
-        Left err -> pure (ExitFailure 1, [show err])
+      value <- runRunM runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
+      let value' = if useHs
+            then show value
+            else LT.toStrict (Aeson.encodeToLazyText value)
+      pure (ExitSuccess, [value'])
     Command.CreateBusinessEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createBusiness
         _rDb
@@ -385,18 +412,12 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createUser
-        _rDb
-        input
-      case output of
-        Right muid -> do
-          case muid of
-            Right (User.UserId uid) -> do
-              pure (ExitSuccess, ["User created: " <> uid])
-            Left err -> pure (ExitFailure 1, [show err])
+      muid <- runRunM runtime $ createUser input
+      case muid of
+        Right (User.UserId uid) -> pure (ExitSuccess, ["User created: " <> uid])
         Left err -> pure (ExitFailure 1, [show err])
     Command.SelectUser useHs uid short -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ selectUserById
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.selectUserById
         _rDb
         uid
       case output of
@@ -453,7 +474,7 @@ handleCommand runtime@Runtime {..} user command = do
         runAppMSafe runtime
         .   liftIO
         .   STM.atomically
-        $   selectUserByUsername _rDb user
+        $   Core.selectUserByUsername _rDb user
         >>= \case
               Just profile ->
                 setUserEmailAddrAsVerifiedFull _rDb (profile, username)
@@ -468,7 +489,7 @@ handleCommand runtime@Runtime {..} user command = do
         runAppMSafe runtime
         .   liftIO
         .   STM.atomically
-        $   selectUserByUsername _rDb user
+        $   Core.selectUserByUsername _rDb user
         >>= \case
               Just profile -> do
                 merror <- submitCreateContractForm' _rDb (profile, input)
@@ -500,7 +521,7 @@ handleCommand runtime@Runtime {..} user command = do
         runAppMSafe runtime
         .   liftIO
         .   STM.atomically
-        $   selectUserByUsername _rDb user
+        $   Core.selectUserByUsername _rDb user
         >>= \case
               Just profile -> do
                 key <- newCreateQuotationForm _rDb (profile, input)
@@ -514,7 +535,7 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FormValidateQuotation input ->
-      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mcontract <- readCreateQuotationForm _rDb (profile, input)
           case mcontract of
@@ -529,7 +550,7 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormSubmitQuotation input ->
-      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mid <- submitCreateQuotationForm _rDb (profile, input)
           case mid of
@@ -538,7 +559,7 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.SignQuotation input ->
-      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mid <- signQuotation _rDb (profile, input)
           case mid of
@@ -547,7 +568,7 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.EmitInvoice input ->
-      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mids <- invoiceOrder _rDb (profile, input)
           case mids of
@@ -572,7 +593,7 @@ handleCommand runtime@Runtime {..} user command = do
         runAppMSafe runtime
         .   liftIO
         .   STM.atomically
-        $   selectUserByUsername _rDb user
+        $   Core.selectUserByUsername _rDb user
         >>= \case
               Just profile -> do
                 key <- newCreateSimpleContractForm _rDb (profile, input)
@@ -586,7 +607,7 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FormValidateSimpleContract input ->
-      liftIO . STM.atomically $ selectUserByUsername _rDb user >>= \case
+      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mcontract <- readCreateSimpleContractForm _rDb (profile, input)
           case mcontract of
@@ -627,17 +648,10 @@ setUserEmailAddrAsVerifiedFull
 setUserEmailAddrAsVerifiedFull db (user, input) = transaction
  where
   transaction = do
-    b <- canPerform 'User.SetUserEmailAddrAsVerified db user
+    b <- Core.canPerform 'User.SetUserEmailAddrAsVerified db user
     if b
       then setUserEmailAddrAsVerified db input
       else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
-
-canPerform :: Syntax.Name -> Data.StmDb runtime -> User.UserProfile -> STM Bool
-canPerform action _ User.UserProfile {..}
-  | action == 'User.SetUserEmailAddrAsVerified
-  = pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
-  | otherwise
-  = pure False
 
 instance S.DBTransaction AppM STM where
   liftTxn =
@@ -1390,10 +1404,10 @@ instance S.DBStorage AppM STM User.UserProfile where
 
   dbUpdate db@Data.Db {..} = \case
 
-    User.UserCreate input -> second pure <$> createUserFull db input
+    User.UserCreate input -> second pure <$> Core.createUserFull db input
 
     User.UserCreateGeneratingUserId input ->
-      second pure <$> createUser db input
+      second pure <$> Core.createUser db input
 
     User.UserDelete id ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
@@ -1418,16 +1432,12 @@ instance S.DBStorage AppM STM User.UserProfile where
 
     User.UserLoginWithUserName input -> toList <$> checkCredentials db input
 
-    User.SelectUserById        id    -> toList <$> selectUserById db id
+    User.SelectUserById        id    -> toList <$> Core.selectUserById db id
 
     User.SelectUserByUserName username ->
-      toList <$> selectUserByUsername db username
+      toList <$> Core.selectUserByUsername db username
 
 modifyUserProfiles id f userProfiles = STM.modifyTVar userProfiles f $> [id]
-
-selectUserById db id = do
-  let usersTVar = Data._dbUserProfiles db
-  STM.readTVar usersTVar <&> find ((== id) . S.dbId)
 
 selectUserByIdResolved db id = do
   let usersTVar = Data._dbUserProfiles db
@@ -1442,12 +1452,9 @@ selectUserByUsername
   :: forall runtime
    . Data.StmDb runtime
   -> User.UserName
-  -> STM (Maybe User.UserProfile)
-selectUserByUsername db username = do
-  let usersTVar = Data._dbUserProfiles db
-  users' <- STM.readTVar usersTVar
-  pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
-              users'
+  -> IO (Maybe User.UserProfile)
+selectUserByUsername db username =
+  STM.atomically $ Core.selectUserByUsername db username
 
 selectUserByUsernameResolved
   :: forall runtime
@@ -1470,73 +1477,15 @@ filterUsers runtime predicate = do
   users' <- STM.readTVar usersTVar
   pure $ filter (User.applyPredicate predicate) users'
 
-createUser
-  :: forall runtime
-   . Data.StmDb runtime
-  -> User.Signup
-  -> STM (Either User.UserErr User.UserId)
-createUser db User.Signup {..} = do
-  STM.catchSTM (Right <$> transaction) (pure . Left)
- where
-  transaction = do
-    newId <- generateUserId db
-    let newProfile = User.UserProfile
-          newId
-          (User.Credentials username password)
-          Nothing
-          Nothing
-          email
-          Nothing
-          tosConsent
-          (User.UserCompletion1 Nothing Nothing Nothing)
-          (User.UserCompletion2 Nothing Nothing)
-          -- The very first user has plenty of rights:
-          (if newId == firstUserId then firstUserRights else [])
-    -- We fail the transaction if createUserFull returns an error,
-    -- so that we don't increment _dbNextUserId.
-    createUserFull db newProfile >>= either STM.throwSTM pure
-
-createUserFull
-  :: forall runtime
-   . Data.StmDb runtime
-  -> User.UserProfile
-  -> STM (Either User.UserErr User.UserId)
-createUserFull db newProfile = if username `elem` User.usernameBlocklist
-  then pure . Left $ User.UsernameBlocked
-  else do
-    mprofile <- selectUserById db newProfileId
-    case mprofile of
-      Just _  -> existsErr
-      Nothing -> createNew
- where
-  username     = newProfile ^. User.userProfileCreds . User.userCredsName
-  newProfileId = S.dbId newProfile
-  createNew    = do
-    mprofile <- selectUserByUsername db username
-    case mprofile of
-      Just _  -> existsErr
-      Nothing -> do
-        modifyUsers db (++ [newProfile])
-        pure $ Right newProfileId
-  existsErr = pure . Left $ User.UserExists
-
-generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
-generateUserId Data.Db {..} =
-  User.UserId <$> C.bumpCounterPrefix User.userIdPrefix _dbNextUserId
-
-firstUserId :: User.UserId
-firstUserId = User.UserId $ User.userIdPrefix <> "1"
-
-firstUserRights :: [User.AccessRight]
-firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
-
-modifyUsers
-  :: forall runtime
-   . Data.StmDb runtime
-  -> ([User.UserProfile] -> [User.UserProfile])
-  -> STM ()
-modifyUsers db f =
-  let usersTVar = Data._dbUserProfiles db in STM.modifyTVar usersTVar f
+createUser :: User.Signup -> RunM (Either User.UserErr User.UserId)
+createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
+  ML.info $ "Creating user..."
+  db <- asks _rDb
+  muid <- liftIO . STM.atomically $ Core.createUser db input
+  case muid of
+    Right (User.UserId uid) -> ML.info $ "User created: " <> uid
+    Left err -> ML.info $ "Failed to create user: " <> show err
+  pure muid
 
 setUserEmailAddrAsVerified
   :: forall runtime
@@ -1544,7 +1493,7 @@ setUserEmailAddrAsVerified
   -> User.UserName
   -> STM (Either User.UserErr ())
 setUserEmailAddrAsVerified db username = do
-  mprofile <- selectUserByUsername db username
+  mprofile <- Core.selectUserByUsername db username
   case mprofile of
     Just User.UserProfile {..} -> case _userProfileEmailAddrVerified of
       Nothing -> do
@@ -1554,7 +1503,7 @@ setUserEmailAddrAsVerified db username = do
                   else u
               | u <- users
               ]
-        modifyUsers db replaceOlder
+        Core.modifyUsers db replaceOlder
         pure $ Right ()
       Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
     Nothing -> pure . Left $ User.UserNotFound $ User.unUserName username
@@ -1562,7 +1511,7 @@ setUserEmailAddrAsVerified db username = do
 checkCredentials
   :: Data.StmDb Runtime -> User.Credentials -> STM (Maybe User.UserProfile)
 checkCredentials db User.Credentials {..} = do
-  mprofile <- selectUserByUsername db _userCredsName
+  mprofile <- Core.selectUserByUsername db _userCredsName
   case mprofile of
     Just profile | checkPassword profile _userCredsPassword ->
       pure $ Just profile
@@ -1592,7 +1541,7 @@ selectEntityBySlugResolved db name = do
   case find ((== name) . Legal._entitySlug) records of
     Just entity -> do
       let select (Legal.ActingUserId uid role) = do
-            muser <- selectUserById db uid
+            muser <- Core.selectUserById db uid
             pure (muser, role)
       musers <- mapM select $ Legal._entityUsersAndRoles entity
       if any (isNothing . fst) musers
