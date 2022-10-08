@@ -2174,9 +2174,9 @@ withMaybeUnitFromName
   -> (Text -> m a)
   -> (Business.Unit -> m a)
   -> m a
-withMaybeUnitFromName name a f = do
-  munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name
-  maybe (a name) f munit
+withMaybeUnitFromName slug a f = do
+  munit <- withRuntime $ Rt.selectUnitBySlug slug
+  maybe (a slug) f munit
 
 
 --------------------------------------------------------------------------------

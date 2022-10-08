@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | STM operations around `Curiosity.Data`.
+
+-- brittany-disable-next-binding
 module Curiosity.Core
   ( reset
   , createUser
@@ -7,7 +9,6 @@ module Curiosity.Core
   , modifyUsers
   , selectUserById
   , selectUserByUsername
-  , canPerform
   -- * ID generation
   , generateUserId
   , generateBusinessId
@@ -19,6 +20,12 @@ module Curiosity.Core
   , generateInvoiceId
   , generateEmailId
   , firstUserId
+  -- * Operations on business units
+  , createBusiness
+  , updateBusiness
+  , selectUnitBySlug
+  -- * User rights
+  , canPerform
   ) where
 
 import qualified Control.Concurrent.STM        as STM
@@ -174,6 +181,65 @@ selectUserByUsername db username = do
   users' <- STM.readTVar usersTVar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
               users'
+
+
+--------------------------------------------------------------------------------
+createBusiness
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Business.Create
+  -> STM (Either Business.Err Business.UnitId)
+createBusiness db Business.Create {..} = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateBusinessId db
+    let new = Business.Unit newId _createSlug _createName Nothing
+    createBusinessFull db new >>= either STM.throwSTM pure
+
+createBusinessFull
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Business.Unit
+  -> STM (Either Business.Err Business.UnitId)
+createBusinessFull db new = do
+  modifyBusinessUnits db (++ [new])
+  pure . Right $ Business._entityId new
+
+updateBusiness
+  :: forall runtime
+   . Data.StmDb runtime
+  -> Business.Update
+  -> STM (Either Business.Err ())
+updateBusiness db Business.Update {..} = do
+  mentity <- selectUnitBySlug db _updateSlug
+  case mentity of
+    Just Business.Unit{} -> do
+      let replaceOlder entities =
+            [ if Business._entitySlug e == _updateSlug
+                then e { Business._entityDescription = _updateDescription }
+                else e
+            | e <- entities
+            ]
+      modifyBusinessUnits db replaceOlder
+      pure $ Right ()
+    Nothing ->
+      pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
+
+modifyBusinessUnits
+  :: forall runtime
+   . Data.StmDb runtime
+  -> ([Business.Unit] -> [Business.Unit])
+  -> STM ()
+modifyBusinessUnits db f =
+  let tvar = Data._dbBusinessUnits db in STM.modifyTVar tvar f
+
+selectUnitBySlug
+  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Unit)
+selectUnitBySlug db name = do
+  let tvar = Data._dbBusinessUnits db
+  records <- STM.readTVar tvar
+  pure $ find ((== name) . Business._entitySlug) records
 
 
 --------------------------------------------------------------------------------

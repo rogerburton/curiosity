@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+-- brittany-disable-next-binding
 module Curiosity.Runtime
   ( IOErr(..)
   , UnspeciedErr(..)
@@ -362,7 +363,7 @@ handleCommand runtime@Runtime {..} user command = do
             else LT.toStrict (Aeson.encodeToLazyText value)
       pure (ExitSuccess, [value'])
     Command.CreateBusinessEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createBusiness
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
         _rDb
         input
       case output of
@@ -373,7 +374,7 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.UpdateBusinessEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateBusiness
+      output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
         _rDb
         input
       case output of
@@ -677,52 +678,6 @@ instance S.DBTransaction AppM STM where
 
 
 --------------------------------------------------------------------------------
-createBusiness
-  :: forall runtime
-   . Data.StmDb runtime
-  -> Business.Create
-  -> STM (Either Business.Err Business.UnitId)
-createBusiness db Business.Create {..} = do
-  STM.catchSTM (Right <$> transaction) (pure . Left)
- where
-  transaction = do
-    newId <- Core.generateBusinessId db
-    let new = Business.Unit newId _createSlug _createName Nothing
-    createBusinessFull db new >>= either STM.throwSTM pure
-
-createBusinessFull
-  :: forall runtime
-   . Data.StmDb runtime
-  -> Business.Unit
-  -> STM (Either Business.Err Business.UnitId)
-createBusinessFull db new = do
-  modifyBusinessUnits db (++ [new])
-  pure . Right $ Business._entityId new
-
-updateBusiness db Business.Update {..} = do
-  mentity <- selectUnitBySlug db _updateSlug
-  case mentity of
-    Just Business.Unit{} -> do
-      let replaceOlder entities =
-            [ if Business._entitySlug e == _updateSlug
-                then e { Business._entityDescription = _updateDescription }
-                else e
-            | e <- entities
-            ]
-      modifyBusinessUnits db replaceOlder
-      pure $ Right ()
-    Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
-
-modifyBusinessUnits
-  :: forall runtime
-   . Data.StmDb runtime
-  -> ([Business.Unit] -> [Business.Unit])
-  -> STM ()
-modifyBusinessUnits db f =
-  let tvar = Data._dbBusinessUnits db in STM.modifyTVar tvar f
-
-
---------------------------------------------------------------------------------
 createLegal
   :: forall runtime
    . Data.StmDb runtime
@@ -772,6 +727,13 @@ modifyLegalEntities
   -> STM ()
 modifyLegalEntities db f =
   let tvar = Data._dbLegalEntities db in STM.modifyTVar tvar f
+
+
+--------------------------------------------------------------------------------
+selectUnitBySlug :: Text -> RunM (Maybe Business.Unit)
+selectUnitBySlug slug = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.selectUnitBySlug db slug
 
 
 --------------------------------------------------------------------------------
@@ -1611,13 +1573,6 @@ readLegalEntities db = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
   pure records
-
-selectUnitBySlug
-  :: forall runtime . Data.StmDb runtime -> Text -> STM (Maybe Business.Unit)
-selectUnitBySlug db name = do
-  let tvar = Data._dbBusinessUnits db
-  records <- STM.readTVar tvar
-  pure $ find ((== name) . Business._entitySlug) records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 

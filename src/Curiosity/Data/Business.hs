@@ -69,4 +69,6 @@ unitIdPrefix :: Text
 unitIdPrefix = "BENT-"
 
 data Err = Err
+  { unErr :: Text
+  }
   deriving (Eq, Exception, Show)
