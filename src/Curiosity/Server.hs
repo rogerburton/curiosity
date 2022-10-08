@@ -385,28 +385,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                               NoContent
                                             )
 
-             -- static data
-             :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
-
-             :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
-
-             :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
-
-             :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
-
-             :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
-
-             :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
-
-             -- live data
-             :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
+             :<|> Partials
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
@@ -433,6 +412,30 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 -- brittany-disable-next-binding
 type NamespaceAPI = Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
 
+-- brittany-disable-next-binding
+type Partials =
+  -- static data
+       "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
+
+  :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
+
+  :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
+
+  :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
+
+  :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
+
+  :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
+
+  -- live data
+  :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
 
 -- | This is the main Servant server definition, corresponding to @App@.
 serverT
@@ -519,8 +522,25 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> echoSimpleContractSaveExpense dataDir
     :<|> echoSimpleContractRemoveExpense dataDir
 
+    :<|> partials scenariosDir
+
+    :<|> showLoginPage
+    :<|> showSignupPage
+    :<|> showSetUserEmailAddrAsVerifiedPage
+    :<|> publicT conf jwtS
+    :<|> privateT conf
+    :<|> serveData dataDir
+    :<|> serveUBL dataDir
+    :<|> serveErrors
+    :<|> serveNamespaceDocumentation "alice"
+    :<|> serveEntity
+    :<|> websocket
+    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
+
+partials :: ServerC m => FilePath -> ServerT Partials m
+partials scenariosDir =
     -- static data
-    :<|> partialUsernameBlocklist
+         partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> partialRoles
     :<|> partialRolesAsJson
@@ -536,20 +556,6 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     -- live data
     :<|> partialLegalEntities
     :<|> partialLegalEntitiesAsJson
-
-    :<|> showLoginPage
-    :<|> showSignupPage
-    :<|> showSetUserEmailAddrAsVerifiedPage
-    :<|> publicT conf jwtS
-    :<|> privateT conf
-    :<|> serveData dataDir
-    :<|> serveUBL dataDir
-    :<|> serveErrors
-    :<|> serveNamespaceDocumentation "alice"
-    :<|> serveEntity
-    :<|> websocket
-    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
-
 
 --------------------------------------------------------------------------------
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be
