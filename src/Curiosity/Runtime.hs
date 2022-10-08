@@ -686,7 +686,7 @@ createBusiness db Business.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateBusinessId db
+    newId <- Core.generateBusinessId db
     let new = Business.Unit newId _createSlug _createName Nothing
     createBusinessFull db new >>= either STM.throwSTM pure
 
@@ -713,11 +713,6 @@ updateBusiness db Business.Update {..} = do
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
-generateBusinessId
-  :: forall runtime . Data.StmDb runtime -> STM Business.UnitId
-generateBusinessId Data.Db {..} =
-  Business.UnitId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
-
 modifyBusinessUnits
   :: forall runtime
    . Data.StmDb runtime
@@ -737,7 +732,7 @@ createLegal db Legal.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateLegalId db
+    newId <- Core.generateLegalId db
     let new = Legal.Entity newId
                            _createSlug
                            _createName
@@ -770,10 +765,6 @@ updateLegal db Legal.Update {..} = do
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
-generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.EntityId
-generateLegalId Data.Db {..} =
-  Legal.EntityId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
-
 modifyLegalEntities
   :: forall runtime
    . Data.StmDb runtime
@@ -793,7 +784,7 @@ createQuotation db _ = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateQuotationId db
+    newId <- Core.generateQuotationId db
     let new = Quotation.Quotation newId
     createQuotationFull db new >>= either STM.throwSTM pure
 
@@ -805,11 +796,6 @@ createQuotationFull
 createQuotationFull db new = do
   modifyQuotations db (++ [new])
   pure . Right $ Quotation._quotationId new
-
-generateQuotationId
-  :: forall runtime . Data.StmDb runtime -> STM Quotation.QuotationId
-generateQuotationId Data.Db {..} =
-  Quotation.QuotationId <$> C.bumpCounterPrefix "QUOT-" _dbNextQuotationId
 
 modifyQuotations
   :: forall runtime
@@ -839,7 +825,7 @@ createOrder db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateOrderId db
+    newId <- Core.generateOrderId db
     let new = Order.Order newId
     createOrderFull db new >>= either STM.throwSTM pure
 
@@ -851,10 +837,6 @@ createOrderFull
 createOrderFull db new = do
   modifyOrders db (++ [new])
   pure . Right $ Order._orderId new
-
-generateOrderId :: forall runtime . Data.StmDb runtime -> STM Order.OrderId
-generateOrderId Data.Db {..} =
-  Order.OrderId <$> C.bumpCounterPrefix "ORD-" _dbNextOrderId
 
 modifyOrders
   :: forall runtime
@@ -905,7 +887,7 @@ createRemittanceAdv db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateRemittanceAdvId db
+    newId <- Core.generateRemittanceAdvId db
     let new = RemittanceAdv.RemittanceAdv newId
     createRemittanceAdvFull db new >>= either STM.throwSTM pure
 
@@ -917,12 +899,6 @@ createRemittanceAdvFull
 createRemittanceAdvFull db new = do
   modifyRemittanceAdvs db (++ [new])
   pure . Right $ RemittanceAdv._remittanceAdvId new
-
-generateRemittanceAdvId
-  :: forall runtime . Data.StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
-generateRemittanceAdvId Data.Db {..} =
-  RemittanceAdv.RemittanceAdvId
-    <$> C.bumpCounterPrefix "REM-" _dbNextRemittanceAdvId
 
 modifyRemittanceAdvs
   :: forall runtime
@@ -943,7 +919,7 @@ createEmployment db _ = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateEmploymentId db
+    newId <- Core.generateEmploymentId db
     let new = Employment.Contract newId
     createEmploymentFull db new >>= either STM.throwSTM pure
 
@@ -955,11 +931,6 @@ createEmploymentFull
 createEmploymentFull db new = do
   modifyEmployments db (++ [new])
   pure . Right $ Employment._contractId new
-
-generateEmploymentId
-  :: forall runtime . Data.StmDb runtime -> STM Employment.ContractId
-generateEmploymentId Data.Db {..} =
-  Employment.ContractId <$> C.bumpCounterPrefix "EMP-" _dbNextEmploymentId
 
 modifyEmployments
   :: forall runtime
@@ -1385,7 +1356,7 @@ createInvoice db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateInvoiceId db
+    newId <- Core.generateInvoiceId db
     let new = Invoice.Invoice newId
     createInvoiceFull db new >>= either STM.throwSTM pure
 
@@ -1397,11 +1368,6 @@ createInvoiceFull
 createInvoiceFull db new = do
   modifyInvoices db (++ [new])
   pure . Right $ Invoice._entityId new
-
-generateInvoiceId
-  :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
-generateInvoiceId Data.Db {..} =
-  Invoice.InvoiceId <$> C.bumpCounterPrefix "INV-" _dbNextInvoiceId
 
 modifyInvoices
   :: forall runtime
@@ -1441,7 +1407,7 @@ createEmail db template emailAddr = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    newId <- generateEmailId db
+    newId <- Core.generateEmailId db
     let new = Email.Email newId template emailAddr
     createEmailFull db new >>= either STM.throwSTM pure
 
@@ -1453,10 +1419,6 @@ createEmailFull
 createEmailFull db new = do
   modifyEmails db (++ [new])
   pure . Right $ Email._emailId new
-
-generateEmailId :: forall runtime . Data.StmDb runtime -> STM Email.EmailId
-generateEmailId Data.Db {..} =
-  Email.EmailId <$> C.bumpCounterPrefix "EMAIL-" _dbNextEmailId
 
 modifyEmails
   :: forall runtime

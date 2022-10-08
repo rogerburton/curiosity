@@ -10,13 +10,29 @@ module Curiosity.Core
   , canPerform
   -- * ID generation
   , generateUserId
+  , generateBusinessId
+  , generateLegalId
+  , generateQuotationId
+  , generateOrderId
+  , generateRemittanceAdvId
+  , generateEmploymentId
+  , generateInvoiceId
+  , generateEmailId
   , firstUserId
   ) where
 
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Email          as Email
+import qualified Curiosity.Data.Employment     as Employment
+import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
+import qualified Curiosity.Data.Quotation      as Quotation
+import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.User           as User
 import qualified Language.Haskell.TH.Syntax    as Syntax
 
@@ -33,6 +49,46 @@ generateUserId :: forall runtime . Data.StmDb runtime -> STM User.UserId
 generateUserId Data.Db {..} =
   User.UserId <$> C.bumpCounterPrefix User.userIdPrefix _dbNextUserId
 
+generateBusinessId
+  :: forall runtime . Data.StmDb runtime -> STM Business.UnitId
+generateBusinessId Data.Db {..} =
+  Business.UnitId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
+
+generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.EntityId
+generateLegalId Data.Db {..} =
+  Legal.EntityId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
+
+generateQuotationId
+  :: forall runtime . Data.StmDb runtime -> STM Quotation.QuotationId
+generateQuotationId Data.Db {..} =
+  Quotation.QuotationId <$> C.bumpCounterPrefix "QUOT-" _dbNextQuotationId
+
+generateOrderId :: forall runtime . Data.StmDb runtime -> STM Order.OrderId
+generateOrderId Data.Db {..} =
+  Order.OrderId <$> C.bumpCounterPrefix "ORD-" _dbNextOrderId
+
+generateRemittanceAdvId
+  :: forall runtime . Data.StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
+generateRemittanceAdvId Data.Db {..} =
+  RemittanceAdv.RemittanceAdvId
+    <$> C.bumpCounterPrefix "REM-" _dbNextRemittanceAdvId
+
+generateEmploymentId
+  :: forall runtime . Data.StmDb runtime -> STM Employment.ContractId
+generateEmploymentId Data.Db {..} =
+  Employment.ContractId <$> C.bumpCounterPrefix "EMP-" _dbNextEmploymentId
+
+generateInvoiceId
+  :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
+generateInvoiceId Data.Db {..} =
+  Invoice.InvoiceId <$> C.bumpCounterPrefix "INV-" _dbNextInvoiceId
+
+generateEmailId :: forall runtime . Data.StmDb runtime -> STM Email.EmailId
+generateEmailId Data.Db {..} =
+  Email.EmailId <$> C.bumpCounterPrefix "EMAIL-" _dbNextEmailId
+
+
+--------------------------------------------------------------------------------
 firstUserId :: User.UserId
 firstUserId = User.UserId $ User.userIdPrefix <> "1"
 
