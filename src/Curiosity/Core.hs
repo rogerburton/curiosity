@@ -4,8 +4,9 @@
 -- brittany-disable-next-binding
 module Curiosity.Core
   (
+    StmDb
   -- * Whole database manipulation
-    instantiateEmptyStmDb
+  , instantiateEmptyStmDb
   , instantiateStmDb
   , reset
   , readFullStmDbInHask'
@@ -29,6 +30,10 @@ module Curiosity.Core
   , createBusiness
   , updateBusiness
   , selectUnitBySlug
+  -- * Pseudo-random number generation
+  , genRandomText
+  , readStdGen
+  , writeStdGen
   -- * User rights
   , canPerform
   ) where
@@ -46,10 +51,18 @@ import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.User           as User
+import qualified Data.List                     as L
+import qualified Data.Text                     as T
 import qualified Language.Haskell.TH.Syntax    as Syntax
+import qualified System.Random                 as Rand
+import qualified System.Random.Internal        as Rand
+import qualified System.Random.SplitMix        as SM
 
 
 --------------------------------------------------------------------------------
+-- | Stm database type, used for live example applications, values reside in @STM@
+type StmDb runtime = Db STM.TVar runtime
+
 -- | Generate a new empty database.
 instantiateEmptyStmDb :: STM (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
@@ -407,3 +420,28 @@ canPerform action _ User.UserProfile {..}
   = pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
   | otherwise
   = pure False
+
+
+--------------------------------------------------------------------------------
+
+readStdGen :: StmDb runtime -> STM Rand.StdGen
+readStdGen db = do
+  (seed, gamma) <- STM.readTVar $ _dbRandomGenState db
+  let g = Rand.StdGen $ SM.seedSMGen' (seed, gamma)
+  pure g
+
+writeStdGen :: StmDb runtime -> Rand.StdGen -> STM ()
+writeStdGen db g = do
+  let (seed, gamma) = SM.unseedSMGen $ Rand.unStdGen g
+  STM.writeTVar (_dbRandomGenState db) (seed, gamma)
+
+genRandomText :: forall runtime . StmDb runtime -> STM Text
+genRandomText db = do
+  g1 <- readStdGen db
+  let ags = take 8 $ unfoldr
+        (\g -> let (a, g') = Rand.uniformR ('A', 'Z') g in Just ((a, g'), g'))
+        g1
+      s  = T.pack $ fst <$> ags
+      g2 = snd $ L.last ags
+  writeStdGen db g2
+  pure s

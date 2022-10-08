@@ -28,11 +28,11 @@ import           Prelude                 hiding ( state )
 
 
 --------------------------------------------------------------------------------
-newtype Run a = Run { runM :: ReaderT (Data.StmDb ()) STM a }
+newtype Run a = Run { runM :: ReaderT (Core.StmDb ()) STM a }
   deriving ( Functor
            , Applicative
            , Monad
-           , MonadReader (Data.StmDb ())
+           , MonadReader (Core.StmDb ())
            )
 
 -- Is it possible to implement MonadFail only when the return type is Either ?

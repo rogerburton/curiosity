@@ -2,28 +2,27 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies   #-}
+{- |
+Module: Curiosity.Data
+Description: This module defines the central state data type.
+
+-}
+
+-- brittany-disable-next-binding
 module Curiosity.Data
   ( Db(..)
-  , StmDb
   , HaskDb
-  -- * Constraints
-  , RuntimeHasStmDb(..)
   -- * Instantiating databases.
   , emptyHask
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
   , deserialiseDbStrict
-  -- * Pseudo-random number generation.
-  , genRandomText
-  , readStdGen
-  , writeStdGen
   -- * Re-exports
   , Command.Command(..)
   ) where
 
 import qualified Commence.Runtime.Errors       as E
-import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Command        as Command
                                                 ( Command(..) )
@@ -38,7 +37,6 @@ import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
-import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
 import qualified System.Random                 as Rand
@@ -98,9 +96,6 @@ deriving instance Generic (HaskDb runtime)
 deriving anyclass instance ToJSON (HaskDb runtime)
 deriving anyclass instance FromJSON (HaskDb runtime)
 
--- | Stm database type, used for live example applications, values reside in @STM@
-type StmDb runtime = Db STM.TVar runtime
-
 -- | Instantiate a seed database that is empty.
 emptyHask :: forall runtime . HaskDb runtime
 emptyHask = Db (pure 1)
@@ -128,17 +123,8 @@ emptyHask = Db (pure 1)
                (pure 1)
                (pure mempty)
 
+initialGenState :: (Word64, Word64)
 initialGenState = randomGenState 42 -- Deterministic initial seed.
-
-{- | Provides us with the ability to constrain on a larger product-type (the
-@runtime@) to contain, in some form or another, a value of the `StmDb`, which
-can be accessed from the @runtime@.
-
-This solves cyclic imports, without caring about the concrete @runtime@ types,
-we can just rely on the constraints.
--}
-class RuntimeHasStmDb runtime where
-  stmDbFromRuntime :: runtime -> StmDb runtime
 
 newtype DbErr = DbDecodeFailed Text
               deriving Show
@@ -170,31 +156,10 @@ deserialiseDbStrict
 deserialiseDbStrict = first (DbDecodeFailed . T.pack) . eitherDecodeStrict
 {-# INLINE deserialiseDbStrict #-}
 
+
 --------------------------------------------------------------------------------
 -- We use System.Random.Internal and Sytem.Random.SplitMix to be able to keep
 -- the random generator internal state (a pair of Word64) in our Data.StmDb
 -- structure.
 randomGenState :: Int -> (Word64, Word64)
 randomGenState = SM.unseedSMGen . Rand.unStdGen . Rand.mkStdGen
-
-readStdGen :: StmDb runtime -> STM Rand.StdGen
-readStdGen db = do
-  (seed, gamma) <- STM.readTVar $ _dbRandomGenState db
-  let g = Rand.StdGen $ SM.seedSMGen' (seed, gamma)
-  pure g
-
-writeStdGen :: StmDb runtime -> Rand.StdGen -> STM ()
-writeStdGen db g = do
-  let (seed, gamma) = SM.unseedSMGen $ Rand.unStdGen g
-  STM.writeTVar (_dbRandomGenState db) (seed, gamma)
-
-genRandomText :: forall runtime . StmDb runtime -> STM Text
-genRandomText db = do
-  g1 <- readStdGen db
-  let ags = take 8 $ unfoldr
-        (\g -> let (a, g') = Rand.uniformR ('A', 'Z') g in Just ((a, g'), g'))
-        g1
-      s  = T.pack $ fst <$> ags
-      g2 = snd $ L.last ags
-  writeStdGen db g2
-  pure s

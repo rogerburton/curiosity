@@ -562,7 +562,7 @@ type ServerC m
     , MonadReader Rt.Runtime m
     , MonadIO m
     , Show (S.DBError m STM User.UserProfile)
-    , S.Db m STM User.UserProfile ~ Data.StmDb Rt.Runtime
+    , S.Db m STM User.UserProfile ~ Core.StmDb Rt.Runtime
     )
 
 
