@@ -10,8 +10,6 @@ module Curiosity.Data
   , RuntimeHasStmDb(..)
   -- * Instantiating databases.
   , emptyHask
-  , instantiateStmDb
-  , instantiateEmptyStmDb
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
@@ -135,43 +133,6 @@ emptyHask = Db (pure 1)
                (pure mempty)
 
 initialGenState = randomGenState 42 -- Deterministic initial seed.
-
-instantiateStmDb
-  :: forall runtime m . MonadIO m => HaskDb runtime -> m (StmDb runtime)
-instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextRemittanceAdvId = C.CounterValue (Identity seedNextRemittanceAdvId), _dbRemittanceAdvs = Identity seedRemittanceAdvs, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll, _dbNextEmailId = C.CounterValue (Identity seedNextEmailId), _dbEmails = Identity seedEmails }
-  =
-  -- We don't use `newTVarIO` repeatedly under here and instead wrap the whole
-  -- instantiation under a single STM transaction (@atomically@).
-    liftIO . STM.atomically $ do
-    _dbNextBusinessId              <- C.newCounter seedNextBusinessId
-    _dbBusinessUnits               <- STM.newTVar seedBusinessUnits
-    _dbNextLegalId                 <- C.newCounter seedNextLegalId
-    _dbLegalEntities               <- STM.newTVar seedLegalEntities
-    _dbNextUserId                  <- C.newCounter seedNextUserId
-    _dbUserProfiles                <- STM.newTVar seedProfiles
-    _dbNextQuotationId             <- C.newCounter seedNextQuotationId
-    _dbQuotations                  <- STM.newTVar seedQuotations
-    _dbNextOrderId                 <- C.newCounter seedNextOrderId
-    _dbOrders                      <- STM.newTVar seedOrders
-    _dbNextInvoiceId               <- C.newCounter seedNextInvoiceId
-    _dbInvoices                    <- STM.newTVar seedInvoices
-    _dbNextRemittanceAdvId         <- C.newCounter seedNextRemittanceAdvId
-    _dbRemittanceAdvs              <- STM.newTVar seedRemittanceAdvs
-    _dbNextEmploymentId            <- C.newCounter seedNextEmploymentId
-    _dbEmployments                 <- STM.newTVar seedEmployments
-
-    _dbRandomGenState              <- STM.newTVar seedRandomGenState
-    _dbFormCreateQuotationAll      <- STM.newTVar seedFormCreateQuotationAll
-    _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
-    _dbFormCreateSimpleContractAll <- STM.newTVar
-      seedFormCreateSimpleContractAll
-
-    _dbNextEmailId                 <- C.newCounter seedNextEmailId
-    _dbEmails                      <- STM.newTVar seedEmails
-    pure Db { .. }
-
-instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
-instantiateEmptyStmDb = instantiateStmDb emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHaskFromRuntime

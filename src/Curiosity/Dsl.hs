@@ -40,9 +40,10 @@ newtype Run a = Run { runM :: ReaderT (Data.StmDb ()) STM a }
 -- deriving instance MonadFail (Run (Either Text a))
 
 run :: forall a . HaskDb () -> Run a -> IO a
-run db Run {..} = do
-  db' <- Data.instantiateStmDb db
-  STM.atomically $ runReaderT runM db'
+run db Run {..} =
+  STM.atomically $ do
+     db' <- Core.instantiateStmDb db
+     runReaderT runM db'
 
 
 --------------------------------------------------------------------------------

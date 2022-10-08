@@ -204,7 +204,7 @@ boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
 boot' db logsPath = do
   let loggingConf = Command.mkLoggingConf logsPath
       _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
-  _rDb      <- Data.instantiateStmDb db
+  _rDb      <- liftIO . STM.atomically $ Core.instantiateStmDb db
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
   pure $ Runtime { .. }
 
@@ -292,8 +292,8 @@ readDb mpath = case mpath of
       else
         Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
           & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> Data.instantiateEmptyStmDb
-  useState = fmap Right . Data.instantiateStmDb
+  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
+  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
 
 -- | A safer version of readDb: this fails if the file doesn't exist or is
 -- empty. This helps in catching early mistake, e.g. from user specifying the
@@ -316,8 +316,8 @@ readDbSafe mpath = case mpath of
     fdata <- liftIO (T.readFile fpath)
     Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
       & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> Data.instantiateEmptyStmDb
-  useState = fmap Right . Data.instantiateStmDb
+  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
+  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
 
 -- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.

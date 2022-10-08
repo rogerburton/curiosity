@@ -3,7 +3,11 @@
 
 -- brittany-disable-next-binding
 module Curiosity.Core
-  ( reset
+  (
+  -- * Whole database manipulation
+    instantiateEmptyStmDb
+  , instantiateStmDb
+  , reset
   , createUser
   , createUserFull
   , modifyUsers
@@ -45,7 +49,67 @@ import qualified Language.Haskell.TH.Syntax    as Syntax
 
 
 --------------------------------------------------------------------------------
+-- | Generate a new empty database.
+instantiateEmptyStmDb :: STM (StmDb runtime)
+instantiateEmptyStmDb = instantiateStmDb emptyHask
+
 -- brittany-disable-next-binding
+-- | Generate a new database from a given pure value.
+instantiateStmDb :: HaskDb runtime -> STM (StmDb runtime)
+instantiateStmDb Db
+  { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId)
+  , _dbBusinessUnits = Identity seedBusinessUnits
+  , _dbNextLegalId = C.CounterValue (Identity seedNextLegalId)
+  , _dbLegalEntities = Identity seedLegalEntities
+  , _dbNextUserId = C.CounterValue (Identity seedNextUserId)
+  , _dbUserProfiles = Identity seedProfiles
+  , _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId)
+  , _dbQuotations = Identity seedQuotations
+  , _dbNextOrderId = C.CounterValue (Identity seedNextOrderId)
+  , _dbOrders = Identity seedOrders
+  , _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId)
+  , _dbInvoices = Identity seedInvoices
+  , _dbNextRemittanceAdvId = C.CounterValue (Identity seedNextRemittanceAdvId)
+  , _dbRemittanceAdvs = Identity seedRemittanceAdvs
+  , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
+  , _dbEmployments = Identity seedEmployments
+  , _dbRandomGenState = Identity seedRandomGenState
+  , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
+  , _dbFormCreateContractAll = Identity seedFormCreateContractAll
+  , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
+  , _dbNextEmailId = C.CounterValue (Identity seedNextEmailId)
+  , _dbEmails = Identity seedEmails
+  }
+  = do
+    _dbNextBusinessId              <- C.newCounter seedNextBusinessId
+    _dbBusinessUnits               <- STM.newTVar seedBusinessUnits
+    _dbNextLegalId                 <- C.newCounter seedNextLegalId
+    _dbLegalEntities               <- STM.newTVar seedLegalEntities
+    _dbNextUserId                  <- C.newCounter seedNextUserId
+    _dbUserProfiles                <- STM.newTVar seedProfiles
+    _dbNextQuotationId             <- C.newCounter seedNextQuotationId
+    _dbQuotations                  <- STM.newTVar seedQuotations
+    _dbNextOrderId                 <- C.newCounter seedNextOrderId
+    _dbOrders                      <- STM.newTVar seedOrders
+    _dbNextInvoiceId               <- C.newCounter seedNextInvoiceId
+    _dbInvoices                    <- STM.newTVar seedInvoices
+    _dbNextRemittanceAdvId         <- C.newCounter seedNextRemittanceAdvId
+    _dbRemittanceAdvs              <- STM.newTVar seedRemittanceAdvs
+    _dbNextEmploymentId            <- C.newCounter seedNextEmploymentId
+    _dbEmployments                 <- STM.newTVar seedEmployments
+
+    _dbRandomGenState              <- STM.newTVar seedRandomGenState
+    _dbFormCreateQuotationAll      <- STM.newTVar seedFormCreateQuotationAll
+    _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
+    _dbFormCreateSimpleContractAll <- STM.newTVar
+      seedFormCreateSimpleContractAll
+
+    _dbNextEmailId                 <- C.newCounter seedNextEmailId
+    _dbEmails                      <- STM.newTVar seedEmails
+    pure Db { .. }
+
+-- brittany-disable-next-binding
+-- | Reset the database to the empty state.
 reset :: StmDb runtime -> STM ()
 reset stmDb = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
@@ -102,30 +166,36 @@ reset stmDb = do
 
 
 --------------------------------------------------------------------------------
+-- | Generate a fresh user ID.
 generateUserId :: forall runtime . StmDb runtime -> STM User.UserId
 generateUserId Db {..} =
   User.UserId <$> C.bumpCounterPrefix User.userIdPrefix _dbNextUserId
 
+-- | Generate a fresh busines unit ID.
 generateBusinessId
   :: forall runtime . StmDb runtime -> STM Business.UnitId
 generateBusinessId Db {..} =
   Business.UnitId
     <$> C.bumpCounterPrefix Business.unitIdPrefix _dbNextBusinessId
 
+-- | Generate a fresh legal entity ID.
 generateLegalId :: forall runtime . StmDb runtime -> STM Legal.EntityId
 generateLegalId Db {..} =
   Legal.EntityId <$> C.bumpCounterPrefix Legal.entityIdPrefix _dbNextLegalId
 
+-- | Generate a fresh quotation ID.
 generateQuotationId
   :: forall runtime . StmDb runtime -> STM Quotation.QuotationId
 generateQuotationId Db {..} =
   Quotation.QuotationId
     <$> C.bumpCounterPrefix Quotation.quotationIdPrefix _dbNextQuotationId
 
+-- | Generate a fresh order ID.
 generateOrderId :: forall runtime . StmDb runtime -> STM Order.OrderId
 generateOrderId Db {..} =
   Order.OrderId <$> C.bumpCounterPrefix Order.orderIdPrefix _dbNextOrderId
 
+-- | Generate a fresh remittance advice ID.
 generateRemittanceAdvId
   :: forall runtime . StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
 generateRemittanceAdvId Db {..} =
@@ -133,24 +203,29 @@ generateRemittanceAdvId Db {..} =
     <$> C.bumpCounterPrefix RemittanceAdv.remittanceAdvIdPrefix
                             _dbNextRemittanceAdvId
 
+-- | Generate a fresh employment contract ID.
 generateEmploymentId
   :: forall runtime . StmDb runtime -> STM Employment.ContractId
 generateEmploymentId Db {..} =
   Employment.ContractId
     <$> C.bumpCounterPrefix Employment.contractIdPrefix _dbNextEmploymentId
 
+-- | Generate a fresh invoice ID.
 generateInvoiceId
   :: forall runtime . StmDb runtime -> STM Invoice.InvoiceId
 generateInvoiceId Db {..} =
   Invoice.InvoiceId
     <$> C.bumpCounterPrefix Invoice.invoiceIdPrefix _dbNextInvoiceId
 
+-- | Generate a fresh email ID.
 generateEmailId :: forall runtime . StmDb runtime -> STM Email.EmailId
 generateEmailId Db {..} =
   Email.EmailId <$> C.bumpCounterPrefix Email.emailIdPrefix _dbNextEmailId
 
 
 --------------------------------------------------------------------------------
+-- | Define the first user ID. A test exists to make sure this matches the
+-- behavior of `generateUserId`.
 firstUserId :: User.UserId
 firstUserId = User.UserId $ User.userIdPrefix <> "1"
 
