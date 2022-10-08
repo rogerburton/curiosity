@@ -217,6 +217,11 @@ reset = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.reset db
 
+-- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
+readFullStmDbInHask
+  :: forall runtime m . MonadIO m => Data.StmDb runtime -> m (Data.HaskDb runtime)
+readFullStmDbInHask = liftIO . STM.atomically . Core.readFullStmDbInHask'
+
 -- | Power down the application: attempting to save the DB state in given file,
 -- if possible, and reporting errors otherwise.
 powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
@@ -246,13 +251,17 @@ saveDb runtime =
 
 saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
 saveDbAs runtime fpath = do
-  haskDb <- Data.readFullStmDbInHask $ _rDb runtime
+  haskDb <- readFullStmDbInHask $ _rDb runtime
   let bs = Data.serialiseDb haskDb
   liftIO
       (try @SomeException (T.writeFile fpath . TE.decodeUtf8 $ BS.toStrict bs))
     <&> either (Just . Errs.RuntimeException) (const Nothing)
 
-state runtime = Data.readFullStmDbInHask $ _rDb runtime
+-- | Retrieve the whole state as a pure value.
+state :: RunM (Data.HaskDb Runtime)
+state = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.readFullStmDbInHask' db
 
 {- | Instantiate the db.
 
@@ -355,7 +364,7 @@ handleCommand
 handleCommand runtime@Runtime {..} user command = do
   case command of
     Command.State useHs -> do
-      value <- runRunM runtime $ ask >>= Data.readFullStmDbInHaskFromRuntime
+      value <- runRunM runtime state
       let value' = if useHs
             then show value
             else LT.toStrict (Aeson.encodeToLazyText value)

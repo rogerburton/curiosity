@@ -8,6 +8,7 @@ module Curiosity.Core
     instantiateEmptyStmDb
   , instantiateStmDb
   , reset
+  , readFullStmDbInHask'
   , createUser
   , createUserFull
   , modifyUsers
@@ -163,6 +164,38 @@ reset stmDb = do
     , _dbEmails = Identity seedEmails
     }
     = emptyHask
+
+-- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
+readFullStmDbInHask' :: StmDb runtime -> STM (HaskDb runtime)
+readFullStmDbInHask' stmDb = do
+  _dbNextBusinessId         <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
+  _dbBusinessUnits          <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
+  _dbNextLegalId            <- pure <$> C.readCounter (_dbNextLegalId stmDb)
+  _dbLegalEntities          <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
+  _dbNextUserId             <- pure <$> C.readCounter (_dbNextUserId stmDb)
+  _dbUserProfiles           <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbNextQuotationId        <- pure <$> C.readCounter (_dbNextQuotationId stmDb)
+  _dbQuotations             <- pure <$> STM.readTVar (_dbQuotations stmDb)
+  _dbNextOrderId            <- pure <$> C.readCounter (_dbNextOrderId stmDb)
+  _dbOrders                 <- pure <$> STM.readTVar (_dbOrders stmDb)
+  _dbNextInvoiceId          <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
+  _dbInvoices               <- pure <$> STM.readTVar (_dbInvoices stmDb)
+  _dbNextRemittanceAdvId    <- pure <$> C.readCounter (_dbNextRemittanceAdvId stmDb)
+  _dbRemittanceAdvs         <- pure <$> STM.readTVar (_dbRemittanceAdvs stmDb)
+  _dbNextEmploymentId       <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
+  _dbEmployments            <- pure <$> STM.readTVar (_dbEmployments stmDb)
+
+  _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
+  _dbFormCreateQuotationAll <- pure
+    <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
+  _dbFormCreateContractAll  <- pure
+    <$> STM.readTVar (_dbFormCreateContractAll stmDb)
+  _dbFormCreateSimpleContractAll <- pure
+    <$> STM.readTVar (_dbFormCreateSimpleContractAll stmDb)
+
+  _dbNextEmailId            <- pure <$> C.readCounter (_dbNextEmailId stmDb)
+  _dbEmails                 <- pure <$> STM.readTVar (_dbEmails stmDb)
+  pure Db { .. }
 
 
 --------------------------------------------------------------------------------

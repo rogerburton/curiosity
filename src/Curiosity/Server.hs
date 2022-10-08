@@ -40,7 +40,6 @@ import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
-                                                , readFullStmDbInHask
                                                 )
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Country        as Country
@@ -2281,8 +2280,7 @@ listScenarioNames scenariosDir = do
 --------------------------------------------------------------------------------
 showState :: ServerC m => m Pages.EchoPage
 showState = do
-  stmDb <- asks Rt._rDb
-  db    <- readFullStmDbInHask stmDb
+  db <- withRuntime Rt.state
   pure . Pages.EchoPage $ show db
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
@@ -2290,8 +2288,7 @@ showState = do
 showStateAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 showStateAsJson = do
-  stmDb <- asks Rt._rDb
-  db    <- readFullStmDbInHask stmDb
+  db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db
 
 

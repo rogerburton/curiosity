@@ -16,7 +16,8 @@ spec = do
     it "Should boot." $ do
       -- TODO I don't like that this involves logging stuff.
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-1.log"
-      st <- readFullStmDbInHaskFromRuntime runtime
+      let db = _rDb runtime
+      st <- atomically $ readFullStmDbInHask' db
       st `shouldBe` emptyHask
 
   describe "Runtime / Users" $ do

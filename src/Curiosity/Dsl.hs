@@ -21,7 +21,6 @@ import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
-                                                , readFullStmDbInHask'
                                                 )
 import qualified Curiosity.Data.User           as User
 import qualified Language.Haskell.TH.Syntax    as Syntax
@@ -50,7 +49,7 @@ run db Run {..} =
 db0 = Data.emptyHask
 
 state :: Run (HaskDb ())
-state = ask >>= (Run . lift . readFullStmDbInHask')
+state = ask >>= (Run . lift . Core.readFullStmDbInHask')
 
 reset :: Run ()
 reset = ask >>= (Run . lift . Core.reset)

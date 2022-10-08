@@ -10,10 +10,6 @@ module Curiosity.Data
   , RuntimeHasStmDb(..)
   -- * Instantiating databases.
   , emptyHask
-  -- * Reading values from the database.
-  , readFullStmDbInHaskFromRuntime
-  , readFullStmDbInHask
-  , readFullStmDbInHask'
   -- * Serialising and deseralising DB to bytes.
   , serialiseDb
   , deserialiseDb
@@ -133,50 +129,6 @@ emptyHask = Db (pure 1)
                (pure mempty)
 
 initialGenState = randomGenState 42 -- Deterministic initial seed.
-
--- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHaskFromRuntime
-  :: forall runtime m
-   . (MonadIO m, RuntimeHasStmDb runtime)
-  => runtime
-  -> m (HaskDb runtime)
-readFullStmDbInHaskFromRuntime = readFullStmDbInHask . stmDbFromRuntime
-{-# INLINE readFullStmDbInHaskFromRuntime #-}
-
--- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask
-  :: forall runtime m . MonadIO m => StmDb runtime -> m (HaskDb runtime)
-readFullStmDbInHask = liftIO . STM.atomically . readFullStmDbInHask'
-
-readFullStmDbInHask' stmDb = do
-  _dbNextBusinessId         <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
-  _dbBusinessUnits          <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
-  _dbNextLegalId            <- pure <$> C.readCounter (_dbNextLegalId stmDb)
-  _dbLegalEntities          <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
-  _dbNextUserId             <- pure <$> C.readCounter (_dbNextUserId stmDb)
-  _dbUserProfiles           <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-  _dbNextQuotationId        <- pure <$> C.readCounter (_dbNextQuotationId stmDb)
-  _dbQuotations             <- pure <$> STM.readTVar (_dbQuotations stmDb)
-  _dbNextOrderId            <- pure <$> C.readCounter (_dbNextOrderId stmDb)
-  _dbOrders                 <- pure <$> STM.readTVar (_dbOrders stmDb)
-  _dbNextInvoiceId          <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
-  _dbInvoices               <- pure <$> STM.readTVar (_dbInvoices stmDb)
-  _dbNextRemittanceAdvId    <- pure <$> C.readCounter (_dbNextRemittanceAdvId stmDb)
-  _dbRemittanceAdvs         <- pure <$> STM.readTVar (_dbRemittanceAdvs stmDb)
-  _dbNextEmploymentId       <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
-  _dbEmployments            <- pure <$> STM.readTVar (_dbEmployments stmDb)
-
-  _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
-  _dbFormCreateQuotationAll <- pure
-    <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
-  _dbFormCreateContractAll  <- pure
-    <$> STM.readTVar (_dbFormCreateContractAll stmDb)
-  _dbFormCreateSimpleContractAll <- pure
-    <$> STM.readTVar (_dbFormCreateSimpleContractAll stmDb)
-
-  _dbNextEmailId            <- pure <$> C.readCounter (_dbNextEmailId stmDb)
-  _dbEmails                 <- pure <$> STM.readTVar (_dbEmails stmDb)
-  pure Db { .. }
 
 {- | Provides us with the ability to constrain on a larger product-type (the
 @runtime@) to contain, in some form or another, a value of the `StmDb`, which
