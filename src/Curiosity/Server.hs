@@ -1117,7 +1117,6 @@ handleSubmitQuotation
   -> User.UserProfile
   -> m Pages.EchoPage
 handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
-  db     <- asks Rt._rDb
   output <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotation -> pure . Pages.EchoPage $ show

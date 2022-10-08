@@ -116,8 +116,7 @@ interpret' runtime user dir content nesting = go user [] 0
             acc' = acc ++ [t]
         go user' acc' nbr' rest
       input -> do
-        let output_ = [show ln <> ": " <> grouped]
-            result =
+        let result =
               A.execParserPure A.defaultPrefs Command.parserInfo
                 $   T.unpack
                 <$> input

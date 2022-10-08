@@ -12,7 +12,6 @@ module Curiosity.Data
   , emptyHask
   , instantiateStmDb
   , instantiateEmptyStmDb
-  , resetStmDb'
   -- * Reading values from the database.
   , readFullStmDbInHaskFromRuntime
   , readFullStmDbInHask
@@ -173,36 +172,6 @@ instantiateStmDb Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusin
 
 instantiateEmptyStmDb :: forall runtime m . MonadIO m => m (StmDb runtime)
 instantiateEmptyStmDb = instantiateStmDb emptyHask
-
-resetStmDb' stmDb = do
-  C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
-  STM.writeTVar (_dbBusinessUnits stmDb) seedBusinessUnits
-  C.writeCounter (_dbNextLegalId stmDb) seedNextLegalId
-  STM.writeTVar (_dbLegalEntities stmDb) seedLegalEntities
-  C.writeCounter (_dbNextUserId stmDb) seedNextUserId
-  STM.writeTVar (_dbUserProfiles stmDb) seedProfiles
-  C.writeCounter (_dbNextQuotationId stmDb) seedNextQuotationId
-  STM.writeTVar (_dbQuotations stmDb) seedQuotations
-  C.writeCounter (_dbNextOrderId stmDb) seedNextOrderId
-  STM.writeTVar (_dbOrders stmDb) seedOrders
-  C.writeCounter (_dbNextInvoiceId stmDb) seedNextInvoiceId
-  STM.writeTVar (_dbInvoices stmDb) seedInvoices
-  C.writeCounter (_dbNextRemittanceAdvId stmDb) seedNextRemittanceAdvId
-  STM.writeTVar (_dbRemittanceAdvs stmDb) seedRemittanceAdvs
-  C.writeCounter (_dbNextEmploymentId stmDb) seedNextEmploymentId
-  STM.writeTVar (_dbEmployments stmDb) seedEmployments
-
-  STM.writeTVar (_dbRandomGenState stmDb) seedRandomGenState
-  STM.writeTVar (_dbFormCreateQuotationAll stmDb) seedFormCreateQuotationAll
-  STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
-  STM.writeTVar (_dbFormCreateSimpleContractAll stmDb)
-                seedFormCreateSimpleContractAll
-
-  C.writeCounter (_dbNextEmailId stmDb) seedNextEmailId
-  STM.writeTVar (_dbEmails stmDb) seedEmails
- where
-  Db { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId), _dbBusinessUnits = Identity seedBusinessUnits, _dbNextLegalId = C.CounterValue (Identity seedNextLegalId), _dbLegalEntities = Identity seedLegalEntities, _dbNextUserId = C.CounterValue (Identity seedNextUserId), _dbUserProfiles = Identity seedProfiles, _dbNextQuotationId = C.CounterValue (Identity seedNextQuotationId), _dbQuotations = Identity seedQuotations, _dbNextOrderId = C.CounterValue (Identity seedNextOrderId), _dbOrders = Identity seedOrders, _dbNextInvoiceId = C.CounterValue (Identity seedNextInvoiceId), _dbInvoices = Identity seedInvoices, _dbNextRemittanceAdvId = C.CounterValue (Identity seedNextRemittanceAdvId), _dbRemittanceAdvs = Identity seedRemittanceAdvs, _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId), _dbEmployments = Identity seedEmployments, _dbRandomGenState = Identity seedRandomGenState, _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll, _dbFormCreateContractAll = Identity seedFormCreateContractAll, _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll, _dbNextEmailId = C.CounterValue (Identity seedNextEmailId), _dbEmails = Identity seedEmails }
-    = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHaskFromRuntime

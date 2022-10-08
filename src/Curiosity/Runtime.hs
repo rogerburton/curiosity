@@ -83,7 +83,6 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
-import qualified Curiosity.Data.Counter        as C
 import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Invoice        as Invoice
@@ -102,7 +101,6 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
-import qualified Language.Haskell.TH.Syntax    as Syntax
 import qualified Network.HTTP.Types            as HTTP
 import           Prelude                 hiding ( state )
 import qualified Servant
