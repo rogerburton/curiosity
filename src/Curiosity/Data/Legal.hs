@@ -9,6 +9,7 @@ module Curiosity.Data.Legal
   , Create(..)
   , Update(..)
   , EntityId(..)
+  , entityIdPrefix
   , RegistrationName(..)
   , ActingUserId(..)
   , ActingUser(..)
@@ -84,6 +85,9 @@ newtype EntityId = EntityId { unEntityId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "legal-id" Text
+
+entityIdPrefix :: Text
+entityIdPrefix = "LENT-"
 
 -- | A registation name.
 newtype RegistrationName = RegistrationName { unRegistrationName :: Text }

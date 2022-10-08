@@ -9,6 +9,7 @@ module Curiosity.Data.Business
   , Create(..)
   , Update(..)
   , UnitId(..)
+  , unitIdPrefix
   , Err(..)
   ) where
 
@@ -63,6 +64,9 @@ newtype UnitId = UnitId { unUnitId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "unit-id" Text
+
+unitIdPrefix :: Text
+unitIdPrefix = "BENT-"
 
 data Err = Err
   deriving (Eq, Exception, Show)

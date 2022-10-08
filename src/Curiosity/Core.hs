@@ -52,40 +52,45 @@ generateUserId Data.Db {..} =
 generateBusinessId
   :: forall runtime . Data.StmDb runtime -> STM Business.UnitId
 generateBusinessId Data.Db {..} =
-  Business.UnitId <$> C.bumpCounterPrefix "BENT-" _dbNextBusinessId
+  Business.UnitId
+    <$> C.bumpCounterPrefix Business.unitIdPrefix _dbNextBusinessId
 
 generateLegalId :: forall runtime . Data.StmDb runtime -> STM Legal.EntityId
 generateLegalId Data.Db {..} =
-  Legal.EntityId <$> C.bumpCounterPrefix "LENT-" _dbNextLegalId
+  Legal.EntityId <$> C.bumpCounterPrefix Legal.entityIdPrefix _dbNextLegalId
 
 generateQuotationId
   :: forall runtime . Data.StmDb runtime -> STM Quotation.QuotationId
 generateQuotationId Data.Db {..} =
-  Quotation.QuotationId <$> C.bumpCounterPrefix "QUOT-" _dbNextQuotationId
+  Quotation.QuotationId
+    <$> C.bumpCounterPrefix Quotation.quotationIdPrefix _dbNextQuotationId
 
 generateOrderId :: forall runtime . Data.StmDb runtime -> STM Order.OrderId
 generateOrderId Data.Db {..} =
-  Order.OrderId <$> C.bumpCounterPrefix "ORD-" _dbNextOrderId
+  Order.OrderId <$> C.bumpCounterPrefix Order.orderIdPrefix _dbNextOrderId
 
 generateRemittanceAdvId
   :: forall runtime . Data.StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
 generateRemittanceAdvId Data.Db {..} =
   RemittanceAdv.RemittanceAdvId
-    <$> C.bumpCounterPrefix "REM-" _dbNextRemittanceAdvId
+    <$> C.bumpCounterPrefix RemittanceAdv.remittanceAdvIdPrefix
+                            _dbNextRemittanceAdvId
 
 generateEmploymentId
   :: forall runtime . Data.StmDb runtime -> STM Employment.ContractId
 generateEmploymentId Data.Db {..} =
-  Employment.ContractId <$> C.bumpCounterPrefix "EMP-" _dbNextEmploymentId
+  Employment.ContractId
+    <$> C.bumpCounterPrefix Employment.contractIdPrefix _dbNextEmploymentId
 
 generateInvoiceId
   :: forall runtime . Data.StmDb runtime -> STM Invoice.InvoiceId
 generateInvoiceId Data.Db {..} =
-  Invoice.InvoiceId <$> C.bumpCounterPrefix "INV-" _dbNextInvoiceId
+  Invoice.InvoiceId
+    <$> C.bumpCounterPrefix Invoice.invoiceIdPrefix _dbNextInvoiceId
 
 generateEmailId :: forall runtime . Data.StmDb runtime -> STM Email.EmailId
 generateEmailId Data.Db {..} =
-  Email.EmailId <$> C.bumpCounterPrefix "EMAIL-" _dbNextEmailId
+  Email.EmailId <$> C.bumpCounterPrefix Email.emailIdPrefix _dbNextEmailId
 
 
 --------------------------------------------------------------------------------

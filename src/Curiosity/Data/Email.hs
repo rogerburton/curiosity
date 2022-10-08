@@ -13,6 +13,7 @@ module Curiosity.Data.Email
   ( -- * Main data representation
     Email(..)
   , EmailId(..)
+  , emailIdPrefix
   , EmailTemplate(..)
   , Err(..)
   ) where
@@ -45,6 +46,9 @@ newtype EmailId = EmailId { unEmailId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "email-id" Text
+
+emailIdPrefix :: Text
+emailIdPrefix = "EMAIL-"
 
 data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail | InvoiceReminderEmail
   deriving (Show, Eq, Generic)

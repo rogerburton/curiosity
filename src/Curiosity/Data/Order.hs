@@ -12,6 +12,7 @@ module Curiosity.Data.Order
   ( -- * Main data representation
     Order(..)
   , OrderId(..)
+  , orderIdPrefix
   , Err(..)
   ) where
 
@@ -40,6 +41,9 @@ newtype OrderId = OrderId { unOrderId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "order-id" Text
+
+orderIdPrefix :: Text
+orderIdPrefix = "ORD-"
 
 data Err = Err
   { unErr :: Text
