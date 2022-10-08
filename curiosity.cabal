@@ -118,6 +118,7 @@ library
     Curiosity.Html.Legal
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
+    Curiosity.Html.Quotation
     Curiosity.Html.Run
     Curiosity.Html.SimpleContract
     Curiosity.Html.User
