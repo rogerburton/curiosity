@@ -297,7 +297,7 @@ instance Errs.IsRuntimeErr UserErr where
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
-    MissingRight a              -> "MISSING_RIGHT_" <> "TODO"
+    MissingRight _              -> "MISSING_RIGHT_" <> "TODO"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case

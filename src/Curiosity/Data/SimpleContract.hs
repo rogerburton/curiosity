@@ -47,7 +47,7 @@ module Curiosity.Data.SimpleContract
     -- $roles
   , Role0(..)
   , Role1(..)
-  , Role(..)
+  , Role
   , roles
   , lookupRoleLabel
     -- * VAT rates
@@ -132,7 +132,7 @@ data CreateContractRisks = CreateContractRisks
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateContractRisks where
-  fromForm f = pure CreateContractRisks
+  fromForm _ = pure CreateContractRisks
 
 data CreateContractClient = CreateContractClient
   { _createContractClientUsername :: Maybe User.UserName
@@ -145,7 +145,7 @@ instance FromForm CreateContractClient where
     -- TODO Make it a re-usable function.
     -- or add this non-empty logic directly to the UserName data type.
    where
-    p f = case (parseQueryParams <=< lookupMaybe "client-username") f of
+    p f' = case (parseQueryParams <=< lookupMaybe "client-username") f' of
       Left  err       -> Left err
       Right (Just "") -> Right Nothing
       Right value     -> Right value
@@ -385,7 +385,7 @@ roles' :: [Role]
 roles' = concatMap go0 roles
  where
   go0 (Role0 title0 roles1) = concatMap (go1 title0) roles1
-  go1 title0 (Role1 title1 roles) = map (go title0 title1) roles
+  go1 title0 (Role1 title1 rs) = map (go title0 title1) rs
   go title0 title1 (value, label) =
     (value, unwords [title0, ">", title1, ">", label])
 

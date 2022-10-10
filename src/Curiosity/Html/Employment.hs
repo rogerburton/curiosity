@@ -237,7 +237,7 @@ data RemoveExpensePage = RemoveExpensePage
   }
 
 instance H.ToMarkup RemoveExpensePage where
-  toMarkup (RemoveExpensePage profile key mindex expense submitUrl) =
+  toMarkup (RemoveExpensePage profile _ _ expense submitUrl) =
     renderFormLarge profile $ do
       title' "Remove expense" Nothing
 
@@ -293,7 +293,7 @@ instance H.ToMarkup ConfirmContractPage where
               H.p
                 ! A.class_ "u-text-muted c-body-1"
                 $ "You have no expenses right now."
-            else Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+            else Misc.table titles display expenses
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
@@ -303,9 +303,7 @@ instance H.ToMarkup ConfirmContractPage where
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
     titles = ["Amount"]
     display
-      :: Text
-      -> Int
-      -> Employment.AddExpense
+      :: Employment.AddExpense
       -> ([Text], [(H.Html, Text, Text)], Maybe Text)
-    display key i Employment.AddExpense {..} =
+    display Employment.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)

@@ -104,8 +104,6 @@ instance H.ToMarkup CreateSimpleContractPage where
     client = SimpleContract._createContractClient contract
     inv = SimpleContract._createContractInvoice contract
     expenses = SimpleContract._createContractExpenses contract
-    username =
-      User.unUserName . User._userCredsName $ User._userProfileCreds profile
 
 information =
   H.div ! A.class_ "u-spacer-bottom-l" $ H.toMarkup $ Alert.Alert
@@ -323,14 +321,6 @@ groupExpenses editExpenseBaseUrl removeExpenseBaseUrl mkey expenses submitUrl = 
     , (Just $ editExpenseBaseUrl <> key <> "/" <> show i)
     )
 
-formKeyValue :: Text -> Text -> H.Html
-formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
-  H.label ! A.class_ "o-form-group__label" $ H.text label
-  H.div
-    ! A.class_ "o-form-group__controls o-form-group__controls--full-width"
-    $ H.label
-    $ H.text value
-
 
 --------------------------------------------------------------------------------
 data SelectRolePage = SelectRolePage
@@ -348,12 +338,12 @@ instance H.ToMarkup SelectRolePage where
     H.div ! A.class_ "c-display" $ do
       mapM_ (displayRole0 confirmRoleBaseUrl key) SimpleContract.roles
 
-displayRole0 confirmRoleBaseUrl key (SimpleContract.Role0 title roles1) = do
-  H.h3 $ H.text title
+displayRole0 confirmRoleBaseUrl key (SimpleContract.Role0 title_ roles1) = do
+  H.h3 $ H.text title_
   mapM_ (displayRole1 confirmRoleBaseUrl key) roles1
 
-displayRole1 confirmRoleBaseUrl key (SimpleContract.Role1 title roles) = do
-  H.h4 $ H.text title
+displayRole1 confirmRoleBaseUrl key (SimpleContract.Role1 title_ roles) = do
+  H.h4 $ H.text title_
   H.ul $ mapM_ (displayRole confirmRoleBaseUrl key) roles
 
 displayRole confirmRoleBaseUrl key (value, label) =
@@ -443,7 +433,7 @@ data RemoveDatePage = RemoveDatePage
   }
 
 instance H.ToMarkup RemoveDatePage where
-  toMarkup (RemoveDatePage profile key mindex date submitUrl) =
+  toMarkup (RemoveDatePage profile _ _ date submitUrl) =
     renderFormLarge profile $ do
       title' "Remove date" Nothing
 
@@ -560,7 +550,7 @@ data SimpleContractRemoveExpensePage = SimpleContractRemoveExpensePage
   }
 
 instance H.ToMarkup SimpleContractRemoveExpensePage where
-  toMarkup (SimpleContractRemoveExpensePage profile key mindex expense submitUrl) =
+  toMarkup (SimpleContractRemoveExpensePage profile _ _ expense submitUrl) =
     renderFormLarge profile $ do
       title' "Remove expense" Nothing
 
@@ -667,7 +657,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
               H.p
                 ! A.class_ "u-text-muted c-body-1"
                 $ "You have added no expenses."
-            else Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+            else Misc.table titles display expenses
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
@@ -678,11 +668,9 @@ instance H.ToMarkup ConfirmSimpleContractPage where
     mClientUsername = User.unUserName <$> _createContractClientUsername
     titles = ["Amount"]
     display
-      :: Text
-      -> Int
-      -> SimpleContract.AddExpense
+      :: SimpleContract.AddExpense
       -> ([Text], [(H.Html, Text, Text)], Maybe Text)
-    display key i SimpleContract.AddExpense {..} =
+    display SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)
 
 validationErrors errors =

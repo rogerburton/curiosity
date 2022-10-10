@@ -18,6 +18,7 @@ module Curiosity.Html.Misc
   , title
   , title'
   , inputText
+  , inputPassword
   , disabledText
   , submitButton
   , button

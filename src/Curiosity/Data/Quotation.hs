@@ -52,7 +52,7 @@ data CreateQuotationAll = CreateQuotationAll
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateQuotationAll where
-  fromForm f = pure CreateQuotationAll
+  fromForm _ = pure CreateQuotationAll
 
 
 --------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ instance FromForm SubmitQuotation where
 -- should be provided as arguments.
 validateCreateQuotation
   :: User.UserProfile -> CreateQuotationAll -> Either [Err] Quotation
-validateCreateQuotation profile CreateQuotationAll = if null errors
+validateCreateQuotation _ CreateQuotationAll = if null errors
   then Right quotation
   else Left errors
  where

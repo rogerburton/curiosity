@@ -41,9 +41,9 @@ interpret' runtime user dir content nesting = do
   pure output
  where
   loop (user', acc) (ln, line) = do
-    let (prefix, comment) = T.breakOn "#" line
-        separated         = map T.pack . wordsq $ T.unpack prefix
-        grouped           = T.unwords separated
+    let (prefix, _) = T.breakOn "#" line
+        separated   = map T.pack . wordsq $ T.unpack prefix
+        grouped     = T.unwords separated
     case separated of
       []               -> pure (user', acc)
       ["as", username] -> do
@@ -99,7 +99,6 @@ formatOutput output =
   in (snd3 . last $ (0, ExitSuccess, "") : output', ls)
 
 snd3 (_, b, _) = b
-thd3 (_, _, c) = c
 
 
 --------------------------------------------------------------------------------
