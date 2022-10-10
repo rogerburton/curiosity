@@ -42,6 +42,7 @@ module Curiosity.Data.User
   , Predicate(..)
   , applyPredicate
   , SetUserEmailAddrAsVerified(..)
+  , userIdPrefix
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -227,6 +228,9 @@ newtype UserId = UserId { unUserId :: Text }
                         , H.ToValue
                         ) via Text
                deriving (FromHttpApiData, FromForm) via W.Wrapped "user-id" Text
+
+userIdPrefix :: Text
+userIdPrefix = "USER-"
 
 
 --------------------------------------------------------------------------------

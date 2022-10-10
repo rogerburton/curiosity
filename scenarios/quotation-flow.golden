@@ -1,0 +1,41 @@
+1: reset
+Resetting to the empty state.
+2: user create alice a alice@example.com --accept-tos
+User created: USER-1
+4: user create susie s susie@example.com --accept-tos
+User created: USER-2
+5: user update USER-2 Susie I'm Susie, the Seller in the quotation-flow scenario.
+User updated: USER-2
+7: user create charlie c charlie@example.com --accept-tos
+User created: USER-3
+8: user update USER-3 Charlie I'm Charlie, a Client in the quotation-flow scenario.
+User updated: USER-3
+10: as susie
+Modifying default user.
+11: forms quotation new
+Quotation form created: TBPJLIUG
+13: forms quotation submit TBPJLIUG
+Quotation form validated.
+Quotation created: QUOT-1
+Quotation sent to client: QUOT-1
+15: as charlie
+Modifying default user.
+16: quotation sign QUOT-1
+Order created: ORD-1
+18: as susie
+Modifying default user.
+19: invoice emit --from ORD-1
+Invoice created: INV-1
+Internal (proxy) invoice created: INV-2
+Generating payment for INV-2...
+Remittance advice (using proxy bank account) created: REM-1
+Remittance advice (using business unit bank account) created: REM-2
+Invoice sent to client: INV-1
+21: as system
+Modifying default user.
+22: reminder send INV-1
+Reminder for invoice sent: INV-1
+23: payment match INV-1
+Generating payment for INV-1...
+Remittance advice (using client bank account) created: REM-3
+Remittance advice (using business unit bank account) created: REM-4

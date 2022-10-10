@@ -17,6 +17,9 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.Order          as Order
+import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as P
@@ -56,10 +59,23 @@ data Command =
   | UpdateUser (S.DBUpdate User.UserProfile)
   | SetUserEmailAddrAsVerified User.UserName
     -- ^ High-level operations on users.
+  | SignQuotation Quotation.QuotationId
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
+  | EmitInvoice Order.OrderId
+    -- ^ Generate and invoice and send an email with it (or a link to it).
+  | MatchPayment Invoice.InvoiceId
+    -- ^ Notify the system that a payment matching an invoice was done.
+  | SendReminder Invoice.InvoiceId
+    -- ^ Send an email to remind of an unpaid invoice.
+  | FormNewQuotation Quotation.CreateQuotationAll
+    -- ^ Create a new instance of the quotation creation form.
+  | FormValidateQuotation Text
+    -- ^ Run validation rules only (the same ones used in `FormSubmitQuotation`).
+  | FormSubmitQuotation Quotation.SubmitQuotation
+    -- ^ Submit a quotation.
   | FormNewSimpleContract SimpleContract.CreateContractAll'
-  | FormValidateSimpleContract Text -- TODO Use SubmitContract.
+  | FormValidateSimpleContract Text
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -245,9 +261,27 @@ parser =
            )
 
       <> A.command
+           "quotation"
+           ( A.info (parserQuotation <**> A.helper)
+           $ A.progDesc "Commands related to quotations"
+           )
+
+      <> A.command
            "invoice"
            ( A.info (parserInvoice <**> A.helper)
            $ A.progDesc "Commands related to invoices"
+           )
+
+      <> A.command
+           "payment"
+           ( A.info (parserPayment <**> A.helper)
+           $ A.progDesc "Commands related to payments"
+           )
+
+      <> A.command
+           "reminder"
+           ( A.info (parserReminder <**> A.helper)
+           $ A.progDesc "Commands related to reminders"
            )
 
       <> A.command
@@ -364,7 +398,7 @@ parserUpdateBusinessEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateBusinessEntity $ Business.Update slug (Just description)
 
-argumentUnitId = Legal.LegalId <$> A.argument A.str metavarUnitId
+argumentUnitId = Legal.EntityId <$> A.argument A.str metavarUnitId
 
 metavarUnitId = A.metavar "BENT-ID" <> A.completer complete <> A.help
   "A business unit ID"
@@ -416,7 +450,7 @@ parserUpdateLegalEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
 
-argumentEntityId = Legal.LegalId <$> A.argument A.str metavarEntityId
+argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 
 metavarEntityId = A.metavar "LENT-ID" <> A.completer complete <> A.help
   "A legal entity ID"
@@ -534,23 +568,126 @@ parserCreateEmployment :: A.Parser Command
 parserCreateEmployment =
   pure $ CreateEmployment Employment.emptyCreateContractAll
 
+parserQuotation :: A.Parser Command
+parserQuotation =
+  A.subparser
+    $  A.command
+         "sign"
+         ( A.info (parserSignQuotation <**> A.helper)
+         $ A.progDesc "Accept (sign) a quotation"
+         )
+
+parserSignQuotation :: A.Parser Command
+parserSignQuotation = do
+  id <- A.argument A.str
+                   (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
+  pure $ SignQuotation id
+
 parserInvoice :: A.Parser Command
-parserInvoice = A.subparser $ A.command
-  "create"
-  ( A.info (parserCreateInvoice <**> A.helper)
-  $ A.progDesc "Create a new invoice"
-  )
+parserInvoice =
+  A.subparser
+    $  A.command
+         "create"
+         ( A.info (parserCreateInvoice <**> A.helper)
+         $ A.progDesc "Create a new invoice"
+         )
+    <> A.command
+         "emit"
+         ( A.info (parserEmitInvoice <**> A.helper)
+         $ A.progDesc "Generate and send an invoice"
+         )
 
 parserCreateInvoice :: A.Parser Command
 parserCreateInvoice = pure CreateInvoice
 
+parserEmitInvoice :: A.Parser Command
+parserEmitInvoice = do
+  id <- A.strOption $ A.long "from" <> A.metavar "ORDER-ID" <> A.help
+    "An order identifier."
+  pure $ EmitInvoice $ Order.OrderId id
+
+
+--------------------------------------------------------------------------------
 parserForms :: A.Parser Command
-parserForms = A.subparser $ A.command
-  "simple-contract"
-  ( A.info (parserFormSimpleContract <**> A.helper)
-  $ A.progDesc "Fill and validate forms"
+parserForms =
+  A.subparser
+    $  A.command
+         "quotation"
+         ( A.info (parserFormQuotation <**> A.helper)
+         $ A.progDesc "Fill and submit quotation forms"
+         )
+    <> A.command
+         "simple-contract"
+         ( A.info (parserFormSimpleContract <**> A.helper)
+         $ A.progDesc "Fill and submit simple contract forms"
+         )
+
+
+--------------------------------------------------------------------------------
+parserFormQuotation :: A.Parser Command
+parserFormQuotation =
+  A.subparser
+    $  A.command
+         "new"
+         ( A.info (parserFormNewQuotation <**> A.helper)
+         $ A.progDesc "Create a new form session"
+         )
+    <> A.command
+         "validate"
+         ( A.info (parserFormValidateQuotation <**> A.helper)
+         $ A.progDesc "Run validation rules against a form"
+         )
+    <> A.command
+         "submit"
+         ( A.info (parserFormSubmitQuotation <**> A.helper)
+         $ A.progDesc "Submit a form"
+         )
+
+parserFormNewQuotation :: A.Parser Command
+parserFormNewQuotation = pure $ FormNewQuotation Quotation.emptyCreateQuotationAll
+
+parserFormValidateQuotation :: A.Parser Command
+parserFormValidateQuotation = do
+  key <- A.argument A.str
+                    (A.metavar "KEY" <> A.help "A quotation form identifier.")
+  pure $ FormValidateQuotation key
+
+parserFormSubmitQuotation :: A.Parser Command
+parserFormSubmitQuotation = do
+  key <- A.argument A.str
+                    (A.metavar "KEY" <> A.help "A quotation form identifier.")
+  pure $ FormSubmitQuotation $ Quotation.SubmitQuotation key
+
+
+--------------------------------------------------------------------------------
+parserPayment :: A.Parser Command
+parserPayment = A.subparser $ A.command
+  "match"
+  ( A.info (parserMatchPayment <**> A.helper)
+  $ A.progDesc "Match a payment to an invoice"
   )
 
+parserMatchPayment :: A.Parser Command
+parserMatchPayment = do
+  id <- A.argument A.str
+                   (A.metavar "INVOICE-ID" <> A.help "An invoice identifier.")
+  pure $ MatchPayment id
+
+parserReminder :: A.Parser Command
+parserReminder = A.subparser $ A.command
+  "send"
+  ( A.info (parserSendReminder <**> A.helper)
+  $ A.progDesc "Send an invoice payment reminder"
+  )
+
+parserSendReminder :: A.Parser Command
+parserSendReminder = do
+  id <- A.argument A.str
+                   (A.metavar "INVOICE-ID" <> A.help "An invoice identifier.")
+  pure $ SendReminder id
+
+
+--------------------------------------------------------------------------------
 parserFormSimpleContract :: A.Parser Command
 parserFormSimpleContract =
   A.subparser

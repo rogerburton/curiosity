@@ -66,9 +66,7 @@ import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseMaybe
                                                 , parseUnique
                                                 )
-import           Web.HttpApiData                ( FromHttpApiData(..)
-                                                , parseQueryParams
-                                                )
+import           Web.HttpApiData                ( parseQueryParams )
 
 --------------------------------------------------------------------------------
 -- $formDataTypes

@@ -48,9 +48,9 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
-import qualified Curiosity.Html.Profile        as Pages
 import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
+import qualified Curiosity.Html.User           as Pages
 import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as Command
 import qualified Curiosity.Runtime             as Rt
@@ -874,7 +874,10 @@ privateT conf authResult =
   let withUser'
         :: forall m' a . ServerC m' => (User.UserProfile -> m' a) -> m' a
       withUser' = withUser authResult
-  in  (withUser' showProfilePage)
+      withUserResolved'
+        :: forall m' a . ServerC m' => (User.UserProfile -> [Legal.EntityAndRole] -> m' a) -> m' a
+      withUserResolved' = withUserResolved authResult
+  in  (withUserResolved' showProfilePage)
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
         :<|> (withUser' showCreateEntityPage)
@@ -896,8 +899,8 @@ handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
   (Command._serverCookie conf)
   NoContent
 
-showProfilePage profile =
-  pure $ Pages.ProfileView profile (Just "/settings/profile/edit")
+showProfilePage profile entities =
+  pure $ Pages.ProfileView profile entities (Just "/settings/profile/edit")
 
 showProfileAsJson
   :: forall m . ServerC m => User.UserProfile -> m User.UserProfile
@@ -1714,7 +1717,7 @@ documentConfirmSimpleContractPage dataDir key = do
 documentProfilePage :: ServerC m => FilePath -> FilePath -> m Pages.ProfileView
 documentProfilePage dataDir filename = do
   profile <- readJson $ dataDir </> filename
-  pure $ Pages.ProfileView profile (Just "#")
+  pure $ Pages.ProfileView profile [] (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -1722,7 +1725,7 @@ documentProfilePage dataDir filename = do
 documentEntityPage :: ServerC m => FilePath -> FilePath -> m Pages.EntityView
 documentEntityPage dataDir filename = do
   entity <- readJson $ dataDir </> filename
-  pure $ Pages.EntityView Nothing entity (Just "#")
+  pure $ Pages.EntityView Nothing entity [] (Just "#")
 
 
 --------------------------------------------------------------------------------
@@ -1801,6 +1804,38 @@ withMaybeUser authResult a f = case authResult of
   authFailed -> a authFailed
   where authFailedErr = Errs.throwError' . User.UserNotFound
 
+-- | Similar to `withUser`, but also returns the related entities.
+withUserResolved
+  :: forall m a
+   . ServerC m
+  => SAuth.AuthResult User.UserId
+  -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
+  -> m a
+withUserResolved authResult f = withMaybeUserResolved authResult (authFailedErr . show) f
+ where
+  authFailedErr = Errs.throwError' . User.UserNotFound . mappend
+    "Authentication failed, please login again. Error: "
+
+-- | Similar to `withMaybeUser`, but also returns the related entities.
+withMaybeUserResolved
+  :: forall m a
+   . ServerC m
+  => SAuth.AuthResult User.UserId
+  -> (SAuth.AuthResult User.UserId -> m a)
+  -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
+  -> m a
+withMaybeUserResolved authResult a f = case authResult of
+  SAuth.Authenticated userId -> do
+    mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByIdResolved . Rt._rDb) userId
+    case mprofile of
+      Nothing -> do
+        ML.warning
+          "Cookie-based authentication succeeded, but the user ID is not found."
+        authFailedErr $ "No user found with ID " <> show userId
+      Just userProfile -> uncurry f userProfile
+  authFailed -> a authFailed
+  where authFailedErr = Errs.throwError' . User.UserNotFound
+
 -- | Run a handler, ensuring a user profile can be obtained from the
 -- given username, or throw an error.
 withUserFromUsername
@@ -1832,12 +1867,40 @@ withMaybeUserFromUsername username a f = do
                                        username
   maybe (a username) f mprofile
 
+-- | Similar to `withUserFromUsername`, but also returns the related entities.
+withUserFromUsernameResolved
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
+  -> m a
+withUserFromUsernameResolved username f = withMaybeUserFromUsernameResolved
+  username
+  (noSuchUserErr . show)
+  f
+ where
+  noSuchUserErr = Errs.throwError' . User.UserNotFound . mappend
+    "The given username was not found: "
+
+-- | Similar to `withMaybeUserFromUsername`, but also returns the related entities.
+withMaybeUserFromUsernameResolved
+  :: forall m a
+   . ServerC m
+  => User.UserName
+  -> (User.UserName -> m a)
+  -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
+  -> m a
+withMaybeUserFromUsernameResolved username a f = do
+  mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsernameResolved . Rt._rDb)
+                                       username
+  maybe (a username) (uncurry f) mprofile
+
 
 --------------------------------------------------------------------------------
--- | Run a handler, ensuring a user profile can be obtained from the given
--- username, or throw an error.
+-- | Run a handler, ensuring a legal entity can be obtained from the given
+-- slug, or throw an error.
 withEntityFromName
-  :: forall m a . ServerC m => Text -> (Legal.Entity -> m a) -> m a
+  :: forall m a . ServerC m => Text -> (Legal.Entity -> [Legal.ActingUser] -> m a) -> m a
 withEntityFromName name f = withMaybeEntityFromName name
                                                     (noSuchUserErr . show) -- TODO entity, not user
                                                     f
@@ -1852,18 +1915,18 @@ withMaybeEntityFromName
    . ServerC m
   => Text
   -> (Text -> m a)
-  -> (Legal.Entity -> m a)
+  -> (Legal.Entity -> [Legal.ActingUser] -> m a)
   -> m a
 withMaybeEntityFromName name a f = do
-  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlug . Rt._rDb) name
-  maybe (a name) f mentity
+  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlugResolved . Rt._rDb) name
+  maybe (a name) (uncurry f) mentity
 
 
 --------------------------------------------------------------------------------
 -- | Run a handler, ensuring a business unit can be obtained from the given
 -- ame, or throw an error.
 withUnitFromName
-  :: forall m a . ServerC m => Text -> (Business.Entity -> m a) -> m a
+  :: forall m a . ServerC m => Text -> (Business.Unit -> m a) -> m a
 withUnitFromName name f = withMaybeUnitFromName name
                                                 (noSuchUserErr . show) -- TODO unit, not user
                                                 f
@@ -1878,7 +1941,7 @@ withMaybeUnitFromName
    . ServerC m
   => Text
   -> (Text -> m a)
-  -> (Business.Entity -> m a)
+  -> (Business.Unit -> m a)
   -> m a
 withMaybeUnitFromName name a f = do
   munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name
@@ -2045,17 +2108,17 @@ serveNamespaceDocumentation
   :: ServerC m => User.UserName -> m Pages.ProfileView
 serveNamespaceDocumentation username = withUserFromUsername
   username
-  (\profile -> pure $ Pages.ProfileView profile Nothing)
+  (\profile -> pure $ Pages.ProfileView profile [] Nothing)
 
 
 --------------------------------------------------------------------------------
 serveEntity
   :: ServerC m => SAuth.AuthResult User.UserId -> Text -> m Pages.EntityView
-serveEntity authResult name = withEntityFromName name $ \targetEntity ->
+serveEntity authResult name = withEntityFromName name $ \targetEntity users ->
   withMaybeUser
     authResult
-    (const . pure $ Pages.EntityView Nothing targetEntity Nothing)
-    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity (Just "#"))
+    (const . pure $ Pages.EntityView Nothing targetEntity users Nothing)
+    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity users (Just "#"))
 
 
 --------------------------------------------------------------------------------

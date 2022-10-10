@@ -95,9 +95,13 @@ library
     Curiosity.Data.Command
     Curiosity.Data.Counter
     Curiosity.Data.Country
+    Curiosity.Data.Email
     Curiosity.Data.Employment
     Curiosity.Data.Invoice
     Curiosity.Data.Legal
+    Curiosity.Data.Order
+    Curiosity.Data.Quotation
+    Curiosity.Data.RemittanceAdv
     Curiosity.Data.SimpleContract
     Curiosity.Data.User
     Curiosity.Dsl
@@ -113,9 +117,9 @@ library
     Curiosity.Html.Legal
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
-    Curiosity.Html.Profile
     Curiosity.Html.Run
     Curiosity.Html.SimpleContract
+    Curiosity.Html.User
     Curiosity.Interpret
     Curiosity.Parse
     Curiosity.Process

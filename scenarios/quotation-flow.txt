@@ -1,0 +1,23 @@
+reset
+user create alice a alice@example.com --accept-tos
+
+user create susie s susie@example.com --accept-tos
+user update USER-2 Susie "I'm Susie, the Seller in the quotation-flow scenario."
+
+user create charlie c charlie@example.com --accept-tos
+user update USER-3 Charlie "I'm Charlie, a Client in the quotation-flow scenario."
+
+as susie
+forms quotation new
+# forms quotation edit
+forms quotation submit TBPJLIUG
+
+as charlie
+quotation sign QUOT-1
+
+as susie
+invoice emit --from ORD-1
+
+as system
+reminder send INV-1
+payment match INV-1

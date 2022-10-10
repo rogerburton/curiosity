@@ -8,14 +8,18 @@ module Curiosity.Data.Legal
   ( Entity(..)
   , Create(..)
   , Update(..)
-  , LegalId(..)
+  , EntityId(..)
   , RegistrationName(..)
+  , ActingUserId(..)
+  , ActingUser(..)
+  , EntityAndRole(..)
   , Err(..)
   , encodeUBL
   , toUBL
   ) where
 
 import qualified Commence.Types.Wrapped        as W
+import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.ByteString.Lazy          as LB
 import qualified Text.Blaze.Html5              as H
@@ -56,20 +60,22 @@ instance FromForm Update where
 
 --------------------------------------------------------------------------------
 data Entity = Entity
-  { _entityId          :: LegalId
+  { _entityId          :: EntityId
   , _entitySlug        :: Text
-    -- An identifier suitable for URLs
+    -- ^ An identifier suitable for URLs (unique across entities).
   , _entityName        :: RegistrationName
   , _entityCbeNumber   :: CbeNumber
   , _entityVatNumber   :: VatNumber -- TODO Is it really useful to habe both ?
   , _entityDescription :: Maybe Text
-    -- Public description. Similar to a user profile bio.
+    -- ^ Public description. Similar to a user profile bio.
+  , _entityUsersAndRoles :: [ActingUserId]
+    -- ^ Users that can "act" within the entity, with some kind of associated rights.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Record ID of the form LENT-xxx.
-newtype LegalId = LegalId { unLegalId :: Text }
+newtype EntityId = EntityId { unEntityId :: Text }
                deriving (Eq, Show)
                deriving ( IsString
                         , FromJSON
@@ -112,6 +118,21 @@ newtype VatNumber = VatNumber { unVatNumber :: Text }
                         , H.ToValue
                         ) via Text
                deriving (FromHttpApiData, FromForm) via W.Wrapped "vat-number" Text
+
+data ActingUserId = ActingUserId User.UserId ActingRole
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
+
+data ActingRole = Titular | Director | Administrator
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
+
+-- | A user and their role within an entity.
+data ActingUser = ActingUser User.UserProfile ActingRole
+
+-- | The inverse of `ActingUser`: an entity in which a user acts, with the role
+-- of the user.
+data EntityAndRole = EntityAndRole Entity ActingRole
 
 data Err = Err
   deriving (Eq, Exception, Show)
