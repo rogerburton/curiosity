@@ -90,6 +90,7 @@ library
   hs-source-dirs: src
   exposed-modules:
     Curiosity.Command
+    Curiosity.Core
     Curiosity.Data
     Curiosity.Data.Business
     Curiosity.Data.Command
@@ -117,6 +118,7 @@ library
     Curiosity.Html.Legal
     Curiosity.Html.Misc
     Curiosity.Html.Navbar
+    Curiosity.Html.Quotation
     Curiosity.Html.Run
     Curiosity.Html.SimpleContract
     Curiosity.Html.User
@@ -185,6 +187,7 @@ test-suite curiosity-tests
     , QuickCheck
   other-modules:
       CuriositySpec
+    , Curiosity.CoreSpec
     , Curiosity.DataSpec
     , Curiosity.RunSpec
     , Curiosity.RuntimeSpec

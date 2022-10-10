@@ -2,9 +2,10 @@ module Curiosity.RuntimeSpec
   ( spec
   ) where
 
+import           Curiosity.Core
 import           Curiosity.Data
 import           Curiosity.Data.User
-import           Curiosity.Runtime
+import           Curiosity.Runtime              (boot', _rDb)
 import           Test.Hspec
 
 
@@ -15,7 +16,8 @@ spec = do
     it "Should boot." $ do
       -- TODO I don't like that this involves logging stuff.
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-1.log"
-      st <- readFullStmDbInHaskFromRuntime runtime
+      let db = _rDb runtime
+      st <- atomically $ readFullStmDbInHask' db
       st `shouldBe` emptyHask
 
   describe "Runtime / Users" $ do
@@ -29,13 +31,6 @@ spec = do
       muser <- atomically $ selectUserById db "USER-1"
 
       muser `shouldBe` Nothing
-
-    it ("The first user ID is " <> show (unUserId firstUserId) <> ".") $ do
-      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-2-1.log"
-      let db = _rDb runtime
-      id <- atomically $ generateUserId db
-
-      id `shouldBe` firstUserId
 
     it "Adding a user, returns a user." $ do
       runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-3.log"

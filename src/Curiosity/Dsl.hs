@@ -18,44 +18,44 @@ module Curiosity.Dsl
   ) where
 
 import qualified Control.Concurrent.STM        as STM
+import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
-                                                , readFullStmDbInHask'
                                                 )
 import qualified Curiosity.Data.User           as User
-import qualified Curiosity.Runtime             as Rt
 import qualified Language.Haskell.TH.Syntax    as Syntax
 import           Prelude                 hiding ( state )
 
 
 --------------------------------------------------------------------------------
-newtype Run a = Run { runM :: ReaderT (Data.StmDb Rt.Runtime) STM a }
+newtype Run a = Run { runM :: ReaderT (Core.StmDb ()) STM a }
   deriving ( Functor
            , Applicative
            , Monad
-           , MonadReader (Data.StmDb Rt.Runtime)
+           , MonadReader (Core.StmDb ())
            )
 
 -- Is it possible to implement MonadFail only when the return type is Either ?
 -- deriving instance MonadFail (Run (Either Text a))
 
-run :: forall a . HaskDb Rt.Runtime -> Run a -> IO a
-run db Run {..} = do
-  db' <- Data.instantiateStmDb db
-  STM.atomically $ runReaderT runM db'
+run :: forall a . HaskDb () -> Run a -> IO a
+run db Run {..} =
+  STM.atomically $ do
+     db' <- Core.instantiateStmDb db
+     runReaderT runM db'
 
 
 --------------------------------------------------------------------------------
 db0 = Data.emptyHask
 
-state :: Run (HaskDb Rt.Runtime)
-state = ask >>= (Run . lift . readFullStmDbInHask')
+state :: Run (HaskDb ())
+state = ask >>= (Run . lift . Core.readFullStmDbInHask')
 
 reset :: Run ()
-reset = ask >>= (Run . lift . Data.resetStmDb')
+reset = ask >>= (Run . lift . Core.reset)
 
 user :: User.UserName -> Run (Maybe User.UserProfile)
-user username = ask >>= (Run . lift . flip Rt.selectUserByUsername username)
+user username = ask >>= (Run . lift . flip Core.selectUserByUsername username)
 
 signup
   :: User.UserName
@@ -63,11 +63,11 @@ signup
   -> User.UserEmailAddr
   -> Run (Either User.UserErr User.UserId)
 signup username password email =
-  ask >>= (Run . lift . flip Rt.createUser input)
+  ask >>= (Run . lift . flip Core.createUser input)
   where input = User.Signup username password email True
 
 can :: User.UserProfile -> Syntax.Name -> Run Bool
-can profile name = ask >>= (Run . lift . flip (Rt.canPerform name) profile)
+can profile name = ask >>= (Run . lift . flip (Core.canPerform name) profile)
 
 
 --------------------------------------------------------------------------------

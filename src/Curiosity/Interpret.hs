@@ -91,7 +91,7 @@ interpret'
 interpret' runtime user dir content nesting = go user [] 0
   $ zip [1 :: Int ..] content
  where
-  go user' acc nbr []                  = pure acc
+  go _ acc _ []                  = pure acc
   go user' acc nbr ((ln, line) : rest) = do
     let (prefix, comment) = T.breakOn "#" line
         separated         = map T.pack . wordsq $ T.unpack prefix
@@ -106,18 +106,17 @@ interpret' runtime user dir content nesting = go user [] 0
     case separated of
       []               -> go user' acc nbr rest
       ["as", username] -> do
-        st <- Rt.state runtime
+        st <- Rt.runRunM runtime Rt.state
         let t    = trace ["Modifying default user."] ExitSuccess [] st
             acc' = acc ++ [t]
         go (User.UserName username) acc' nbr' rest
       ["quit"] -> do
-        st <- Rt.state runtime
+        st <- Rt.runRunM runtime Rt.state
         let t    = trace ["Exiting."] ExitSuccess [] st
             acc' = acc ++ [t]
         go user' acc' nbr' rest
       input -> do
-        let output_ = [show ln <> ": " <> grouped]
-            result =
+        let result =
               A.execParserPure A.defaultPrefs Command.parserInfo
                 $   T.unpack
                 <$> input
@@ -125,8 +124,8 @@ interpret' runtime user dir content nesting = go user [] 0
           A.Success command -> do
             case command of
               Command.Reset _ -> do
-                Rt.reset runtime
-                st <- Rt.state runtime
+                Rt.runRunM runtime $ Rt.reset
+                st <- Rt.runRunM runtime Rt.state
                 let t = trace ["Resetting to the empty state."] ExitSuccess [] st
                     acc' = acc ++ [t]
                 go user' acc' nbr' rest
@@ -135,23 +134,23 @@ interpret' runtime user dir content nesting = go user [] 0
                                                   user
                                                   (dir </> scriptPath)
                                                   (succ nesting)
-                st <- Rt.state runtime
+                st <- Rt.runRunM runtime Rt.state
                 let t    = trace [] ExitSuccess output' st
                     acc' = acc ++ [t]
                 go user' acc' nbr' rest
               _ -> do
                 (_, output) <- Rt.handleCommand runtime user' command
-                st <- Rt.state runtime
+                st <- Rt.runRunM runtime Rt.state
                 let t    = trace output ExitSuccess [] st
                     acc' = acc ++ [t]
                 go user' acc' nbr' rest
           A.Failure err -> do
-            st <- Rt.state runtime
+            st <- Rt.runRunM runtime Rt.state
             let t    = trace [show err] (ExitFailure 1) [] st
                 acc' = acc ++ [t]
             go user' acc' nbr' rest
           A.CompletionInvoked _ -> do
-            st <- Rt.state runtime
+            st <- Rt.runRunM runtime Rt.state
             let t    = trace ["Shouldn't happen."] (ExitFailure 1) [] st
                 acc' = acc ++ [t]
             go user' acc' nbr' rest

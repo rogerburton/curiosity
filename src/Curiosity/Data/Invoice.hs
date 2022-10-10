@@ -7,6 +7,7 @@ Description: Invoice related datatypes
 module Curiosity.Data.Invoice
   ( Invoice(..)
   , InvoiceId(..)
+  , invoiceIdPrefix
   , Err(..)
   ) where
 
@@ -33,6 +34,9 @@ newtype InvoiceId = InvoiceId { unInvoiceId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "invoice-id" Text
+
+invoiceIdPrefix :: Text
+invoiceIdPrefix = "INV-"
 
 data Err = Err
   { unErr :: Text

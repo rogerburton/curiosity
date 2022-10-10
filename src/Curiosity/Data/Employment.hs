@@ -38,6 +38,7 @@ module Curiosity.Data.Employment
     -- * Main data representation
   , Contract(..)
   , ContractId(..)
+  , contractIdPrefix
   , Err(..)
   ) where
 
@@ -232,6 +233,9 @@ newtype ContractId = ContractId { unContractId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "contract-id" Text
+
+contractIdPrefix :: Text
+contractIdPrefix = "EMP-"
 
 data Err = Err Text
   deriving (Eq, Exception, Show)

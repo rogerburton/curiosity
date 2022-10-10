@@ -24,6 +24,7 @@ module Curiosity.Data.Quotation
     -- * Main data representation
   , Quotation(..)
   , QuotationId(..)
+  , quotationIdPrefix
   , Err(..)
   ) where
 
@@ -120,6 +121,9 @@ newtype QuotationId = QuotationId { unQuotationId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "quotation-id" Text
+
+quotationIdPrefix :: Text
+quotationIdPrefix = "QUOT-"
 
 data Err = Err
   { unErr :: Text

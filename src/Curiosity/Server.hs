@@ -37,14 +37,15 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
-                                                , readFullStmDbInHask
                                                 )
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Country        as Country
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Form.Login          as Login
@@ -57,6 +58,7 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
+import qualified Curiosity.Html.Quotation      as Pages
 import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
 import qualified Curiosity.Html.User           as Pages
@@ -86,7 +88,9 @@ import qualified Servant.HTML.Blaze            as B
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
-import           System.FilePath                ( (</>), takeBaseName )
+import           System.FilePath                ( (</>)
+                                                , takeBaseName
+                                                )
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -381,28 +385,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                               NoContent
                                             )
 
-             -- static data
-             :<|> "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
-
-             :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
-
-             :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
-
-             :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
-
-             :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
-
-             :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
-
-             -- live data
-             :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
-             :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
+             :<|> Partials
 
              :<|> "login" :> Get '[B.HTML] Login.Page
              :<|> "signup" :> Get '[B.HTML] Signup.Page
@@ -429,6 +412,30 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 -- brittany-disable-next-binding
 type NamespaceAPI = Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
 
+-- brittany-disable-next-binding
+type Partials =
+  -- static data
+       "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
+
+  :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
+
+  :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
+
+  :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
+
+  :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
+
+  :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
+
+  -- live data
+  :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
 
 -- | This is the main Servant server definition, corresponding to @App@.
 serverT
@@ -515,8 +522,25 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> echoSimpleContractSaveExpense dataDir
     :<|> echoSimpleContractRemoveExpense dataDir
 
+    :<|> partials scenariosDir
+
+    :<|> showLoginPage
+    :<|> showSignupPage
+    :<|> showSetUserEmailAddrAsVerifiedPage
+    :<|> publicT conf jwtS
+    :<|> privateT conf
+    :<|> serveData dataDir
+    :<|> serveUBL dataDir
+    :<|> serveErrors
+    :<|> serveNamespaceDocumentation "alice"
+    :<|> serveEntity
+    :<|> websocket
+    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
+
+partials :: ServerC m => FilePath -> ServerT Partials m
+partials scenariosDir =
     -- static data
-    :<|> partialUsernameBlocklist
+         partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> partialRoles
     :<|> partialRolesAsJson
@@ -533,20 +557,6 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> partialLegalEntities
     :<|> partialLegalEntitiesAsJson
 
-    :<|> showLoginPage
-    :<|> showSignupPage
-    :<|> showSetUserEmailAddrAsVerifiedPage
-    :<|> publicT conf jwtS
-    :<|> privateT conf
-    :<|> serveData dataDir
-    :<|> serveUBL dataDir
-    :<|> serveErrors
-    :<|> serveNamespaceDocumentation "alice"
-    :<|> serveEntity
-    :<|> websocket
-    :<|> serveNamespaceOrStatic natTrans ctx jwtS conf root
-
-
 --------------------------------------------------------------------------------
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be
 -- able to run a server.
@@ -558,7 +568,7 @@ type ServerC m
     , MonadReader Rt.Runtime m
     , MonadIO m
     , Show (S.DBError m STM User.UserProfile)
-    , S.Db m STM User.UserProfile ~ Data.StmDb Rt.Runtime
+    , S.Db m STM User.UserProfile ~ Core.StmDb Rt.Runtime
     )
 
 
@@ -626,6 +636,12 @@ routingLayout = do
           Server.:. Server.EmptyContext
   pure $ layoutWithContext (Proxy @App) ctx
 
+-- | Call a `Curiosity.Runtime` operation in a handler.
+withRuntime :: ServerC m => Rt.RunM a -> m a
+withRuntime f = do
+  runtime <- ask
+  Rt.runRunM runtime f
+
 
 --------------------------------------------------------------------------------
 -- | Show the landing page when the user is not logged in, or the welcome page
@@ -641,9 +657,10 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
-    b <- liftIO . atomically $ Rt.canPerform 'User.SetUserEmailAddrAsVerified
-                                             _rDb
-                                             profile
+    b               <- liftIO . atomically $ Core.canPerform
+      'User.SetUserEmailAddrAsVerified
+      _rDb
+      profile
     profiles <- if b
       then
         Just
@@ -686,8 +703,7 @@ partialUsernameBlocklistAsJson = pure User.usernameBlocklist
 
 --------------------------------------------------------------------------------
 partialRoles :: ServerC m => m H.Html
-partialRoles =
-  pure . H.ul $ mapM_ displayRole0 SimpleContract.roles
+partialRoles = pure . H.ul $ mapM_ displayRole0 SimpleContract.roles
  where
   displayRole0 (SimpleContract.Role0 title roles1) = do
     H.li $ do
@@ -699,10 +715,9 @@ partialRoles =
       H.text title
       H.ul $ mapM_ displayRole roles
 
-  displayRole (value, label) =
-    H.li $ do
-      H.text label
-      H.code $ H.text value
+  displayRole (value, label) = H.li $ do
+    H.text label
+    H.code $ H.text value
 
 partialRolesAsJson :: ServerC m => m [SimpleContract.Role0]
 partialRolesAsJson = pure SimpleContract.roles
@@ -710,13 +725,11 @@ partialRolesAsJson = pure SimpleContract.roles
 
 --------------------------------------------------------------------------------
 partialCountries :: ServerC m => m H.Html
-partialCountries =
-  pure . H.ul $ mapM_ displayCountry Country.countries
+partialCountries = pure . H.ul $ mapM_ displayCountry Country.countries
  where
-  displayCountry (value, label) =
-    H.li $ do
-      H.text label
-      H.code $ H.text value
+  displayCountry (value, label) = H.li $ do
+    H.text label
+    H.code $ H.text value
 
 partialCountriesAsJson :: ServerC m => m [(Text, Text)]
 partialCountriesAsJson = pure Country.countries
@@ -724,13 +737,11 @@ partialCountriesAsJson = pure Country.countries
 
 --------------------------------------------------------------------------------
 partialVatRates :: ServerC m => m H.Html
-partialVatRates =
-  pure . H.ul $ mapM_ displayVatRate SimpleContract.vatRates
+partialVatRates = pure . H.ul $ mapM_ displayVatRate SimpleContract.vatRates
  where
-  displayVatRate (value, label) =
-    H.li $ do
-      H.text label
-      H.code $ H.text value
+  displayVatRate (value, label) = H.li $ do
+    H.text label
+    H.code $ H.text value
 
 partialVatRatesAsJson :: ServerC m => m [(Text, Text)]
 partialVatRatesAsJson = pure SimpleContract.vatRates
@@ -738,11 +749,8 @@ partialVatRatesAsJson = pure SimpleContract.vatRates
 
 --------------------------------------------------------------------------------
 partialPermissions :: ServerC m => m H.Html
-partialPermissions =
-  pure . H.ul $ mapM_ displayPermission User.permissions
- where
-  displayPermission p =
-    H.li $ H.code . H.text $ show p
+partialPermissions = pure . H.ul $ mapM_ displayPermission User.permissions
+  where displayPermission p = H.li $ H.code . H.text $ show p
 
 partialPermissionsAsJson :: ServerC m => m [User.AccessRight]
 partialPermissionsAsJson = pure User.permissions
@@ -755,10 +763,9 @@ partialLegalEntities = do
   entities <- liftIO . atomically $ Rt.readLegalEntities db
   pure . H.ul $ mapM_ displayEntity entities
  where
-  displayEntity Legal.Entity {..} =
-    H.li $ do
-      H.a ! A.href (H.toValue $ "/entity/" <> _entitySlug) $
-        H.text (Legal.unRegistrationName _entityName)
+  displayEntity Legal.Entity {..} = H.li $ do
+    H.a ! A.href (H.toValue $ "/entity/" <> _entitySlug) $ H.text
+      (Legal.unRegistrationName _entityName)
 
 partialLegalEntitiesAsJson :: ServerC m => m [Legal.Entity]
 partialLegalEntitiesAsJson = do
@@ -807,10 +814,7 @@ handleSignup input@User.Signup {..} =
   ML.localEnv (<> "HTTP" <> "Signup")
     $   do
           ML.info $ "Signing up new user: " <> show username <> "..."
-          db <- asks Rt._rDb
-          S.liftTxn @m @STM
-            $ S.dbUpdate @m db (User.UserCreateGeneratingUserId input)
-          -- Rt.withRuntimeAtomically Rt.createUser input
+          withRuntime $ Rt.createUser input
     >>= \case
           Right uid -> do
             ML.info
@@ -887,8 +891,16 @@ type Private = H.UserAuthentication :> (
 
              :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
              :<|> "new" :> "unit" :> Get '[B.HTML] Pages.CreateUnitPage
+             :<|> "new" :> "quotation" :> Get '[B.HTML] Pages.CreateQuotationPage
              :<|> "new" :> "contract" :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "new" :> "invoice" :> Get '[B.HTML] Pages.CreateInvoicePage
+
+             :<|> "edit" :> "quotation"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateQuotationPage
+             :<|> "edit" :> "quotation" :> "confirm"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.ConfirmQuotationPage
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
@@ -901,6 +913,21 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
                    :> Post '[B.HTML] Pages.ActionResult
+
+             :<|> "a" :> "new-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "a" :> "save-quotation"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "a" :> "submit-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.SubmitQuotation
+                  :> Post '[B.HTML] Pages.EchoPage
   )
 
 privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
@@ -909,18 +936,27 @@ privateT conf authResult =
         :: forall m' a . ServerC m' => (User.UserProfile -> m' a) -> m' a
       withUser' = withUser authResult
       withUserResolved'
-        :: forall m' a . ServerC m' => (User.UserProfile -> [Legal.EntityAndRole] -> m' a) -> m' a
+        :: forall m' a
+         . ServerC m'
+        => (User.UserProfile -> [Legal.EntityAndRole] -> m' a)
+        -> m' a
       withUserResolved' = withUserResolved authResult
   in  (withUserResolved' showProfilePage)
         :<|> (withUser' showProfileAsJson)
         :<|> (withUser' showEditProfilePage)
         :<|> (withUser' showCreateEntityPage)
         :<|> (withUser' showCreateUnitPage)
+        :<|> (withUser' showCreateQuotationPage)
         :<|> (withUser' showCreateContractPage)
         :<|> (withUser' showCreateInvoicePage)
+        :<|> (withUser' . showEditQuotationPage)
+        :<|> (withUser' . showConfirmQuotationPage)
         :<|> (withUser' . handleUserProfileUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
+        :<|> (withUser' . handleNewQuotation)
+        :<|> (\a b -> withUser' $ handleSaveQuotation a b)
+        :<|> (withUser' . handleSubmitQuotation)
 
 --------------------------------------------------------------------------------
 -- | Handle a user's logout.
@@ -951,6 +987,14 @@ showCreateEntityPage profile =
 showCreateUnitPage :: ServerC m => User.UserProfile -> m Pages.CreateUnitPage
 showCreateUnitPage profile = pure $ Pages.CreateUnitPage profile "/a/new-unit"
 
+showCreateQuotationPage
+  :: ServerC m => User.UserProfile -> m Pages.CreateQuotationPage
+showCreateQuotationPage profile = pure $ Pages.CreateQuotationPage
+  profile
+  Nothing
+  Quotation.emptyCreateQuotationAll
+  "/a/new-quotation"
+
 showCreateContractPage
   :: ServerC m => User.UserProfile -> m Pages.CreateContractPage
 showCreateContractPage profile = pure $ Pages.CreateContractPage
@@ -964,6 +1008,31 @@ showCreateInvoicePage
   :: ServerC m => User.UserProfile -> m Pages.CreateInvoicePage
 showCreateInvoicePage profile =
   pure $ Pages.CreateInvoicePage profile "/a/new-invoice"
+
+-- | Same as showCreateQuotationPage, but use an existing form.
+showEditQuotationPage
+  :: ServerC m => Text -> User.UserProfile -> m Pages.CreateQuotationPage
+showEditQuotationPage key profile = do
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.CreateQuotationPage
+      profile
+      (Just key)
+      quotationAll
+      (H.toValue $ "/a/save-quotation/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+showConfirmQuotationPage
+  :: ServerC m => Text -> User.UserProfile -> m Pages.ConfirmQuotationPage
+showConfirmQuotationPage key profile = do
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
+      profile
+      key
+      quotationAll
+      "/a/submit-quotation"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 
 --------------------------------------------------------------------------------
@@ -998,6 +1067,66 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
     pure $ Pages.ActionResult "Set email address as verified" $ case output of
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
+
+-- | Create a form, generating a new key. This is normally used with a
+-- \"Location" header.
+handleNewQuotation'
+  :: ServerC m => Quotation.CreateQuotationAll -> User.UserProfile -> m Text
+handleNewQuotation' quotation profile =
+  ML.localEnv (<> "HTTP" <> "CreateQuotationAll") $ do
+    ML.info $ "Instanciating new quotation form..."
+    key <- withRuntime $ Rt.formNewQuotation' profile quotation
+    ML.info $ "New quotation form instanciated: " <> key
+    pure key
+
+-- | Create a form, generating a new key.
+handleNewQuotation
+  :: ServerC m
+  => Quotation.CreateQuotationAll
+  -> User.UserProfile
+  -> m (Headers '[Header "Location" Text] NoContent)
+handleNewQuotation quotation profile = do
+  key <- handleNewQuotation' quotation profile
+  pure $ addHeader @"Location" ("/edit/quotation/confirm/" <> key) NoContent
+
+-- | Save a form, re-using a key. This is normally used with a \"Location"
+-- header.
+handleSaveQuotation'
+  :: ServerC m
+  => Text
+  -> Quotation.CreateQuotationAll
+  -> User.UserProfile
+  -> m ()
+handleSaveQuotation' key quotation profile = do
+  db <- asks Rt._rDb
+  -- TODO Take care of the returned value.
+  _  <- liftIO . atomically $ Rt.writeCreateQuotationForm
+    db
+    (profile, key, quotation)
+  pure ()
+
+-- | Save a form, re-using a key.
+handleSaveQuotation
+  :: ServerC m
+  => Text
+  -> Quotation.CreateQuotationAll
+  -> User.UserProfile
+  -> m (Headers '[Header "Location" Text] NoContent)
+handleSaveQuotation key quotation profile = do
+  handleSaveQuotation' key quotation profile
+  pure $ addHeader @"Location" ("/edit/quotation/confirm/" <> key) NoContent
+
+handleSubmitQuotation
+  :: ServerC m
+  => Quotation.SubmitQuotation
+  -> User.UserProfile
+  -> m Pages.EchoPage
+handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotation -> pure . Pages.EchoPage $ show
+      (quotation, Quotation.validateCreateQuotation profile quotation)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- $ documentationPages
 --
@@ -1091,10 +1220,7 @@ documentRemoveExpensePage dataDir key idx = do
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
 echoNewContract'
-  :: ServerC m
-  => FilePath
-  -> Employment.CreateContractAll'
-  -> m Text
+  :: ServerC m => FilePath -> Employment.CreateContractAll' -> m Text
 echoNewContract' dataDir contract = do
   profile <- readJson $ dataDir </> "alice.json"
   db <- asks Rt._rDb
@@ -1109,7 +1235,9 @@ echoNewContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
   key <- echoNewContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/contract/confirm-contract/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/contract/confirm-contract/" <> key)
+    NoContent
 
 -- | Create a form, then move to the add expense part.
 echoNewContractAndAddExpense
@@ -1119,16 +1247,13 @@ echoNewContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContractAndAddExpense dataDir contract = do
   key <- echoNewContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key)
+                               NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
 -- header.
 echoSaveContract'
-  :: ServerC m
-  => FilePath
-  -> Text
-  -> Employment.CreateContractAll'
-  -> m ()
+  :: ServerC m => FilePath -> Text -> Employment.CreateContractAll' -> m ()
 echoSaveContract' dataDir key contract = do
   profile <- readJson $ dataDir </> "alice.json"
   db      <- asks Rt._rDb
@@ -1147,7 +1272,9 @@ echoSaveContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
   echoSaveContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/contract/confirm-contract/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/contract/confirm-contract/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
 echoSaveContractAndAddExpense
@@ -1158,7 +1285,8 @@ echoSaveContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContractAndAddExpense dataDir key contract = do
   echoSaveContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location" ("/forms/edit/contract/add-expense/" <> key)
+                               NoContent
 
 echoAddExpense
   :: ServerC m
@@ -1240,10 +1368,7 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
 echoNewSimpleContract'
-  :: ServerC m
-  => FilePath
-  -> SimpleContract.CreateContractAll'
-  -> m Text
+  :: ServerC m => FilePath -> SimpleContract.CreateContractAll' -> m Text
 echoNewSimpleContract' dataDir contract = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
@@ -1260,8 +1385,9 @@ echoNewSimpleContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContract dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/confirm-simple-contract/" <> key)
-                               NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/confirm-simple-contract/" <> key)
+    NoContent
 
 -- | Create a form, then move to the select role part.
 echoNewSimpleContractAndSelectRole
@@ -1271,7 +1397,9 @@ echoNewSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectRole dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-role/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/select-role/" <> key)
+    NoContent
 
 -- | Create a form, then move to the add date part.
 echoNewSimpleContractAndAddDate
@@ -1281,7 +1409,9 @@ echoNewSimpleContractAndAddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndAddDate dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-date/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/add-date/" <> key)
+    NoContent
 
 -- | Create a form, then move to the select VAT part.
 echoNewSimpleContractAndSelectVAT
@@ -1291,7 +1421,9 @@ echoNewSimpleContractAndSelectVAT
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndSelectVAT dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-vat/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/select-vat/" <> key)
+    NoContent
 
 -- | Create a form, then move to the add expense part.
 echoNewSimpleContractAndAddExpense
@@ -1301,16 +1433,14 @@ echoNewSimpleContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewSimpleContractAndAddExpense dataDir contract = do
   key <- echoNewSimpleContract' dataDir contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/add-expense/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
 -- header.
 echoSaveSimpleContract'
-  :: ServerC m
-  => FilePath
-  -> Text
-  -> SimpleContract.CreateContractAll'
-  -> m ()
+  :: ServerC m => FilePath -> Text -> SimpleContract.CreateContractAll' -> m ()
 echoSaveSimpleContract' dataDir key contract = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
@@ -1329,7 +1459,9 @@ echoSaveSimpleContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContract dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/confirm-simple-contract/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/confirm-simple-contract/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key, then move to the select role part.
 echoSaveSimpleContractAndSelectRole
@@ -1340,7 +1472,9 @@ echoSaveSimpleContractAndSelectRole
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectRole dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-role/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/select-role/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key, then move to the select date part.
 echoSaveSimpleContractAndAddDate
@@ -1351,7 +1485,9 @@ echoSaveSimpleContractAndAddDate
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndAddDate dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-date/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/add-date/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key, then move to the select VAT part.
 echoSaveSimpleContractAndSelectVAT
@@ -1362,7 +1498,9 @@ echoSaveSimpleContractAndSelectVAT
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndSelectVAT dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/select-vat/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/select-vat/" <> key)
+    NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
 echoSaveSimpleContractAndAddExpense
@@ -1373,7 +1511,9 @@ echoSaveSimpleContractAndAddExpense
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveSimpleContractAndAddExpense dataDir key contract = do
   echoSaveSimpleContract' dataDir key contract
-  pure $ addHeader @"Location" ("/forms/edit/simple-contract/add-expense/" <> key) NoContent
+  pure $ addHeader @"Location"
+    ("/forms/edit/simple-contract/add-expense/" <> key)
+    NoContent
 
 echoSelectRole
   :: ServerC m
@@ -1458,7 +1598,9 @@ echoSimpleContractAddExpense
 echoSimpleContractAddExpense dataDir key expense = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  liftIO . atomically $ Rt.addExpenseToSimpleContractForm db (profile, key, expense)
+  liftIO . atomically $ Rt.addExpenseToSimpleContractForm
+    db
+    (profile, key, expense)
   pure $ addHeader @"Location"
     ("/forms/edit/simple-contract/" <> key <> "#panel-expenses")
     NoContent
@@ -1566,8 +1708,11 @@ documentSelectRolePage dataDir key = do
     db
     (profile, key)
   case output of
-    Right _ -> pure $ Pages.SelectRolePage profile key "/forms/edit/simple-contract/confirm-role/"
-    Left  _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+    Right _ -> pure $ Pages.SelectRolePage
+      profile
+      key
+      "/forms/edit/simple-contract/confirm-role/"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmRolePage
   :: ServerC m => FilePath -> Text -> Text -> m Pages.ConfirmRolePage
@@ -1590,12 +1735,13 @@ documentConfirmRolePage dataDir key role = do
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
-documentAddDatePage
-  :: ServerC m => FilePath -> Text -> m Pages.AddDatePage
+documentAddDatePage :: ServerC m => FilePath -> Text -> m Pages.AddDatePage
 documentAddDatePage dataDir key = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right _ -> pure $ Pages.AddDatePage
       profile
@@ -1612,7 +1758,9 @@ documentEditDatePage
 documentEditDatePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
       if idx > length dates - 1
@@ -1631,7 +1779,9 @@ documentRemoveDatePage
 documentRemoveDatePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ dates _) ->
       if idx > length dates - 1
@@ -1644,8 +1794,7 @@ documentRemoveDatePage dataDir key idx = do
           (H.toValue $ "/echo/remove-date/" <> key <> "/" <> show idx)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
-documentSelectVATPage
-  :: ServerC m => FilePath -> Text -> m Pages.SelectVATPage
+documentSelectVATPage :: ServerC m => FilePath -> Text -> m Pages.SelectVATPage
 documentSelectVATPage dataDir key = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
@@ -1653,8 +1802,11 @@ documentSelectVATPage dataDir key = do
     db
     (profile, key)
   case output of
-    Right _ -> pure $ Pages.SelectVATPage profile key "/forms/edit/simple-contract/confirm-vat/"
-    Left  _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+    Right _ -> pure $ Pages.SelectVATPage
+      profile
+      key
+      "/forms/edit/simple-contract/confirm-vat/"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmVATPage
   :: ServerC m => FilePath -> Text -> Int -> m Pages.ConfirmVATPage
@@ -1667,11 +1819,12 @@ documentConfirmVATPage dataDir key rate = do
   case output of
     Right _ -> do
       pure $ Pages.ConfirmVATPage
-          profile
-          key
-          rate
-          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-invoicing")
-          (H.toValue $ "/echo/select-vat/" <> key)
+        profile
+        key
+        rate
+        (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-invoicing"
+        )
+        (H.toValue $ "/echo/select-vat/" <> key)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentSimpleContractAddExpensePage
@@ -1679,7 +1832,9 @@ documentSimpleContractAddExpensePage
 documentSimpleContractAddExpensePage dataDir key = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right _ -> pure $ Pages.SimpleContractAddExpensePage
       profile
@@ -1692,11 +1847,17 @@ documentSimpleContractAddExpensePage dataDir key = do
 
 -- | Same as documentSimpleContractAddExpensePage, but use an existing form.
 documentSimpleContractEditExpensePage
-  :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractAddExpensePage
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m Pages.SimpleContractAddExpensePage
 documentSimpleContractEditExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
       if idx > length expenses - 1
@@ -1706,16 +1867,31 @@ documentSimpleContractEditExpensePage dataDir key idx = do
           key
           (Just idx)
           (expenses !! idx)
-          (H.toValue $ "/forms/edit/simple-contract/" <> key <> "#panel-expenses")
-          (H.toValue $ "/echo/simple-contract/save-expense/" <> key <> "/" <> show idx)
+          (  H.toValue
+          $  "/forms/edit/simple-contract/"
+          <> key
+          <> "#panel-expenses"
+          )
+          (  H.toValue
+          $  "/echo/simple-contract/save-expense/"
+          <> key
+          <> "/"
+          <> show idx
+          )
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentSimpleContractRemoveExpensePage
-  :: ServerC m => FilePath -> Text -> Int -> m Pages.SimpleContractRemoveExpensePage
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Int
+  -> m Pages.SimpleContractRemoveExpensePage
 documentSimpleContractRemoveExpensePage dataDir key idx = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right (SimpleContract.CreateContractAll _ _ _ _ _ expenses) ->
       if idx > length expenses - 1
@@ -1725,7 +1901,12 @@ documentSimpleContractRemoveExpensePage dataDir key idx = do
           key
           idx
           (expenses !! idx)
-          (H.toValue $ "/echo/simple-contract/remove-expense/" <> key <> "/" <> show idx)
+          (  H.toValue
+          $  "/echo/simple-contract/remove-expense/"
+          <> key
+          <> "/"
+          <> show idx
+          )
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentConfirmSimpleContractPage
@@ -1738,9 +1919,11 @@ documentConfirmSimpleContractPage dataDir key = do
     (profile, key)
   case output of
     Right contractAll -> do
-      let role = SimpleContract._createContractRole
-            $ SimpleContract._createContractType contractAll
-          errors = SimpleContract.validateCreateSimpleContract' profile contractAll
+      let
+        role = SimpleContract._createContractRole
+          $ SimpleContract._createContractType contractAll
+        errors =
+          SimpleContract.validateCreateSimpleContract' profile contractAll
       case SimpleContract.lookupRoleLabel role of
         Just roleLabel -> pure $ Pages.ConfirmSimpleContractPage
           profile
@@ -1853,7 +2036,9 @@ withUserResolved
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
   -> m a
-withUserResolved authResult f = withMaybeUserResolved authResult (authFailedErr . show) f
+withUserResolved authResult f = withMaybeUserResolved authResult
+                                                      (authFailedErr . show)
+                                                      f
  where
   authFailedErr = Errs.throwError' . User.UserNotFound . mappend
     "Authentication failed, please login again. Error: "
@@ -1868,7 +2053,8 @@ withMaybeUserResolved
   -> m a
 withMaybeUserResolved authResult a f = case authResult of
   SAuth.Authenticated userId -> do
-    mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByIdResolved . Rt._rDb) userId
+    mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByIdResolved . Rt._rDb)
+                                         userId
     case mprofile of
       Nothing -> do
         ML.warning
@@ -1905,8 +2091,8 @@ withMaybeUserFromUsername
   -> (User.UserProfile -> m a)
   -> m a
 withMaybeUserFromUsername username a f = do
-  mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsername . Rt._rDb)
-                                       username
+  db       <- asks Rt._rDb
+  mprofile <- liftIO $ Rt.selectUserByUsername db username
   maybe (a username) f mprofile
 
 -- | Similar to `withUserFromUsername`, but also returns the related entities.
@@ -1933,8 +2119,9 @@ withMaybeUserFromUsernameResolved
   -> (User.UserProfile -> [Legal.EntityAndRole] -> m a)
   -> m a
 withMaybeUserFromUsernameResolved username a f = do
-  mprofile <- Rt.withRuntimeAtomically (Rt.selectUserByUsernameResolved . Rt._rDb)
-                                       username
+  mprofile <- Rt.withRuntimeAtomically
+    (Rt.selectUserByUsernameResolved . Rt._rDb)
+    username
   maybe (a username) (uncurry f) mprofile
 
 
@@ -1942,7 +2129,11 @@ withMaybeUserFromUsernameResolved username a f = do
 -- | Run a handler, ensuring a legal entity can be obtained from the given
 -- slug, or throw an error.
 withEntityFromName
-  :: forall m a . ServerC m => Text -> (Legal.Entity -> [Legal.ActingUser] -> m a) -> m a
+  :: forall m a
+   . ServerC m
+  => Text
+  -> (Legal.Entity -> [Legal.ActingUser] -> m a)
+  -> m a
 withEntityFromName name f = withMaybeEntityFromName name
                                                     (noSuchUserErr . show) -- TODO entity, not user
                                                     f
@@ -1960,7 +2151,9 @@ withMaybeEntityFromName
   -> (Legal.Entity -> [Legal.ActingUser] -> m a)
   -> m a
 withMaybeEntityFromName name a f = do
-  mentity <- Rt.withRuntimeAtomically (Rt.selectEntityBySlugResolved . Rt._rDb) name
+  mentity <- Rt.withRuntimeAtomically
+    (Rt.selectEntityBySlugResolved . Rt._rDb)
+    name
   maybe (a name) (uncurry f) mentity
 
 
@@ -1985,9 +2178,9 @@ withMaybeUnitFromName
   -> (Text -> m a)
   -> (Business.Unit -> m a)
   -> m a
-withMaybeUnitFromName name a f = do
-  munit <- Rt.withRuntimeAtomically (Rt.selectUnitBySlug . Rt._rDb) name
-  maybe (a name) f munit
+withMaybeUnitFromName slug a f = do
+  munit <- withRuntime $ Rt.selectUnitBySlug slug
+  maybe (a slug) f munit
 
 
 --------------------------------------------------------------------------------
@@ -2009,11 +2202,13 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
  where
   run' mprofile = do
     runtime <- ask
-    output <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
+    output  <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
     let (_, ls) = Inter.formatOutput output
     pure $ unlines ls
-    where
-      username = maybe (User.UserName "nobody") (User._userCredsName . User._userProfileCreds) mprofile
+   where
+    username = maybe (User.UserName "nobody")
+                     (User._userCredsName . User._userProfileCreds)
+                     mprofile
 
 
 --------------------------------------------------------------------------------
@@ -2028,10 +2223,25 @@ showScenario scenariosDir name = do
   pure . H.code . H.pre $ mapM_ displayTrace ts
  where
   displayTrace Inter.Trace {..} = do
-    H.text $ Inter.pad traceNesting <> show traceLineNbr <> ": " <> traceCommand <> "    "
-    H.a ! A.href (H.toValue $ "/scenarios/" <> name <> "/" <> show traceNumber <> "/state.json") $ "View state"
+    H.text
+      $  Inter.pad traceNesting
+      <> show traceLineNbr
+      <> ": "
+      <> traceCommand
+      <> "    "
+    H.a
+      ! A.href
+          (  H.toValue
+          $  "/scenarios/"
+          <> name
+          <> "/"
+          <> show traceNumber
+          <> "/state.json"
+          )
+      $ "View state"
     H.text "\n"
-    mapM_ (\o -> H.text (Inter.pad traceNesting) >> H.text o >> H.text "\n") traceOutput
+    mapM_ (\o -> H.text (Inter.pad traceNesting) >> H.text o >> H.text "\n")
+          traceOutput
     mapM_ displayTrace traceNested
 
 -- | Show the state after a specific command, given as its number within the
@@ -2043,8 +2253,12 @@ showScenarioState scenariosDir name nbr = do
   let ts' = Inter.flatten ts
   pure . H.code . H.pre $ H.text $ show . Inter.traceState $ ts' !! nbr
 
-showScenarioStateAsJson :: ServerC m => FilePath -> FilePath -> Int -> m
-  (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+showScenarioStateAsJson
+  :: ServerC m
+  => FilePath
+  -> FilePath
+  -> Int
+  -> m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 showScenarioStateAsJson scenariosDir name nbr = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
@@ -2072,8 +2286,7 @@ listScenarioNames scenariosDir = do
 --------------------------------------------------------------------------------
 showState :: ServerC m => m Pages.EchoPage
 showState = do
-  stmDb <- asks Rt._rDb
-  db    <- readFullStmDbInHask stmDb
+  db <- withRuntime Rt.state
   pure . Pages.EchoPage $ show db
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
@@ -2081,8 +2294,7 @@ showState = do
 showStateAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 showStateAsJson = do
-  stmDb <- asks Rt._rDb
-  db    <- readFullStmDbInHask stmDb
+  db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db
 
 
@@ -2215,7 +2427,9 @@ serveEntity authResult name = withEntityFromName name $ \targetEntity users ->
   withMaybeUser
     authResult
     (const . pure $ Pages.EntityView Nothing targetEntity users Nothing)
-    (\profile -> pure $ Pages.EntityView (Just profile) targetEntity users (Just "#"))
+    (\profile ->
+      pure $ Pages.EntityView (Just profile) targetEntity users (Just "#")
+    )
 
 
 --------------------------------------------------------------------------------

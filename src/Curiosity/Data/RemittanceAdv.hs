@@ -11,6 +11,7 @@ module Curiosity.Data.RemittanceAdv
   ( -- * Main data representation
     RemittanceAdv(..)
   , RemittanceAdvId(..)
+  , remittanceAdvIdPrefix
   , Err(..)
   ) where
 
@@ -39,6 +40,9 @@ newtype RemittanceAdvId = RemittanceAdvId { unRemittanceAdvId :: Text }
                         , H.ToValue
                         ) via Text
                deriving FromForm via W.Wrapped "remittance-advice-id" Text
+
+remittanceAdvIdPrefix :: Text
+remittanceAdvIdPrefix = "REM-"
 
 data Err = Err
   { unErr :: Text
