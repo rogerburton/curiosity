@@ -1,13 +1,22 @@
 {-# LANGUAGE TupleSections #-}
 module Curiosity.Interpret
-  ( interpretFile
+  ( Trace(..)
+  , handleRun
+  , handleRun'
+  , interpretFile
+  , interpret
   , interpret'
   , formatOutput
+  , flatten
+  , pad
+  , listScenarios
   , wordsq
   ) where
 
 import qualified Curiosity.Command             as Command
+import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import           Data.List                      ( last )
 import qualified Data.Text                     as T
@@ -15,15 +24,58 @@ import qualified Options.Applicative           as A
 import           System.FilePath                ( (</>)
                                                 , takeDirectory
                                                 )
+import qualified System.FilePath.Glob          as Glob
 
 
 --------------------------------------------------------------------------------
-interpretFile
-  :: Rt.Runtime
-  -> User.UserName
-  -> FilePath
-  -> Int
-  -> IO [(Int, ExitCode, Text)]
+handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
+handleRun conf user scriptPath = do
+  runtime <- Rt.boot conf >>= either throwIO pure
+  code    <- interpret runtime user scriptPath
+  Rt.powerdown runtime
+  exitWith code
+
+-- | Similar to `handleRun`, but capturing the output, and logging elsewhere
+-- than normally: this is used in tests and in the `/scenarios` handler.
+handleRun' :: FilePath -> IO [Trace]
+handleRun' scriptPath = do
+  let conf = P.Conf
+        { P._confLogging = P.mkLoggingConf "/tmp/cty-serve-explore.log"
+        , P._confDbFile  = Nothing
+        }
+  runtime <- Rt.boot conf >>= either throwIO pure
+  output  <- interpretFile runtime "system" scriptPath 0
+  Rt.powerdown runtime
+  pure output
+
+interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
+interpret runtime user path = do
+  output <- interpretFile runtime user path 0
+  let (exitCode, ls) = formatOutput output
+  mapM_ putStrLn ls
+  pure exitCode
+
+
+--------------------------------------------------------------------------------
+data Trace = Trace
+  { traceNumber   :: Int -- ^ Flat numbering of commands within the script.
+  , traceLineNbr  :: Int
+  , traceCommand  :: Text
+  , traceComment  :: Maybe Text
+  , traceNesting  :: Int
+  , traceUser     :: User.UserName
+  , traceOutput   :: [Text]
+  , traceExitCode :: ExitCode
+  , traceNested   :: [Trace]
+  , traceState    :: Data.HaskDb Rt.Runtime -- ^ The resulting state.
+  }
+
+-- | Keep all traces, but removes the `traceNested` indirection.
+flatten :: [Trace] -> [Trace]
+flatten [] = []
+flatten (t:ts) = t { traceNested = [] } : flatten (traceNested t) ++ flatten ts
+
+interpretFile :: Rt.Runtime -> User.UserName -> FilePath -> Int -> IO [Trace]
 interpretFile runtime user path nesting = do
   let dir = takeDirectory path
   content <- T.lines <$> readFile path
@@ -35,24 +87,34 @@ interpret'
   -> FilePath
   -> [Text]
   -> Int
-  -> IO [(Int, ExitCode, Text)]
-interpret' runtime user dir content nesting = do
-  (_, output) <- foldlM loop (user, []) $ zip [1 :: Int ..] content
-  pure output
+  -> IO [Trace]
+interpret' runtime user dir content nesting = go user [] 0
+  $ zip [1 :: Int ..] content
  where
-  loop (user', acc) (ln, line) = do
-    let (prefix, _) = T.breakOn "#" line
-        separated   = map T.pack . wordsq $ T.unpack prefix
-        grouped     = T.unwords separated
+  go user' acc nbr []                  = pure acc
+  go user' acc nbr ((ln, line) : rest) = do
+    let (prefix, comment) = T.breakOn "#" line
+        separated         = map T.pack . wordsq $ T.unpack prefix
+        grouped           = T.unwords separated
+        nbr'  = succ nbr
+        trace = Trace nbr
+                      ln
+                      grouped
+                      (if T.null comment then Nothing else Just comment)
+                      nesting
+                      user'
     case separated of
-      []               -> pure (user', acc)
+      []               -> go user' acc nbr rest
       ["as", username] -> do
-        let output = [show ln <> ": " <> grouped, "Modifying default user."]
-        pure
-          (User.UserName username, acc ++ map (nesting, ExitSuccess, ) output)
+        st <- Rt.state runtime
+        let t    = trace ["Modifying default user."] ExitSuccess [] st
+            acc' = acc ++ [t]
+        go (User.UserName username) acc' nbr' rest
       ["quit"] -> do
-        let output = [show ln <> ": " <> grouped, "Exiting."]
-        pure (user', acc ++ map (nesting, ExitSuccess, ) output)
+        st <- Rt.state runtime
+        let t    = trace ["Exiting."] ExitSuccess [] st
+            acc' = acc ++ [t]
+        go user' acc' nbr' rest
       input -> do
         let output_ = [show ln <> ": " <> grouped]
             result =
@@ -63,42 +125,62 @@ interpret' runtime user dir content nesting = do
           A.Success command -> do
             case command of
               Command.Reset _ -> do
-                let output = output_ ++ ["Resetting to the empty state."]
                 Rt.reset runtime
-                pure (user', acc ++ map (nesting, ExitSuccess, ) output)
+                st <- Rt.state runtime
+                let t = trace ["Resetting to the empty state."] ExitSuccess [] st
+                    acc' = acc ++ [t]
+                go user' acc' nbr' rest
               Command.Run _ scriptPath -> do
                 output' <- liftIO $ interpretFile runtime
-                                                       user
-                                                       (dir </> scriptPath)
-                                                       (succ nesting)
-                pure
-                  ( user'
-                  , acc ++ map (nesting, ExitSuccess, ) output_ ++ output'
-                  )
+                                                  user
+                                                  (dir </> scriptPath)
+                                                  (succ nesting)
+                st <- Rt.state runtime
+                let t    = trace [] ExitSuccess output' st
+                    acc' = acc ++ [t]
+                go user' acc' nbr' rest
               _ -> do
                 (_, output) <- Rt.handleCommand runtime user' command
-                pure
-                  ( user'
-                  , acc ++ map (nesting, ExitSuccess, ) (output_ ++ output)
-                  )
-          A.Failure err ->
-            pure (user', acc ++ [(nesting, ExitFailure 1, show err)])
-          A.CompletionInvoked _ ->
-            pure (user', acc ++ [(nesting, ExitFailure 1, "Shouldn't happen")])
+                st <- Rt.state runtime
+                let t    = trace output ExitSuccess [] st
+                    acc' = acc ++ [t]
+                go user' acc' nbr' rest
+          A.Failure err -> do
+            st <- Rt.state runtime
+            let t    = trace [show err] (ExitFailure 1) [] st
+                acc' = acc ++ [t]
+            go user' acc' nbr' rest
+          A.CompletionInvoked _ -> do
+            st <- Rt.state runtime
+            let t    = trace ["Shouldn't happen."] (ExitFailure 1) [] st
+                acc' = acc ++ [t]
+            go user' acc' nbr' rest
 
 
 --------------------------------------------------------------------------------
-formatOutput :: [(Int, ExitCode, Text)] -> (ExitCode, [Text])
+formatOutput :: [Trace] -> (ExitCode, [Text])
 formatOutput output =
-  let len     = length $ takeWhile ((== ExitSuccess) . snd3) output
-      output' = take (len + 1) output
-      pad 0 = ""
-      pad 1 = "> "
-      pad n = T.concat (replicate ((n - 1) * 2) ">") <> "> "
-      ls =  map (\(a, _, c) -> pad a <> c) output'
-  in (snd3 . last $ (0, ExitSuccess, "") : output', ls)
+  let ls = concatMap showTrace output
+      exitCode =
+        if null output then ExitSuccess else traceExitCode $ last output
+  in  (exitCode, ls)
 
-snd3 (_, b, _) = b
+showTrace :: Trace -> [Text]
+showTrace Trace {..} =
+  map (pad traceNesting <>)
+    $  (show traceLineNbr <> ": " <> traceCommand)
+    :  traceOutput
+    ++ concatMap showTrace traceNested
+
+pad 0 = ""
+pad 1 = "> "
+pad n = T.concat (replicate ((n - 1) * 2) ">") <> "> "
+
+
+--------------------------------------------------------------------------------
+listScenarios :: FilePath -> IO [FilePath]
+listScenarios scenariosDir = sort <$> Glob.globDir1 pat scenariosDir
+  where pat = Glob.compile "*.txt"
 
 
 --------------------------------------------------------------------------------

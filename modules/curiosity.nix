@@ -22,6 +22,7 @@
         --server-port 9100 \
         --static-dir ${(import ../.).content} \
         --data-dir ${(import ../.).data} \
+        --scenarios-dir ${(import ../.).scenarios} \
         --log /tmp/curiosity.log
     '';
   };

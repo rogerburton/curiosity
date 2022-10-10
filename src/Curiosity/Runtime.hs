@@ -14,6 +14,7 @@ module Curiosity.Runtime
   , boot
   , boot'
   , reset
+  , state
   , handleCommand
   , powerdown
   , readDb
@@ -100,6 +101,7 @@ import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
 import qualified Language.Haskell.TH.Syntax    as Syntax
 import qualified Network.HTTP.Types            as HTTP
+import           Prelude                 hiding ( state )
 import qualified Servant
 import           System.Directory               ( doesFileExist )
 
@@ -219,6 +221,8 @@ saveDbAs runtime fpath = do
   liftIO
       (try @SomeException (T.writeFile fpath . TE.decodeUtf8 $ BS.toStrict bs))
     <&> either (Just . Errs.RuntimeException) (const Nothing)
+
+state runtime = Data.readFullStmDbInHask $ _rDb runtime
 
 {- | Instantiate the db.
 

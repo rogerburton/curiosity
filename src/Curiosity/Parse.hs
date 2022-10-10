@@ -45,6 +45,7 @@ data ServerConf = ServerConf
   { _serverPort          :: Int
   , _serverStaticDir     :: FilePath
   , _serverDataDir       :: FilePath
+  , _serverScenariosDir  :: FilePath
   , _serverCookie        :: SAuth.CookieSettings
     -- ^ Settings for setting cookies as a server (for authentication etc.).
   , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
@@ -60,6 +61,8 @@ instance Eq ServerConf where
       == _serverStaticDir b
       && _serverDataDir a
       == _serverDataDir b
+      && _serverScenariosDir a
+      == _serverScenariosDir b
       && _serverCookie a
       == _serverCookie b
 
@@ -115,6 +118,10 @@ serverParser = do
     (A.long "data-dir" <> A.value "./data/" <> A.metavar "DIR" <> A.help
       "A directory containing example data."
     )
+  _serverScenariosDir <- A.strOption
+    (A.long "scenarios-dir" <> A.value "./scenarios/" <> A.metavar "DIR" <> A.help
+      "A directory containing scenarios."
+    )
 
   pure ServerConf
     {
@@ -140,6 +147,7 @@ defaultServerConf = ServerConf
   , _serverPort          = 9000
   , _serverStaticDir     = "./_site/"
   , _serverDataDir       = "./data/"
+  , _serverScenariosDir  = "./scenarios/"
   }
 
 

@@ -93,9 +93,9 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
 run (Command.CommandWithTarget (Command.Run _ scriptPath) target (Command.User user))
   = case target of
     Command.MemoryTarget -> do
-      handleRun P.defaultConf user scriptPath
+      Inter.handleRun P.defaultConf user scriptPath
     Command.StateFileTarget path -> do
-      handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath
+      Inter.handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
@@ -224,22 +224,6 @@ handleServe conf serverConf = do
 
 
 --------------------------------------------------------------------------------
-handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
-handleRun conf user scriptPath = do
-  runtime <- Rt.boot conf >>= either throwIO pure
-  code    <- interpret runtime user scriptPath
-  Rt.powerdown runtime
-  exitWith code
-
-interpret :: Rt.Runtime -> User.UserName -> FilePath -> IO ExitCode
-interpret runtime user path = do
-  output <- Inter.interpretFile runtime user path 0
-  let (exitCode, ls) = Inter.formatOutput output
-  mapM_ putStrLn ls
-  pure exitCode
-
-
---------------------------------------------------------------------------------
 handleViewQueue conf user name = do
   case name of
     Command.EmailAddrToVerify -> do
@@ -341,7 +325,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
             -- to Rt.handleCommand too.
             Command.Reset _          -> Rt.reset runtime
             Command.Run _ scriptPath -> do
-              code <- liftIO $ interpret runtime user scriptPath
+              code <- liftIO $ Inter.interpret runtime user scriptPath
               case code of
                 ExitSuccess   -> pure ()
                 ExitFailure _ -> output' "Script failed."

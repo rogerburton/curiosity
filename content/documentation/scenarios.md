@@ -9,10 +9,11 @@ of test scenarios. To do so, Curiosity supports running scripts: they are
 textual sequences of commands that mimic closely what can be done through the
 web interface.
 
-As part of Curiosity's test suite, a collection of scenarios are run and their
-results are compared to known sources of truth, called "golden files". This
-makes sure that, as scenarios are created, and as Curiosity evolves, the system
-continues to work as expected, and few bugs can be introduced inadvertantly.
+As part of Curiosity's test suite, a [collection of scenarios](#scenarios) are
+run and their results are compared to known sources of truth, called "golden
+files". This makes sure that, as scenarios are created, and as Curiosity
+evolves, the system continues to work as expected, and few bugs can be
+introduced inadvertantly.
 
 # Example data
 
@@ -48,3 +49,13 @@ dynamically add, edit, and remove them in specific test scenarios.
 
 This kind of live data have their own [documentation
 page](/documentation/live-data).
+
+# Scenarios
+
+The test suite of Curiosity contains the following scenarios (those are
+clickable links). For each scenario, it is possible to view all the states
+resulting of each of the commands the execute.
+
+<!--# include virtual="/partials/scenarios" -->
+
+The list [as JSON](/partials/scenarios.json).

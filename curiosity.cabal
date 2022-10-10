@@ -136,6 +136,7 @@ library
     , directory
     , fast-logger
     , filepath
+    , Glob
     , haskeline
     , memory
     , network
@@ -198,7 +199,6 @@ test-suite curiosity-scenarios
       bytestring
     , curiosity
     , filepath
-    , Glob
     , lens
     , tasty
     , tasty-silver
