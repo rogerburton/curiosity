@@ -43,25 +43,8 @@ data ServerConf = ServerConf
   , _serverScenariosDir  :: FilePath
   , _serverCookie        :: SAuth.CookieSettings
     -- ^ Settings for setting cookies as a server (for authentication etc.).
-  , _serverMkJwtSettings :: JWK.JWK -> SAuth.JWTSettings
-    -- ^ JWK settings to use, depending on the key employed.
   }
-
-instance Eq ServerConf where
-  -- TODO This should be automatically derived: see to fix _serverMkJwtSettings.
-  a == b =
-    _serverPort b
-      == _serverPort b
-      && _serverStaticDir a
-      == _serverStaticDir b
-      && _serverDataDir a
-      == _serverDataDir b
-      && _serverScenariosDir a
-      == _serverScenariosDir b
-      && _serverCookie a
-      == _serverCookie b
-
-instance Show ServerConf
+  deriving (Eq, Show)
 
 
 --------------------------------------------------------------------------------
@@ -121,8 +104,6 @@ serverParser = do
                                , SAuth.cookieXsrfSetting = Nothing -- XSRF disabled to simplify curl calls (same as start-servant)
                                , SAuth.cookieSameSite    = SAuth.SameSiteStrict
                                }
-      -- FIXME: See if this can be customized via parsing.
-    , _serverMkJwtSettings = SAuth.defaultJWTSettings
     , ..
     }
 
@@ -133,7 +114,6 @@ defaultServerConf = ServerConf
                              , SAuth.cookieXsrfSetting = Nothing
                              , SAuth.cookieSameSite    = SAuth.SameSiteStrict
                              }
-  , _serverMkJwtSettings = SAuth.defaultJWTSettings
   , _serverPort          = 9000
   , _serverStaticDir     = "./_site/"
   , _serverDataDir       = "./data/"
