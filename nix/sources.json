@@ -6,9 +6,9 @@
         "type": "git"
     },
     "commence": {
-        "branch": "main",
+        "branch": "noteed/feature/conf",
         "repo": "git@github.com:hypered/commence.git",
-        "rev": "660595245e76db6b6d5bae971525ea77224b1162",
+        "rev": "19b1f32b2b68f246a2488f91a26ee1072d0dd318",
         "type": "git"
     },
     "design-hs": {

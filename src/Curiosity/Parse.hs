@@ -31,12 +31,7 @@ data Conf = Conf
     -- is absent, it will be created on server exit, with the latest DB state
     -- written to it.
   }
-
-instance Eq Conf where
-  -- TODO This should be automatically derived: see to fix ML.LoggingConf.
-  a == b = _confDbFile a == _confDbFile b
-
-instance Show Conf
+  deriving (Eq, Show)
 
 makeLenses ''Conf
 
@@ -66,8 +61,8 @@ instance Eq ServerConf where
       && _serverCookie a
       == _serverCookie b
 
-
 instance Show ServerConf
+
 
 --------------------------------------------------------------------------------
 defaultConf :: Conf
@@ -78,7 +73,7 @@ defaultLoggingConf :: ML.LoggingConf
 defaultLoggingConf = mkLoggingConf "./curiosity.log"
 
 mkLoggingConf :: FilePath -> ML.LoggingConf
-mkLoggingConf path = ML.LoggingConf [FL.LogFile (flspec path) 1024]
+mkLoggingConf path = ML.LoggingConf (ML.LoggingFile path)
                                     "Curiosity"
                                     L.levelInfo
 
@@ -91,13 +86,8 @@ flspec path = FL.FileLogSpec path (1024 * 1024) 10
 confParser :: A.Parser Conf
 confParser = do
   _confDbFile  <- dbFileParser
-  _confLogFile <- A.strOption
-    (A.long "log" <> A.value "./curiosity.log" <> A.metavar "PATH" <> A.help
-      "A file where to write logs."
-    )
-  pure Conf {
-      -- FIXME: ML.parseLoggingConf never terminates, should be fixed.
-              _confLogging = mkLoggingConf _confLogFile, .. }
+  _confLogging <- ML.parseLoggingConf
+  pure Conf {..}
 
 serverParser :: A.Parser ServerConf
 serverParser = do
