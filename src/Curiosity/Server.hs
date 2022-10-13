@@ -37,6 +37,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
@@ -63,7 +64,7 @@ import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
 import qualified Curiosity.Html.User           as Pages
 import qualified Curiosity.Interpret           as Inter
-import qualified Curiosity.Parse               as Command
+import qualified Curiosity.Parse               as Parse
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
@@ -476,7 +477,7 @@ serverT
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
   -> Server.Context ServerSettings
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
@@ -624,10 +625,10 @@ type ServerSettings
 run
   :: forall m
    . MonadIO m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run conf@Command.ServerConf {..} runtime = liftIO $ do
+run conf@Parse.ServerConf {..} runtime = liftIO $ do
   jwk <- SAuth.generateKey
   -- FIXME: See if this can be customized via parsing.
   let jwtSettings = SAuth.defaultJWTSettings jwk
@@ -653,7 +654,7 @@ serve
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> Server.Context ServerSettings
   -> SAuth.JWTSettings
   -> FilePath
@@ -670,7 +671,7 @@ settingsProxy = Proxy @ServerSettings
 
 routingLayout :: forall m . MonadIO m => m Text
 routingLayout = do
-  let Command.ServerConf {..} = Command.defaultServerConf
+  let Parse.ServerConf {..} = Parse.defaultServerConf
   jwk <- liftIO SAuth.generateKey
   -- FIXME: See if this can be customized via parsing.
   let jwtSettings = SAuth.defaultJWTSettings jwk
@@ -849,7 +850,7 @@ type Public =    "a" :> "signup"
 publicT
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> SAuth.JWTSettings
   -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
@@ -880,7 +881,7 @@ handleSignup input@User.Signup {..} =
 handleLogin
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> SAuth.JWTSettings
   -> User.Login
   -> m (Headers CAuth.PostAuthHeaders NoContent)
@@ -902,7 +903,7 @@ handleLogin conf jwtSettings input =
             -- Servant.Server.getContetEntry. This would avoid threading
             -- jwtSettings evereywhere.
             mApplyCookies <- liftIO $ SAuth.acceptLogin
-              (Command._serverCookie conf)
+              (Parse._serverCookie conf)
               jwtSettings
               (u ^. User.userProfileId)
             case mApplyCookies of
@@ -979,7 +980,7 @@ type Private = H.UserAuthentication :> (
                   :> Post '[B.HTML] Pages.EchoPage
   )
 
-privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
+privateT :: forall m . ServerC m => Parse.ServerConf -> ServerT Private m
 privateT conf authResult =
   let withUser'
         :: forall m' a . ServerC m' => (User.UserProfile -> m' a) -> m' a
@@ -1012,10 +1013,10 @@ privateT conf authResult =
 handleLogout
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> m (Headers CAuth.PostLogoutHeaders NoContent)
 handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
-  (Command._serverCookie conf)
+  (Parse._serverCookie conf)
   NoContent
 
 showProfilePage profile entities =
@@ -1171,12 +1172,18 @@ handleSubmitQuotation
   => Quotation.SubmitQuotation
   -> User.UserProfile
   -> m Pages.EchoPage
-handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
-  case output of
-    Right quotation -> pure . Pages.EchoPage $ show
-      (quotation, Quotation.validateCreateQuotation profile quotation)
-    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+handleSubmitQuotation input@(Quotation.SubmitQuotation key) profile =
+  ML.localEnv (<> "HTTP" <> "Quotation" <> "SubmitQuotation")
+    $   do
+          ML.info $ "Submitting new quotation: " <> key <> "..."
+          mid <- Rt.withRuntimeAtomically
+            (Rt.submitCreateQuotationForm . Rt._rDb) (profile, input)
+          case mid of
+            Right id -> do
+              let logs = Rt.submitQuotationSuccess id
+              mapM_ ML.info logs
+              pure . Pages.EchoPage $ unlines logs
+            Left err -> pure . Pages.EchoPage $ Quotation.unErr err
 
 -- $ documentationPages
 --
@@ -2538,11 +2545,11 @@ serveNamespaceOrStatic
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
   -> Server.Context ServerSettings
   -> SAuth.JWTSettings
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> FilePath
   -> Text
   -> Tagged m Application
-serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name
+serveNamespaceOrStatic natTrans ctx jwtSettings Parse.ServerConf {..} root name
   = Tagged $ \req sendRes ->
     let authRes =
           -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck

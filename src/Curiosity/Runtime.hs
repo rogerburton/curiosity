@@ -18,6 +18,7 @@ module Curiosity.Runtime
   , reset
   , state
   , handleCommand
+  , submitQuotationSuccess
   , powerdown
   , readDb
   , readDbSafe
@@ -47,6 +48,7 @@ module Curiosity.Runtime
   , readCreateQuotationForm'
   , readCreateQuotationForms'
   , writeCreateQuotationForm
+  , submitCreateQuotationForm
   -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
@@ -546,10 +548,7 @@ handleCommand runtime@Runtime {..} user command = do
           case mid of
             Right id -> pure
               ( ExitSuccess
-              , [ "Quotation form validated."
-                , "Quotation created: " <> Quotation.unQuotationId id
-                , "Quotation sent to client: " <> Quotation.unQuotationId id
-                ]
+              , submitQuotationSuccess id
               )
             Left err -> pure (ExitFailure 1, [Quotation.unErr err])
         Nothing ->
@@ -661,6 +660,12 @@ handleCommand runtime@Runtime {..} user command = do
       -- I think this has to do with the fact that they contain a conf.
       -- pure (ExitFailure 1, ["Unhandled command " <> show command])
       pure (ExitFailure 1, ["Unhandled command."])
+
+submitQuotationSuccess id =
+  [ "Quotation form validated."
+  , "Quotation created: " <> Quotation.unQuotationId id
+  , "Quotation sent to client: " <> Quotation.unQuotationId id
+  ]
 
 setUserEmailAddrAsVerifiedFull
   :: Core.StmDb runtime
