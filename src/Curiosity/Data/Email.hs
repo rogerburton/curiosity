@@ -15,6 +15,8 @@ module Curiosity.Data.Email
   , EmailId(..)
   , emailIdPrefix
   , EmailTemplate(..)
+  , Predicate(..)
+  , applyPredicate
   , Err(..)
   ) where
 
@@ -50,10 +52,23 @@ newtype EmailId = EmailId { unEmailId :: Text }
 emailIdPrefix :: Text
 emailIdPrefix = "EMAIL-"
 
+
+--------------------------------------------------------------------------------
 data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail | InvoiceReminderEmail
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
+
+--------------------------------------------------------------------------------
+-- | Predicates to filter users.
+data Predicate = AllEmails
+  deriving (Eq, Show)
+
+applyPredicate :: Predicate -> Email -> Bool
+applyPredicate AllEmails _ = True
+
+
+--------------------------------------------------------------------------------
 data Err = Err
   { unErr :: Text
   }

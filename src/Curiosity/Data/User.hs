@@ -277,6 +277,7 @@ instance Storage.DBStorageOps UserProfile where
 data Predicate = PredicateEmailAddrToVerify | PredicateHas AccessRight
   deriving (Eq, Show)
 
+applyPredicate :: Predicate -> UserProfile -> Bool
 applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
   isNothing _userProfileEmailAddrVerified
 

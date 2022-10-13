@@ -44,6 +44,7 @@ import           Curiosity.Data                 ( HaskDb
                                                 )
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Country        as Country
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Quotation      as Quotation
@@ -236,6 +237,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+
+             :<|> "emails" :> Get '[B.HTML] Pages.EchoPage
+             :<|> "emails.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
@@ -526,8 +530,11 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showScenario scenariosDir
     :<|> showScenarioState scenariosDir
     :<|> showScenarioStateAsJson scenariosDir
+
     :<|> showState
     :<|> showStateAsJson
+    :<|> showEmails
+    :<|> showEmailsAsJson
 
     :<|> echoLogin
     :<|> echoSignup
@@ -711,8 +718,8 @@ showHomePage authResult = withMaybeUser
     profiles <- if b
       then
         Just
-          <$> Rt.withRuntimeAtomically Rt.filterUsers
-                                       User.PredicateEmailAddrToVerify
+          <$> withRuntime (Rt.filterUsers'
+                                       User.PredicateEmailAddrToVerify)
       else pure Nothing
     mquotationForms <-
           withRuntime $ Rt.readCreateQuotationForms' profile
@@ -2466,6 +2473,19 @@ showStateAsJson
 showStateAsJson = do
   db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db
+
+
+--------------------------------------------------------------------------------
+showEmails :: ServerC m => m Pages.EchoPage
+showEmails = do
+  emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+  pure . Pages.EchoPage $ show emails
+
+showEmailsAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+showEmailsAsJson = do
+  emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+  pure $ JP.PrettyJSON emails
 
 
 --------------------------------------------------------------------------------

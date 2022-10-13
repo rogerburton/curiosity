@@ -33,6 +33,7 @@ module Curiosity.Runtime
   , selectUserByUsername
   , selectUserByUsernameResolved
   , filterUsers
+  , filterUsers'
   , createUser
   , checkCredentials
   -- * High-level entity operations
@@ -68,6 +69,9 @@ module Curiosity.Runtime
   , addExpenseToSimpleContractForm
   , writeExpenseToSimpleContractForm
   , removeExpenseFromSimpleContractForm
+  -- * Emails
+  , filterEmails
+  , filterEmails'
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -450,16 +454,12 @@ handleCommand runtime@Runtime {..} user command = do
             Nothing -> pure (ExitFailure 1, ["No such user."])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FilterUsers predicate -> do
-      output <- runAppMSafe runtime
-        $ withRuntimeAtomically filterUsers predicate
-      case output of
-        Right profiles -> do
-          let f User.UserProfile {..} =
-                let User.UserId   i = _userProfileId
-                    User.UserName n = User._userCredsName _userProfileCreds
-                in  i <> " " <> n
-          pure (ExitSuccess, map f profiles)
-        Left err -> pure (ExitFailure 1, [show err])
+      profiles <- runRunM runtime $ filterUsers' predicate
+      let f User.UserProfile {..} =
+            let User.UserId   i = _userProfileId
+                User.UserName n = User._userCredsName _userProfileCreds
+            in  i <> " " <> n
+      pure (ExitSuccess, map f profiles)
     Command.UpdateUser input -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
@@ -643,7 +643,7 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
       let transaction rt _ = do
-            users <- filterUsers rt User.PredicateEmailAddrToVerify
+            users <- filterUsers _rDb User.PredicateEmailAddrToVerify
             mapM
               ( setUserEmailAddrAsVerified _rDb
               . User._userCredsName
@@ -1491,11 +1491,16 @@ selectUserByUsernameResolved db username = do
         pure $ Just (user, entities)
       Nothing -> pure Nothing
 
-filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
-filterUsers runtime predicate = do
-  let usersTVar = Data._dbUserProfiles $ _rDb runtime
-  users' <- STM.readTVar usersTVar
-  pure $ filter (User.applyPredicate predicate) users'
+filterUsers :: Core.StmDb runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers db predicate = do
+  let tvar = Data._dbUserProfiles db
+  records <- STM.readTVar tvar
+  pure $ filter (User.applyPredicate predicate) records
+
+filterUsers' :: User.Predicate -> RunM [User.UserProfile]
+filterUsers' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterUsers db predicate
 
 createUser :: User.Signup -> RunM (Either User.UserErr User.UserId)
 createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
@@ -1598,6 +1603,19 @@ readLegalEntities db = do
   pure records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
+
+
+--------------------------------------------------------------------------------
+filterEmails :: Core.StmDb runtime -> Email.Predicate -> STM [Email.Email]
+filterEmails db predicate = do
+  let tvar = Data._dbEmails db
+  records <- STM.readTVar tvar
+  pure $ filter (Email.applyPredicate predicate) records
+
+filterEmails' :: Email.Predicate -> RunM [Email.Email]
+filterEmails' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterEmails db predicate
 
 
 --------------------------------------------------------------------------------
