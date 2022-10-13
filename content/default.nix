@@ -3,13 +3,21 @@
 
 let
   pkgs = import nixpkgs {};
+  sources = import ../nix/sources.nix {};
+  nix-filter = import sources.nix-filter;
 
 in
 {
   html.all = pkgs.stdenv.mkDerivation {
     name = "content";
-    # TODO We only need content/, man/, scripts/
-    src = ../.;
+    src = nix-filter {
+      root = ../.;
+      include = [
+        "content"
+        "man"
+        "scripts"
+      ];
+    };
     nativeBuildInputs = [ pkgs.mandoc pkgs.pandoc ];
     installPhase = ''
       # Make sure we don't use an already built _site/.
@@ -25,8 +33,12 @@ in
   # Define this here, instead of creating a .nix file in data/.
   data = pkgs.stdenv.mkDerivation {
     name = "data";
-    # TODO We only need data/
-    src = ../.;
+    src = nix-filter {
+      root = ../.;
+      include = [
+        "data"
+      ];
+    };
     installPhase = ''
       cp -r data $out
     '';
@@ -35,8 +47,12 @@ in
   # Define this here, instead of creating a .nix file in scenarios/.
   scenarios = pkgs.stdenv.mkDerivation {
     name = "scenarios";
-    # TODO We only need scenarios/
-    src = ../.;
+    src = nix-filter {
+      root = ../.;
+      include = [
+        "scenarios"
+      ];
+    };
     installPhase = ''
       cp -r scenarios $out
     '';
