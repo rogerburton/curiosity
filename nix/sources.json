@@ -41,6 +41,18 @@
         "url": "https://github.com/nmattia/niv/archive/82e5cd1ad3c387863f0545d7591512e76ab0fc41.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "nix-filter": {
+        "branch": "master",
+        "description": "a small self-container source filtering lib",
+        "homepage": "",
+        "owner": "numtide",
+        "repo": "nix-filter",
+        "rev": "3b821578685d661a10b563cba30b1861eec05748",
+        "sha256": "0gzx750j06f0j1wi006rhb1xhxaszlbqi7vg0cysrffvgwjccb26",
+        "type": "tarball",
+        "url": "https://github.com/numtide/nix-filter/archive/3b821578685d661a10b563cba30b1861eec05748.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "nixpkgs": {
         "branch": "nixos-22.05",
         "description": "Nix Packages collection",
