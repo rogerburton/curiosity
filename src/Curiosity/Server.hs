@@ -242,6 +242,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
+             :<|> "echo" :> "update-profile"
+                  :> ReqBody '[FormUrlEncoded] User.Update
+                  :> Post '[B.HTML] Pages.EchoPage
 
              -- Quotation
              :<|> "echo" :> "new-quotation"
@@ -524,6 +527,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> echoLogin
     :<|> echoSignup
+    :<|> echoUpdateProfile
 
     :<|> echoNewQuotation dataDir
     :<|> echoSaveQuotation dataDir
@@ -1178,7 +1182,10 @@ handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
 documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
 documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
-  pure $ Pages.ProfilePage profile "/echo/profile"
+  pure $ Pages.ProfilePage profile "/echo/update-profile"
+
+echoUpdateProfile :: ServerC m => User.Update -> m Pages.EchoPage
+echoUpdateProfile input = pure $ Pages.EchoPage $ show input
 
 documentCreateQuotationPage
   :: ServerC m => FilePath -> m Pages.CreateQuotationPage
