@@ -10,6 +10,7 @@ title: Curiosity
 - [Changelog](/documentation/changelog)
 - [Command-line interfaces](/documentation/clis)
 - [Deployment](/documentation/deployment)
+- [Emails](/documentation/emails)
 - [Environments](/documentation/environments)
 - [Forms](/documentation/forms)
 - [Library documentation](/documentation/library)
