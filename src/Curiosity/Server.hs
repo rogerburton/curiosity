@@ -414,6 +414,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "submit-simple-contract"
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.SubmitContract
+                  :> Post '[B.HTML] Pages.EchoPage
 
              :<|> Partials
 
@@ -560,6 +563,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> echoSimpleContractAddExpense dataDir
     :<|> echoSimpleContractSaveExpense dataDir
     :<|> echoSimpleContractRemoveExpense dataDir
+    :<|> echoSubmitSimpleContract dataDir
 
     :<|> partials scenariosDir
 
@@ -2082,6 +2086,17 @@ documentConfirmSimpleContractPage dataDir key = do
           (Just . H.toValue $ "/forms/edit/simple-contract/" <> key)
           "/echo/submit-simple-contract"
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+echoSubmitSimpleContract
+  :: ServerC m => FilePath -> SimpleContract.SubmitContract -> m Pages.EchoPage
+echoSubmitSimpleContract dataDir (SimpleContract.SubmitContract key) = do
+  profile <- readJson $ dataDir </> "mila.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right contract -> pure . Pages.EchoPage $ show
+      (contract, SimpleContract.validateCreateSimpleContract profile contract)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 
