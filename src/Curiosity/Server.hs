@@ -122,6 +122,15 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
 
+             :<|> "forms" :> "new" :> "quotation"
+                  :> Get '[B.HTML] Pages.CreateQuotationPage
+             :<|> "forms" :> "edit" :> "quotation"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateQuotationPage
+             :<|> "forms" :> "edit" :> "quotation" :> "confirm"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.ConfirmQuotationPage
+
              :<|> "forms" :> "new" :> "contract"
                   :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "forms" :> "edit" :> "contract"
@@ -138,7 +147,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "key" Text
                   :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.RemoveExpensePage
-             :<|> "forms" :> "edit" :> "contract" :> "confirm-contract"
+             :<|> "forms" :> "edit" :> "contract" :> "confirm"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
 
@@ -234,6 +243,23 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
 
+             -- Quotation
+             :<|> "echo" :> "new-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-quotation"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "submit-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.SubmitQuotation
+                  :> Post '[B.HTML] Pages.EchoPage
+
+             -- Contract
              :<|> "echo" :> "new-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -279,6 +305,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
 
+             -- Simple conctract
              :<|> "echo" :> "new-simple-contract"
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -455,6 +482,10 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> documentSignupPage
     :<|> documentEditProfilePage dataDir
 
+    :<|> documentCreateQuotationPage dataDir
+    :<|> documentEditQuotationPage dataDir
+    :<|> documentConfirmQuotationPage dataDir
+
     :<|> documentCreateContractPage dataDir
     :<|> documentEditContractPage dataDir
     :<|> documentAddExpensePage dataDir
@@ -493,6 +524,10 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> echoLogin
     :<|> echoSignup
+
+    :<|> echoNewQuotation dataDir
+    :<|> echoSaveQuotation dataDir
+    :<|> echoSubmitQuotation dataDir
 
     :<|> echoNewContract dataDir
     :<|> echoNewContractAndAddExpense dataDir
@@ -1037,6 +1072,7 @@ showConfirmQuotationPage key profile = do
       profile
       key
       quotationAll
+      (Just . H.toValue $ "/edit/quotation/" <> key)
       "/a/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1144,6 +1180,31 @@ documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
   pure $ Pages.ProfilePage profile "/echo/profile"
 
+documentCreateQuotationPage
+  :: ServerC m => FilePath -> m Pages.CreateQuotationPage
+documentCreateQuotationPage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
+  let quotationAll = Quotation.emptyCreateQuotationAll
+  pure $ Pages.CreateQuotationPage profile
+                                  Nothing
+                                  quotationAll
+                                  "/echo/new-quotation"
+
+-- | Same as documentCreateQuotationPage, but use an existing form.
+documentEditQuotationPage
+  :: ServerC m => FilePath -> Text -> m Pages.CreateQuotationPage
+documentEditQuotationPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.CreateQuotationPage
+      profile
+      (Just key)
+      quotationAll
+      (H.toValue $ "/echo/save-quotation/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
 documentCreateContractPage
   :: ServerC m => FilePath -> m Pages.CreateContractPage
 documentCreateContractPage dataDir = do
@@ -1225,6 +1286,80 @@ documentRemoveExpensePage dataDir key idx = do
 
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
+echoNewQuotation'
+  :: ServerC m => FilePath -> Quotation.CreateQuotationAll -> m Text
+echoNewQuotation' dataDir quotation = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  key <- withRuntime $ Rt.formNewQuotation' profile quotation
+  pure key
+
+-- | Create a form, generating a new key.
+echoNewQuotation
+  :: ServerC m
+  => FilePath
+  -> Quotation.CreateQuotationAll
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewQuotation dataDir quotation = do
+  key <- echoNewQuotation' dataDir quotation
+  pure $ addHeader @"Location"
+    ("/forms/edit/quotation/confirm/" <> key)
+    NoContent
+
+-- | Save a form, re-using a key. This is normally used with a \"Location"
+-- header.
+echoSaveQuotation'
+  :: ServerC m => FilePath -> Text -> Quotation.CreateQuotationAll -> m ()
+echoSaveQuotation' dataDir key quotation = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeCreateQuotationForm
+    db
+    (profile, key, quotation)
+  pure ()
+
+-- | Save a form, re-using a key.
+echoSaveQuotation
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Quotation.CreateQuotationAll
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveQuotation dataDir key quotation = do
+  echoSaveQuotation' dataDir key quotation
+  pure $ addHeader @"Location"
+    ("/forms/edit/quotation/confirm/" <> key)
+    NoContent
+
+documentConfirmQuotationPage
+  :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
+documentConfirmQuotationPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
+      profile
+      key
+      quotationAll
+      (Just . H.toValue $ "/forms/edit/quotation/" <> key)
+      "/echo/submit-quotation"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+echoSubmitQuotation
+  :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
+echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotation -> pure . Pages.EchoPage $ show
+      (quotation, Quotation.validateCreateQuotation profile quotation)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Create a form, generating a new key. This is normally used with a
+-- \"Location" header.
 echoNewContract'
   :: ServerC m => FilePath -> Employment.CreateContractAll' -> m Text
 echoNewContract' dataDir contract = do
@@ -1242,7 +1377,7 @@ echoNewContract
 echoNewContract dataDir contract = do
   key <- echoNewContract' dataDir contract
   pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm-contract/" <> key)
+    ("/forms/edit/contract/confirm/" <> key)
     NoContent
 
 -- | Create a form, then move to the add expense part.
@@ -1279,7 +1414,7 @@ echoSaveContract
 echoSaveContract dataDir key contract = do
   echoSaveContract' dataDir key contract
   pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm-contract/" <> key)
+    ("/forms/edit/contract/confirm/" <> key)
     NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.

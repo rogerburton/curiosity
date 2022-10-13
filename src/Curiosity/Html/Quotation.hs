@@ -57,13 +57,14 @@ data ConfirmQuotationPage = ConfirmQuotationPage
     -- ^ The user creating the quotation
   , _confirmQuotationPageKey         :: Text
   , _confirmQuotationPageQuotation   :: Quotation.CreateQuotationAll
+  , _confirmQuotationPageEditURL     :: Maybe H.AttributeValue
   , _confirmQuotationPageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup ConfirmQuotationPage where
-  toMarkup (ConfirmQuotationPage profile key (Quotation.CreateQuotationAll{}) submitUrl)
+  toMarkup (ConfirmQuotationPage profile key (Quotation.CreateQuotationAll{}) meditUrl submitUrl)
     = renderFormLarge profile $ do
-      title' "New quotation" . Just . H.toValue $ "/edit/quotation/" <> key
+      title' "New quotation" meditUrl
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
