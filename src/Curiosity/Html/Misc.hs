@@ -11,6 +11,7 @@ module Curiosity.Html.Misc
   , fullScroll
   , groupLayout
   , panel
+  , panel'
   , panelStandard
   , header
 
@@ -167,6 +168,27 @@ panel s content = H.div ! A.class_ "c-panel u-spacer-bottom-l" $ do
   H.div ! A.class_ "c-panel__header" $ H.h2 ! A.class_ "c-panel__title" $ H.text
     s
   H.div ! A.class_ "c-panel__body" $ groupLayout $ content
+
+panel' panelTitle body =
+  H.div
+    ! A.class_ "o-container o-container--large"
+    $ H.div
+    ! A.class_ "o-container-vertical"
+    $ H.div
+    ! A.class_ "u-padding-vertical-s"
+    $ H.div
+    ! A.class_ "c-panel"
+    $ do
+        H.div
+          ! A.class_ "c-panel__header"
+          $ H.div
+          ! A.class_ "c-toolbar"
+          $ H.div
+          ! A.class_ "c-toolbar__left"
+          $ H.h2
+          ! A.class_ "c-panel__title"
+          $ H.text panelTitle
+        H.div ! A.class_ "c-panel__body" $ body
 
 panelStandard s content = H.div ! A.class_ "c-panel u-spacer-bottom-l" $ do
   H.div ! A.class_ "c-panel__header" $ H.h2 ! A.class_ "c-panel__title" $ H.text

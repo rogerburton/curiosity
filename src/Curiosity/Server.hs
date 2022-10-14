@@ -37,7 +37,6 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import qualified Curiosity.Command             as Command
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
@@ -54,6 +53,7 @@ import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
 import qualified Curiosity.Html.Action         as Pages
 import qualified Curiosity.Html.Business       as Pages
+import qualified Curiosity.Html.Email          as Pages
 import qualified Curiosity.Html.Employment     as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
@@ -238,7 +238,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
-             :<|> "emails" :> Get '[B.HTML] Pages.EchoPage
+             :<|> "emails" :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
              :<|> "emails.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 
              :<|> "echo" :> "login"
@@ -1222,7 +1222,6 @@ documentEditQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateQuotationPage
 documentEditQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
   output <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotationAll -> pure $ Pages.CreateQuotationPage
@@ -1317,7 +1316,6 @@ echoNewQuotation'
   :: ServerC m => FilePath -> Quotation.CreateQuotationAll -> m Text
 echoNewQuotation' dataDir quotation = do
   profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
   key <- withRuntime $ Rt.formNewQuotation' profile quotation
   pure key
 
@@ -1363,7 +1361,6 @@ documentConfirmQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
 documentConfirmQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
   output <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotationAll -> pure $ Pages.ConfirmQuotationPage
@@ -1378,7 +1375,6 @@ echoSubmitQuotation
   :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
 echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
   output <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotation -> pure . Pages.EchoPage $ show
@@ -2478,10 +2474,12 @@ showStateAsJson = do
 
 
 --------------------------------------------------------------------------------
-showEmails :: ServerC m => m Pages.EchoPage
-showEmails = do
+showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailPage
+showEmails authResult = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
-  pure . Pages.EchoPage $ show emails
+  withMaybeUser authResult
+    (const $ pure $ Pages.EmailPage Nothing emails)
+    (\profile -> pure $ Pages.EmailPage (Just profile) emails)
 
 showEmailsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])

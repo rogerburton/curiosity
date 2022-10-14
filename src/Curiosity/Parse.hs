@@ -16,10 +16,8 @@ module Curiosity.Parse
 import qualified Commence.Multilogging         as ML
 import           Control.Lens                  as Lens
 import qualified Control.Monad.Log             as L
-import qualified Crypto.JOSE.JWK               as JWK
 import qualified Options.Applicative           as A
 import qualified Servant.Auth.Server           as SAuth
-import qualified System.Log.FastLogger         as FL
 
 
 --------------------------------------------------------------------------------
@@ -59,10 +57,6 @@ mkLoggingConf :: FilePath -> ML.LoggingConf
 mkLoggingConf path = ML.LoggingConf (ML.LoggingFile path)
                                     "Curiosity"
                                     L.levelInfo
-
-flspec :: FilePath -> FL.FileLogSpec
-flspec path = FL.FileLogSpec path (1024 * 1024) 10
-  -- 1MB, or about 5240 200-character lines, and keeping 10 rotated files.
 
 
 --------------------------------------------------------------------------------

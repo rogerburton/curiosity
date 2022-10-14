@@ -110,6 +110,7 @@ library
     Curiosity.Form.Signup
     Curiosity.Html.Action
     Curiosity.Html.Business
+    Curiosity.Html.Email
     Curiosity.Html.Employment
     Curiosity.Html.Errors
     Curiosity.Html.Homepage

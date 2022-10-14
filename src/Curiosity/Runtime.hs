@@ -642,7 +642,7 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
-      let transaction rt _ = do
+      let transaction _ _ = do
             users <- filterUsers _rDb User.PredicateEmailAddrToVerify
             mapM
               ( setUserEmailAddrAsVerified _rDb
