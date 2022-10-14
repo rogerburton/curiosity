@@ -33,6 +33,7 @@ import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
+                                                , parseMaybe
                                                 , parseUnique
                                                 )
 
@@ -49,11 +50,13 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 -- where it is identified by a key. The form data are validated when they are
 -- "submitted", using the `SubmitQuotation` data type below, and the key.
 data CreateQuotationAll = CreateQuotationAll
+  { _createQuotationClientUsername :: Maybe User.UserName
+  }
   deriving (Generic, Eq, Show)
   deriving anyclass (ToJSON, FromJSON)
 
 instance FromForm CreateQuotationAll where
-  fromForm _ = pure CreateQuotationAll
+  fromForm f = CreateQuotationAll <$> parseMaybe "client-username" f
 
 
 --------------------------------------------------------------------------------
@@ -66,6 +69,8 @@ instance FromForm CreateQuotationAll where
 
 emptyCreateQuotationAll :: CreateQuotationAll
 emptyCreateQuotationAll = CreateQuotationAll
+  { _createQuotationClientUsername = Nothing
+  }
 
 
 --------------------------------------------------------------------------------
@@ -86,21 +91,28 @@ instance FromForm SubmitQuotation where
 -- This is a pure function: everything required to perform the validation
 -- should be provided as arguments.
 validateCreateQuotation
-  :: User.UserProfile -> CreateQuotationAll -> Either [Err] Quotation
-validateCreateQuotation _ CreateQuotationAll = if null errors
+  :: User.UserProfile -> CreateQuotationAll
+  -> Maybe User.UserProfile -- ^ The user profile matching the quotation client.
+  -> Either [Err] Quotation
+validateCreateQuotation _ CreateQuotationAll {..} resolvedClient = if null errors
   then Right quotation
   else Left errors
  where
   quotation = Quotation { _quotationId = QuotationId "TODO-DUMMY" }
-  errors =
-    concat
-    -- No rules for now.
-           []
+  errors = concat
+    [ if isJust _createQuotationClientUsername
+      then []
+      else [Err "Missing client username."]
+    , if isJust resolvedClient
+      then []
+      else [Err "The client username does not exist."]
+    ]
 
 -- | Similar to `validateCreateQuotation` but throw away the returned
 -- contract, i.e. keep only the errors.
-validateCreateQuotation' profile quotation =
-  either identity (const []) $ validateCreateQuotation profile quotation
+validateCreateQuotation' :: User.UserProfile -> CreateQuotationAll -> Maybe User.UserProfile -> [Err]
+validateCreateQuotation' profile quotation resolvedClient =
+  either identity (const []) $ validateCreateQuotation profile quotation resolvedClient
 
 
 --------------------------------------------------------------------------------

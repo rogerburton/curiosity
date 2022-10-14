@@ -48,6 +48,7 @@ module Curiosity.Runtime
   , formNewQuotation'
   , readCreateQuotationForm'
   , readCreateQuotationForms'
+  , readCreateQuotationFormResolved'
   , writeCreateQuotationForm
   , submitCreateQuotationForm
   -- ** Contract
@@ -532,10 +533,10 @@ handleCommand runtime@Runtime {..} user command = do
     Command.FormValidateQuotation input ->
       liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
-          mcontract <- readCreateQuotationForm _rDb (profile, input)
+          mcontract <- readCreateQuotationFormResolved _rDb profile input
           case mcontract of
-            Right contract -> do
-              case Quotation.validateCreateQuotation profile contract of
+            Right (contract, resovedClient) -> do
+              case Quotation.validateCreateQuotation profile contract resovedClient of
                 Right _    -> pure (ExitSuccess, ["Quotation form is valid."])
                 Left  errs -> pure (ExitFailure 1, map Quotation.unErr errs)
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
@@ -1070,13 +1071,31 @@ newCreateQuotationForm
    . Core.StmDb runtime
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> STM Text
-newCreateQuotationForm db (profile, Quotation.CreateQuotationAll) = do
+newCreateQuotationForm db (profile, form) = do
   key <- Core.genRandomText db
   STM.modifyTVar (Data._dbFormCreateQuotationAll db) (add key)
   pure key
  where
-  add key = M.insert (username, key) Quotation.CreateQuotationAll
+  add key = M.insert (username, key) form
   username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateQuotationFormResolved'
+  :: User.UserProfile -> Text -> RunM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+readCreateQuotationFormResolved' profile key = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ readCreateQuotationFormResolved db profile key
+
+-- | A version of `readCreateQuotationForm'` that also tries to lookup related
+-- data, e.g. the client, which is used for validation.
+readCreateQuotationFormResolved
+  :: Core.StmDb runtime -> User.UserProfile -> Text -> STM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+readCreateQuotationFormResolved db profile key = do
+    mform <- readCreateQuotationForm db (profile, key)
+    case mform of
+      Right form -> do
+        mclient <- maybe (pure Nothing) (Core.selectUserByUsername db) $ Quotation._createQuotationClientUsername form
+        pure $ Right (form, mclient)
+      Left err -> pure $ Left err
 
 readCreateQuotationForm'
   :: User.UserProfile -> Text -> RunM (Either () Quotation.CreateQuotationAll)
@@ -1109,13 +1128,13 @@ writeCreateQuotationForm
    . Core.StmDb runtime
   -> (User.UserProfile, Text, Quotation.CreateQuotationAll)
   -> STM Text
-writeCreateQuotationForm db (profile, key, Quotation.CreateQuotationAll) = do
+writeCreateQuotationForm db (profile, key, form) = do
   STM.modifyTVar (Data._dbFormCreateQuotationAll db) save
   pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(Quotation.CreateQuotationAll) -> Quotation.CreateQuotationAll)
+    (const form)
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
@@ -1131,10 +1150,10 @@ submitCreateQuotationForm
   -> (User.UserProfile, Quotation.SubmitQuotation)
   -> STM (Either Quotation.Err Quotation.QuotationId)
 submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
-  minput <- readCreateQuotationForm db (profile, key)
+  minput <- readCreateQuotationFormResolved db profile key
   case minput of
-    Right input -> do
-      mid <- submitCreateQuotationForm' db (profile, input)
+    Right (input, resolvedClient) -> do
+      mid <- submitCreateQuotationForm' db (profile, input) resolvedClient
       case mid of
         Right _ -> do
           -- Quotation created, do the rest of the atomic process.
@@ -1151,9 +1170,10 @@ submitCreateQuotationForm'
   :: forall runtime
    . Core.StmDb runtime
   -> (User.UserProfile, Quotation.CreateQuotationAll)
+  -> Maybe User.UserProfile
   -> STM (Either Quotation.Err Quotation.QuotationId)
-submitCreateQuotationForm' db (profile, input) = do
-  let mc = Quotation.validateCreateQuotation profile input
+submitCreateQuotationForm' db (profile, input) resolvedClient = do
+  let mc = Quotation.validateCreateQuotation profile input resolvedClient
   case mc of
     Right c   -> createQuotation db c
     Left  err -> pure . Left $ Quotation.Err (show err)

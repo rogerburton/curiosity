@@ -1375,10 +1375,10 @@ echoSubmitQuotation
   :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
 echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
   profile <- readJson $ dataDir </> "alice.json"
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotation -> pure . Pages.EchoPage $ show
-      (quotation, Quotation.validateCreateQuotation profile quotation)
+    Right (quotation, resovedClient) -> pure . Pages.EchoPage $ show
+      (quotation, Quotation.validateCreateQuotation profile quotation resovedClient)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Create a form, generating a new key. This is normally used with a
