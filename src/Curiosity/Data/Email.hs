@@ -15,6 +15,7 @@ module Curiosity.Data.Email
   , EmailId(..)
   , emailIdPrefix
   , EmailTemplate(..)
+  , emailTemplateName
   , Predicate(..)
   , applyPredicate
   , Err(..)
@@ -57,6 +58,13 @@ emailIdPrefix = "EMAIL-"
 data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail | InvoiceReminderEmail
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
+
+emailTemplateName :: EmailTemplate -> Text
+emailTemplateName t = case t of
+  SignupConfirmationEmail -> "SignupConfirmation"
+  QuotationEmail -> "Quotation"
+  InvoiceEmail -> "Invoice"
+  InvoiceReminderEmail -> "InvoiceReminder"
 
 
 --------------------------------------------------------------------------------

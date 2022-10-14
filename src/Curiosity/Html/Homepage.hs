@@ -6,6 +6,7 @@ module Curiosity.Html.Homepage
   ( WelcomePage(..)
   ) where
 
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Navbar          ( navbar )
@@ -28,6 +29,8 @@ data WelcomePage = WelcomePage
   , welcomePageQuotationForms :: [(Text, Quotation.CreateQuotationAll)]
     -- ^ Email addr. needing verif., if the user has the right to perform the
     -- corresponding action.
+  , welcomePageEmails         :: [Email.Email]
+    -- ^ Enqueued emails being sent to the logged user.
   }
 
 instance H.ToMarkup WelcomePage where
@@ -47,6 +50,8 @@ instance H.ToMarkup WelcomePage where
             maybe (pure ()) panelEmailAddrToVerify welcomePageEmailAddrToVerify
 
             panelQuotationForms welcomePageQuotationForms
+
+            panelSentEmails welcomePageEmails
 
 panelEmailAddrToVerify :: [User.UserProfile] -> H.Html
 panelEmailAddrToVerify profiles =
@@ -77,13 +82,25 @@ panelQuotationForms forms =
     , (Just $ "/edit/quotation/" <> key)
     )
 
+-- | Display enqueued emails that are to the logged in user.
+panelSentEmails :: [Email.Email] -> H.Html
+panelSentEmails emails =
+  panel "Emails to be received" $ Misc.table titles display emails
+ where
+  titles = ["ID", "Template"]
+  display Email.Email {..} =
+    ( [Email.unEmailId _emailId, Email.emailTemplateName _emailTemplate]
+    , []
+    , Nothing
+    )
+
 panel title body =
   H.div
     ! A.class_ "o-container o-container--large"
     $ H.div
     ! A.class_ "o-container-vertical"
     $ H.div
-    ! A.class_ "u-padding-vertical-l"
+    ! A.class_ "u-padding-vertical-s"
     $ H.div
     ! A.class_ "c-panel"
     $ do
