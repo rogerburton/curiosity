@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {- |
 Module: Curiosity.Html.Misc
 Description: Helper functions to build HTML views.
@@ -33,6 +34,8 @@ module Curiosity.Html.Misc
   -- View
   , editButton
 
+  , iconError
+
   -- Keep here:
   , renderView
   , renderView'
@@ -50,7 +53,9 @@ import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( divIconAdd
                                                 , divIconCheck
+                                                , svgIconCircleError
                                                 , svgIconEdit
+                                                , OSvgIconDiv(..)
                                                 )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!)
@@ -355,6 +360,11 @@ editButton lnk =
     $ do
         H.div ! A.class_ "o-svg-icon o-svg-icon-edit" $ H.toHtml svgIconEdit
         H.span ! A.class_ "c-button__label" $ "Edit"
+
+
+--------------------------------------------------------------------------------
+iconError =
+  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
 
 
 --------------------------------------------------------------------------------

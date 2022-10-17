@@ -1084,14 +1084,19 @@ showEditQuotationPage key profile = do
 showConfirmQuotationPage
   :: ServerC m => Text -> User.UserProfile -> m Pages.ConfirmQuotationPage
 showConfirmQuotationPage key profile = do
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
-      profile
-      key
-      quotationAll
-      (Just . H.toValue $ "/edit/quotation/" <> key)
-      "/a/submit-quotation"
+    Right (quotationAll, clientProfile) -> do
+      let
+        errors =
+          Quotation.validateCreateQuotation' profile quotationAll clientProfile
+      pure $ Pages.ConfirmQuotationPage
+        profile
+        key
+        quotationAll
+        errors
+        (Just . H.toValue $ "/edit/quotation/" <> key)
+        "/a/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 
@@ -1361,14 +1366,19 @@ documentConfirmQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
 documentConfirmQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
-      profile
-      key
-      quotationAll
-      (Just . H.toValue $ "/forms/edit/quotation/" <> key)
-      "/echo/submit-quotation"
+    Right (quotationAll, clientProfile) -> do
+      let
+        errors =
+          Quotation.validateCreateQuotation' profile quotationAll clientProfile
+      pure $ Pages.ConfirmQuotationPage
+        profile
+        key
+        quotationAll
+        errors
+        (Just . H.toValue $ "/forms/edit/quotation/" <> key)
+        "/echo/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 echoSubmitQuotation

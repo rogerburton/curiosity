@@ -682,6 +682,3 @@ validationErrors errors =
       iconError
       (Body $ "Validation errors: " <> show (map SimpleContract.unErr errors))
       Button.NoButton
-
-iconError =
-  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
