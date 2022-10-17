@@ -723,8 +723,8 @@ showHomePage authResult = withMaybeUser
       else pure Nothing
     mquotationForms <-
           withRuntime $ Rt.readCreateQuotationForms' profile
-    -- TODO Filter emails for this user only.
-    emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+    emails <- withRuntime $ Rt.filterEmails'
+      (Email.EmailsFor $ User._userProfileEmailAddr profile)
     let quotationForms = either (const []) identity mquotationForms
     pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms emails
   )

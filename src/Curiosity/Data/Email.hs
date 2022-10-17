@@ -69,11 +69,13 @@ emailTemplateName t = case t of
 
 --------------------------------------------------------------------------------
 -- | Predicates to filter users.
-data Predicate = AllEmails
+data Predicate = AllEmails | EmailsFor User.UserEmailAddr
   deriving (Eq, Show)
 
 applyPredicate :: Predicate -> Email -> Bool
 applyPredicate AllEmails _ = True
+
+applyPredicate (EmailsFor addr) Email {..} = addr == _emailRecipient
 
 
 --------------------------------------------------------------------------------
