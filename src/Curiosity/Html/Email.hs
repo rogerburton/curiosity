@@ -32,11 +32,15 @@ instance H.ToMarkup EmailPage where
 -- | Display enqueued emails that are to the logged in user.
 panelSentEmails :: [Email.Email] -> H.Html
 panelSentEmails emails =
-  panel' "Emails to be received" $ Misc.table titles display emails
+  panel' "Emails queued" $ Misc.table titles display emails
  where
-  titles = ["ID", "Template", "Recipient"]
+  titles = ["ID", "Template", "Sender", "Recipient"]
   display Email.Email {..} =
-    ( [Email.unEmailId _emailId, Email.emailTemplateName _emailTemplate, User.unUserEmailAddr _emailRecipient]
+    ( [ Email.unEmailId _emailId
+      , Email.emailTemplateName _emailTemplate
+      , User.unUserEmailAddr _emailSender
+      , User.unUserEmailAddr _emailRecipient
+      ]
     , []
     , Nothing
     )

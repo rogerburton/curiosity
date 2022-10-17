@@ -588,7 +588,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SendReminder input ->
       -- TODO Check this is the "system" user ?
                                   liftIO . STM.atomically $ do
-      createEmail _rDb Email.InvoiceReminderEmail "TODO client email addr"
+      createEmail _rDb Email.InvoiceReminderEmail "TODO sender email addr" "TODO client email addr"
       pure
         ( ExitSuccess
         , ["Reminder for invoice sent: " <> Invoice.unInvoiceId input]
@@ -836,7 +836,9 @@ invoiceOrder db (profile, _) = do
   case mids of
     Right (id0, id1, id2, id3) -> do
       -- Invoices and remittance advices created, do the rest of the atomic process.
-      createEmail db Email.InvoiceEmail $ User._userProfileEmailAddr profile
+      createEmail db Email.InvoiceEmail
+        (User._userProfileEmailAddr profile)
+        (User._userProfileEmailAddr profile)
       -- TODO The email address should be the one from the client.
       pure $ Right (id0, id1, id2, id3)
     Left (Invoice.Err err) -> pure $ Left $ Order.Err err
@@ -1159,7 +1161,8 @@ submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
           -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
           createEmail db Email.QuotationEmail
-            $ User._userProfileEmailAddr resolvedClient
+            (User._userProfileEmailAddr profile)
+            (User._userProfileEmailAddr resolvedClient)
           pure $ Right id
         Left err -> pure $ Left err
     Left err -> pure . Left $ Quotation.Err (show err)
@@ -1410,13 +1413,14 @@ createEmail
    . Core.StmDb runtime
   -> Email.EmailTemplate
   -> User.UserEmailAddr
+  -> User.UserEmailAddr
   -> STM (Either Email.Err Email.EmailId)
-createEmail db template emailAddr = do
+createEmail db template senderAddr recipientAddr = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- Core.generateEmailId db
-    let new = Email.Email newId template emailAddr
+    let new = Email.Email newId template senderAddr recipientAddr
     createEmailFull db new >>= either STM.throwSTM pure
 
 createEmailFull

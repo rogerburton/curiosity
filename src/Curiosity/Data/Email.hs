@@ -32,8 +32,9 @@ import           Web.FormUrlEncoded             ( FromForm(..)
 --------------------------------------------------------------------------------
 -- | This represents an email in database.
 data Email = Email
-  { _emailId :: EmailId
-  , _emailTemplate :: EmailTemplate
+  { _emailId        :: EmailId
+  , _emailTemplate  :: EmailTemplate
+  , _emailSender    :: User.UserEmailAddr
   , _emailRecipient :: User.UserEmailAddr
   }
   deriving (Show, Eq, Generic)
