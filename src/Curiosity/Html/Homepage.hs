@@ -12,6 +12,7 @@ import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Email
 import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Quotation       ( panelQuotations )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
@@ -28,10 +29,9 @@ data WelcomePage = WelcomePage
   , welcomePageEmailAddrToVerify :: Maybe [User.UserProfile]
     -- ^ Email addr. needing verif., if the user has the right to perform the
     -- corresponding action.
-  , welcomePageQuotationForms :: [(Text, Quotation.CreateQuotationAll)]
-    -- ^ Email addr. needing verif., if the user has the right to perform the
-    -- corresponding action.
-  , welcomePageEmails         :: [Email.Email]
+  , welcomePageQuotationForms    :: [(Text, Quotation.CreateQuotationAll)]
+  , welcomePageQuotations        :: [Quotation.Quotation]
+  , welcomePageEmails            :: [Email.Email]
     -- ^ Enqueued emails being sent to the logged user.
   }
 
@@ -52,6 +52,8 @@ instance H.ToMarkup WelcomePage where
             maybe (pure ()) panelEmailAddrToVerify welcomePageEmailAddrToVerify
 
             panelQuotationForms welcomePageQuotationForms
+
+            panelQuotations welcomePageQuotations
 
             panelSentEmails welcomePageEmails
 

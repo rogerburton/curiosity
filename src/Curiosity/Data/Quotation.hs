@@ -25,6 +25,8 @@ module Curiosity.Data.Quotation
   , Quotation(..)
   , QuotationId(..)
   , quotationIdPrefix
+  , Predicate(..)
+  , applyPredicate
   , Err(..)
   ) where
 
@@ -139,6 +141,17 @@ newtype QuotationId = QuotationId { unQuotationId :: Text }
 quotationIdPrefix :: Text
 quotationIdPrefix = "QUOT-"
 
+
+--------------------------------------------------------------------------------
+-- | Predicates to filter quotations.
+data Predicate = AllQuotations
+  deriving (Eq, Show)
+
+applyPredicate :: Predicate -> Quotation -> Bool
+applyPredicate AllQuotations _ = True
+
+
+--------------------------------------------------------------------------------
 data Err = Err
   { unErr :: Text
   }

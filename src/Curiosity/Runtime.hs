@@ -51,6 +51,8 @@ module Curiosity.Runtime
   , readCreateQuotationFormResolved'
   , writeCreateQuotationForm
   , submitCreateQuotationForm
+  , filterQuotations
+  , filterQuotations'
   -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
@@ -1183,6 +1185,17 @@ submitCreateQuotationForm' db (profile, input) resolvedClient = do
         Right id -> pure $ Right (id, resolvedClient)
         Left err -> pure $ Left err
     Left  err -> pure . Left $ Quotation.Err (show err)
+
+filterQuotations :: Core.StmDb runtime -> Quotation.Predicate -> STM [Quotation.Quotation]
+filterQuotations db predicate = do
+  let tvar = Data._dbQuotations db
+  records <- STM.readTVar tvar
+  pure $ filter (Quotation.applyPredicate predicate) records
+
+filterQuotations' :: Quotation.Predicate -> RunM [Quotation.Quotation]
+filterQuotations' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterQuotations db predicate
 
 
 --------------------------------------------------------------------------------

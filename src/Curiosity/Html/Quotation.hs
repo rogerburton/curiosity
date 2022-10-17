@@ -3,7 +3,9 @@ Module: Curiosity.Html.Quotation
 Description: Quotation pages (view and edit).
 -}
 module Curiosity.Html.Quotation
-  ( QuotationView(..)
+  ( QuotationPage(..)
+  , panelQuotations
+  , QuotationView(..)
   , CreateQuotationPage(..)
   , ConfirmQuotationPage(..)
   ) where
@@ -13,11 +15,41 @@ import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import qualified Smart.Html.Alert              as Alert
 import qualified Smart.Html.Button             as Button
+import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
 import           Smart.Html.Shared.Types        ( Body(..) )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
+
+
+--------------------------------------------------------------------------------
+-- | The page displaye at @/quotations@ to show all quotations.
+data QuotationPage = QuotationPage
+  { _emailPageUser   :: Maybe User.UserProfile
+    -- ^ The logged-in user, if any.
+  , _emailPageQuotations :: [Quotation.Quotation]
+    -- ^ All enqueued emails.
+  }
+
+instance H.ToMarkup QuotationPage where
+  toMarkup (QuotationPage mprofile emails) =
+    renderView' mprofile $ panelQuotations emails
+
+
+--------------------------------------------------------------------------------
+-- | Display quotations.
+panelQuotations :: [Quotation.Quotation] -> H.Html
+panelQuotations quotations =
+  panel' "Quotations" $ Misc.table titles display quotations
+ where
+  titles = ["ID"]
+  display Quotation.Quotation {..} =
+    ( [ Quotation.unQuotationId _quotationId
+      ]
+    , []
+    , Nothing
+    )
 
 
 --------------------------------------------------------------------------------

@@ -29,7 +29,7 @@ instance H.ToMarkup EmailPage where
 
 
 --------------------------------------------------------------------------------
--- | Display enqueued emails that are to the logged in user.
+-- | Display enqueued emails.
 panelSentEmails :: [Email.Email] -> H.Html
 panelSentEmails emails =
   panel' "Emails queued" $ Misc.table titles display emails

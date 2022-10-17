@@ -60,4 +60,5 @@ in automated [test scenarios](/documentation/scenarios).
 
 # See also
 
+- [Quotations](/documentation/quotations)
 - [Sent emails](/documentation/emails)

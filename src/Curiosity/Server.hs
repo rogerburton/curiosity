@@ -236,10 +236,18 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
-             :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+             :<|> "state.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
-             :<|> "emails" :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
-             :<|> "emails.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+             :<|> "emails"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
+             :<|> "emails.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+
+             :<|> "quotations"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.QuotationPage
+             :<|> "quotations.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
@@ -535,6 +543,8 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showStateAsJson
     :<|> showEmails
     :<|> showEmailsAsJson
+    :<|> showQuotations
+    :<|> showQuotationsAsJson
 
     :<|> echoLogin
     :<|> echoSignup
@@ -725,8 +735,9 @@ showHomePage authResult = withMaybeUser
           withRuntime $ Rt.readCreateQuotationForms' profile
     emails <- withRuntime $ Rt.filterEmails'
       (Email.EmailsFor $ User._userProfileEmailAddr profile)
+    quotations <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
     let quotationForms = either (const []) identity mquotationForms
-    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms emails
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms quotations emails
   )
 
 
@@ -2495,6 +2506,21 @@ showEmailsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 showEmailsAsJson = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+  pure $ JP.PrettyJSON emails
+
+
+--------------------------------------------------------------------------------
+showQuotations :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.QuotationPage
+showQuotations authResult = do
+  emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+  withMaybeUser authResult
+    (const $ pure $ Pages.QuotationPage Nothing emails)
+    (\profile -> pure $ Pages.QuotationPage (Just profile) emails)
+
+showQuotationsAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
+showQuotationsAsJson = do
+  emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
   pure $ JP.PrettyJSON emails
 
 
