@@ -755,12 +755,12 @@ createQuotation
    . Core.StmDb runtime
   -> Quotation.Quotation
   -> STM (Either Quotation.Err Quotation.QuotationId)
-createQuotation db _ = do
+createQuotation db quotation = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- Core.generateQuotationId db
-    let new = Quotation.Quotation newId
+    let new = quotation { Quotation._quotationId = newId }
     createQuotationFull db new >>= either STM.throwSTM pure
 
 createQuotationFull

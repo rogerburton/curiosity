@@ -46,6 +46,7 @@ panelQuotations quotations =
   titles = ["ID"]
   display Quotation.Quotation {..} =
     ( [ Quotation.unQuotationId _quotationId
+      , show _quotationState
       ]
     , []
     , Nothing

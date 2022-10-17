@@ -25,6 +25,7 @@ module Curiosity.Data.Quotation
   , Quotation(..)
   , QuotationId(..)
   , quotationIdPrefix
+  , QuotationState(..)
   , Predicate(..)
   , applyPredicate
   , Err(..)
@@ -101,7 +102,10 @@ validateCreateQuotation _ CreateQuotationAll {..} mresolvedClient = if null erro
   then Right (quotation, resolvedClient)
   else Left errors
  where
-  quotation = Quotation { _quotationId = QuotationId "TODO-DUMMY" }
+  quotation = Quotation
+     { _quotationId = QuotationId "TODO-DUMMY"
+     , _quotationState = QuotationSent
+     }
   Just resolvedClient = mresolvedClient
   errors = concat
     [ if isJust _createQuotationClientUsername
@@ -122,7 +126,8 @@ validateCreateQuotation' profile quotation resolvedClient =
 --------------------------------------------------------------------------------
 -- | This represents a quotation in database.
 data Quotation = Quotation
-  { _quotationId :: QuotationId
+  { _quotationId    :: QuotationId
+  , _quotationState :: QuotationState
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -140,6 +145,10 @@ newtype QuotationId = QuotationId { unQuotationId :: Text }
 
 quotationIdPrefix :: Text
 quotationIdPrefix = "QUOT-"
+
+data QuotationState = QuotationCreated | QuotationSent | QuotationSigned
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 
 --------------------------------------------------------------------------------
