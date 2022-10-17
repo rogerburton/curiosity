@@ -77,9 +77,9 @@ panelQuotationForms :: [(Text, Quotation.CreateQuotationAll)] -> H.Html
 panelQuotationForms forms =
   panel' "Quotation forms" $ Misc.table titles display forms
  where
-  titles = ["Key", "Name"]
-  display (key, Quotation.CreateQuotationAll {}) =
-    ( [key, "TODO"]
+  titles = ["Key", "Client"]
+  display (key, Quotation.CreateQuotationAll {..}) =
+    ( [key, maybe "" User.unUserName _createQuotationClientUsername]
     , []
-    , (Just $ "/edit/quotation/" <> key)
+    , (Just $ "/edit/quotation/confirm/" <> key)
     )
