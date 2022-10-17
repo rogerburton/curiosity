@@ -57,6 +57,7 @@ data CreateQuotationAll = CreateQuotationAll
 
 instance FromForm CreateQuotationAll where
   fromForm f = CreateQuotationAll <$> parseMaybe "client-username" f
+    -- TODO Make it Nothing if empty string.
 
 
 --------------------------------------------------------------------------------
@@ -93,17 +94,18 @@ instance FromForm SubmitQuotation where
 validateCreateQuotation
   :: User.UserProfile -> CreateQuotationAll
   -> Maybe User.UserProfile -- ^ The user profile matching the quotation client.
-  -> Either [Err] Quotation
-validateCreateQuotation _ CreateQuotationAll {..} resolvedClient = if null errors
-  then Right quotation
+  -> Either [Err] (Quotation, User.UserProfile)
+validateCreateQuotation _ CreateQuotationAll {..} mresolvedClient = if null errors
+  then Right (quotation, resolvedClient)
   else Left errors
  where
   quotation = Quotation { _quotationId = QuotationId "TODO-DUMMY" }
+  Just resolvedClient = mresolvedClient
   errors = concat
     [ if isJust _createQuotationClientUsername
       then []
       else [Err "Missing client username."]
-    , if isJust resolvedClient
+    , if isJust mresolvedClient
       then []
       else [Err "The client username does not exist."]
     ]

@@ -34,9 +34,9 @@ panelSentEmails :: [Email.Email] -> H.Html
 panelSentEmails emails =
   panel' "Emails to be received" $ Misc.table titles display emails
  where
-  titles = ["ID", "Template"]
+  titles = ["ID", "Template", "Recipient"]
   display Email.Email {..} =
-    ( [Email.unEmailId _emailId, Email.emailTemplateName _emailTemplate]
+    ( [Email.unEmailId _emailId, Email.emailTemplateName _emailTemplate, User.unUserEmailAddr _emailRecipient]
     , []
     , Nothing
     )

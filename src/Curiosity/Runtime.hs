@@ -535,8 +535,8 @@ handleCommand runtime@Runtime {..} user command = do
         Just profile -> do
           mcontract <- readCreateQuotationFormResolved _rDb profile input
           case mcontract of
-            Right (contract, resovedClient) -> do
-              case Quotation.validateCreateQuotation profile contract resovedClient of
+            Right (contract, resolvedClient) -> do
+              case Quotation.validateCreateQuotation profile contract resolvedClient of
                 Right _    -> pure (ExitSuccess, ["Quotation form is valid."])
                 Left  errs -> pure (ExitFailure 1, map Quotation.unErr errs)
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
@@ -1152,17 +1152,16 @@ submitCreateQuotationForm
 submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
   minput <- readCreateQuotationFormResolved db profile key
   case minput of
-    Right (input, resolvedClient) -> do
-      mid <- submitCreateQuotationForm' db (profile, input) resolvedClient
+    Right (input, mresolvedClient) -> do
+      mid <- submitCreateQuotationForm' db (profile, input) mresolvedClient
       case mid of
-        Right _ -> do
+        Right (id, resolvedClient) -> do
           -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
           createEmail db Email.QuotationEmail
-            $ User._userProfileEmailAddr profile
-          -- TODO The email address should be the one from the client.
-          pure mid
-        _ -> pure mid
+            $ User._userProfileEmailAddr resolvedClient
+          pure $ Right id
+        Left err -> pure $ Left err
     Left err -> pure . Left $ Quotation.Err (show err)
 
 -- | Attempt to validate a quotation form and create it.
@@ -1171,11 +1170,15 @@ submitCreateQuotationForm'
    . Core.StmDb runtime
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> Maybe User.UserProfile
-  -> STM (Either Quotation.Err Quotation.QuotationId)
+  -> STM (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
 submitCreateQuotationForm' db (profile, input) resolvedClient = do
   let mc = Quotation.validateCreateQuotation profile input resolvedClient
   case mc of
-    Right c   -> createQuotation db c
+    Right (c, resolvedClient)   -> do
+      mid <- createQuotation db c
+      case mid of
+        Right id -> pure $ Right (id, resolvedClient)
+        Left err -> pure $ Left err
     Left  err -> pure . Left $ Quotation.Err (show err)
 
 

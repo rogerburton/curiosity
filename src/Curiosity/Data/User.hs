@@ -198,7 +198,7 @@ newtype UserDisplayName = UserDisplayName { unUserDisplayName :: Text }
                           ) via Text
                  deriving (FromHttpApiData, FromForm) via W.Wrapped "display-name" Text
 
-newtype UserEmailAddr = UserEmailAddr Text
+newtype UserEmailAddr = UserEmailAddr { unUserEmailAddr :: Text }
                  deriving ( Eq
                           , Show
                           , IsString
