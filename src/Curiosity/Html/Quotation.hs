@@ -86,7 +86,13 @@ instance H.ToMarkup ConfirmQuotationPage where
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
-      button submitUrl "Submit quotation"
+
+      buttonGroup $ do
+        -- TODO Add edit button
+        let label = "Submit quotation"
+        if null errors
+          then buttonPrimary submitUrl label
+          else buttonPrimaryDisabled label
 
 validationErrors errors =
   if null errors

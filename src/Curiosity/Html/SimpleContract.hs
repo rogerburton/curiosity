@@ -661,7 +661,13 @@ instance H.ToMarkup ConfirmSimpleContractPage where
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
-      button submitUrl "Submit contract" -- TODO Add edit button
+
+      buttonGroup $ do
+        -- TODO Add edit button
+        let label = "Submit contract"
+        if null errors
+          then buttonPrimary submitUrl label
+          else buttonPrimaryDisabled label
    where
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
