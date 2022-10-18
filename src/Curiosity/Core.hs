@@ -286,7 +286,7 @@ createUser
   :: forall runtime
    . StmDb runtime
   -> User.Signup
-  -> STM (Either User.UserErr User.UserId)
+  -> STM (Either User.Err User.UserId)
 createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
@@ -312,7 +312,7 @@ createUserFull
   :: forall runtime
    . StmDb runtime
   -> User.UserProfile
-  -> STM (Either User.UserErr User.UserId)
+  -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = if username `elem` User.usernameBlocklist
   then pure . Left $ User.UsernameBlocked
   else do

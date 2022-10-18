@@ -47,7 +47,7 @@ module Curiosity.Data.User
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
   -- * Errors
-  , UserErr(..)
+  , Err(..)
   , usernameBlocklist
   ) where
 
@@ -283,7 +283,7 @@ applyPredicate PredicateEmailAddrToVerify UserProfile {..} =
 
 applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
-data UserErr = UserExists
+data Err = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
              | UserNotFound Text -- Username or ID.
              | IncorrectUsernameOrPassword
@@ -291,7 +291,7 @@ data UserErr = UserExists
              | MissingRight AccessRight
              deriving (Eq, Exception, Show)
 
-instance Errs.IsRuntimeErr UserErr where
+instance Errs.IsRuntimeErr Err where
   errCode = errCode' . \case
     UserExists                  -> "USER_EXISTS"
     UsernameBlocked             -> "USERNAME_BLOCKED"

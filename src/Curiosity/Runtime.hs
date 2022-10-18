@@ -675,7 +675,7 @@ submitQuotationSuccess id =
 setUserEmailAddrAsVerifiedFull
   :: Core.StmDb runtime
   -> (User.UserProfile, User.UserName)
-  -> STM (Either User.UserErr ())
+  -> STM (Either User.Err ())
 setUserEmailAddrAsVerifiedFull db (user, input) = transaction
  where
   transaction = do
@@ -1042,7 +1042,7 @@ submitCreateContractForm' db (profile, input) = do
 formNewQuotation
   :: User.UserName
   -> Quotation.CreateQuotationAll
-  -> RunM (Either User.UserErr Text)
+  -> RunM (Either User.Err Text)
 formNewQuotation user input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
     ML.info $ "Instanciating new quotation form..."
@@ -1503,7 +1503,7 @@ instance S.DBStorage AppM STM User.UserProfile where
 
   type Db AppM STM User.UserProfile = Core.StmDb Runtime
 
-  type DBError AppM STM User.UserProfile = User.UserErr
+  type DBError AppM STM User.UserProfile = User.Err
 
   dbUpdate db@Data.Db {..} = \case
 
@@ -1586,7 +1586,7 @@ filterUsers' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterUsers db predicate
 
-createUser :: User.Signup -> RunM (Either User.UserErr User.UserId)
+createUser :: User.Signup -> RunM (Either User.Err User.UserId)
 createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
   ML.info $ "Creating user..."
   db   <- asks _rDb
@@ -1600,7 +1600,7 @@ setUserEmailAddrAsVerified
   :: forall runtime
    . Core.StmDb runtime
   -> User.UserName
-  -> STM (Either User.UserErr ())
+  -> STM (Either User.Err ())
 setUserEmailAddrAsVerified db username = do
   mprofile <- Core.selectUserByUsername db username
   case mprofile of

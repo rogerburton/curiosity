@@ -39,7 +39,6 @@ import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Html.Errors         as Pages
 import           Data.Aeson
-import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Text.Blaze.Html5              as H
