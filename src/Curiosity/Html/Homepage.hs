@@ -59,7 +59,7 @@ instance H.ToMarkup WelcomePage where
 
 panelEmailAddrToVerify :: [User.UserProfile] -> H.Html
 panelEmailAddrToVerify profiles =
-  panel' "Email addresses to verify" $ Misc.table titles display profiles
+  panel' "Email addresses to verify" $ Misc.table "addr" titles display profiles
  where
   titles = ["ID", "Username", "Email addr."]
   display User.UserProfile {..} =
@@ -77,7 +77,7 @@ panelEmailAddrToVerify profiles =
 
 panelQuotationForms :: [(Text, Quotation.CreateQuotationAll)] -> H.Html
 panelQuotationForms forms =
-  panel' "Quotation forms" $ Misc.table titles display forms
+  panel' "Quotation forms" $ Misc.table "quotation-forms" titles display forms
  where
   titles = ["Key", "Client"]
   display (key, Quotation.CreateQuotationAll {..}) =

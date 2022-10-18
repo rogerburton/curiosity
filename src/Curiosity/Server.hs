@@ -439,6 +439,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "action" :> "set-email-addr-as-verified"
                   :> Capture "username" User.UserName
                   :> Get '[B.HTML] Pages.SetUserEmailAddrAsVerifiedPage
+             :<|> "action" :> "set-quotation-as-signed"
+                  :> Capture "quotation-id" Quotation.QuotationId
+                  :> Get '[B.HTML] Pages.SetQuotationAsSignedPage
+
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
@@ -587,7 +591,10 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> showLoginPage
     :<|> showSignupPage
+
     :<|> showSetUserEmailAddrAsVerifiedPage
+    :<|> showSetQuotationAsignedPage
+
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
@@ -760,6 +767,11 @@ showSetUserEmailAddrAsVerifiedPage
   :: ServerC m => User.UserName -> m Pages.SetUserEmailAddrAsVerifiedPage
 showSetUserEmailAddrAsVerifiedPage username =
   withUserFromUsername username (pure . Pages.SetUserEmailAddrAsVerifiedPage)
+
+showSetQuotationAsignedPage
+  :: ServerC m => Quotation.QuotationId -> m Pages.SetQuotationAsSignedPage
+showSetQuotationAsignedPage id =
+  withQuotationFromId id (pure . Pages.SetQuotationAsSignedPage)
 
 
 --------------------------------------------------------------------------------
@@ -983,6 +995,9 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
                    :> Post '[B.HTML] Pages.ActionResult
+             :<|> "a" :> "set-quotation-as-signed"
+                   :> ReqBody '[FormUrlEncoded] Quotation.SetQuotationAsSigned
+                   :> Post '[B.HTML] Pages.ActionResult
 
              :<|> "a" :> "new-quotation"
                   :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
@@ -1024,6 +1039,7 @@ privateT conf authResult =
         :<|> (withUser' . handleUserProfileUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
+        :<|> (withUser' . handleSetQuotationAsSigned)
         :<|> (withUser' . handleNewQuotation)
         :<|> (\a b -> withUser' $ handleSaveQuotation a b)
         :<|> (withUser' . handleSubmitQuotation)
@@ -1128,6 +1144,8 @@ handleUserProfileUpdate update profile = do
       pure $ addHeader @"Location" ("/settings/profile") NoContent
     _ -> Errs.throwError' $ Rt.UnspeciedErr "Cannot update the user."
 
+
+--------------------------------------------------------------------------------
 handleSetUserEmailAddrAsVerified
   :: forall m
    . ServerC m
@@ -1144,6 +1162,24 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
+handleSetQuotationAsSigned
+  :: forall m
+   . ServerC m
+  => Quotation.SetQuotationAsSigned
+  -> User.UserProfile
+  -> m Pages.ActionResult
+handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned id) profile
+  = do
+    db     <- asks Rt._rDb
+    output <- liftIO . atomically $ Rt.setQuotationAsSignedFull
+      db
+      (profile, id)
+    pure $ Pages.ActionResult "Set quotation as signed" $ case output of
+      Right ()  -> "Success"
+      Left  err -> "Failure: " <> show err
+
+
+--------------------------------------------------------------------------------
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
 handleNewQuotation'
@@ -2319,6 +2355,36 @@ withMaybeUserFromUsernameResolved username a f = do
     (Rt.selectUserByUsernameResolved . Rt._rDb)
     username
   maybe (a username) (uncurry f) mprofile
+
+-- | Run a handler, ensuring a quotation can be obtained from the given id, or
+-- throw an error.
+withQuotationFromId
+  :: forall m a
+   . ServerC m
+  => Quotation.QuotationId
+  -> (Quotation.Quotation -> m a)
+  -> m a
+withQuotationFromId id f = withMaybeQuotationFromId
+  id
+  (noSuchQuotationErr . show)
+  f
+ where
+  noSuchQuotationErr = Errs.throwError' . Quotation.Err . mappend
+    "The given quotation was not found: "
+
+-- | Run either a handler expecting a quotation, or a normal handler, depending
+-- on if a quotation can be queried using the supplied id or not.
+withMaybeQuotationFromId
+  :: forall m a
+   . ServerC m
+  => Quotation.QuotationId
+  -> (Quotation.QuotationId -> m a)
+  -> (Quotation.Quotation -> m a)
+  -> m a
+withMaybeQuotationFromId id a f = do
+  db         <- asks Rt._rDb
+  mquotation <- liftIO $ Rt.selectQuotationById db id
+  maybe (a id) f mquotation
 
 
 --------------------------------------------------------------------------------

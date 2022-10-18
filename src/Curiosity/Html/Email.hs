@@ -32,7 +32,7 @@ instance H.ToMarkup EmailPage where
 -- | Display enqueued emails.
 panelSentEmails :: [Email.Email] -> H.Html
 panelSentEmails emails =
-  panel' "Emails queued" $ Misc.table titles display emails
+  panel' "Emails queued" $ Misc.table "emails" titles display emails
  where
   titles = ["ID", "Template", "Sender", "Recipient"]
   display Email.Email {..} =

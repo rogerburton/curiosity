@@ -15,6 +15,8 @@ module Curiosity.Core
   , modifyUsers
   , selectUserById
   , selectUserByUsername
+  , modifyQuotations
+  , selectQuotationById
   -- * ID generation
   , generateUserId
   , generateBusinessId
@@ -336,11 +338,12 @@ modifyUsers
   -> ([User.UserProfile] -> [User.UserProfile])
   -> STM ()
 modifyUsers db f =
-  let usersTVar = _dbUserProfiles db in STM.modifyTVar usersTVar f
+  let tvar = _dbUserProfiles db in STM.modifyTVar tvar f
 
+selectUserById :: forall runtime . StmDb runtime -> User.UserId -> STM (Maybe User.UserProfile)
 selectUserById db id = do
-  let usersTVar = _dbUserProfiles db
-  STM.readTVar usersTVar <&> find ((== id) . User._userProfileId)
+  let tvar = _dbUserProfiles db
+  STM.readTVar tvar <&> find ((== id) . User._userProfileId)
 
 selectUserByUsername
   :: forall runtime
@@ -348,10 +351,30 @@ selectUserByUsername
   -> User.UserName
   -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
-  let usersTVar = _dbUserProfiles db
-  users' <- STM.readTVar usersTVar
+  let tvar = _dbUserProfiles db
+  records <- STM.readTVar tvar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
-              users'
+              records
+
+
+--------------------------------------------------------------------------------
+modifyQuotations
+  :: forall runtime
+   . StmDb runtime
+  -> ([Quotation.Quotation] -> [Quotation.Quotation])
+  -> STM ()
+modifyQuotations db f =
+  let tvar = _dbQuotations db in STM.modifyTVar tvar f
+
+selectQuotationById
+  :: forall runtime
+   . StmDb runtime
+  -> Quotation.QuotationId
+  -> STM (Maybe Quotation.Quotation)
+selectQuotationById db id = do
+  let tvar = _dbQuotations db
+  records <- STM.readTVar tvar
+  pure $ find ((== id) . Quotation._quotationId) records
 
 
 --------------------------------------------------------------------------------

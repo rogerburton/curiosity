@@ -51,8 +51,10 @@ module Curiosity.Runtime
   , readCreateQuotationFormResolved'
   , writeCreateQuotationForm
   , submitCreateQuotationForm
+  , setQuotationAsSignedFull
   , filterQuotations
   , filterQuotations'
+  , selectQuotationById
   -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
@@ -1186,6 +1188,35 @@ submitCreateQuotationForm' db (profile, input) resolvedClient = do
         Left err -> pure $ Left err
     Left  err -> pure . Left $ Quotation.Err (show err)
 
+setQuotationAsSignedFull
+  :: Core.StmDb runtime
+  -> (User.UserProfile, Quotation.QuotationId)
+  -> STM (Either Quotation.Err ())
+setQuotationAsSignedFull db (user, input) = transaction
+ where
+  transaction = setQuotationAsSigned db input
+
+setQuotationAsSigned
+  :: forall runtime
+   . Core.StmDb runtime
+  -> Quotation.QuotationId
+  -> STM (Either Quotation.Err ())
+setQuotationAsSigned db id = do
+  mquotation <- Core.selectQuotationById db id
+  case mquotation of
+    Just Quotation.Quotation {..} -> case _quotationState of
+      Quotation.QuotationSent -> do
+        let replaceOlder records =
+              [ if Quotation._quotationId r == id
+                  then r { Quotation._quotationState = Quotation.QuotationSigned }
+                  else r
+              | r <- records
+              ]
+        Core.modifyQuotations db replaceOlder
+        pure $ Right ()
+      _ -> pure . Left $ Quotation.Err "Quotation is not in the Sent state."
+    Nothing -> pure . Left $ Quotation.Err "No such quotation."
+
 filterQuotations :: Core.StmDb runtime -> Quotation.Predicate -> STM [Quotation.Quotation]
 filterQuotations db predicate = do
   let tvar = Data._dbQuotations db
@@ -1197,6 +1228,13 @@ filterQuotations' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterQuotations db predicate
 
+selectQuotationById
+  :: forall runtime
+   . Core.StmDb runtime
+  -> Quotation.QuotationId
+  -> IO (Maybe Quotation.Quotation)
+selectQuotationById db id =
+  STM.atomically $ Core.selectQuotationById db id
 
 --------------------------------------------------------------------------------
 -- | Create a new form instance in the staging area.

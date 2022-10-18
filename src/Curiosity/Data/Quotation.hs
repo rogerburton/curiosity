@@ -27,20 +27,27 @@ module Curiosity.Data.Quotation
   , quotationIdPrefix
   , QuotationState(..)
   , displayQuotationState
+  , SetQuotationAsSigned(..)
   , Predicate(..)
   , applyPredicate
   , Err(..)
   ) where
 
+import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Types.Wrapped        as W
 import qualified Curiosity.Data.User           as User
+import qualified Curiosity.Html.Errors         as Pages
 import           Data.Aeson
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as LT
+import qualified Network.HTTP.Types            as HTTP
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Renderer.Text       ( renderMarkup )
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseMaybe
                                                 , parseUnique
                                                 )
+import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 
 --------------------------------------------------------------------------------
@@ -143,7 +150,7 @@ newtype QuotationId = QuotationId { unQuotationId :: Text }
                         , H.ToMarkup
                         , H.ToValue
                         ) via Text
-               deriving FromForm via W.Wrapped "quotation-id" Text
+               deriving (FromHttpApiData, FromForm) via W.Wrapped "quotation-id" Text
 
 quotationIdPrefix :: Text
 quotationIdPrefix = "QUOT-"
@@ -154,6 +161,13 @@ data QuotationState = QuotationCreated | QuotationSent | QuotationSigned
 
 displayQuotationState :: QuotationState -> Text
 displayQuotationState = T.drop (T.length "Quotation") . show
+
+
+--------------------------------------------------------------------------------
+data SetQuotationAsSigned = SetQuotationAsSigned QuotationId
+
+instance FromForm SetQuotationAsSigned where
+  fromForm f = SetQuotationAsSigned <$> parseUnique "quotation-id" f
 
 
 --------------------------------------------------------------------------------
@@ -170,3 +184,17 @@ data Err = Err
   { unErr :: Text
   }
   deriving (Eq, Exception, Show)
+
+instance Errs.IsRuntimeErr Err where
+  errCode = errCode' . \case
+    Err _ -> "QUOT_" <> "TODO"
+    where errCode' = mappend "ERR.QUOT"
+
+  httpStatus = \case
+    Err _ -> HTTP.conflict409 -- TODO Check relevant code.
+
+  userMessage = Just . \case
+    Err msg -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+      409
+      "Err"
+      msg

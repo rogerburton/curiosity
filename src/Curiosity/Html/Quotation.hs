@@ -41,14 +41,20 @@ instance H.ToMarkup QuotationPage where
 -- | Display quotations.
 panelQuotations :: [Quotation.Quotation] -> H.Html
 panelQuotations quotations =
-  panel' "Quotations" $ Misc.table titles display quotations
+  panel' "Quotations" $ Misc.table "quotations" titles display quotations
  where
   titles = ["ID", "State"]
   display Quotation.Quotation {..} =
     ( [ Quotation.unQuotationId _quotationId
       , Quotation.displayQuotationState  _quotationState
       ]
-    , []
+    , if _quotationState == Quotation.QuotationSent
+      then [ ( Misc.divIconCheck
+             , "Set as signed"
+             , "/action/set-quotation-as-signed/" <> Quotation.unQuotationId _quotationId
+             )
+           ]
+      else []
     , Nothing
     )
 
