@@ -46,6 +46,7 @@ import qualified Curiosity.Data.Country        as Country
 import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
@@ -1175,7 +1176,7 @@ handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned id) profile
       db
       (profile, id)
     pure $ Pages.ActionResult "Set quotation as signed" $ case output of
-      Right ()  -> "Success"
+      Right id  -> "Success. Order created: " <> Order.unOrderId id
       Left  err -> "Failure: " <> show err
 
 

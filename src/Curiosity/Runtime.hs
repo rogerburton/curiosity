@@ -1191,24 +1191,30 @@ submitCreateQuotationForm' db (profile, input) resolvedClient = do
 setQuotationAsSignedFull
   :: Core.StmDb runtime
   -> (User.UserProfile, Quotation.QuotationId)
-  -> STM (Either Quotation.Err ())
-setQuotationAsSignedFull db (user, input) = transaction
+  -> STM (Either Quotation.Err Order.OrderId)
+setQuotationAsSignedFull db (user, input) =
+  STM.catchSTM (Right <$> transaction) (pure . Left)
  where
-  transaction = setQuotationAsSigned db input
+  transaction = do
+    -- TODO Check the user can sign (e.g. the quotation is her).
+    oid <- signQuotation db (user, input) >>= either STM.throwSTM pure
+    setQuotationAsSigned db input oid >>= either STM.throwSTM pure
+    pure oid
 
 setQuotationAsSigned
   :: forall runtime
    . Core.StmDb runtime
   -> Quotation.QuotationId
+  -> Order.OrderId
   -> STM (Either Quotation.Err ())
-setQuotationAsSigned db id = do
+setQuotationAsSigned db id oid = do
   mquotation <- Core.selectQuotationById db id
   case mquotation of
     Just Quotation.Quotation {..} -> case _quotationState of
       Quotation.QuotationSent -> do
         let replaceOlder records =
               [ if Quotation._quotationId r == id
-                  then r { Quotation._quotationState = Quotation.QuotationSigned }
+                  then r { Quotation._quotationState = Quotation.QuotationSigned oid }
                   else r
               | r <- records
               ]

@@ -35,6 +35,7 @@ module Curiosity.Data.Quotation
 
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Types.Wrapped        as W
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Html.Errors         as Pages
 import           Data.Aeson
@@ -155,12 +156,19 @@ newtype QuotationId = QuotationId { unQuotationId :: Text }
 quotationIdPrefix :: Text
 quotationIdPrefix = "QUOT-"
 
-data QuotationState = QuotationCreated | QuotationSent | QuotationSigned
+data QuotationState =
+    QuotationCreated
+  | QuotationSent
+  | QuotationSigned Order.OrderId
+    -- ^ A signed quotation is necessarily linked to a created order.
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 displayQuotationState :: QuotationState -> Text
-displayQuotationState = T.drop (T.length "Quotation") . show
+displayQuotationState = \case
+  QuotationCreated    -> "Created"
+  QuotationSent       -> "Sent"
+  QuotationSigned oid -> "Signed (" <> Order.unOrderId oid <> ")"
 
 
 --------------------------------------------------------------------------------
