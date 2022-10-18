@@ -19,3 +19,4 @@ The complete queue can be seen at [`/emails`](/emails) and
 
 - [Application state](/documentation/state)
 - [Quotations](/documentation/quotations)
+- [Orders](/documentation/orders)

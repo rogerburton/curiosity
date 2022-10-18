@@ -7,11 +7,13 @@ module Curiosity.Html.Homepage
   ) where
 
 import qualified Curiosity.Data.Email          as Email
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Email
 import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Order           ( panelOrders )
 import           Curiosity.Html.Quotation       ( panelQuotations )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
@@ -31,6 +33,7 @@ data WelcomePage = WelcomePage
     -- corresponding action.
   , welcomePageQuotationForms    :: [(Text, Quotation.CreateQuotationAll)]
   , welcomePageQuotations        :: [Quotation.Quotation]
+  , welcomePageOrders            :: [Order.Order]
   , welcomePageEmails            :: [Email.Email]
     -- ^ Enqueued emails being sent to the logged user.
   }
@@ -54,6 +57,8 @@ instance H.ToMarkup WelcomePage where
             panelQuotationForms welcomePageQuotationForms
 
             panelQuotations welcomePageQuotations
+
+            panelOrders welcomePageOrders
 
             panelSentEmails welcomePageEmails
 

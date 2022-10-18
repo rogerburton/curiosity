@@ -13,6 +13,8 @@ module Curiosity.Data.Order
     Order(..)
   , OrderId(..)
   , orderIdPrefix
+  , Predicate(..)
+  , applyPredicate
   , Err(..)
   ) where
 
@@ -45,6 +47,17 @@ newtype OrderId = OrderId { unOrderId :: Text }
 orderIdPrefix :: Text
 orderIdPrefix = "ORD-"
 
+
+--------------------------------------------------------------------------------
+-- | Predicates to filter orders.
+data Predicate = AllOrders
+  deriving (Eq, Show)
+
+applyPredicate :: Predicate -> Order -> Bool
+applyPredicate AllOrders _ = True
+
+
+--------------------------------------------------------------------------------
 data Err = Err
   { unErr :: Text
   }

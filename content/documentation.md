@@ -7,6 +7,9 @@ title: Curiosity
 
 - [About](/about)
 - [Application state](/documentation/state)
+  - [Sent emails](/documentation/emails)
+  - [Quotations](/documentation/quotations)
+  - [Orders](/documentation/orders)
 - [Changelog](/documentation/changelog)
 - [Command-line interfaces](/documentation/clis)
 - [Deployment](/documentation/deployment)

@@ -55,6 +55,9 @@ module Curiosity.Runtime
   , filterQuotations
   , filterQuotations'
   , selectQuotationById
+  -- ** Orders
+  , filterOrders
+  , filterOrders'
   -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
@@ -1241,6 +1244,20 @@ selectQuotationById
   -> IO (Maybe Quotation.Quotation)
 selectQuotationById db id =
   STM.atomically $ Core.selectQuotationById db id
+
+
+--------------------------------------------------------------------------------
+filterOrders :: Core.StmDb runtime -> Order.Predicate -> STM [Order.Order]
+filterOrders db predicate = do
+  let tvar = Data._dbOrders db
+  records <- STM.readTVar tvar
+  pure $ filter (Order.applyPredicate predicate) records
+
+filterOrders' :: Order.Predicate -> RunM [Order.Order]
+filterOrders' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterOrders db predicate
+
 
 --------------------------------------------------------------------------------
 -- | Create a new form instance in the staging area.

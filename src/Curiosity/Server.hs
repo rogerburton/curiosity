@@ -61,6 +61,7 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
+import qualified Curiosity.Html.Order          as Pages
 import qualified Curiosity.Html.Quotation      as Pages
 import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
@@ -249,6 +250,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> H.UserAuthentication :>  Get '[B.HTML] Pages.QuotationPage
              :<|> "quotations.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
+
+             :<|> "orders"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.OrderPage
+             :<|> "orders.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
@@ -550,6 +556,8 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showEmailsAsJson
     :<|> showQuotations
     :<|> showQuotationsAsJson
+    :<|> showOrders
+    :<|> showOrdersAsJson
 
     :<|> echoLogin
     :<|> echoSignup
@@ -744,8 +752,9 @@ showHomePage authResult = withMaybeUser
     emails <- withRuntime $ Rt.filterEmails'
       (Email.EmailsFor $ User._userProfileEmailAddr profile)
     quotations <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+    orders <- withRuntime $ Rt.filterOrders' Order.AllOrders
     let quotationForms = either (const []) identity mquotationForms
-    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms quotations emails
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms quotations orders emails
   )
 
 
@@ -2588,6 +2597,21 @@ showQuotationsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
 showQuotationsAsJson = do
   emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+  pure $ JP.PrettyJSON emails
+
+
+--------------------------------------------------------------------------------
+showOrders :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.OrderPage
+showOrders authResult = do
+  emails <- withRuntime $ Rt.filterOrders' Order.AllOrders
+  withMaybeUser authResult
+    (const $ pure $ Pages.OrderPage Nothing emails)
+    (\profile -> pure $ Pages.OrderPage (Just profile) emails)
+
+showOrdersAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
+showOrdersAsJson = do
+  emails <- withRuntime $ Rt.filterOrders' Order.AllOrders
   pure $ JP.PrettyJSON emails
 
 
