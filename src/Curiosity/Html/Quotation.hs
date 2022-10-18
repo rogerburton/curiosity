@@ -43,10 +43,10 @@ panelQuotations :: [Quotation.Quotation] -> H.Html
 panelQuotations quotations =
   panel' "Quotations" $ Misc.table titles display quotations
  where
-  titles = ["ID"]
+  titles = ["ID", "State"]
   display Quotation.Quotation {..} =
     ( [ Quotation.unQuotationId _quotationId
-      , show _quotationState
+      , Quotation.displayQuotationState  _quotationState
       ]
     , []
     , Nothing

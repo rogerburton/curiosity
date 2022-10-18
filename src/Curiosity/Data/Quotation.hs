@@ -26,6 +26,7 @@ module Curiosity.Data.Quotation
   , QuotationId(..)
   , quotationIdPrefix
   , QuotationState(..)
+  , displayQuotationState
   , Predicate(..)
   , applyPredicate
   , Err(..)
@@ -34,6 +35,7 @@ module Curiosity.Data.Quotation
 import qualified Commence.Types.Wrapped        as W
 import qualified Curiosity.Data.User           as User
 import           Data.Aeson
+import qualified Data.Text                     as T
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 , parseMaybe
@@ -149,6 +151,9 @@ quotationIdPrefix = "QUOT-"
 data QuotationState = QuotationCreated | QuotationSent | QuotationSigned
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
+
+displayQuotationState :: QuotationState -> Text
+displayQuotationState = T.drop (T.length "Quotation") . show
 
 
 --------------------------------------------------------------------------------
