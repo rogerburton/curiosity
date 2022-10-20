@@ -70,6 +70,8 @@ data EmailTemplate =
     SignupConfirmationEmail
     -- ^ An email sent upon signup (see `Curiosity.Data.User.Signup`).
   | QuotationEmail
+    -- ^ An email sent when a quotation form is successfully submitted to the
+    -- system (see `Curiosity.Data.Quotation.SubmitQuotation`).
   | InvoiceEmail
   | InvoiceReminderEmail
   deriving (Show, Eq, Generic)
