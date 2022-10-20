@@ -10,8 +10,10 @@ sent during an STM operation. A separate thread should actually handle them.
 
 -}
 module Curiosity.Data.Email
-  ( -- * Main data representation
-    Email(..)
+  ( -- * Useful constants
+    systemEmailAddr
+    -- * Main data representation
+  , Email(..)
   , EmailId(..)
   , emailIdPrefix
   , EmailTemplate(..)
@@ -27,6 +29,10 @@ import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 )
+
+--------------------------------------------------------------------------------
+systemEmailAddr :: User.UserEmailAddr
+systemEmailAddr = "hello@smartcoop.sh"
 
 
 --------------------------------------------------------------------------------

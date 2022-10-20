@@ -595,7 +595,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SendReminder input ->
       -- TODO Check this is the "system" user ?
                                   liftIO . STM.atomically $ do
-      createEmail _rDb Email.InvoiceReminderEmail "TODO sender email addr" "TODO client email addr"
+      Core.createEmail _rDb Email.InvoiceReminderEmail "TODO sender email addr" "TODO client email addr"
       pure
         ( ExitSuccess
         , ["Reminder for invoice sent: " <> Invoice.unInvoiceId input]
@@ -843,7 +843,7 @@ invoiceOrder db (profile, _) = do
   case mids of
     Right (id0, id1, id2, id3) -> do
       -- Invoices and remittance advices created, do the rest of the atomic process.
-      createEmail db Email.InvoiceEmail
+      Core.createEmail db Email.InvoiceEmail
         (User._userProfileEmailAddr profile)
         (User._userProfileEmailAddr profile)
       -- TODO The email address should be the one from the client.
@@ -1167,7 +1167,7 @@ submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
         Right (id, resolvedClient) -> do
           -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
-          createEmail db Email.QuotationEmail
+          Core.createEmail db Email.QuotationEmail
             (User._userProfileEmailAddr profile)
             (User._userProfileEmailAddr resolvedClient)
           pure $ Right id
@@ -1482,39 +1482,6 @@ createTwoRemittanceAdvs db = do
     _ -> STM.throwSTM $ Invoice.Err "Failed to create remittance advices."
 
 --------------------------------------------------------------------------------
-createEmail
-  :: forall runtime
-   . Core.StmDb runtime
-  -> Email.EmailTemplate
-  -> User.UserEmailAddr
-  -> User.UserEmailAddr
-  -> STM (Either Email.Err Email.EmailId)
-createEmail db template senderAddr recipientAddr = do
-  STM.catchSTM (Right <$> transaction) (pure . Left)
- where
-  transaction = do
-    newId <- Core.generateEmailId db
-    let new = Email.Email newId template senderAddr recipientAddr
-    createEmailFull db new >>= either STM.throwSTM pure
-
-createEmailFull
-  :: forall runtime
-   . Core.StmDb runtime
-  -> Email.Email
-  -> STM (Either Email.Err Email.EmailId)
-createEmailFull db new = do
-  modifyEmails db (++ [new])
-  pure . Right $ Email._emailId new
-
-modifyEmails
-  :: forall runtime
-   . Core.StmDb runtime
-  -> ([Email.Email] -> [Email.Email])
-  -> STM ()
-modifyEmails db f = let tvar = Data._dbEmails db in STM.modifyTVar tvar f
-
-
---------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
 instance S.DBStorage AppM STM User.UserProfile where
 
@@ -1527,7 +1494,7 @@ instance S.DBStorage AppM STM User.UserProfile where
     User.UserCreate input -> second pure <$> Core.createUserFull db input
 
     User.UserCreateGeneratingUserId input ->
-      second pure <$> Core.createUser db input
+      second (pure . fst) <$> Core.createUser db input
 
     User.UserDelete id ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
@@ -1609,9 +1576,13 @@ createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.createUser db input
   case muid of
-    Right (User.UserId uid) -> ML.info $ "User created: " <> uid
-    Left  err               -> ML.info $ "Failed to create user: " <> show err
-  pure muid
+    Right (User.UserId uid, Email.EmailId eid) -> do
+      ML.info $ "User created: " <> uid
+      ML.info $ "Signup confirmation email sent: " <> eid
+      pure . Right $ User.UserId uid
+    Left err -> do
+      ML.info $ "Failed to create user: " <> show err
+      pure $ Left err
 
 setUserEmailAddrAsVerified
   :: forall runtime

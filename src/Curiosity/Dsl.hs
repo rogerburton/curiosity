@@ -22,6 +22,7 @@ import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 )
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.User           as User
 import qualified Language.Haskell.TH.Syntax    as Syntax
 import           Prelude                 hiding ( state )
@@ -61,7 +62,7 @@ signup
   :: User.UserName
   -> User.Password
   -> User.UserEmailAddr
-  -> Run (Either User.Err User.UserId)
+  -> Run (Either User.Err (User.UserId, Email.EmailId))
 signup username password email =
   ask >>= (Run . lift . flip Core.createUser input)
   where input = User.Signup username password email True
