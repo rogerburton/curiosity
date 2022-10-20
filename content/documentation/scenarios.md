@@ -54,7 +54,7 @@ page](/documentation/live-data).
 
 The test suite of Curiosity contains the following scenarios (those are
 clickable links). For each scenario, it is possible to view all the states
-resulting of each of the commands the execute.
+resulting of each of the commands the scenario executes.
 
 <!--# include virtual="/partials/scenarios" -->
 
