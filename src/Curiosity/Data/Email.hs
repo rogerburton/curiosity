@@ -5,7 +5,7 @@ Module: Curiosity.Data.Email
 Description: Email -related data types.
 
 This module contains data types used to represent emails. Within
-`Curiosity.Data`, they are used to record atomically that an email should be
+"Curiosity.Data", they are used to record atomically that an email should be
 sent during an STM operation. A separate thread should actually handle them.
 
 -}
@@ -62,7 +62,16 @@ emailIdPrefix = "EMAIL-"
 
 
 --------------------------------------------------------------------------------
-data EmailTemplate = SignupConfirmationEmail | QuotationEmail | InvoiceEmail | InvoiceReminderEmail
+-- | All the emails that can be sent by the system are given by variants of the
+-- `EmailTemplate` data type. They can be sent by the
+-- `Curiosity.Core.createEmail` function. (TODO This should be a link to
+-- "Curiosity.Runtime".)
+data EmailTemplate =
+    SignupConfirmationEmail
+    -- ^ An email sent upon signup (see `Curiosity.Data.User.Signup`).
+  | QuotationEmail
+  | InvoiceEmail
+  | InvoiceReminderEmail
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 

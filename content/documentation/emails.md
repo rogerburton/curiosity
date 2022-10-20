@@ -2,6 +2,12 @@
 title: Curiosity
 ---
 
+# Email templates
+
+All the emails that can be sent by the system are given by variants of the
+`EmailTemplate` data type. See [their
+documentation](/haddock/Curiosity-Data-Email.html#t:EmailTemplate).
+
 # Sent emails
 
 All the emails that are sent by the system go through an internal queue.
