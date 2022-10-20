@@ -564,7 +564,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SignQuotation input ->
       liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
-          mid <- signQuotation _rDb (profile, input)
+          mid <- setQuotationAsSignedFull _rDb (profile, input)
           case mid of
             Right id ->
               pure (ExitSuccess, ["Order created: " <> Order.unOrderId id])
