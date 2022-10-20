@@ -18,7 +18,7 @@ Example data
     displayed with validation errors.
 
 Some validation data are used to describe and validate contracts. See
-[validation data]( (/documentation/validation-data#simple-contracts).
+[validation data](/documentation/validation-data#simple-contracts).
 
 # See also
 
