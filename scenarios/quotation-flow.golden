@@ -12,7 +12,7 @@ User created: USER-3
 User updated: USER-3
 10: as susie
 Modifying default user.
-11: forms quotation new
+11: forms quotation new --client charlie
 Quotation form created: TBPJLIUG
 13: forms quotation submit TBPJLIUG
 Quotation form validated.
