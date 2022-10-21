@@ -5,11 +5,13 @@ under e.g. `cty user do` and the action menu on table views.
 -}
 module Curiosity.Html.Action
   ( SetUserEmailAddrAsVerifiedPage(..)
+  , SetQuotationAsSignedPage(..)
   , ActionResult(..)
   , EchoPage(..)
   ) where
 
-import           Curiosity.Data.User           as User
+import qualified Curiosity.Data.Quotation      as Quotation
+import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Panel               ( Panel(..) )
@@ -66,6 +68,33 @@ setUserEmailAddrAsVerifiedForm username = H.form $ do
   H.input ! A.type_ "hidden" ! A.id "username" ! A.name "username" ! A.value
     (H.toValue username)
   button "/a/set-email-addr-as-verified" "Set as verified"
+
+
+--------------------------------------------------------------------------------
+-- | A form to perform the SetQuotationAsSigned action.
+data SetQuotationAsSignedPage = SetQuotationAsSignedPage
+  { setQuotationAsSignedQuotation :: Quotation.Quotation
+    -- ^ The quotation to be set as signed.
+  }
+
+instance H.ToMarkup SetQuotationAsSignedPage where
+  toMarkup SetQuotationAsSignedPage {..} =
+    let id = Quotation._quotationId setQuotationAsSignedQuotation
+    in  fullScrollWrapper . panelWrapper $ do
+          H.toMarkup $ setQuotationAsSignedPanel id
+          setQuotationAsSignedForm id
+
+setQuotationAsSignedPanel id =
+  PanelHeaderAndBody "Set quotation as signed"
+    $ H.dl
+    ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short"
+    $ do
+        keyValuePair "ID" id
+
+setQuotationAsSignedForm id = H.form $ do
+  H.input ! A.type_ "hidden" ! A.id "quotation-id" ! A.name "quotation-id" ! A.value
+    (H.toValue id)
+  button "/a/set-quotation-as-signed" "Set as signed"
 
 
 --------------------------------------------------------------------------------

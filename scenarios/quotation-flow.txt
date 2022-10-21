@@ -8,7 +8,7 @@ user create charlie c charlie@example.com --accept-tos
 user update USER-3 Charlie "I'm Charlie, a Client in the quotation-flow scenario."
 
 as susie
-forms quotation new
+forms quotation new --client charlie
 # forms quotation edit
 forms quotation submit TBPJLIUG
 

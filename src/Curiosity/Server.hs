@@ -37,15 +37,16 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
-import qualified Curiosity.Command             as Command
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
                                                 )
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Country        as Country
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
@@ -53,12 +54,14 @@ import qualified Curiosity.Form.Login          as Login
 import qualified Curiosity.Form.Signup         as Signup
 import qualified Curiosity.Html.Action         as Pages
 import qualified Curiosity.Html.Business       as Pages
+import qualified Curiosity.Html.Email          as Pages
 import qualified Curiosity.Html.Employment     as Pages
 import qualified Curiosity.Html.Errors         as Pages
 import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
+import qualified Curiosity.Html.Order          as Pages
 import qualified Curiosity.Html.Quotation      as Pages
 import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
@@ -235,7 +238,23 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
-             :<|> "state.json" :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+             :<|> "state.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+
+             :<|> "emails"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
+             :<|> "emails.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+
+             :<|> "quotations"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.QuotationPage
+             :<|> "quotations.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
+
+             :<|> "orders"
+                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.OrderPage
+             :<|> "orders.json"
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
@@ -427,6 +446,10 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "action" :> "set-email-addr-as-verified"
                   :> Capture "username" User.UserName
                   :> Get '[B.HTML] Pages.SetUserEmailAddrAsVerifiedPage
+             :<|> "action" :> "set-quotation-as-signed"
+                  :> Capture "quotation-id" Quotation.QuotationId
+                  :> Get '[B.HTML] Pages.SetQuotationAsSignedPage
+
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
@@ -526,8 +549,15 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showScenario scenariosDir
     :<|> showScenarioState scenariosDir
     :<|> showScenarioStateAsJson scenariosDir
+
     :<|> showState
     :<|> showStateAsJson
+    :<|> showEmails
+    :<|> showEmailsAsJson
+    :<|> showQuotations
+    :<|> showQuotationsAsJson
+    :<|> showOrders
+    :<|> showOrdersAsJson
 
     :<|> echoLogin
     :<|> echoSignup
@@ -570,7 +600,10 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> showLoginPage
     :<|> showSignupPage
+
     :<|> showSetUserEmailAddrAsVerifiedPage
+    :<|> showSetQuotationAsignedPage
+
     :<|> publicT conf jwtS
     :<|> privateT conf
     :<|> serveData dataDir
@@ -711,13 +744,17 @@ showHomePage authResult = withMaybeUser
     profiles <- if b
       then
         Just
-          <$> Rt.withRuntimeAtomically Rt.filterUsers
-                                       User.PredicateEmailAddrToVerify
+          <$> withRuntime (Rt.filterUsers'
+                                       User.PredicateEmailAddrToVerify)
       else pure Nothing
     mquotationForms <-
           withRuntime $ Rt.readCreateQuotationForms' profile
+    emails <- withRuntime $ Rt.filterEmails'
+      (Email.EmailsFor $ User._userProfileEmailAddr profile)
+    quotations <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+    orders <- withRuntime $ Rt.filterOrders' Order.AllOrders
     let quotationForms = either (const []) identity mquotationForms
-    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms quotations orders emails
   )
 
 
@@ -740,6 +777,11 @@ showSetUserEmailAddrAsVerifiedPage
   :: ServerC m => User.UserName -> m Pages.SetUserEmailAddrAsVerifiedPage
 showSetUserEmailAddrAsVerifiedPage username =
   withUserFromUsername username (pure . Pages.SetUserEmailAddrAsVerifiedPage)
+
+showSetQuotationAsignedPage
+  :: ServerC m => Quotation.QuotationId -> m Pages.SetQuotationAsSignedPage
+showSetQuotationAsignedPage id =
+  withQuotationFromId id (pure . Pages.SetQuotationAsSignedPage)
 
 
 --------------------------------------------------------------------------------
@@ -963,6 +1005,9 @@ type Private = H.UserAuthentication :> (
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
                    :> Post '[B.HTML] Pages.ActionResult
+             :<|> "a" :> "set-quotation-as-signed"
+                   :> ReqBody '[FormUrlEncoded] Quotation.SetQuotationAsSigned
+                   :> Post '[B.HTML] Pages.ActionResult
 
              :<|> "a" :> "new-quotation"
                   :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
@@ -1004,6 +1049,7 @@ privateT conf authResult =
         :<|> (withUser' . handleUserProfileUpdate)
         :<|> (withUser' $ const (handleLogout conf))
         :<|> (withUser' . handleSetUserEmailAddrAsVerified)
+        :<|> (withUser' . handleSetQuotationAsSigned)
         :<|> (withUser' . handleNewQuotation)
         :<|> (\a b -> withUser' $ handleSaveQuotation a b)
         :<|> (withUser' . handleSubmitQuotation)
@@ -1075,14 +1121,19 @@ showEditQuotationPage key profile = do
 showConfirmQuotationPage
   :: ServerC m => Text -> User.UserProfile -> m Pages.ConfirmQuotationPage
 showConfirmQuotationPage key profile = do
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
-      profile
-      key
-      quotationAll
-      (Just . H.toValue $ "/edit/quotation/" <> key)
-      "/a/submit-quotation"
+    Right (quotationAll, clientProfile) -> do
+      let
+        errors =
+          Quotation.validateCreateQuotation' profile quotationAll clientProfile
+      pure $ Pages.ConfirmQuotationPage
+        profile
+        key
+        quotationAll
+        errors
+        (Just . H.toValue $ "/edit/quotation/" <> key)
+        "/a/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 
@@ -1103,6 +1154,8 @@ handleUserProfileUpdate update profile = do
       pure $ addHeader @"Location" ("/settings/profile") NoContent
     _ -> Errs.throwError' $ Rt.UnspeciedErr "Cannot update the user."
 
+
+--------------------------------------------------------------------------------
 handleSetUserEmailAddrAsVerified
   :: forall m
    . ServerC m
@@ -1119,6 +1172,24 @@ handleSetUserEmailAddrAsVerified (User.SetUserEmailAddrAsVerified username) prof
       Right ()  -> "Success"
       Left  err -> "Failure: " <> show err
 
+handleSetQuotationAsSigned
+  :: forall m
+   . ServerC m
+  => Quotation.SetQuotationAsSigned
+  -> User.UserProfile
+  -> m Pages.ActionResult
+handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned id) profile
+  = do
+    db     <- asks Rt._rDb
+    output <- liftIO . atomically $ Rt.setQuotationAsSignedFull
+      db
+      (profile, id)
+    pure $ Pages.ActionResult "Set quotation as signed" $ case output of
+      Right id  -> "Success. Order created: " <> Order.unOrderId id
+      Left  err -> "Failure: " <> show err
+
+
+--------------------------------------------------------------------------------
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
 handleNewQuotation'
@@ -1213,7 +1284,6 @@ documentEditQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateQuotationPage
 documentEditQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
   output <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotationAll -> pure $ Pages.CreateQuotationPage
@@ -1308,7 +1378,6 @@ echoNewQuotation'
   :: ServerC m => FilePath -> Quotation.CreateQuotationAll -> m Text
 echoNewQuotation' dataDir quotation = do
   profile <- readJson $ dataDir </> "alice.json"
-  db <- asks Rt._rDb
   key <- withRuntime $ Rt.formNewQuotation' profile quotation
   pure key
 
@@ -1354,26 +1423,29 @@ documentConfirmQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
 documentConfirmQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
-      profile
-      key
-      quotationAll
-      (Just . H.toValue $ "/forms/edit/quotation/" <> key)
-      "/echo/submit-quotation"
+    Right (quotationAll, clientProfile) -> do
+      let
+        errors =
+          Quotation.validateCreateQuotation' profile quotationAll clientProfile
+      pure $ Pages.ConfirmQuotationPage
+        profile
+        key
+        quotationAll
+        errors
+        (Just . H.toValue $ "/forms/edit/quotation/" <> key)
+        "/echo/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 echoSubmitQuotation
   :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
 echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
   profile <- readJson $ dataDir </> "alice.json"
-  db      <- asks Rt._rDb
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right quotation -> pure . Pages.EchoPage $ show
-      (quotation, Quotation.validateCreateQuotation profile quotation)
+    Right (quotation, resovedClient) -> pure . Pages.EchoPage $ show
+      (quotation, Quotation.validateCreateQuotation profile quotation resovedClient)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Create a form, generating a new key. This is normally used with a
@@ -2294,6 +2366,36 @@ withMaybeUserFromUsernameResolved username a f = do
     username
   maybe (a username) (uncurry f) mprofile
 
+-- | Run a handler, ensuring a quotation can be obtained from the given id, or
+-- throw an error.
+withQuotationFromId
+  :: forall m a
+   . ServerC m
+  => Quotation.QuotationId
+  -> (Quotation.Quotation -> m a)
+  -> m a
+withQuotationFromId id f = withMaybeQuotationFromId
+  id
+  (noSuchQuotationErr . show)
+  f
+ where
+  noSuchQuotationErr = Errs.throwError' . Quotation.Err . mappend
+    "The given quotation was not found: "
+
+-- | Run either a handler expecting a quotation, or a normal handler, depending
+-- on if a quotation can be queried using the supplied id or not.
+withMaybeQuotationFromId
+  :: forall m a
+   . ServerC m
+  => Quotation.QuotationId
+  -> (Quotation.QuotationId -> m a)
+  -> (Quotation.Quotation -> m a)
+  -> m a
+withMaybeQuotationFromId id a f = do
+  db         <- asks Rt._rDb
+  mquotation <- liftIO $ Rt.selectQuotationById db id
+  maybe (a id) f mquotation
+
 
 --------------------------------------------------------------------------------
 -- | Run a handler, ensuring a legal entity can be obtained from the given
@@ -2466,6 +2568,51 @@ showStateAsJson
 showStateAsJson = do
   db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db
+
+
+--------------------------------------------------------------------------------
+showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailPage
+showEmails authResult = do
+  emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+  withMaybeUser authResult
+    (const $ pure $ Pages.EmailPage Nothing emails)
+    (\profile -> pure $ Pages.EmailPage (Just profile) emails)
+
+showEmailsAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+showEmailsAsJson = do
+  emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
+  pure $ JP.PrettyJSON emails
+
+
+--------------------------------------------------------------------------------
+showQuotations :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.QuotationPage
+showQuotations authResult = do
+  emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+  withMaybeUser authResult
+    (const $ pure $ Pages.QuotationPage Nothing emails)
+    (\profile -> pure $ Pages.QuotationPage (Just profile) emails)
+
+showQuotationsAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
+showQuotationsAsJson = do
+  emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
+  pure $ JP.PrettyJSON emails
+
+
+--------------------------------------------------------------------------------
+showOrders :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.OrderPage
+showOrders authResult = do
+  emails <- withRuntime $ Rt.filterOrders' Order.AllOrders
+  withMaybeUser authResult
+    (const $ pure $ Pages.OrderPage Nothing emails)
+    (\profile -> pure $ Pages.OrderPage (Just profile) emails)
+
+showOrdersAsJson
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
+showOrdersAsJson = do
+  emails <- withRuntime $ Rt.filterOrders' Order.AllOrders
+  pure $ JP.PrettyJSON emails
 
 
 --------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Run                 as Run
@@ -102,6 +103,10 @@ spec = do
         let aliceState = Data.emptyHask
               { Data._dbNextUserId   = C.CounterValue 2
               , Data._dbUserProfiles = Identity [alice]
+              , Data._dbNextEmailId  = C.CounterValue 2
+              , Data._dbEmails       = Identity
+                  [Email.Email "EMAIL-1" Email.SignupConfirmationEmail
+                    Email.systemEmailAddr "alice@example.com"]
               }
         mapM_
           go

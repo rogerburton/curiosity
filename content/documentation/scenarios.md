@@ -15,6 +15,11 @@ files". This makes sure that, as scenarios are created, and as Curiosity
 evolves, the system continues to work as expected, and few bugs can be
 introduced inadvertantly.
 
+To manually run scenarios, see how to use the `cty run` [command-line
+tool](/documentation/clis). If you're a developer, the script to ensure
+scenarios match their corresponding golden files is visible [on
+GitHub](https://github.com/hypered/curiosity/blob/main/tests/run-scenarios.hs)
+
 # Example data
 
 Entering enough data into the system to allow to execute (possibly manually,
@@ -54,7 +59,7 @@ page](/documentation/live-data).
 
 The test suite of Curiosity contains the following scenarios (those are
 clickable links). For each scenario, it is possible to view all the states
-resulting of each of the commands the execute.
+resulting of each of the commands the scenario executes.
 
 <!--# include virtual="/partials/scenarios" -->
 

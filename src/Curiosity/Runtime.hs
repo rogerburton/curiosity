@@ -33,6 +33,7 @@ module Curiosity.Runtime
   , selectUserByUsername
   , selectUserByUsernameResolved
   , filterUsers
+  , filterUsers'
   , createUser
   , checkCredentials
   -- * High-level entity operations
@@ -47,8 +48,16 @@ module Curiosity.Runtime
   , formNewQuotation'
   , readCreateQuotationForm'
   , readCreateQuotationForms'
+  , readCreateQuotationFormResolved'
   , writeCreateQuotationForm
   , submitCreateQuotationForm
+  , setQuotationAsSignedFull
+  , filterQuotations
+  , filterQuotations'
+  , selectQuotationById
+  -- ** Orders
+  , filterOrders
+  , filterOrders'
   -- ** Contract
   , newCreateContractForm
   , readCreateContractForm
@@ -68,6 +77,9 @@ module Curiosity.Runtime
   , addExpenseToSimpleContractForm
   , writeExpenseToSimpleContractForm
   , removeExpenseFromSimpleContractForm
+  -- * Emails
+  , filterEmails
+  , filterEmails'
   -- * Servant compat
   , appMHandlerNatTrans
   ) where
@@ -450,16 +462,12 @@ handleCommand runtime@Runtime {..} user command = do
             Nothing -> pure (ExitFailure 1, ["No such user."])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FilterUsers predicate -> do
-      output <- runAppMSafe runtime
-        $ withRuntimeAtomically filterUsers predicate
-      case output of
-        Right profiles -> do
-          let f User.UserProfile {..} =
-                let User.UserId   i = _userProfileId
-                    User.UserName n = User._userCredsName _userProfileCreds
-                in  i <> " " <> n
-          pure (ExitSuccess, map f profiles)
-        Left err -> pure (ExitFailure 1, [show err])
+      profiles <- runRunM runtime $ filterUsers' predicate
+      let f User.UserProfile {..} =
+            let User.UserId   i = _userProfileId
+                User.UserName n = User._userCredsName _userProfileCreds
+            in  i <> " " <> n
+      pure (ExitSuccess, map f profiles)
     Command.UpdateUser input -> do
       output <-
         runAppMSafe runtime . S.liftTxn @AppM @STM $ S.dbUpdate @AppM @STM
@@ -532,10 +540,10 @@ handleCommand runtime@Runtime {..} user command = do
     Command.FormValidateQuotation input ->
       liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
-          mcontract <- readCreateQuotationForm _rDb (profile, input)
+          mcontract <- readCreateQuotationFormResolved _rDb profile input
           case mcontract of
-            Right contract -> do
-              case Quotation.validateCreateQuotation profile contract of
+            Right (contract, resolvedClient) -> do
+              case Quotation.validateCreateQuotation profile contract resolvedClient of
                 Right _    -> pure (ExitSuccess, ["Quotation form is valid."])
                 Left  errs -> pure (ExitFailure 1, map Quotation.unErr errs)
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
@@ -556,7 +564,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SignQuotation input ->
       liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
-          mid <- signQuotation _rDb (profile, input)
+          mid <- setQuotationAsSignedFull _rDb (profile, input)
           case mid of
             Right id ->
               pure (ExitSuccess, ["Order created: " <> Order.unOrderId id])
@@ -587,7 +595,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SendReminder input ->
       -- TODO Check this is the "system" user ?
                                   liftIO . STM.atomically $ do
-      createEmail _rDb Email.InvoiceReminderEmail "TODO client email addr"
+      Core.createEmail _rDb Email.InvoiceReminderEmail "TODO sender email addr" "TODO client email addr"
       pure
         ( ExitSuccess
         , ["Reminder for invoice sent: " <> Invoice.unInvoiceId input]
@@ -642,8 +650,8 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.Step -> do
-      let transaction rt _ = do
-            users <- filterUsers rt User.PredicateEmailAddrToVerify
+      let transaction _ _ = do
+            users <- filterUsers _rDb User.PredicateEmailAddrToVerify
             mapM
               ( setUserEmailAddrAsVerified _rDb
               . User._userCredsName
@@ -670,7 +678,7 @@ submitQuotationSuccess id =
 setUserEmailAddrAsVerifiedFull
   :: Core.StmDb runtime
   -> (User.UserProfile, User.UserName)
-  -> STM (Either User.UserErr ())
+  -> STM (Either User.Err ())
 setUserEmailAddrAsVerifiedFull db (user, input) = transaction
  where
   transaction = do
@@ -752,12 +760,12 @@ createQuotation
    . Core.StmDb runtime
   -> Quotation.Quotation
   -> STM (Either Quotation.Err Quotation.QuotationId)
-createQuotation db _ = do
+createQuotation db quotation = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- Core.generateQuotationId db
-    let new = Quotation.Quotation newId
+    let new = quotation { Quotation._quotationId = newId }
     createQuotationFull db new >>= either STM.throwSTM pure
 
 createQuotationFull
@@ -835,7 +843,9 @@ invoiceOrder db (profile, _) = do
   case mids of
     Right (id0, id1, id2, id3) -> do
       -- Invoices and remittance advices created, do the rest of the atomic process.
-      createEmail db Email.InvoiceEmail $ User._userProfileEmailAddr profile
+      Core.createEmail db Email.InvoiceEmail
+        (User._userProfileEmailAddr profile)
+        (User._userProfileEmailAddr profile)
       -- TODO The email address should be the one from the client.
       pure $ Right (id0, id1, id2, id3)
     Left (Invoice.Err err) -> pure $ Left $ Order.Err err
@@ -1035,7 +1045,7 @@ submitCreateContractForm' db (profile, input) = do
 formNewQuotation
   :: User.UserName
   -> Quotation.CreateQuotationAll
-  -> RunM (Either User.UserErr Text)
+  -> RunM (Either User.Err Text)
 formNewQuotation user input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
     ML.info $ "Instanciating new quotation form..."
@@ -1070,13 +1080,31 @@ newCreateQuotationForm
    . Core.StmDb runtime
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> STM Text
-newCreateQuotationForm db (profile, Quotation.CreateQuotationAll) = do
+newCreateQuotationForm db (profile, form) = do
   key <- Core.genRandomText db
   STM.modifyTVar (Data._dbFormCreateQuotationAll db) (add key)
   pure key
  where
-  add key = M.insert (username, key) Quotation.CreateQuotationAll
+  add key = M.insert (username, key) form
   username = User._userCredsName $ User._userProfileCreds profile
+
+readCreateQuotationFormResolved'
+  :: User.UserProfile -> Text -> RunM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+readCreateQuotationFormResolved' profile key = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ readCreateQuotationFormResolved db profile key
+
+-- | A version of `readCreateQuotationForm'` that also tries to lookup related
+-- data, e.g. the client, which is used for validation.
+readCreateQuotationFormResolved
+  :: Core.StmDb runtime -> User.UserProfile -> Text -> STM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+readCreateQuotationFormResolved db profile key = do
+    mform <- readCreateQuotationForm db (profile, key)
+    case mform of
+      Right form -> do
+        mclient <- maybe (pure Nothing) (Core.selectUserByUsername db) $ Quotation._createQuotationClientUsername form
+        pure $ Right (form, mclient)
+      Left err -> pure $ Left err
 
 readCreateQuotationForm'
   :: User.UserProfile -> Text -> RunM (Either () Quotation.CreateQuotationAll)
@@ -1109,13 +1137,13 @@ writeCreateQuotationForm
    . Core.StmDb runtime
   -> (User.UserProfile, Text, Quotation.CreateQuotationAll)
   -> STM Text
-writeCreateQuotationForm db (profile, key, Quotation.CreateQuotationAll) = do
+writeCreateQuotationForm db (profile, key, form) = do
   STM.modifyTVar (Data._dbFormCreateQuotationAll db) save
   pure key
  where
   -- TODO Return an error when the key is not found.
   save = M.adjust
-    (\(Quotation.CreateQuotationAll) -> Quotation.CreateQuotationAll)
+    (const form)
     (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
@@ -1131,19 +1159,19 @@ submitCreateQuotationForm
   -> (User.UserProfile, Quotation.SubmitQuotation)
   -> STM (Either Quotation.Err Quotation.QuotationId)
 submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
-  minput <- readCreateQuotationForm db (profile, key)
+  minput <- readCreateQuotationFormResolved db profile key
   case minput of
-    Right input -> do
-      mid <- submitCreateQuotationForm' db (profile, input)
+    Right (input, mresolvedClient) -> do
+      mid <- submitCreateQuotationForm' db (profile, input) mresolvedClient
       case mid of
-        Right _ -> do
+        Right (id, resolvedClient) -> do
           -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
-          createEmail db Email.QuotationEmail
-            $ User._userProfileEmailAddr profile
-          -- TODO The email address should be the one from the client.
-          pure mid
-        _ -> pure mid
+          Core.createEmail db Email.QuotationEmail
+            (User._userProfileEmailAddr profile)
+            (User._userProfileEmailAddr resolvedClient)
+          pure $ Right id
+        Left err -> pure $ Left err
     Left err -> pure . Left $ Quotation.Err (show err)
 
 -- | Attempt to validate a quotation form and create it.
@@ -1151,12 +1179,84 @@ submitCreateQuotationForm'
   :: forall runtime
    . Core.StmDb runtime
   -> (User.UserProfile, Quotation.CreateQuotationAll)
-  -> STM (Either Quotation.Err Quotation.QuotationId)
-submitCreateQuotationForm' db (profile, input) = do
-  let mc = Quotation.validateCreateQuotation profile input
+  -> Maybe User.UserProfile
+  -> STM (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
+submitCreateQuotationForm' db (profile, input) resolvedClient = do
+  let mc = Quotation.validateCreateQuotation profile input resolvedClient
   case mc of
-    Right c   -> createQuotation db c
+    Right (c, resolvedClient)   -> do
+      mid <- createQuotation db c
+      case mid of
+        Right id -> pure $ Right (id, resolvedClient)
+        Left err -> pure $ Left err
     Left  err -> pure . Left $ Quotation.Err (show err)
+
+setQuotationAsSignedFull
+  :: Core.StmDb runtime
+  -> (User.UserProfile, Quotation.QuotationId)
+  -> STM (Either Quotation.Err Order.OrderId)
+setQuotationAsSignedFull db (user, input) =
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    -- TODO Check the user can sign (e.g. the quotation is her).
+    oid <- signQuotation db (user, input) >>= either STM.throwSTM pure
+    setQuotationAsSigned db input oid >>= either STM.throwSTM pure
+    pure oid
+
+setQuotationAsSigned
+  :: forall runtime
+   . Core.StmDb runtime
+  -> Quotation.QuotationId
+  -> Order.OrderId
+  -> STM (Either Quotation.Err ())
+setQuotationAsSigned db id oid = do
+  mquotation <- Core.selectQuotationById db id
+  case mquotation of
+    Just Quotation.Quotation {..} -> case _quotationState of
+      Quotation.QuotationSent -> do
+        let replaceOlder records =
+              [ if Quotation._quotationId r == id
+                  then r { Quotation._quotationState = Quotation.QuotationSigned oid }
+                  else r
+              | r <- records
+              ]
+        Core.modifyQuotations db replaceOlder
+        pure $ Right ()
+      _ -> pure . Left $ Quotation.Err "Quotation is not in the Sent state."
+    Nothing -> pure . Left $ Quotation.Err "No such quotation."
+
+filterQuotations :: Core.StmDb runtime -> Quotation.Predicate -> STM [Quotation.Quotation]
+filterQuotations db predicate = do
+  let tvar = Data._dbQuotations db
+  records <- STM.readTVar tvar
+  pure $ filter (Quotation.applyPredicate predicate) records
+
+filterQuotations' :: Quotation.Predicate -> RunM [Quotation.Quotation]
+filterQuotations' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterQuotations db predicate
+
+selectQuotationById
+  :: forall runtime
+   . Core.StmDb runtime
+  -> Quotation.QuotationId
+  -> IO (Maybe Quotation.Quotation)
+selectQuotationById db id =
+  STM.atomically $ Core.selectQuotationById db id
+
+
+--------------------------------------------------------------------------------
+filterOrders :: Core.StmDb runtime -> Order.Predicate -> STM [Order.Order]
+filterOrders db predicate = do
+  let tvar = Data._dbOrders db
+  records <- STM.readTVar tvar
+  pure $ filter (Order.applyPredicate predicate) records
+
+filterOrders' :: Order.Predicate -> RunM [Order.Order]
+filterOrders' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterOrders db predicate
 
 
 --------------------------------------------------------------------------------
@@ -1382,51 +1482,19 @@ createTwoRemittanceAdvs db = do
     _ -> STM.throwSTM $ Invoice.Err "Failed to create remittance advices."
 
 --------------------------------------------------------------------------------
-createEmail
-  :: forall runtime
-   . Core.StmDb runtime
-  -> Email.EmailTemplate
-  -> User.UserEmailAddr
-  -> STM (Either Email.Err Email.EmailId)
-createEmail db template emailAddr = do
-  STM.catchSTM (Right <$> transaction) (pure . Left)
- where
-  transaction = do
-    newId <- Core.generateEmailId db
-    let new = Email.Email newId template emailAddr
-    createEmailFull db new >>= either STM.throwSTM pure
-
-createEmailFull
-  :: forall runtime
-   . Core.StmDb runtime
-  -> Email.Email
-  -> STM (Either Email.Err Email.EmailId)
-createEmailFull db new = do
-  modifyEmails db (++ [new])
-  pure . Right $ Email._emailId new
-
-modifyEmails
-  :: forall runtime
-   . Core.StmDb runtime
-  -> ([Email.Email] -> [Email.Email])
-  -> STM ()
-modifyEmails db f = let tvar = Data._dbEmails db in STM.modifyTVar tvar f
-
-
---------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
 instance S.DBStorage AppM STM User.UserProfile where
 
   type Db AppM STM User.UserProfile = Core.StmDb Runtime
 
-  type DBError AppM STM User.UserProfile = User.UserErr
+  type DBError AppM STM User.UserProfile = User.Err
 
   dbUpdate db@Data.Db {..} = \case
 
     User.UserCreate input -> second pure <$> Core.createUserFull db input
 
     User.UserCreateGeneratingUserId input ->
-      second pure <$> Core.createUser db input
+      second (pure . fst) <$> Core.createUser db input
 
     User.UserDelete id ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
@@ -1491,27 +1559,36 @@ selectUserByUsernameResolved db username = do
         pure $ Just (user, entities)
       Nothing -> pure Nothing
 
-filterUsers :: Runtime -> User.Predicate -> STM [User.UserProfile]
-filterUsers runtime predicate = do
-  let usersTVar = Data._dbUserProfiles $ _rDb runtime
-  users' <- STM.readTVar usersTVar
-  pure $ filter (User.applyPredicate predicate) users'
+filterUsers :: Core.StmDb runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers db predicate = do
+  let tvar = Data._dbUserProfiles db
+  records <- STM.readTVar tvar
+  pure $ filter (User.applyPredicate predicate) records
 
-createUser :: User.Signup -> RunM (Either User.UserErr User.UserId)
+filterUsers' :: User.Predicate -> RunM [User.UserProfile]
+filterUsers' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterUsers db predicate
+
+createUser :: User.Signup -> RunM (Either User.Err User.UserId)
 createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
   ML.info $ "Creating user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.createUser db input
   case muid of
-    Right (User.UserId uid) -> ML.info $ "User created: " <> uid
-    Left  err               -> ML.info $ "Failed to create user: " <> show err
-  pure muid
+    Right (User.UserId uid, Email.EmailId eid) -> do
+      ML.info $ "User created: " <> uid
+      ML.info $ "Signup confirmation email sent: " <> eid
+      pure . Right $ User.UserId uid
+    Left err -> do
+      ML.info $ "Failed to create user: " <> show err
+      pure $ Left err
 
 setUserEmailAddrAsVerified
   :: forall runtime
    . Core.StmDb runtime
   -> User.UserName
-  -> STM (Either User.UserErr ())
+  -> STM (Either User.Err ())
 setUserEmailAddrAsVerified db username = do
   mprofile <- Core.selectUserByUsername db username
   case mprofile of
@@ -1598,6 +1675,19 @@ readLegalEntities db = do
   pure records
 
 withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
+
+
+--------------------------------------------------------------------------------
+filterEmails :: Core.StmDb runtime -> Email.Predicate -> STM [Email.Email]
+filterEmails db predicate = do
+  let tvar = Data._dbEmails db
+  records <- STM.readTVar tvar
+  pure $ filter (Email.applyPredicate predicate) records
+
+filterEmails' :: Email.Predicate -> RunM [Email.Email]
+filterEmails' predicate = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ filterEmails db predicate
 
 
 --------------------------------------------------------------------------------

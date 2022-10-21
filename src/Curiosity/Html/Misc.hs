@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {- |
 Module: Curiosity.Html.Misc
 Description: Helper functions to build HTML views.
@@ -11,6 +12,7 @@ module Curiosity.Html.Misc
   , fullScroll
   , groupLayout
   , panel
+  , panel'
   , panelStandard
   , header
 
@@ -27,10 +29,14 @@ module Curiosity.Html.Misc
   , buttonGroup
   , buttonBar
   , buttonPrimary
+  , buttonPrimaryDisabled
   , buttonSecondary
+  , buttonSecondaryDisabled
 
   -- View
   , editButton
+
+  , iconError
 
   -- Keep here:
   , renderView
@@ -49,7 +55,9 @@ import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
 import           Smart.Html.Shared.Html.Icons   ( divIconAdd
                                                 , divIconCheck
+                                                , svgIconCircleError
                                                 , svgIconEdit
+                                                , OSvgIconDiv(..)
                                                 )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!)
@@ -167,6 +175,27 @@ panel s content = H.div ! A.class_ "c-panel u-spacer-bottom-l" $ do
   H.div ! A.class_ "c-panel__header" $ H.h2 ! A.class_ "c-panel__title" $ H.text
     s
   H.div ! A.class_ "c-panel__body" $ groupLayout $ content
+
+panel' panelTitle body =
+  H.div
+    ! A.class_ "o-container o-container--large"
+    $ H.div
+    ! A.class_ "o-container-vertical"
+    $ H.div
+    ! A.class_ "u-padding-vertical-s"
+    $ H.div
+    ! A.class_ "c-panel"
+    $ do
+        H.div
+          ! A.class_ "c-panel__header"
+          $ H.div
+          ! A.class_ "c-toolbar"
+          $ H.div
+          ! A.class_ "c-toolbar__left"
+          $ H.h2
+          ! A.class_ "c-panel__title"
+          $ H.text panelTitle
+        H.div ! A.class_ "c-panel__body" $ body
 
 panelStandard s content = H.div ! A.class_ "c-panel u-spacer-bottom-l" $ do
   H.div ! A.class_ "c-panel__header" $ H.h2 ! A.class_ "c-panel__title" $ H.text
@@ -300,11 +329,29 @@ buttonPrimary submitUrl label =
         H.span ! A.class_ "c-button__label" $ H.text label
         divIconCheck
 
+buttonPrimaryDisabled label =
+  H.button
+    ! A.class_ "c-button c-button--primary"
+    ! A.disabled "disabled"
+    $ H.span
+    ! A.class_ "c-button__content"
+    $ do
+        H.span ! A.class_ "c-button__label" $ H.text label
+        divIconCheck
+
 buttonSecondary submitUrl label =
   H.button
     ! A.class_ "c-button c-button--secondary"
     ! A.formaction submitUrl
     ! A.formmethod "POST"
+    $ H.span
+    ! A.class_ "c-button__content"
+    $ H.span ! A.class_ "c-button__label" $ H.text label
+
+buttonSecondaryDisabled label =
+  H.button
+    ! A.class_ "c-button c-button--secondary"
+    ! A.disabled "disabled"
     $ H.span
     ! A.class_ "c-button__content"
     $ H.span ! A.class_ "c-button__label" $ H.text label
@@ -333,6 +380,11 @@ editButton lnk =
     $ do
         H.div ! A.class_ "o-svg-icon o-svg-icon-edit" $ H.toHtml svgIconEdit
         H.span ! A.class_ "c-button__label" $ "Edit"
+
+
+--------------------------------------------------------------------------------
+iconError =
+  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
 
 
 --------------------------------------------------------------------------------

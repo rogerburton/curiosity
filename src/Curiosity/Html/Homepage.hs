@@ -6,9 +6,15 @@ module Curiosity.Html.Homepage
   ( WelcomePage(..)
   ) where
 
+import qualified Curiosity.Data.Email          as Email
+import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.User           as User
+import           Curiosity.Html.Email
+import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
+import           Curiosity.Html.Order           ( panelOrders )
+import           Curiosity.Html.Quotation       ( panelQuotations )
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
@@ -25,9 +31,11 @@ data WelcomePage = WelcomePage
   , welcomePageEmailAddrToVerify :: Maybe [User.UserProfile]
     -- ^ Email addr. needing verif., if the user has the right to perform the
     -- corresponding action.
-  , welcomePageQuotationForms :: [(Text, Quotation.CreateQuotationAll)]
-    -- ^ Email addr. needing verif., if the user has the right to perform the
-    -- corresponding action.
+  , welcomePageQuotationForms    :: [(Text, Quotation.CreateQuotationAll)]
+  , welcomePageQuotations        :: [Quotation.Quotation]
+  , welcomePageOrders            :: [Order.Order]
+  , welcomePageEmails            :: [Email.Email]
+    -- ^ Enqueued emails being sent to the logged user.
   }
 
 instance H.ToMarkup WelcomePage where
@@ -48,9 +56,15 @@ instance H.ToMarkup WelcomePage where
 
             panelQuotationForms welcomePageQuotationForms
 
+            panelQuotations welcomePageQuotations
+
+            panelOrders welcomePageOrders
+
+            panelSentEmails welcomePageEmails
+
 panelEmailAddrToVerify :: [User.UserProfile] -> H.Html
 panelEmailAddrToVerify profiles =
-  panel "Email addresses to verify" $ Misc.table titles display profiles
+  panel' "Email addresses to verify" $ Misc.table "addr" titles display profiles
  where
   titles = ["ID", "Username", "Email addr."]
   display User.UserProfile {..} =
@@ -68,32 +82,11 @@ panelEmailAddrToVerify profiles =
 
 panelQuotationForms :: [(Text, Quotation.CreateQuotationAll)] -> H.Html
 panelQuotationForms forms =
-  panel "Quotation forms" $ Misc.table titles display forms
+  panel' "Quotation forms" $ Misc.table "quotation-forms" titles display forms
  where
-  titles = ["Key", "Name"]
-  display (key, Quotation.CreateQuotationAll {}) =
-    ( [key, "TODO"]
+  titles = ["Key", "Client"]
+  display (key, Quotation.CreateQuotationAll {..}) =
+    ( [key, maybe "" User.unUserName _createQuotationClientUsername]
     , []
-    , (Just $ "/edit/quotation/" <> key)
+    , (Just $ "/edit/quotation/confirm/" <> key)
     )
-
-panel title body =
-  H.div
-    ! A.class_ "o-container o-container--large"
-    $ H.div
-    ! A.class_ "o-container-vertical"
-    $ H.div
-    ! A.class_ "u-padding-vertical-l"
-    $ H.div
-    ! A.class_ "c-panel"
-    $ do
-        H.div
-          ! A.class_ "c-panel__header"
-          $ H.div
-          ! A.class_ "c-toolbar"
-          $ H.div
-          ! A.class_ "c-toolbar__left"
-          $ H.h2
-          ! A.class_ "c-panel__title"
-          $ H.text title
-        H.div ! A.class_ "c-panel__body" $ body

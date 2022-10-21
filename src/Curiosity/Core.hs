@@ -15,6 +15,8 @@ module Curiosity.Core
   , modifyUsers
   , selectUserById
   , selectUserByUsername
+  , modifyQuotations
+  , selectQuotationById
   -- * ID generation
   , generateUserId
   , generateBusinessId
@@ -30,6 +32,8 @@ module Curiosity.Core
   , createBusiness
   , updateBusiness
   , selectUnitBySlug
+  -- * Operations on emails
+  , createEmail
   -- * Pseudo-random number generation
   , genRandomText
   , readStdGen
@@ -284,7 +288,7 @@ createUser
   :: forall runtime
    . StmDb runtime
   -> User.Signup
-  -> STM (Either User.UserErr User.UserId)
+  -> STM (Either User.Err (User.UserId, Email.EmailId))
 createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
@@ -302,15 +306,20 @@ createUser db User.Signup {..} = do
           (User.UserCompletion2 Nothing Nothing)
           -- The very first user has plenty of rights:
           (if newId == firstUserId then firstUserRights else [])
+    emailId <- createEmail db Email.SignupConfirmationEmail
+                 Email.systemEmailAddr
+                 email
+               >>= either STM.throwSTM pure
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
-    createUserFull db newProfile >>= either STM.throwSTM pure
+    userId <- createUserFull db newProfile >>= either STM.throwSTM pure
+    pure (userId, emailId)
 
 createUserFull
   :: forall runtime
    . StmDb runtime
   -> User.UserProfile
-  -> STM (Either User.UserErr User.UserId)
+  -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = if username `elem` User.usernameBlocklist
   then pure . Left $ User.UsernameBlocked
   else do
@@ -336,11 +345,12 @@ modifyUsers
   -> ([User.UserProfile] -> [User.UserProfile])
   -> STM ()
 modifyUsers db f =
-  let usersTVar = _dbUserProfiles db in STM.modifyTVar usersTVar f
+  let tvar = _dbUserProfiles db in STM.modifyTVar tvar f
 
+selectUserById :: forall runtime . StmDb runtime -> User.UserId -> STM (Maybe User.UserProfile)
 selectUserById db id = do
-  let usersTVar = _dbUserProfiles db
-  STM.readTVar usersTVar <&> find ((== id) . User._userProfileId)
+  let tvar = _dbUserProfiles db
+  STM.readTVar tvar <&> find ((== id) . User._userProfileId)
 
 selectUserByUsername
   :: forall runtime
@@ -348,10 +358,30 @@ selectUserByUsername
   -> User.UserName
   -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
-  let usersTVar = _dbUserProfiles db
-  users' <- STM.readTVar usersTVar
+  let tvar = _dbUserProfiles db
+  records <- STM.readTVar tvar
   pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
-              users'
+              records
+
+
+--------------------------------------------------------------------------------
+modifyQuotations
+  :: forall runtime
+   . StmDb runtime
+  -> ([Quotation.Quotation] -> [Quotation.Quotation])
+  -> STM ()
+modifyQuotations db f =
+  let tvar = _dbQuotations db in STM.modifyTVar tvar f
+
+selectQuotationById
+  :: forall runtime
+   . StmDb runtime
+  -> Quotation.QuotationId
+  -> STM (Maybe Quotation.Quotation)
+selectQuotationById db id = do
+  let tvar = _dbQuotations db
+  records <- STM.readTVar tvar
+  pure $ find ((== id) . Quotation._quotationId) records
 
 
 --------------------------------------------------------------------------------
@@ -411,6 +441,39 @@ selectUnitBySlug db name = do
   let tvar = _dbBusinessUnits db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Business._entitySlug) records
+
+
+--------------------------------------------------------------------------------
+createEmail
+  :: forall runtime
+   . StmDb runtime
+  -> Email.EmailTemplate
+  -> User.UserEmailAddr
+  -> User.UserEmailAddr
+  -> STM (Either Email.Err Email.EmailId)
+createEmail db template senderAddr recipientAddr = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    newId <- generateEmailId db
+    let new = Email.Email newId template senderAddr recipientAddr
+    createEmailFull db new >>= either STM.throwSTM pure
+
+createEmailFull
+  :: forall runtime
+   . StmDb runtime
+  -> Email.Email
+  -> STM (Either Email.Err Email.EmailId)
+createEmailFull db new = do
+  modifyEmails db (++ [new])
+  pure . Right $ Email._emailId new
+
+modifyEmails
+  :: forall runtime
+   . StmDb runtime
+  -> ([Email.Email] -> [Email.Email])
+  -> STM ()
+modifyEmails db f = let tvar = _dbEmails db in STM.modifyTVar tvar f
 
 
 --------------------------------------------------------------------------------

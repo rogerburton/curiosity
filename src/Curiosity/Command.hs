@@ -644,7 +644,11 @@ parserFormQuotation =
          )
 
 parserFormNewQuotation :: A.Parser Command
-parserFormNewQuotation = pure $ FormNewQuotation Quotation.emptyCreateQuotationAll
+parserFormNewQuotation = do
+  client <-
+    A.option (A.eitherReader (Right . User.UserName . T.pack))
+    (A.long "client" <> A.help "Client username." <> A.metavar "USERNAME")
+  pure $ FormNewQuotation $ Quotation.CreateQuotationAll (Just client)
 
 parserFormValidateQuotation :: A.Parser Command
 parserFormValidateQuotation = do

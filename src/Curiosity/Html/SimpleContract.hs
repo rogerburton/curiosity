@@ -199,7 +199,7 @@ groupDates editDateBaseUrl removeDateBaseUrl mkey dates submitUrl = do
                                                           "Add date"
     case mkey of
       Just key | not (null dates) ->
-        Misc.table titles (uncurry $ display key) $ zip [0 ..] dates
+        Misc.table "dates" titles (uncurry $ display key) $ zip [0 ..] dates
       _ -> pure ()
     when (not $ null dates) $ buttonGroup $ buttonAdd submitUrl "Add date"
  where
@@ -301,7 +301,7 @@ groupExpenses editExpenseBaseUrl removeExpenseBaseUrl mkey expenses submitUrl = 
                                                           "Add expense"
     case mkey of
       Just key | not (null expenses) ->
-        Misc.table titles (uncurry $ display key) $ zip [0 ..] expenses
+        Misc.table "expenses" titles (uncurry $ display key) $ zip [0 ..] expenses
       _ -> pure ()
     when (not $ null expenses) $ buttonGroup $ buttonAdd submitUrl "Add expense"
  where
@@ -657,11 +657,17 @@ instance H.ToMarkup ConfirmSimpleContractPage where
               H.p
                 ! A.class_ "u-text-muted c-body-1"
                 $ "You have added no expenses."
-            else Misc.table titles display expenses
+            else Misc.table "expenses" titles display expenses
 
       H.input ! A.type_ "hidden" ! A.id "key" ! A.name "key" ! A.value
         (H.toValue key)
-      button submitUrl "Submit contract" -- TODO Add edit button
+
+      buttonGroup $ do
+        -- TODO Add edit button
+        let label = "Submit contract"
+        if null errors
+          then buttonPrimary submitUrl label
+          else buttonPrimaryDisabled label
    where
     username =
       User.unUserName . User._userCredsName $ User._userProfileCreds profile
@@ -682,6 +688,3 @@ validationErrors errors =
       iconError
       (Body $ "Validation errors: " <> show (map SimpleContract.unErr errors))
       Button.NoButton
-
-iconError =
-  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
