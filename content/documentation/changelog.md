@@ -4,6 +4,146 @@ title: Curiosity
 
 # Changelog
 
+## 2022-10-21
+
+**Add a "Quick start" section to the [CLIs
+documentation](/documentation/clis).** In particular, this gives examples for
+`cty --help`, `cty init`, `cty reset`, `cty state`, `cty user create`, `cty
+run`, and `cty serve`. See
+[PR-77](https://github.com/hypered/curiosity/pull/77).
+
+**Web page to run `cty run` commands.** This adds a [web page](/run) with a
+single field to run a command, similar to what `cty run` supports, and the
+corresponding `POST` handler. If the user is logged in, their username is used.
+Otherwise, the command is run as `--user nobody`. That `nobody` value currently
+doesn't mean anything but could be useful/improved in the future to support
+some anonymous commands. See
+[PR-75](https://github.com/hypered/curiosity/pull/75).
+
+**Complete the contract flow.** This is still not yet complete, but now
+submitting the form triggers a validation function, same for the CLI.
+
+- This adds a simple `CanCreateContracts` right.
+- This adds a data type `CreateContractAll` to represent form data. Form data
+  are kept in memory server-side to offer possibly multiple screens to view
+  (and confirm) or edit the data.
+- The final screen shows the data ready to be submitted, together with the
+  result of the validation rules. Upon submission, validation rules are applied
+  again before creating the "real" (as opposed to editable form data) contract.
+- See [PR-76](https://github.com/hypered/curiosity/pull/76).
+
+**Alternative contract form: a "simple" contract.** The end goal would be to
+have a single contract form that accommodates two scenarios: what we call the
+"simple" or "3in1" form, that generates invoices, work contracts, and expenses
+from a single form, and the "business unit" or "Activité" case, where the
+different documents are created through separate forms. (This was started in
+the previous PR.) See [PR-78](https://github.com/hypered/curiosity/pull/78).
+
+**Add the list of roles and list of countries to the documentation (re-using
+the same data used in the application).** See
+[PR-79](https://github.com/hypered/curiosity/pull/79).
+
+**Show additional data in the documentation.**
+
+- [Static data](/documentation/validation-data): we display roles, countries,
+  and VAT rates (the username blocklist was already present).
+- Static data: we display [permissions](/documentation/permissions) on their
+  own page.
+- [Live data](/documentation/live-data): we display the legal entities in the
+  documentation since those are slowly changing data.
+- See [PR-80](https://github.com/hypered/curiosity/pull/80).
+
+**Start implementing the
+[quotation flow](https://github.com/hypered/curiosity/blob/2ab9c94b040e9e39e3a5586b4026d062e552fbcb/scenarios/quotation-flow.golden).**
+This means the following commands are added:
+
+- `forms quotation new`
+- `forms quotation validate`
+- `forms quotation submit`
+- `quotation sign`
+- `invoice emit --from`
+- `reminder send`
+- `payment match`
+
+And the follow new data types are added:
+
+- [Quotation](/haddock/Curiosity-Data-Quotation.html)
+- [Order](/haddock/Curiosity-Data-Order.html)
+- [RemittanceAdv](/haddock/Curiosity-Data-RemittanceAdv.html)
+- [Email](/haddock/Curiosity-Data-Email.html)
+
+Unrelated to the above scenario, there is also a new
+[Demand](/haddock/Curiosity-Data-Demand.html) data type (see its module
+description) and the simple contract form has been augmented. See
+[PR-81](https://github.com/hypered/curiosity/pull/81).
+
+**Remove some build warnings.** See
+[PR-82](https://github.com/hypered/curiosity/pull/82).
+
+**Expose scenario's intermediate states.** This change adds the list of
+available test scenarios to the [documentation](/documentation/scenarios).
+Scenarios are displayed as they appear in a golden file (although they are run
+live upon requesting the web page) and the intermediate states are linked after
+each command. See [an example](/scenarios/quotation-flow). See
+[PR-84](https://github.com/hypered/curiosity/pull/84).
+
+**Start a better separation between pure/STM/IO code**.
+
+- `Curiosity.Data` should provide only pure code (no `STM`, no `IO`).
+- `Curiosity.Core` adds `STM` to that. There is no call to `atomically` there.
+- `Curiosity.Runtime` adds IO to that, mainly for logging, and for making
+  atomic transactions out of the STM operations defined in `Core`.
+
+We're demonstrating that with the `reset` operation (but we haven't moved
+all the `STM` or `IO` out of `Data` yet).
+
+Moreover, a call to `runAppMSafe` is replaced by `runRunM`. This removes one
+layer of `Either` case pattern matching, is great since it was obfuscating that
+`readFullStmDbInHaskFromRuntime` was already safe. See
+[PR-83](https://github.com/hypered/curiosity/pull/83).
+
+**Avoid unnecessary re-builds.** The Haskell build is quite expensive; we
+aggressively filter its source inputs to make sure that editor artifacts and
+other changed files don't end up triggering a rebuild.
+
+We take advantage of this filtering rework to move back the Haskell sources
+filtering to the edge: we clean the derivation sources before sending it to
+`cabal2nix` project lists. Doing this allows us to apply a package-specific
+filter instead of a generic one. See
+[PR-85](https://github.com/hypered/curiosity/pull/85).
+
+**List quotation forms on the homepage.** See
+[PR-87](https://github.com/hypered/curiosity/pull/87).
+
+**Clean `Conf` data type.** This removes a function from the `Conf` data type,
+and also bump the Commence dependency for similar reason. This exposes
+command-line option to configure the logging (to `stdout`, to a file, or
+disabled). See [PR-88](https://github.com/hypered/curiosity/pull/88).
+
+**Fix links to forms in the documentation.** See
+[PR-89](https://github.com/hypered/curiosity/pull/89).
+
+**Complete the documenting handlers.** This adds mainly handlers for the
+quotation routes, but also echo handlers for `User.Update` and
+`SimpleContract.SubmitContract`, so that different forms are documented in the
+same way. See [PR-90](https://github.com/hypered/curiosity/pull/90).
+
+**Complete the quotation flow done through the web interface.** This branch
+mainly completes the web interface version of the quotation flow (as visible in
+`scenarios/quotation-flow.golden`). One of the main aspect is sending emails
+during some operations, and thus this branch makes it possible to see the sent
+emails. This also means a client is now necessary within the `Quotation` object
+so that an email has a meaningful recipient.
+
+To better see the complete flow, in addition of emails, we now display
+quotation forms, quotations, and orders on the user homepage, and state is
+added to the `Quotation` object to know if it is sent or signed.
+
+An interesting aspect is that the "signed" state requires an order ID, making
+it more difficult to forget to create an order in the same transaction that
+sets the state to "signed". See
+[PR-91](https://github.com/hypered/curiosity/pull/91).
+
 ## 2022-09-12
 
 Any user or business unit has a public profile page visible at `/username` or
