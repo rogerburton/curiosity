@@ -45,6 +45,7 @@ module Curiosity.Runtime
   -- ** Quotation
   , formNewQuotation'
   , readCreateQuotationForm'
+  , readCreateQuotationForms'
   , writeCreateQuotationForm
   -- ** Contract
   , newCreateContractForm
@@ -1085,6 +1086,19 @@ readCreateQuotationForm
   -> STM (Either () Quotation.CreateQuotationAll)
 readCreateQuotationForm = readForm Data._dbFormCreateQuotationAll
 
+readCreateQuotationForms'
+  :: User.UserProfile -> RunM (Either () [(Text, Quotation.CreateQuotationAll)])
+readCreateQuotationForms' profile = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ readCreateQuotationForms db profile
+
+readCreateQuotationForms
+  :: forall runtime
+   . Core.StmDb runtime
+  -> User.UserProfile
+  -> STM (Either () [(Text, Quotation.CreateQuotationAll)])
+readCreateQuotationForms = readForms Data._dbFormCreateQuotationAll
+
 writeCreateQuotationForm
   :: forall runtime
    . Core.StmDb runtime
@@ -1592,6 +1606,18 @@ readForm getTVar db (profile, key) = do
   m <- STM.readTVar $ getTVar db
   let mform = M.lookup (username, key) m
   pure $ maybe (Left ()) Right mform
+  where username = User._userCredsName $ User._userProfileCreds profile
+
+readForms
+  :: forall runtime a
+   . (Core.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
+  -> Core.StmDb runtime
+  -> User.UserProfile
+  -> STM (Either () [(Text, a)])
+readForms getTVar db profile = do
+  m <- STM.readTVar $ getTVar db
+  let mform = M.filterWithKey (\(username', _) _ -> username == username') m
+  pure $ Right $ map (\((_, key), a) -> (key, a)) $ M.toList mform
   where username = User._userCredsName $ User._userProfileCreds profile
 
 deleteForm

@@ -657,6 +657,7 @@ showHomePage authResult = withMaybeUser
   (\_ -> pure $ SS.P.PageL Pages.LandingPage)
   (\profile -> do
     Rt.Runtime {..} <- ask
+    -- TODO canPerform and filterUsers should be called in the same atomically.
     b               <- liftIO . atomically $ Core.canPerform
       'User.SetUserEmailAddrAsVerified
       _rDb
@@ -667,7 +668,10 @@ showHomePage authResult = withMaybeUser
           <$> Rt.withRuntimeAtomically Rt.filterUsers
                                        User.PredicateEmailAddrToVerify
       else pure Nothing
-    pure . SS.P.PageR $ Pages.WelcomePage profile profiles
+    mquotationForms <-
+          withRuntime $ Rt.readCreateQuotationForms' profile
+    let quotationForms = either (const []) identity mquotationForms
+    pure . SS.P.PageR $ Pages.WelcomePage profile profiles quotationForms
   )
 
 
