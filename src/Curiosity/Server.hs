@@ -586,7 +586,8 @@ run
   -> m ()
 run conf@Command.ServerConf {..} runtime = liftIO $ do
   jwk <- SAuth.generateKey
-  let jwtSettings = _serverMkJwtSettings jwk
+  -- FIXME: See if this can be customized via parsing.
+  let jwtSettings = SAuth.defaultJWTSettings jwk
   Warp.run _serverPort $ waiApp jwtSettings
  where
   waiApp jwtS = serve @Rt.AppM (Rt.appMHandlerNatTrans runtime)
@@ -628,7 +629,8 @@ routingLayout :: forall m . MonadIO m => m Text
 routingLayout = do
   let Command.ServerConf {..} = Command.defaultServerConf
   jwk <- liftIO SAuth.generateKey
-  let jwtSettings = _serverMkJwtSettings jwk
+  -- FIXME: See if this can be customized via parsing.
+  let jwtSettings = SAuth.defaultJWTSettings jwk
   let ctx =
         _serverCookie
           Server.:. jwtSettings
