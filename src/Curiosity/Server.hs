@@ -37,6 +37,7 @@ import qualified Commence.Runtime.Storage      as S
 import qualified Commence.Server.Auth          as CAuth
 import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
+import qualified Curiosity.Command             as Command
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
 import           Curiosity.Data                 ( HaskDb
@@ -63,7 +64,7 @@ import qualified Curiosity.Html.Run            as Pages
 import qualified Curiosity.Html.SimpleContract as Pages
 import qualified Curiosity.Html.User           as Pages
 import qualified Curiosity.Interpret           as Inter
-import qualified Curiosity.Parse               as Command
+import qualified Curiosity.Parse               as Parse
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server.Helpers      as H
 import           Data.Aeson                     ( FromJSON
@@ -122,6 +123,15 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
              :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
 
+             :<|> "forms" :> "new" :> "quotation"
+                  :> Get '[B.HTML] Pages.CreateQuotationPage
+             :<|> "forms" :> "edit" :> "quotation"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.CreateQuotationPage
+             :<|> "forms" :> "edit" :> "quotation" :> "confirm"
+                  :> Capture "key" Text
+                  :> Get '[B.HTML] Pages.ConfirmQuotationPage
+
              :<|> "forms" :> "new" :> "contract"
                   :> Get '[B.HTML] Pages.CreateContractPage
              :<|> "forms" :> "edit" :> "contract"
@@ -138,7 +148,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "key" Text
                   :> Capture "idx" Int
                   :> Get '[B.HTML] Pages.RemoveExpensePage
-             :<|> "forms" :> "edit" :> "contract" :> "confirm-contract"
+             :<|> "forms" :> "edit" :> "contract" :> "confirm"
                   :> Capture "key" Text
                   :> Get '[B.HTML] Pages.ConfirmContractPage
 
@@ -233,7 +243,27 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
                   :> Post '[B.HTML] Pages.EchoPage
+             :<|> "echo" :> "update-profile"
+                  :> ReqBody '[FormUrlEncoded] User.Update
+                  :> Post '[B.HTML] Pages.EchoPage
 
+             -- Quotation
+             :<|> "echo" :> "new-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "save-quotation"
+                  :> Capture "key" Text
+                  :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
+                  :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
+                                              NoContent
+                                            )
+             :<|> "echo" :> "submit-quotation"
+                  :> ReqBody '[FormUrlEncoded] Quotation.SubmitQuotation
+                  :> Post '[B.HTML] Pages.EchoPage
+
+             -- Contract
              :<|> "echo" :> "new-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -279,6 +309,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
                   :> Post '[B.HTML] Pages.EchoPage
 
+             -- Simple conctract
              :<|> "echo" :> "new-simple-contract"
                   :> ReqBody '[FormUrlEncoded] SimpleContract.CreateContractAll'
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
@@ -384,6 +415,9 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Verb 'POST 303 '[JSON] ( Headers '[ Header "Location" Text ]
                                               NoContent
                                             )
+             :<|> "echo" :> "submit-simple-contract"
+                  :> ReqBody '[FormUrlEncoded] SimpleContract.SubmitContract
+                  :> Post '[B.HTML] Pages.EchoPage
 
              :<|> Partials
 
@@ -443,7 +477,7 @@ serverT
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
   -> Server.Context ServerSettings
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> SAuth.JWTSettings
   -> FilePath
   -> FilePath
@@ -454,6 +488,10 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> documentLoginPage
     :<|> documentSignupPage
     :<|> documentEditProfilePage dataDir
+
+    :<|> documentCreateQuotationPage dataDir
+    :<|> documentEditQuotationPage dataDir
+    :<|> documentConfirmQuotationPage dataDir
 
     :<|> documentCreateContractPage dataDir
     :<|> documentEditContractPage dataDir
@@ -493,6 +531,11 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> echoLogin
     :<|> echoSignup
+    :<|> echoUpdateProfile
+
+    :<|> echoNewQuotation dataDir
+    :<|> echoSaveQuotation dataDir
+    :<|> echoSubmitQuotation dataDir
 
     :<|> echoNewContract dataDir
     :<|> echoNewContractAndAddExpense dataDir
@@ -521,6 +564,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> echoSimpleContractAddExpense dataDir
     :<|> echoSimpleContractSaveExpense dataDir
     :<|> echoSimpleContractRemoveExpense dataDir
+    :<|> echoSubmitSimpleContract dataDir
 
     :<|> partials scenariosDir
 
@@ -581,10 +625,10 @@ type ServerSettings
 run
   :: forall m
    . MonadIO m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> Rt.Runtime -- ^ Runtime to use for running the server.
   -> m ()
-run conf@Command.ServerConf {..} runtime = liftIO $ do
+run conf@Parse.ServerConf {..} runtime = liftIO $ do
   jwk <- SAuth.generateKey
   -- FIXME: See if this can be customized via parsing.
   let jwtSettings = SAuth.defaultJWTSettings jwk
@@ -610,7 +654,7 @@ serve
    . ServerC m
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
                                    -- arbitrary @m@ to a Servant @Handler@
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> Server.Context ServerSettings
   -> SAuth.JWTSettings
   -> FilePath
@@ -627,7 +671,7 @@ settingsProxy = Proxy @ServerSettings
 
 routingLayout :: forall m . MonadIO m => m Text
 routingLayout = do
-  let Command.ServerConf {..} = Command.defaultServerConf
+  let Parse.ServerConf {..} = Parse.defaultServerConf
   jwk <- liftIO SAuth.generateKey
   -- FIXME: See if this can be customized via parsing.
   let jwtSettings = SAuth.defaultJWTSettings jwk
@@ -806,7 +850,7 @@ type Public =    "a" :> "signup"
 publicT
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> SAuth.JWTSettings
   -> ServerT Public m
 publicT conf jwtS = handleSignup :<|> handleLogin conf jwtS
@@ -837,7 +881,7 @@ handleSignup input@User.Signup {..} =
 handleLogin
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> SAuth.JWTSettings
   -> User.Login
   -> m (Headers CAuth.PostAuthHeaders NoContent)
@@ -859,7 +903,7 @@ handleLogin conf jwtSettings input =
             -- Servant.Server.getContetEntry. This would avoid threading
             -- jwtSettings evereywhere.
             mApplyCookies <- liftIO $ SAuth.acceptLogin
-              (Command._serverCookie conf)
+              (Parse._serverCookie conf)
               jwtSettings
               (u ^. User.userProfileId)
             case mApplyCookies of
@@ -936,7 +980,7 @@ type Private = H.UserAuthentication :> (
                   :> Post '[B.HTML] Pages.EchoPage
   )
 
-privateT :: forall m . ServerC m => Command.ServerConf -> ServerT Private m
+privateT :: forall m . ServerC m => Parse.ServerConf -> ServerT Private m
 privateT conf authResult =
   let withUser'
         :: forall m' a . ServerC m' => (User.UserProfile -> m' a) -> m' a
@@ -969,10 +1013,10 @@ privateT conf authResult =
 handleLogout
   :: forall m
    . ServerC m
-  => Command.ServerConf
+  => Parse.ServerConf
   -> m (Headers CAuth.PostLogoutHeaders NoContent)
 handleLogout conf = pure . addHeader @"Location" "/" $ SAuth.clearSession
-  (Command._serverCookie conf)
+  (Parse._serverCookie conf)
   NoContent
 
 showProfilePage profile entities =
@@ -1037,6 +1081,7 @@ showConfirmQuotationPage key profile = do
       profile
       key
       quotationAll
+      (Just . H.toValue $ "/edit/quotation/" <> key)
       "/a/submit-quotation"
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -1127,12 +1172,18 @@ handleSubmitQuotation
   => Quotation.SubmitQuotation
   -> User.UserProfile
   -> m Pages.EchoPage
-handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
-  case output of
-    Right quotation -> pure . Pages.EchoPage $ show
-      (quotation, Quotation.validateCreateQuotation profile quotation)
-    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+handleSubmitQuotation input@(Quotation.SubmitQuotation key) profile =
+  ML.localEnv (<> "HTTP" <> "Quotation" <> "SubmitQuotation")
+    $   do
+          ML.info $ "Submitting new quotation: " <> key <> "..."
+          mid <- Rt.withRuntimeAtomically
+            (Rt.submitCreateQuotationForm . Rt._rDb) (profile, input)
+          case mid of
+            Right id -> do
+              let logs = Rt.submitQuotationSuccess id
+              mapM_ ML.info logs
+              pure . Pages.EchoPage $ unlines logs
+            Left err -> pure . Pages.EchoPage $ Quotation.unErr err
 
 -- $ documentationPages
 --
@@ -1142,7 +1193,35 @@ handleSubmitQuotation (Quotation.SubmitQuotation key) profile = do
 documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
 documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
-  pure $ Pages.ProfilePage profile "/echo/profile"
+  pure $ Pages.ProfilePage profile "/echo/update-profile"
+
+echoUpdateProfile :: ServerC m => User.Update -> m Pages.EchoPage
+echoUpdateProfile input = pure $ Pages.EchoPage $ show input
+
+documentCreateQuotationPage
+  :: ServerC m => FilePath -> m Pages.CreateQuotationPage
+documentCreateQuotationPage dataDir = do
+  profile <- readJson $ dataDir </> "alice.json"
+  let quotationAll = Quotation.emptyCreateQuotationAll
+  pure $ Pages.CreateQuotationPage profile
+                                  Nothing
+                                  quotationAll
+                                  "/echo/new-quotation"
+
+-- | Same as documentCreateQuotationPage, but use an existing form.
+documentEditQuotationPage
+  :: ServerC m => FilePath -> Text -> m Pages.CreateQuotationPage
+documentEditQuotationPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.CreateQuotationPage
+      profile
+      (Just key)
+      quotationAll
+      (H.toValue $ "/echo/save-quotation/" <> key)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 documentCreateContractPage
   :: ServerC m => FilePath -> m Pages.CreateContractPage
@@ -1225,6 +1304,80 @@ documentRemoveExpensePage dataDir key idx = do
 
 -- | Create a form, generating a new key. This is normally used with a
 -- \"Location" header.
+echoNewQuotation'
+  :: ServerC m => FilePath -> Quotation.CreateQuotationAll -> m Text
+echoNewQuotation' dataDir quotation = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db <- asks Rt._rDb
+  key <- withRuntime $ Rt.formNewQuotation' profile quotation
+  pure key
+
+-- | Create a form, generating a new key.
+echoNewQuotation
+  :: ServerC m
+  => FilePath
+  -> Quotation.CreateQuotationAll
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoNewQuotation dataDir quotation = do
+  key <- echoNewQuotation' dataDir quotation
+  pure $ addHeader @"Location"
+    ("/forms/edit/quotation/confirm/" <> key)
+    NoContent
+
+-- | Save a form, re-using a key. This is normally used with a \"Location"
+-- header.
+echoSaveQuotation'
+  :: ServerC m => FilePath -> Text -> Quotation.CreateQuotationAll -> m ()
+echoSaveQuotation' dataDir key quotation = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  -- TODO Take care of the returned value.
+  _       <- liftIO . atomically $ Rt.writeCreateQuotationForm
+    db
+    (profile, key, quotation)
+  pure ()
+
+-- | Save a form, re-using a key.
+echoSaveQuotation
+  :: ServerC m
+  => FilePath
+  -> Text
+  -> Quotation.CreateQuotationAll
+  -> m (Headers '[Header "Location" Text] NoContent)
+echoSaveQuotation dataDir key quotation = do
+  echoSaveQuotation' dataDir key quotation
+  pure $ addHeader @"Location"
+    ("/forms/edit/quotation/confirm/" <> key)
+    NoContent
+
+documentConfirmQuotationPage
+  :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
+documentConfirmQuotationPage dataDir key = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotationAll -> pure $ Pages.ConfirmQuotationPage
+      profile
+      key
+      quotationAll
+      (Just . H.toValue $ "/forms/edit/quotation/" <> key)
+      "/echo/submit-quotation"
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+echoSubmitQuotation
+  :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
+echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
+  profile <- readJson $ dataDir </> "alice.json"
+  db      <- asks Rt._rDb
+  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  case output of
+    Right quotation -> pure . Pages.EchoPage $ show
+      (quotation, Quotation.validateCreateQuotation profile quotation)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
+-- | Create a form, generating a new key. This is normally used with a
+-- \"Location" header.
 echoNewContract'
   :: ServerC m => FilePath -> Employment.CreateContractAll' -> m Text
 echoNewContract' dataDir contract = do
@@ -1242,7 +1395,7 @@ echoNewContract
 echoNewContract dataDir contract = do
   key <- echoNewContract' dataDir contract
   pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm-contract/" <> key)
+    ("/forms/edit/contract/confirm/" <> key)
     NoContent
 
 -- | Create a form, then move to the add expense part.
@@ -1279,7 +1432,7 @@ echoSaveContract
 echoSaveContract dataDir key contract = do
   echoSaveContract' dataDir key contract
   pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm-contract/" <> key)
+    ("/forms/edit/contract/confirm/" <> key)
     NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
@@ -1942,6 +2095,17 @@ documentConfirmSimpleContractPage dataDir key = do
         Nothing -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack role -- TODO Specific error.
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
+echoSubmitSimpleContract
+  :: ServerC m => FilePath -> SimpleContract.SubmitContract -> m Pages.EchoPage
+echoSubmitSimpleContract dataDir (SimpleContract.SubmitContract key) = do
+  profile <- readJson $ dataDir </> "mila.json"
+  db      <- asks Rt._rDb
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  case output of
+    Right contract -> pure . Pages.EchoPage $ show
+      (contract, SimpleContract.validateCreateSimpleContract profile contract)
+    Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
+
 
 --------------------------------------------------------------------------------
 -- TODO Validate the filename (e.g. this can't be a path going up).
@@ -2381,11 +2545,11 @@ serveNamespaceOrStatic
   => (forall x . m x -> Handler x) -- ^ Natural transformation to transform an
   -> Server.Context ServerSettings
   -> SAuth.JWTSettings
-  -> Command.ServerConf
+  -> Parse.ServerConf
   -> FilePath
   -> Text
   -> Tagged m Application
-serveNamespaceOrStatic natTrans ctx jwtSettings Command.ServerConf {..} root name
+serveNamespaceOrStatic natTrans ctx jwtSettings Parse.ServerConf {..} root name
   = Tagged $ \req sendRes ->
     let authRes =
           -- see: https://hackage.haskell.org/package/servant-auth-server-0.4.6.0/docs/Servant-Auth-Server-Internal-Types.html#t:AuthCheck
