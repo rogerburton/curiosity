@@ -64,3 +64,7 @@ resulting of each of the commands the scenario executes.
 <!--# include virtual="/partials/scenarios" -->
 
 The list [as JSON](/partials/scenarios.json).
+
+Some scenarios have additional documentation:
+
+- [Quotation flow](/documentation/scenarios/quotation-flow)
