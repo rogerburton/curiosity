@@ -46,7 +46,7 @@ and fulfillment flux (5-10).
 | 3    | OrderResponse       |                     |
 | 4    |                     | OrderChange         |
 | 4    |                     | OrderCancellation   |
-| 5    | DespatchAdvice      |                     |
+| 5    | DispatchAdvice      |                     |
 | 6    |                     | ReceiptAdvice       |
 | 6    |                     | ApplicationResponse |
 | 7    | Invoice             |                     |
