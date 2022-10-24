@@ -13,7 +13,7 @@ The Smart application
 - communicates these documents and collects agreements and signatures ;
 - processes these documents in the accounts ;
 - and produces views, possibly recalculated, for various legal or management
-  purposes.Users are commercial parties (sellers, buyers, in the generic sense
+  purposes. Users are commercial parties (sellers, buyers, in the generic sense
   of the term), data entry operators, advisors and supervisors, but also
   recipients of legally required reports.
 
@@ -70,8 +70,8 @@ The documents are immutable. They can only be created and viewed, but never
 updated or deleted. Before the creation of a document, the data are only "*form
 data*".
 
-A document is always issued: first created, then sent to one or more recipents
-. The issuer of a document is always presumed to have accepted its terms.
+A document is always issued: first created, then sent to one or more recipents.
+The issuer of a document is always presumed to have accepted its terms.
 
 The business rules concern (almost) only the creation of a document. And the
 life cycle of the business process in which this document takes place. The
@@ -87,7 +87,7 @@ concept of deadline is essential in a business process.
 
 Step 1 : **INITIALIZATION**
 
-The seller registers and sends an quotation to the buyer.
+The seller registers and sends a quotation to the buyer.
 
 > The application checks before saving the document whether the data in the
 > form is well formed, complete and complies with business requirements.
