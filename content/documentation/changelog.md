@@ -4,6 +4,14 @@ title: Curiosity
 
 # Changelog
 
+This [changelog](https://en.wikipedia.org/wiki/Changelog) is a list of notable
+changes (e.g. new features or bug fixes) made to the Curiosity project. This
+helps people get a quick overview of recent evolutions of the project. Most
+entries in the changelog link to Pull Requests (PRs), i.e. proposals by
+developers (or more generally, contributors) to apply changes to the code base.
+PRs may contain additional details and discussions, or provide historical
+context.
+
 ## 2022-10-21
 
 **Add a "Quick start" section to the [CLIs
