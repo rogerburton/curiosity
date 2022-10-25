@@ -218,7 +218,9 @@ run (Command.CommandWithTarget command target (Command.User user)) = do
 --------------------------------------------------------------------------------
 handleServe :: P.Conf -> P.ServerConf -> IO ExitCode
 handleServe conf serverConf = do
-  runtime@Rt.Runtime {..} <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
+  threads <- Rt.emptyHttpThreads
+  runtime@Rt.Runtime {..} <- Rt.boot conf threads >>= either throwIO pure
+  Rt.runRunM runtime Rt.spawnEmailThread
   P.startServer serverConf runtime >>= P.endServer _rLoggers
   mPowerdownErrs <- Rt.powerdown runtime
   maybe exitSuccess throwIO mPowerdownErrs

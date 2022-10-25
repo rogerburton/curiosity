@@ -10,6 +10,8 @@ module Curiosity.Runtime
   , Runtime(..)
   , Threads(..)
   , emptyReplThreads
+  , emptyHttpThreads
+  , spawnEmailThread
   , rConf
   , rDb
   , rLoggers
@@ -143,16 +145,24 @@ data Threads =
     -- ^ Means the main thread is the REPL, started with `cty repl`.
     { _tEmailThread :: MVar ThreadId
     }
+  | HttpThreads
+    -- ^ Means the main thread is the HTTP server, started with `cty serve`.
+    { _tEmailThread :: MVar ThreadId
+    }
 
 showThreads :: Threads -> IO [Text]
 showThreads ts =
   case ts of
     NoThreads -> pure ["Threads are disabled."]
-    ReplThreads mvar -> do
-      b <- isEmptyMVar mvar
-      if b
-        then pure ["Email thread: stopped."]
-        else pure ["Email thread: running."]
+    ReplThreads mvar -> showThreads' mvar
+    HttpThreads mvar -> showThreads' mvar
+
+showThreads' :: MVar ThreadId -> IO [Text]
+showThreads' mvar = do
+  b <- isEmptyMVar mvar
+  if b
+    then pure ["Email thread: stopped."]
+    else pure ["Email thread: running."]
 
 makeLenses ''Runtime
 
@@ -312,41 +322,54 @@ emptyReplThreads = do
   mvar <- newEmptyMVar
   pure $ ReplThreads mvar
 
+emptyHttpThreads :: IO Threads
+emptyHttpThreads = do
+  mvar <- newEmptyMVar
+  pure $ HttpThreads mvar
+
 spawnEmailThread :: RunM Text
 spawnEmailThread = do
   runtime <- ask
   ts <- asks _rThreads
   case ts of
     NoThreads -> pure "Threads are disabled."
-    ReplThreads mvar -> do
-      mthread <- liftIO $ tryTakeMVar mvar
-      case mthread of
-        Nothing -> do
-          ML.localEnv (<> "Threads" <> "Email") $ do
-            ML.info $ "Starting email thread."
-          liftIO $ do
-            t <- forkIO $ runRunM runtime emailThread
-            putMVar mvar t
-            pure "Email thread started."
-        Just t -> do
-          liftIO $ putMVar mvar t
-          pure "Email thread alread running."
+    ReplThreads mvar -> spawnEmailThread' runtime mvar
+    HttpThreads mvar -> spawnEmailThread' runtime mvar
+
+spawnEmailThread' :: Runtime -> MVar ThreadId -> RunM Text
+spawnEmailThread' runtime mvar = do
+  mthread <- liftIO $ tryTakeMVar mvar
+  case mthread of
+    Nothing -> do
+      ML.localEnv (<> "Threads" <> "Email") $ do
+        ML.info $ "Starting email thread."
+      liftIO $ do
+        t <- forkIO $ runRunM runtime emailThread
+        putMVar mvar t
+        pure "Email thread started."
+    Just t -> do
+      liftIO $ putMVar mvar t
+      pure "Email thread alread running."
 
 killEmailThread :: RunM Text
 killEmailThread = do
   ts <- asks _rThreads
   case ts of
     NoThreads -> pure "Threads are disabled."
-    ReplThreads mvar -> do
-      mthread <- liftIO $ tryTakeMVar mvar
-      case mthread of
-        Nothing -> do
-          pure "Email thread already stopped."
-        Just t -> do
-          ML.localEnv (<> "Threads" <> "Email") $ do
-            ML.info $ "Stopping email thread."
-          liftIO $ killThread t
-          pure "Email thread stopped."
+    ReplThreads mvar -> killEmailThread' mvar
+    HttpThreads mvar -> killEmailThread' mvar
+
+killEmailThread' :: MVar ThreadId -> RunM Text
+killEmailThread' mvar = do
+  mthread <- liftIO $ tryTakeMVar mvar
+  case mthread of
+    Nothing -> do
+      pure "Email thread already stopped."
+    Just t -> do
+      ML.localEnv (<> "Threads" <> "Email") $ do
+        ML.info $ "Stopping email thread."
+      liftIO $ killThread t
+      pure "Email thread stopped."
 
 emailThread :: RunM ()
 emailThread = do
@@ -363,7 +386,8 @@ emailStep = do
   emails <- liftIO . STM.atomically $
     filterEmails db Email.EmailsTodo
   ML.localEnv (<> "Threads" <> "Email") $ do
-    ML.info $ "Processing " <> show (length emails) <> " emails..."
+    when (not . null $ emails) $
+      ML.info $ "Processing " <> show (length emails) <> " emails..."
   -- TODO Have a single operation ?
   liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
 
