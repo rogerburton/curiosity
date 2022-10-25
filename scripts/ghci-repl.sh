@@ -5,7 +5,7 @@
 #   - -XNoImplicitPrelude is set here on the command-line
 #   - The ghci.conf file will load smart-design-hs's Prelude
 #   - Then set again -XImplicitPrelude
-#   - Then load what we want: cty-repl.hs
+#   - Then load what we want: cty.hs
 
 ghc --interactive \
   -i../smart-design-hs/lib/src/ \
