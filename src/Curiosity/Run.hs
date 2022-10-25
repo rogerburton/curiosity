@@ -144,7 +144,7 @@ run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
     -- TODO We need a parser for multiple commands separated by newlines.
     Command.ConfFileName fileName -> do
       content <- T.lines <$> readFile fileName
-      print content
+      mapM_ print content
       exitSuccess
 
     Command.ConfStdin -> do

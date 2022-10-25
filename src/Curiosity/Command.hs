@@ -369,7 +369,7 @@ parserRun = Run <$> P.confParser <*> A.argument
   (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
 
 parserParse :: A.Parser Command
-parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
+parserParse = Parse <$> (parserCommand <|> parserFileName <|> parserObject)
 
 parserCommand :: A.Parser ParseConf
 parserCommand = ConfCommand <$> A.strOption
