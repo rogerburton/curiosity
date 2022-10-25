@@ -350,17 +350,22 @@ killEmailThread = do
 
 emailThread :: RunM ()
 emailThread = do
-  let loop db = do
+  let loop = do
         liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
-        emails <- liftIO . STM.atomically $
-          filterEmails db Email.EmailsTodo
-        ML.localEnv (<> "Threads" <> "Email") $ do
-          ML.info $ "Processing " <> show (length emails) <> " emails..."
-        -- TODO Have a single operation ?
-        liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
-        loop db
+        emailStep
+        loop
+  loop
+
+-- | One iteration of the `emailThread` loop.
+emailStep :: RunM ()
+emailStep = do
   db <- asks _rDb
-  loop db
+  emails <- liftIO . STM.atomically $
+    filterEmails db Email.EmailsTodo
+  ML.localEnv (<> "Threads" <> "Email") $ do
+    ML.info $ "Processing " <> show (length emails) <> " emails..."
+  -- TODO Have a single operation ?
+  liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
 
 {- | Instantiate the db.
 
@@ -477,6 +482,9 @@ handleCommand runtime@Runtime {..} user command = do
     Command.StopEmail -> do
       value <- runRunM runtime killEmailThread
       pure (ExitSuccess, [value])
+    Command.StepEmail -> do
+      runRunM runtime emailStep
+      pure (ExitSuccess, ["Email queue processed."])
     Command.CreateBusinessEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
         _rDb

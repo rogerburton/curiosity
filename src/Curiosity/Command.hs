@@ -53,6 +53,8 @@ data Command =
     -- ^ Spwan the thread processing enqueued emails.
   | StopEmail
     -- ^ Kill the thread processing enqueued emails.
+  | StepEmail
+    -- ^ Run one iteration of the email processing loop.
   | CreateBusinessEntity Business.Create
   | UpdateBusinessEntity Business.Update
   | CreateLegalEntity Legal.Create
@@ -255,6 +257,12 @@ parser =
            )
 
       <> A.command
+           "step-email"
+           ( A.info (parserStepEmail <**> A.helper)
+           $ A.progDesc "Run one iteration of the email processing loop"
+           )
+
+      <> A.command
            "business"
            ( A.info (parserBusiness <**> A.helper)
            $ A.progDesc "Commands related to business entities"
@@ -402,6 +410,9 @@ parserStartEmail = pure StartEmail
 
 parserStopEmail :: A.Parser Command
 parserStopEmail = pure StopEmail
+
+parserStepEmail :: A.Parser Command
+parserStepEmail = pure StepEmail
 
 parserBusiness :: A.Parser Command
 parserBusiness =
