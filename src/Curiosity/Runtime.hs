@@ -316,42 +316,49 @@ spawnEmailThread :: RunM Text
 spawnEmailThread = do
   runtime <- ask
   ts <- asks _rThreads
-  liftIO $ case ts of
+  case ts of
     NoThreads -> pure "Threads are disabled."
     ReplThreads mvar -> do
-      mthread <- tryTakeMVar mvar
+      mthread <- liftIO $ tryTakeMVar mvar
       case mthread of
         Nothing -> do
-          t <- forkIO $ emailThread runtime
-          putMVar mvar t
-          pure "Email thread started."
+          ML.localEnv (<> "Threads" <> "Email") $ do
+            ML.info $ "Starting email thread."
+          liftIO $ do
+            t <- forkIO $ runRunM runtime emailThread
+            putMVar mvar t
+            pure "Email thread started."
         Just t -> do
-          putMVar mvar t
+          liftIO $ putMVar mvar t
           pure "Email thread alread running."
 
 killEmailThread :: RunM Text
 killEmailThread = do
   ts <- asks _rThreads
-  liftIO $ case ts of
+  case ts of
     NoThreads -> pure "Threads are disabled."
     ReplThreads mvar -> do
-      mthread <- tryTakeMVar mvar
+      mthread <- liftIO $ tryTakeMVar mvar
       case mthread of
         Nothing -> do
           pure "Email thread already stopped."
         Just t -> do
-          killThread t
+          ML.localEnv (<> "Threads" <> "Email") $ do
+            ML.info $ "Stopping email thread."
+          liftIO $ killThread t
           pure "Email thread stopped."
 
-emailThread :: Runtime -> IO ()
-emailThread Runtime {..} =
-  let loop = do
-        threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
+emailThread :: RunM ()
+emailThread = do
+  let loop db = do
+        liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
         emails <- liftIO . STM.atomically $
-          filterEmails _rDb Email.AllEmails -- TODO Emails.
-        putStrLn @Text $ "Processing " <> show (length emails) <> " emails..."
-        loop
-  in loop
+          filterEmails db Email.AllEmails -- TODO Emails.
+        ML.localEnv (<> "Threads" <> "Email") $ do
+          ML.info $ "Processing " <> show (length emails) <> " emails..."
+        loop db
+  db <- asks _rDb
+  loop db
 
 {- | Instantiate the db.
 
@@ -1665,7 +1672,7 @@ createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
   case muid of
     Right (User.UserId uid, Email.EmailId eid) -> do
       ML.info $ "User created: " <> uid
-      ML.info $ "Signup confirmation email sent: " <> eid
+      ML.info $ "Signup confirmation email enqueued: " <> eid
       pure . Right $ User.UserId uid
     Left err -> do
       ML.info $ "Failed to create user: " <> show err
