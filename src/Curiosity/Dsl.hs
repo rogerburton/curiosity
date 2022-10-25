@@ -29,17 +29,17 @@ import           Prelude                 hiding ( state )
 
 
 --------------------------------------------------------------------------------
-newtype Run a = Run { runM :: ReaderT (Core.StmDb ()) STM a }
+newtype Run a = Run { runM :: ReaderT Core.StmDb STM a }
   deriving ( Functor
            , Applicative
            , Monad
-           , MonadReader (Core.StmDb ())
+           , MonadReader Core.StmDb
            )
 
 -- Is it possible to implement MonadFail only when the return type is Either ?
 -- deriving instance MonadFail (Run (Either Text a))
 
-run :: forall a . HaskDb () -> Run a -> IO a
+run :: forall a . HaskDb -> Run a -> IO a
 run db Run {..} =
   STM.atomically $ do
      db' <- Core.instantiateStmDb db
@@ -49,7 +49,7 @@ run db Run {..} =
 --------------------------------------------------------------------------------
 db0 = Data.emptyHask
 
-state :: Run (HaskDb ())
+state :: Run HaskDb
 state = ask >>= (Run . lift . Core.readFullStmDbInHask')
 
 reset :: Run ()

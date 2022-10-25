@@ -54,7 +54,7 @@ Additionally, we want to parameterise over a @runtime@ type parameter. This is
 a container type of the database.
 -}
 -- brittany-disable-next-binding
-data Db (datastore :: Type -> Type) (runtime :: Type) = Db
+data Db (datastore :: Type -> Type) = Db
   { _dbNextBusinessId   :: C.CounterValue datastore Int
   , _dbBusinessUnits    :: datastore [Business.Unit]
   , _dbNextLegalId      :: C.CounterValue datastore Int
@@ -88,16 +88,16 @@ data Db (datastore :: Type -> Type) (runtime :: Type) = Db
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
 -- (thus `Identity`)
-type HaskDb runtime = Db Identity runtime
+type HaskDb = Db Identity
 
-deriving instance Eq (HaskDb runtime)
-deriving instance Show (HaskDb runtime)
-deriving instance Generic (HaskDb runtime)
-deriving anyclass instance ToJSON (HaskDb runtime)
-deriving anyclass instance FromJSON (HaskDb runtime)
+deriving instance Eq HaskDb
+deriving instance Show HaskDb
+deriving instance Generic HaskDb
+deriving anyclass instance ToJSON HaskDb
+deriving anyclass instance FromJSON HaskDb
 
 -- | Instantiate a seed database that is empty.
-emptyHask :: forall runtime . HaskDb runtime
+emptyHask :: HaskDb
 emptyHask = Db (pure 1)
                (pure mempty)
                (pure 1)
@@ -141,18 +141,17 @@ instance E.IsRuntimeErr DbErr where
 
 --------------------------------------------------------------------------------
 -- | Write an entire db state to bytes.
-serialiseDb :: forall runtime . HaskDb runtime -> LByteString
+serialiseDb :: HaskDb -> LByteString
 serialiseDb = encode
 {-# INLINE serialiseDb #-}
 
 -- | Read an entire db state from bytes.
-deserialiseDb :: forall runtime . LByteString -> Either DbErr (HaskDb runtime)
+deserialiseDb :: LByteString -> Either DbErr HaskDb
 deserialiseDb = first (DbDecodeFailed . T.pack) . eitherDecode
 {-# INLINE deserialiseDb #-}
 
 -- | Read an entire db state from bytes.
-deserialiseDbStrict
-  :: forall runtime . ByteString -> Either DbErr (HaskDb runtime)
+deserialiseDbStrict :: ByteString -> Either DbErr HaskDb
 deserialiseDbStrict = first (DbDecodeFailed . T.pack) . eitherDecodeStrict
 {-# INLINE deserialiseDbStrict #-}
 

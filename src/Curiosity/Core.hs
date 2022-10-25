@@ -67,15 +67,15 @@ import qualified System.Random.SplitMix        as SM
 
 --------------------------------------------------------------------------------
 -- | Stm database type, used for live example applications, values reside in @STM@
-type StmDb runtime = Db STM.TVar runtime
+type StmDb = Db STM.TVar
 
 -- | Generate a new empty database.
-instantiateEmptyStmDb :: STM (StmDb runtime)
+instantiateEmptyStmDb :: STM StmDb
 instantiateEmptyStmDb = instantiateStmDb emptyHask
 
 -- brittany-disable-next-binding
 -- | Generate a new database from a given pure value.
-instantiateStmDb :: HaskDb runtime -> STM (StmDb runtime)
+instantiateStmDb :: HaskDb -> STM StmDb
 instantiateStmDb Db
   { _dbNextBusinessId = C.CounterValue (Identity seedNextBusinessId)
   , _dbBusinessUnits = Identity seedBusinessUnits
@@ -130,7 +130,7 @@ instantiateStmDb Db
 
 -- brittany-disable-next-binding
 -- | Reset the database to the empty state.
-reset :: StmDb runtime -> STM ()
+reset :: StmDb -> STM ()
 reset stmDb = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
   STM.writeTVar (_dbBusinessUnits stmDb) seedBusinessUnits
@@ -185,7 +185,7 @@ reset stmDb = do
     = emptyHask
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask' :: StmDb runtime -> STM (HaskDb runtime)
+readFullStmDbInHask' :: StmDb -> STM HaskDb
 readFullStmDbInHask' stmDb = do
   _dbNextBusinessId         <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
   _dbBusinessUnits          <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
@@ -219,58 +219,53 @@ readFullStmDbInHask' stmDb = do
 
 --------------------------------------------------------------------------------
 -- | Generate a fresh user ID.
-generateUserId :: forall runtime . StmDb runtime -> STM User.UserId
+generateUserId :: StmDb -> STM User.UserId
 generateUserId Db {..} =
   User.UserId <$> C.bumpCounterPrefix User.userIdPrefix _dbNextUserId
 
 -- | Generate a fresh busines unit ID.
-generateBusinessId
-  :: forall runtime . StmDb runtime -> STM Business.UnitId
+generateBusinessId :: StmDb -> STM Business.UnitId
 generateBusinessId Db {..} =
   Business.UnitId
     <$> C.bumpCounterPrefix Business.unitIdPrefix _dbNextBusinessId
 
 -- | Generate a fresh legal entity ID.
-generateLegalId :: forall runtime . StmDb runtime -> STM Legal.EntityId
+generateLegalId :: StmDb -> STM Legal.EntityId
 generateLegalId Db {..} =
   Legal.EntityId <$> C.bumpCounterPrefix Legal.entityIdPrefix _dbNextLegalId
 
 -- | Generate a fresh quotation ID.
-generateQuotationId
-  :: forall runtime . StmDb runtime -> STM Quotation.QuotationId
+generateQuotationId :: StmDb -> STM Quotation.QuotationId
 generateQuotationId Db {..} =
   Quotation.QuotationId
     <$> C.bumpCounterPrefix Quotation.quotationIdPrefix _dbNextQuotationId
 
 -- | Generate a fresh order ID.
-generateOrderId :: forall runtime . StmDb runtime -> STM Order.OrderId
+generateOrderId :: StmDb -> STM Order.OrderId
 generateOrderId Db {..} =
   Order.OrderId <$> C.bumpCounterPrefix Order.orderIdPrefix _dbNextOrderId
 
 -- | Generate a fresh remittance advice ID.
-generateRemittanceAdvId
-  :: forall runtime . StmDb runtime -> STM RemittanceAdv.RemittanceAdvId
+generateRemittanceAdvId :: StmDb -> STM RemittanceAdv.RemittanceAdvId
 generateRemittanceAdvId Db {..} =
   RemittanceAdv.RemittanceAdvId
     <$> C.bumpCounterPrefix RemittanceAdv.remittanceAdvIdPrefix
                             _dbNextRemittanceAdvId
 
 -- | Generate a fresh employment contract ID.
-generateEmploymentId
-  :: forall runtime . StmDb runtime -> STM Employment.ContractId
+generateEmploymentId :: StmDb -> STM Employment.ContractId
 generateEmploymentId Db {..} =
   Employment.ContractId
     <$> C.bumpCounterPrefix Employment.contractIdPrefix _dbNextEmploymentId
 
 -- | Generate a fresh invoice ID.
-generateInvoiceId
-  :: forall runtime . StmDb runtime -> STM Invoice.InvoiceId
+generateInvoiceId :: StmDb -> STM Invoice.InvoiceId
 generateInvoiceId Db {..} =
   Invoice.InvoiceId
     <$> C.bumpCounterPrefix Invoice.invoiceIdPrefix _dbNextInvoiceId
 
 -- | Generate a fresh email ID.
-generateEmailId :: forall runtime . StmDb runtime -> STM Email.EmailId
+generateEmailId :: StmDb -> STM Email.EmailId
 generateEmailId Db {..} =
   Email.EmailId <$> C.bumpCounterPrefix Email.emailIdPrefix _dbNextEmailId
 
@@ -287,8 +282,7 @@ firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
 
 --------------------------------------------------------------------------------
 createUser
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> User.Signup
   -> STM (Either User.Err (User.UserId, Email.EmailId))
 createUser db User.Signup {..} = do
@@ -318,8 +312,7 @@ createUser db User.Signup {..} = do
     pure (userId, emailId)
 
 createUserFull
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> User.UserProfile
   -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = if username `elem` User.usernameBlocklist
@@ -342,21 +335,19 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
   existsErr = pure . Left $ User.UserExists
 
 modifyUsers
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> ([User.UserProfile] -> [User.UserProfile])
   -> STM ()
 modifyUsers db f =
   let tvar = _dbUserProfiles db in STM.modifyTVar tvar f
 
-selectUserById :: forall runtime . StmDb runtime -> User.UserId -> STM (Maybe User.UserProfile)
+selectUserById :: StmDb -> User.UserId -> STM (Maybe User.UserProfile)
 selectUserById db id = do
   let tvar = _dbUserProfiles db
   STM.readTVar tvar <&> find ((== id) . User._userProfileId)
 
 selectUserByUsername
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> User.UserName
   -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
@@ -368,16 +359,14 @@ selectUserByUsername db username = do
 
 --------------------------------------------------------------------------------
 modifyQuotations
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> ([Quotation.Quotation] -> [Quotation.Quotation])
   -> STM ()
 modifyQuotations db f =
   let tvar = _dbQuotations db in STM.modifyTVar tvar f
 
 selectQuotationById
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Quotation.QuotationId
   -> STM (Maybe Quotation.Quotation)
 selectQuotationById db id = do
@@ -388,8 +377,7 @@ selectQuotationById db id = do
 
 --------------------------------------------------------------------------------
 createBusiness
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Business.Create
   -> STM (Either Business.Err Business.UnitId)
 createBusiness db Business.Create {..} = do
@@ -401,8 +389,7 @@ createBusiness db Business.Create {..} = do
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Business.Unit
   -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
@@ -410,8 +397,7 @@ createBusinessFull db new = do
   pure . Right $ Business._entityId new
 
 updateBusiness
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Business.Update
   -> STM (Either Business.Err ())
 updateBusiness db Business.Update {..} = do
@@ -430,15 +416,13 @@ updateBusiness db Business.Update {..} = do
       pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
 
 modifyBusinessUnits
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> ([Business.Unit] -> [Business.Unit])
   -> STM ()
 modifyBusinessUnits db f =
   let tvar = _dbBusinessUnits db in STM.modifyTVar tvar f
 
-selectUnitBySlug
-  :: forall runtime . StmDb runtime -> Text -> STM (Maybe Business.Unit)
+selectUnitBySlug :: StmDb -> Text -> STM (Maybe Business.Unit)
 selectUnitBySlug db name = do
   let tvar = _dbBusinessUnits db
   records <- STM.readTVar tvar
@@ -448,8 +432,7 @@ selectUnitBySlug db name = do
 --------------------------------------------------------------------------------
 -- | This enqueues an email (i.e. it is in the Todo state).
 createEmail
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Email.EmailTemplate
   -> User.UserEmailAddr
   -> User.UserEmailAddr
@@ -463,8 +446,7 @@ createEmail db template senderAddr recipientAddr = do
     createEmailFull db new >>= either STM.throwSTM pure
 
 createEmailFull
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> Email.Email
   -> STM (Either Email.Err Email.EmailId)
 createEmailFull db new = do
@@ -472,19 +454,18 @@ createEmailFull db new = do
   pure . Right $ Email._emailId new
 
 modifyEmails
-  :: forall runtime
-   . StmDb runtime
+  :: StmDb
   -> ([Email.Email] -> [Email.Email])
   -> STM ()
 modifyEmails db f = let tvar = _dbEmails db in STM.modifyTVar tvar f
 
-selectEmailById :: forall runtime . StmDb runtime -> Email.EmailId -> STM (Maybe Email.Email)
+selectEmailById :: StmDb -> Email.EmailId -> STM (Maybe Email.Email)
 selectEmailById db id = do
   let tvar = _dbEmails db
   STM.readTVar tvar <&> find ((== id) . Email._emailId)
 
 --------------------------------------------------------------------------------
-canPerform :: Syntax.Name -> StmDb runtime -> User.UserProfile -> STM Bool
+canPerform :: Syntax.Name -> StmDb -> User.UserProfile -> STM Bool
 canPerform action _ User.UserProfile {..}
   | action == 'User.SetUserEmailAddrAsVerified
   = pure $ User.CanVerifyEmailAddr `elem` _userProfileRights
@@ -494,18 +475,18 @@ canPerform action _ User.UserProfile {..}
 
 --------------------------------------------------------------------------------
 
-readStdGen :: StmDb runtime -> STM Rand.StdGen
+readStdGen :: StmDb -> STM Rand.StdGen
 readStdGen db = do
   (seed, gamma) <- STM.readTVar $ _dbRandomGenState db
   let g = Rand.StdGen $ SM.seedSMGen' (seed, gamma)
   pure g
 
-writeStdGen :: StmDb runtime -> Rand.StdGen -> STM ()
+writeStdGen :: StmDb -> Rand.StdGen -> STM ()
 writeStdGen db g = do
   let (seed, gamma) = SM.unseedSMGen $ Rand.unStdGen g
   STM.writeTVar (_dbRandomGenState db) (seed, gamma)
 
-genRandomText :: forall runtime . StmDb runtime -> STM Text
+genRandomText :: StmDb -> STM Text
 genRandomText db = do
   g1 <- readStdGen db
   let ags = take 8 $ unfoldr
