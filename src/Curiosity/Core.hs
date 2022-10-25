@@ -34,6 +34,8 @@ module Curiosity.Core
   , selectUnitBySlug
   -- * Operations on emails
   , createEmail
+  , modifyEmails
+  , selectEmailById
   -- * Pseudo-random number generation
   , genRandomText
   , readStdGen
@@ -444,6 +446,7 @@ selectUnitBySlug db name = do
 
 
 --------------------------------------------------------------------------------
+-- | This enqueues an email (i.e. it is in the Todo state).
 createEmail
   :: forall runtime
    . StmDb runtime
@@ -456,7 +459,7 @@ createEmail db template senderAddr recipientAddr = do
  where
   transaction = do
     newId <- generateEmailId db
-    let new = Email.Email newId template senderAddr recipientAddr
+    let new = Email.Email newId template senderAddr recipientAddr Email.EmailTodo
     createEmailFull db new >>= either STM.throwSTM pure
 
 createEmailFull
@@ -475,6 +478,10 @@ modifyEmails
   -> STM ()
 modifyEmails db f = let tvar = _dbEmails db in STM.modifyTVar tvar f
 
+selectEmailById :: forall runtime . StmDb runtime -> Email.EmailId -> STM (Maybe Email.Email)
+selectEmailById db id = do
+  let tvar = _dbEmails db
+  STM.readTVar tvar <&> find ((== id) . Email._emailId)
 
 --------------------------------------------------------------------------------
 canPerform :: Syntax.Name -> StmDb runtime -> User.UserProfile -> STM Bool

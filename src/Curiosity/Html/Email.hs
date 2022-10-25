@@ -34,12 +34,15 @@ panelSentEmails :: [Email.Email] -> H.Html
 panelSentEmails emails =
   panel' "Emails queued" $ Misc.table "emails" titles display emails
  where
-  titles = ["ID", "Template", "Sender", "Recipient"]
+  titles = ["ID", "Template", "Sender", "Recipient", "State"]
   display Email.Email {..} =
     ( [ Email.unEmailId _emailId
       , Email.emailTemplateName _emailTemplate
       , User.unUserEmailAddr _emailSender
       , User.unUserEmailAddr _emailRecipient
+      , case _emailState of
+          Email.EmailTodo -> "TODO"
+          Email.EmailDone -> "DONE"
       ]
     , []
     , Nothing

@@ -353,9 +353,11 @@ emailThread = do
   let loop db = do
         liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
         emails <- liftIO . STM.atomically $
-          filterEmails db Email.AllEmails -- TODO Emails.
+          filterEmails db Email.EmailsTodo
         ML.localEnv (<> "Threads" <> "Email") $ do
           ML.info $ "Processing " <> show (length emails) <> " emails..."
+        -- TODO Have a single operation ?
+        liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
         loop db
   db <- asks _rDb
   loop db
@@ -818,6 +820,7 @@ createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
 
+updateLegal :: Core.StmDb runtime -> Legal.Update -> STM (Either User.Err ())
 updateLegal db Legal.Update {..} = do
   mentity <- selectEntityBySlug db _updateSlug
   case mentity of
@@ -1782,6 +1785,21 @@ filterEmails' :: Email.Predicate -> RunM [Email.Email]
 filterEmails' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterEmails db predicate
+
+setEmailDone :: Core.StmDb runtime -> Email.Email -> STM (Either Email.Err ())
+setEmailDone db Email.Email {..} = do
+  mrecord <- Core.selectEmailById db _emailId
+  case mrecord of
+    Just Email.Email {} -> do
+      let replaceOlder records =
+            [ if Email._emailId e == _emailId
+                then e { Email._emailState = Email.EmailDone }
+                else e
+            | e <- records
+            ]
+      Core.modifyEmails db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ Email.Err "Email not found" -- TODO
 
 
 --------------------------------------------------------------------------------

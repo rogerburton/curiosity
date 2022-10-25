@@ -18,6 +18,7 @@ module Curiosity.Data.Email
   , emailIdPrefix
   , EmailTemplate(..)
   , emailTemplateName
+  , EmailState(..)
   , Predicate(..)
   , applyPredicate
   , Err(..)
@@ -42,6 +43,7 @@ data Email = Email
   , _emailTemplate  :: EmailTemplate
   , _emailSender    :: User.UserEmailAddr
   , _emailRecipient :: User.UserEmailAddr
+  , _emailState     :: EmailState -- ^ Similar to the state of a job queue item.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -86,14 +88,29 @@ emailTemplateName t = case t of
 
 
 --------------------------------------------------------------------------------
+data EmailState =
+    EmailTodo -- ^ The email has been enqueued and must be processed.
+  | EmailDone -- ^ The email has been processed.
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+
+--------------------------------------------------------------------------------
 -- | Predicates to filter users.
-data Predicate = AllEmails | EmailsFor User.UserEmailAddr
+data Predicate = AllEmails | EmailsFor User.UserEmailAddr | EmailsTodo | EmailsDone | AndEmails [Predicate]
   deriving (Eq, Show)
 
 applyPredicate :: Predicate -> Email -> Bool
 applyPredicate AllEmails _ = True
 
-applyPredicate (EmailsFor addr) Email {..} = addr == _emailRecipient
+applyPredicate (EmailsFor addr) Email {..} = _emailRecipient == addr
+
+applyPredicate EmailsTodo Email {..} = _emailState == EmailTodo
+
+applyPredicate EmailsDone Email {..} = _emailState == EmailDone
+
+applyPredicate (AndEmails predicates) email =
+  and $ map (flip applyPredicate email) predicates
 
 
 --------------------------------------------------------------------------------
