@@ -107,7 +107,7 @@ a new user with `cty user create --help`:
 $ cty user create alice a alice@example.com --accept-tos
 User created: USER-1
 $ cty user create mila m mila@example.com --accept-tos
-User created: USER-1
+User created: USER-2
 $ cty state | jq '._dbUserProfiles | .[] | {username: ._userProfileCreds._userCredsName, email: ._userProfileEmailAddr}'
 {
   "username": "alice",
