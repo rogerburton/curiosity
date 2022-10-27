@@ -2481,7 +2481,8 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
  where
   run' mprofile = do
     runtime <- ask
-    output  <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
+    output  <- liftIO $ Inter.interpretLines runtime username "/tmp/nowhere" [cmd] 0
+      [] (\t acc -> acc ++ [t])
     let (_, ls) = Inter.formatOutput output
     pure $ unlines ls
    where
