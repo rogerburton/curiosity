@@ -142,6 +142,13 @@ User created: USER-2
 Note: the `reset` command makes the state empty, resulting in the same state as
 `cty init`.
 
+Such scripts are used to create a [test suite](/documentation/tests),
+demonstrating the behavior of Curiosity. They are located in the [`/scenarios`
+directory](https://github.com/hypered/curiosity/tree/main/scenarios) within the
+GitHub repository. They are also listed [in the
+documentation](/documentation/scenarios#scenarios) from where they can be run
+and explored.
+
 To expose the state file using a web interface, `cty serve` can be used. By
 default it uses port 9000. In the specific case of the `smartcoop.sh` machine,
 it can be reached by using the [`play.smartcoop.sh`](https://play.smartcoop.sh)

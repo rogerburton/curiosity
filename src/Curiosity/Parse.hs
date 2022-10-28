@@ -8,6 +8,7 @@ module Curiosity.Parse
   , defaultConf
   , defaultLoggingConf
   , mkLoggingConf
+  , noLoggingConf
   , confParser
   , serverParser
   , defaultServerConf
@@ -57,6 +58,11 @@ mkLoggingConf :: FilePath -> ML.LoggingConf
 mkLoggingConf path = ML.LoggingConf (ML.LoggingFile path)
                                     "Curiosity"
                                     L.levelInfo
+
+noLoggingConf :: ML.LoggingConf
+noLoggingConf = ML.LoggingConf ML.NoLogging
+                               "Curiosity"
+                               L.levelInfo
 
 
 --------------------------------------------------------------------------------

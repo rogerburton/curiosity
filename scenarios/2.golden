@@ -1,0 +1,22 @@
+4: reset
+Resetting to the empty state.
+5: as alice
+Modifying default user.
+6: user create alice secret alice@example.com --accept-tos
+User created: USER-1
+7: user create bob secret bob@example.com --accept-tos
+User created: USER-2
+8: user do set-email-addr-as-verified bob
+User successfully updated.
+9: user do set-email-addr-as-verified bob
+EmailAddrAlreadyVerified
+11: reset
+Resetting to the empty state.
+12: as bob
+Modifying default user.
+13: user create alice secret alice@example.com --accept-tos
+User created: USER-1
+14: user create bob secret bob@example.com --accept-tos
+User created: USER-2
+15: user do set-email-addr-as-verified alice
+MissingRight CanVerifyEmailAddr

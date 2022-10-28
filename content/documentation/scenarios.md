@@ -9,16 +9,16 @@ of test scenarios. To do so, Curiosity supports running scripts: they are
 textual sequences of commands that mimic closely what can be done through the
 web interface.
 
-As part of Curiosity's test suite, a [collection of scenarios](#scenarios) are
-run and their results are compared to known sources of truth, called "golden
-files". This makes sure that, as scenarios are created, and as Curiosity
-evolves, the system continues to work as expected, and few bugs can be
-introduced inadvertantly.
+As part of Curiosity's [test suite](/documentation/tests), a [collection of
+scenarios](#scenarios) are run and their results are compared to known sources
+of truth, called "golden files". This makes sure that, as scenarios are
+created, and as Curiosity evolves, the system continues to work as expected,
+and few bugs can be introduced inadvertantly.
 
 To manually run scenarios, see how to use the `cty run` [command-line
 tool](/documentation/clis). If you're a developer, the script to ensure
 scenarios match their corresponding golden files is visible [on
-GitHub](https://github.com/hypered/curiosity/blob/main/tests/run-scenarios.hs)
+GitHub](https://github.com/hypered/curiosity/blob/main/tests/run-scenarios.hs).
 
 # Example data
 
@@ -68,3 +68,7 @@ The list [as JSON](/partials/scenarios.json).
 Some scenarios have additional documentation:
 
 - [Quotation flow](/documentation/scenarios/quotation-flow)
+
+# See also
+
+- [Tests](/documentation/tests)

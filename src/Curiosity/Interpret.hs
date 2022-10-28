@@ -70,7 +70,11 @@ handleRunNoTrace conf user scriptPath withFinal = do
 handleRun' :: FilePath -> IO [Trace]
 handleRun' scriptPath = do
   let conf = P.Conf
-        { P._confLogging = P.mkLoggingConf "/tmp/cty-serve-explore.log"
+        { P._confLogging = P.noLoggingConf
+            -- P.mkLoggingConf "/tmp/cty-serve-explore.log"
+            -- TOOD Multiple concurrent calls to the same log file
+            -- end up with
+            -- RuntimeException openFile: resource busy (file is locked)
         , P._confDbFile  = Nothing
         }
   runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
