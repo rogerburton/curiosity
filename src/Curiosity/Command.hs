@@ -60,6 +60,7 @@ data Command =
   | UpdateBusinessEntity Business.Update
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
+  | LinkLegalEntityToUser Text User.UserId Legal.ActingRole
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -499,6 +500,11 @@ parserLegal =
          ( A.info (parserUpdateLegalEntity <**> A.helper)
          $ A.progDesc "Update a legal entity"
          )
+    <> A.command
+         "link-user"
+         ( A.info (parserLegalLinkUser <**> A.helper)
+         $ A.progDesc "Link a user to the entity, specifying a role"
+         )
 
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
@@ -521,6 +527,16 @@ parserUpdateLegalEntity = do
   slug        <- argumentEntitySlug
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
+
+parserLegalLinkUser :: A.Parser Command
+parserLegalLinkUser = do
+  slug  <- argumentEntitySlug
+  uid  <- argumentUserId
+  role <-
+    (A.flag' Legal.Validator $ A.long "validator" <> A.help
+      "TODO Add a description for the validator flag"
+    )
+  pure $ LinkLegalEntityToUser slug uid role
 
 argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 

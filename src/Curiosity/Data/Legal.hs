@@ -12,6 +12,7 @@ module Curiosity.Data.Legal
   , entityIdPrefix
   , RegistrationName(..)
   , ActingUserId(..)
+  , ActingRole(..)
   , ActingUser(..)
   , EntityAndRole(..)
   , Authorization(..)
@@ -129,7 +130,7 @@ data ActingUserId = ActingUserId User.UserId ActingRole
   deriving (Eq, Generic, Show)
   deriving (FromJSON, ToJSON)
 
-data ActingRole = Titular | Director | Administrator
+data ActingRole = Titular | Director | Administrator | Validator
   deriving (Eq, Generic, Show)
   deriving (FromJSON, ToJSON)
 

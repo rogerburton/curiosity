@@ -2,3 +2,5 @@
 Legal entity created: LENT-1
 2: legal update one One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One.
 Legal entity updated: one
+3: legal link-user one USER-1 --validator
+Legal entity updated: one
