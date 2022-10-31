@@ -839,6 +839,7 @@ createLegal db Legal.Create {..} = do
                            _createVatNumber
                            Nothing
                            []
+                           [Legal.AuthorizedAsBuyer] -- TODO Better logic for initial values.
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull

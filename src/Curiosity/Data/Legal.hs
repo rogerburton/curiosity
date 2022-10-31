@@ -14,6 +14,7 @@ module Curiosity.Data.Legal
   , ActingUserId(..)
   , ActingUser(..)
   , EntityAndRole(..)
+  , Authorization(..)
   , Err(..)
   , encodeUBL
   , toUBL
@@ -71,6 +72,7 @@ data Entity = Entity
     -- ^ Public description. Similar to a user profile bio.
   , _entityUsersAndRoles :: [ActingUserId]
     -- ^ Users that can "act" within the entity, with some kind of associated rights.
+  , _entityAuthorizations :: [Authorization]
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -137,6 +139,11 @@ data ActingUser = ActingUser User.UserProfile ActingRole
 -- | The inverse of `ActingUser`: an entity in which a user acts, with the role
 -- of the user.
 data EntityAndRole = EntityAndRole Entity ActingRole
+
+-- TODO Ask Roger the meaning of these.
+data Authorization = AuthorizedAsBuyer | AuthorizedAsSeller | AccountingAuthorized | OnlineAccountAuthorized
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
 
 data Err = Err
   deriving (Eq, Exception, Show)

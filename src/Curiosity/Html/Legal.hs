@@ -34,12 +34,20 @@ entityView entity users hasEditButton = containerMedium $ do
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"                (Legal._entityId entity)
     keyValuePair "Registration name" (Legal._entityName entity)
+    keyValuePair "Country"           ("BE (TODO)" :: Text) -- TODO
     keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
     keyValuePair "VAT number"        (Legal._entityVatNumber entity)
     maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
 
+  title' "Authorizations" Nothing
+  H.ul $ mapM_ displayAuthorizations $ Legal._entityAuthorizations entity
+
   title' "Acting users" Nothing
   H.ul $ mapM_ displayActingUser users
+
+displayAuthorizations auth =
+  H.li $ do
+    H.code . H.text $ show auth
 
 displayActingUser (Legal.ActingUser u role) =
   H.li $ do
