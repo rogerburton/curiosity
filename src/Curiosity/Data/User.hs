@@ -18,6 +18,7 @@ module Curiosity.Data.User
   , UserCompletion1(..)
   , UserCompletion2(..)
   , AccessRight(..)
+  , Authorization(..)
   , permissions
   , userProfileCreds
   , userProfileId
@@ -137,6 +138,7 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
   , _userProfileRights            :: [AccessRight]
+  , _userProfileAuthorizations    :: [Authorization]
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -231,6 +233,13 @@ newtype UserId = UserId { unUserId :: Text }
 
 userIdPrefix :: Text
 userIdPrefix = "USER-"
+
+-- TODO Ask Roger the meaning of these.
+-- | Those are in addition of AccessRight, maybe they should be combined
+-- together.
+data Authorization = AuthorizedAsEmployee | AuthorizedAsHolder | AuthorizedAsAdvisor | AuthorizedAsSuperAdvisor | AccountingAuthorized | OnlineAccountAuthorized
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
 
 
 --------------------------------------------------------------------------------

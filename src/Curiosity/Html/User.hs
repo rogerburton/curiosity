@@ -247,8 +247,16 @@ profileView profile entities hasEditButton =
             )
           keyValuePair "Rights"
                        (show . User._userProfileRights $ profile :: Text)
+
+    title' "Authorizations" Nothing
+    H.ul $ mapM_ displayAuthorizations $ User._userProfileAuthorizations profile
+
     title' "Related entities" Nothing
     H.ul $ mapM_ displayEntities entities
+
+displayAuthorizations auth =
+  H.li $ do
+    H.code . H.text $ show auth
 
 displayEntities (Legal.EntityAndRole entity role) =
   H.li $ do
