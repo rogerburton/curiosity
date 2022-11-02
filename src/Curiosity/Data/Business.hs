@@ -10,10 +10,13 @@ module Curiosity.Data.Business
   , Update(..)
   , UnitId(..)
   , unitIdPrefix
+  , Authorization(..)
+  , Scope(..)
   , Err(..)
   ) where
 
 import qualified Commence.Types.Wrapped        as W
+import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
@@ -45,11 +48,15 @@ instance FromForm Update where
 
 --------------------------------------------------------------------------------
 data Unit = Unit
-  { _entityId          :: UnitId
-  , _entitySlug        :: Text
+  { _entityId             :: UnitId
+  , _entitySlug           :: Text
     -- An identifier suitable for URLs
-  , _entityName        :: Text
-  , _entityDescription :: Maybe Text
+  , _entityName           :: Text
+  , _entityDescription    :: Maybe Text
+  , _entityType           :: Text
+  , _entityHolders        :: [User.UserId]
+  , _entityAuthorizations :: [Authorization]
+  , _entityScopes         :: [Scope]
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -67,6 +74,16 @@ newtype UnitId = UnitId { unUnitId :: Text }
 
 unitIdPrefix :: Text
 unitIdPrefix = "BENT-"
+
+-- TODO Ask Roger the meaning of these.
+data Authorization = Bundle0 | Bundle1
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
+
+-- TODO Ask Roger the meaning of these.
+data Scope = ScopeCreateQuotation | ScopeSendQuotation | ScopeCreateInvoice
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
 
 data Err = Err
   { unErr :: Text

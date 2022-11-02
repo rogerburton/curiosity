@@ -40,12 +40,12 @@ entityView entity users hasEditButton = containerMedium $ do
     maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
 
   title' "Authorizations" Nothing
-  H.ul $ mapM_ displayAuthorizations $ Legal._entityAuthorizations entity
+  H.ul $ mapM_ displayAuthorization $ Legal._entityAuthorizations entity
 
   title' "Acting users" Nothing
   H.ul $ mapM_ displayActingUser users
 
-displayAuthorizations auth =
+displayAuthorization auth =
   H.li $ do
     H.code . H.text $ show auth
 

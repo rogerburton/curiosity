@@ -4,4 +4,7 @@ title: Curiosity
 
 # Business units
 
-See [example](/views/unit/alpha.json). — [JSON](/data/alpha.json)
+Alpha
+
+:   See [static example](/views/unit/alpha.json) (— [JSON](/data/alpha.json)),
+    or [live example](/alpha).

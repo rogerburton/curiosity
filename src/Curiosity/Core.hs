@@ -387,7 +387,7 @@ createBusiness db Business.Create {..} = do
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Unit newId _createSlug _createName Nothing
+    let new = Business.Unit newId _createSlug _createName Nothing "TODO" [] [] []
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull
