@@ -5,6 +5,7 @@ module Curiosity.Run
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as P
@@ -240,6 +241,11 @@ handleViewQueue conf user name = do
       handleCommand conf
                     user
                     (Command.FilterUsers User.PredicateEmailAddrToVerify)
+    Command.EmailsToSend -> do
+      putStrLn @Text "Emails to send:"
+      handleCommand conf
+                    user
+                    (Command.FilterEmails Email.EmailsTodo)
 
 
 --------------------------------------------------------------------------------
@@ -249,6 +255,7 @@ handleViewQueues conf user queues = do
       -- TODO Check first if the user has the necessary rights to handle this
       -- queue.
       handleViewQueue conf user Command.EmailAddrToVerify
+      handleViewQueue conf user Command.EmailsToSend
     _ -> do
       putStrLn @Text "TODO handleViewQueues"
       exitFailure
@@ -275,7 +282,7 @@ handleCommand conf user command = do
 
   Rt.powerdown runtime
   -- TODO shutdown runtime, loggers, save state, ...
-  exitWith exitCode
+  pure exitCode
 
 handleError e
   |

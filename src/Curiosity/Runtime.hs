@@ -780,6 +780,13 @@ handleCommand runtime@Runtime {..} user command = do
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
+    Command.FilterEmails predicate -> do
+      records <- runRunM runtime $ filterEmails' predicate
+      let f Email.Email {..} =
+            let Email.EmailId i              = _emailId
+                User.UserEmailAddr recipient = _emailRecipient
+            in  i <> " " <> recipient
+      pure (ExitSuccess, map f records)
     Command.Step -> do
       let transaction _ _ = do
             users <- filterUsers _rDb User.PredicateEmailAddrToVerify

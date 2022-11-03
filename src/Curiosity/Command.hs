@@ -16,6 +16,7 @@ module Curiosity.Command
 
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Invoice        as Invoice
@@ -86,6 +87,7 @@ data Command =
     -- ^ Submit a quotation.
   | FormNewSimpleContract SimpleContract.CreateContractAll'
   | FormValidateSimpleContract Text
+  | FilterEmails Email.Predicate
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
@@ -110,7 +112,7 @@ data RunOutput = RunOutput Bool Bool
   deriving (Eq, Show)
 
 
-data QueueName = EmailAddrToVerify
+data QueueName = EmailAddrToVerify | EmailsToSend
   deriving (Eq, Show)
 
 data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues User.UserName
@@ -827,16 +829,29 @@ parserFormValidateSimpleContract = do
 --
 --     Available commands:
 --       user-email-addr-to-verify
+--
+-- The advantage compared to a metavar and a completer is that there is a help
+-- text.
 parserQueue :: A.Parser Command
-parserQueue = A.subparser $ A.command
+parserQueue = ViewQueue <$> A.subparser (
+  A.command
   "user-email-addr-to-verify"
-  ( A.info (p <**> A.helper)
+  ( A.info (pure EmailAddrToVerify <**> A.helper)
   $ A.progDesc
       "Show users with an email address that need verification. \
       \Use `cty user do set-email-addr-as-verified` to mark an email address \
       \as verified."
   )
-  where p = pure $ ViewQueue EmailAddrToVerify
+  <>
+  A.command
+  "emails-to-send"
+  ( A.info (pure EmailsToSend <**> A.helper)
+  $ A.progDesc
+      "Show users with an email address that need verification. \
+      \Use `cty user do set-email-addr-as-verified` to mark an email address \
+      \as verified."
+  )
+  )
 
 parserQueues :: A.Parser Command
 parserQueues =
