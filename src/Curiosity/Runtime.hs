@@ -380,7 +380,7 @@ emailThread = do
   loop
 
 -- | One iteration of the `emailThread` loop.
-emailStep :: RunM ()
+emailStep :: RunM [Email.Email]
 emailStep = do
   db <- asks _rDb
   records <- liftIO . STM.atomically $
@@ -390,8 +390,9 @@ emailStep = do
       ML.info $ "Processing " <> show (length records) <> " emails..."
   -- TODO Have a single operation ?
   liftIO . STM.atomically $ mapM_ (setEmailDone db) records
+  pure records
 
-verifyEmailStep :: RunM ()
+verifyEmailStep :: RunM [User.UserProfile]
 verifyEmailStep = do
   db <- asks _rDb
   records <- liftIO . STM.atomically $
@@ -407,6 +408,7 @@ verifyEmailStep = do
       . User._userProfileCreds
       )
       records
+  pure records
 
 {- | Instantiate the db.
 
@@ -817,10 +819,19 @@ handleCommand runtime@Runtime {..} user command = do
       pure (ExitSuccess, ["Email addresses to verify:"] <> output1 <>
         ["Emails to send:"] <> output2)
     Command.Step True -> do
-      runRunM runtime $ do
-        verifyEmailStep
-        emailStep
-      pure (ExitSuccess, ["All steps done."])
+      (users, emails) <- runRunM runtime $ do
+        users <- verifyEmailStep
+        emails <- emailStep
+        pure (users, emails)
+      let displayUser User.UserProfile {..} =
+            "Setting user email addr. to verified: " <>
+            User.unUserEmailAddr _userProfileEmailAddr
+          displayEmail Email.Email {..} =
+            "Sending email: " <>
+            Email.unEmailId _emailId
+          output1 = map displayUser users
+          output2 = map displayEmail emails
+      pure (ExitSuccess, output1 <> output2 <> ["All steps done."])
     _ -> do
       -- TODO It seems that showing the command causes a stack overflow. For
       -- instance the error happens by passing the Log or the Reset commands.
