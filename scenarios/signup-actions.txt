@@ -1,0 +1,5 @@
+reset
+user create alice secret alice@example.com --accept-tos
+queues
+step --all
+queues

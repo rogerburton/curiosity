@@ -805,6 +805,17 @@ handleCommand runtime@Runtime {..} user command = do
                 User.UserEmailAddr recipient = _emailRecipient
             in  i <> " " <> recipient
       pure (ExitSuccess, map f records)
+    Command.ViewQueues queues -> do
+      -- TODO Check first if the user has the necessary rights to handle this
+      -- queue.
+      (_, output1) <- handleCommand runtime
+                        user
+                        (Command.FilterUsers User.PredicateEmailAddrToVerify)
+      (_, output2) <- handleCommand runtime
+                         user
+                         (Command.FilterEmails Email.EmailsTodo)
+      pure (ExitSuccess, ["Email addresses to verify:"] <> output1 <>
+        ["Emails to send:"] <> output2)
     Command.Step True -> do
       runRunM runtime $ do
         verifyEmailStep

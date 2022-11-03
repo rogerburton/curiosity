@@ -174,9 +174,13 @@ run (Command.CommandWithTarget (Command.ViewQueues queues) target (Command.User 
   = do
     case target of
       Command.MemoryTarget -> do
-        handleViewQueues P.defaultConf user queues
+        handleCommand P.defaultConf
+                      user
+                      (Command.ViewQueues queues)
       Command.StateFileTarget path -> do
-        handleViewQueues P.defaultConf { P._confDbFile = Just path } user queues
+        handleCommand P.defaultConf { P._confDbFile = Just path }
+                      user
+                      (Command.ViewQueues queues)
       Command.UnixDomainTarget _ -> do
         putStrLn @Text "TODO"
         exitFailure
@@ -249,19 +253,6 @@ handleViewQueue conf user name = do
 
 
 --------------------------------------------------------------------------------
-handleViewQueues conf user queues = do
-  case queues of
-    Command.CurrentUserQueues -> do
-      -- TODO Check first if the user has the necessary rights to handle this
-      -- queue.
-      handleViewQueue conf user Command.EmailAddrToVerify
-      handleViewQueue conf user Command.EmailsToSend
-    _ -> do
-      putStrLn @Text "TODO handleViewQueues"
-      exitFailure
-
-
---------------------------------------------------------------------------------
 handleShowId conf user i = do
   case T.splitOn "-" i of
     "USER" : _ -> do
@@ -282,7 +273,7 @@ handleCommand conf user command = do
 
   Rt.powerdown runtime
   -- TODO shutdown runtime, loggers, save state, ...
-  pure exitCode
+  exitWith exitCode
 
 handleError e
   |
