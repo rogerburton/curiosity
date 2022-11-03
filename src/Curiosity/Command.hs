@@ -92,10 +92,11 @@ data Command =
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
   | ViewQueues Queues
-  | Step
+  | Step Bool
     -- ^ Execute the next automated action when using stepped (non-wallclock)
     -- mode, or mixed-mode, or the next automated action when the automation is
     -- "disabled".
+    -- If True, execute all of them.
   | Log Text P.Conf
     -- Log a line of text to the logs.
   | ShowId Text
@@ -350,8 +351,8 @@ parser =
 
       <> A.command
            "step"
-           ( A.info (pure Step <**> A.helper)
-           $ A.progDesc "Run the next automated action"
+           ( A.info (parserStep <**> A.helper)
+           $ A.progDesc "Run the next automated action(s)"
            )
 
       <> A.command
@@ -878,6 +879,10 @@ parserQueues =
             <> A.metavar "USERNAME"
             )
         )
+
+parserStep :: A.Parser Command
+parserStep = Step <$> A.switch
+  (A.long "all" <> A.help "Execute all possible actions (default is one action).")
 
 parserLog :: A.Parser Command
 parserLog =

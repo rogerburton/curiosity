@@ -181,14 +181,14 @@ run (Command.CommandWithTarget (Command.ViewQueues queues) target (Command.User 
         putStrLn @Text "TODO"
         exitFailure
 
-run (Command.CommandWithTarget Command.Step target (Command.User user)) = do
+run (Command.CommandWithTarget (Command.Step isAll) target (Command.User user)) = do
   case target of
     Command.MemoryTarget -> do
-      handleCommand P.defaultConf user Command.Step
+      handleCommand P.defaultConf user $ Command.Step isAll
     Command.StateFileTarget path -> do
       handleCommand P.defaultConf { P._confDbFile = Just path }
                     user
-                    Command.Step
+                    (Command.Step isAll)
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure

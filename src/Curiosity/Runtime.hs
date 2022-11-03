@@ -374,7 +374,8 @@ emailThread :: RunM ()
 emailThread = do
   let loop = do
         liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
-        emailStep
+        ML.localEnv (<> "Threads") $ do
+          emailStep
         loop
   loop
 
@@ -382,13 +383,30 @@ emailThread = do
 emailStep :: RunM ()
 emailStep = do
   db <- asks _rDb
-  emails <- liftIO . STM.atomically $
+  records <- liftIO . STM.atomically $
     filterEmails db Email.EmailsTodo
-  ML.localEnv (<> "Threads" <> "Email") $ do
-    when (not . null $ emails) $
-      ML.info $ "Processing " <> show (length emails) <> " emails..."
+  ML.localEnv (<> "Actions" <> "SendEmails") $ do
+    when (not . null $ records) $
+      ML.info $ "Processing " <> show (length records) <> " emails..."
   -- TODO Have a single operation ?
-  liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
+  liftIO . STM.atomically $ mapM_ (setEmailDone db) records
+
+verifyEmailStep :: RunM ()
+verifyEmailStep = do
+  db <- asks _rDb
+  records <- liftIO . STM.atomically $
+    filterUsers db User.PredicateEmailAddrToVerify
+  ML.localEnv (<> "Actions" <> "VerifyEmails") $ do
+    when (not . null $ records) $
+      ML.info $ "Processing " <> show (length records) <> " users..."
+  -- TODO Have a single operation ?
+  liftIO . STM.atomically $
+    mapM_
+      ( setUserEmailAddrAsVerified db
+      . User._userCredsName
+      . User._userProfileCreds
+      )
+      records
 
 {- | Instantiate the db.
 
@@ -787,19 +805,11 @@ handleCommand runtime@Runtime {..} user command = do
                 User.UserEmailAddr recipient = _emailRecipient
             in  i <> " " <> recipient
       pure (ExitSuccess, map f records)
-    Command.Step -> do
-      let transaction _ _ = do
-            users <- filterUsers _rDb User.PredicateEmailAddrToVerify
-            mapM
-              ( setUserEmailAddrAsVerified _rDb
-              . User._userCredsName
-              . User._userProfileCreds
-              )
-              users
-      output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
-      case output of
-        Right x   -> pure (ExitSuccess, map show x)
-        Left  err -> pure (ExitFailure 1, [Errs.displayErr err])
+    Command.Step True -> do
+      runRunM runtime $ do
+        verifyEmailStep
+        emailStep
+      pure (ExitSuccess, ["All steps done."])
     _ -> do
       -- TODO It seems that showing the command causes a stack overflow. For
       -- instance the error happens by passing the Log or the Reset commands.
