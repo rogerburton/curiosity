@@ -22,6 +22,7 @@ title: Curiosity
 - [Messages](/documentation/messages)
 - [Objects](/documentation/objects)
 - [Permissions](/documentation/permissions)
+- [Queues](/documentation/queues)
 - [Scenarios](/documentation/scenarios)
 - [Sitemap](/documentation/sitemap)
 - [Smart](/documentation/smart)

@@ -383,8 +383,7 @@ emailThread = do
 emailStep :: RunM [Email.Email]
 emailStep = do
   db <- asks _rDb
-  records <- liftIO . STM.atomically $
-    filterEmails db Email.EmailsTodo
+  records <- emailStepDryRun
   ML.localEnv (<> "Actions" <> "SendEmails") $ do
     when (not . null $ records) $
       ML.info $ "Processing " <> show (length records) <> " emails..."
@@ -392,11 +391,17 @@ emailStep = do
   liftIO . STM.atomically $ mapM_ (setEmailDone db) records
   pure records
 
+emailStepDryRun :: RunM [Email.Email]
+emailStepDryRun = do
+  db <- asks _rDb
+  records <- liftIO . STM.atomically $
+    filterEmails db Email.EmailsTodo
+  pure records
+
 verifyEmailStep :: RunM [User.UserProfile]
 verifyEmailStep = do
   db <- asks _rDb
-  records <- liftIO . STM.atomically $
-    filterUsers db User.PredicateEmailAddrToVerify
+  records <- verifyEmailStepDryRun
   ML.localEnv (<> "Actions" <> "VerifyEmails") $ do
     when (not . null $ records) $
       ML.info $ "Processing " <> show (length records) <> " users..."
@@ -408,6 +413,13 @@ verifyEmailStep = do
       . User._userProfileCreds
       )
       records
+  pure records
+
+verifyEmailStepDryRun :: RunM [User.UserProfile]
+verifyEmailStepDryRun = do
+  db <- asks _rDb
+  records <- liftIO . STM.atomically $
+    filterUsers db User.PredicateEmailAddrToVerify
   pure records
 
 {- | Instantiate the db.
@@ -818,10 +830,10 @@ handleCommand runtime@Runtime {..} user command = do
                          (Command.FilterEmails Email.EmailsTodo)
       pure (ExitSuccess, ["Email addresses to verify:"] <> output1 <>
         ["Emails to send:"] <> output2)
-    Command.Step True -> do
+    Command.Step True dryRun -> do
       (users, emails) <- runRunM runtime $ do
-        users <- verifyEmailStep
-        emails <- emailStep
+        users <- if dryRun then verifyEmailStepDryRun else verifyEmailStep
+        emails <- if dryRun then emailStepDryRun else emailStep
         pure (users, emails)
       let displayUser User.UserProfile {..} =
             "Setting user email addr. to verified: " <>
