@@ -98,6 +98,10 @@ data Command =
     -- "disabled".
     -- If True, execute all of them.
     -- If True, don't actually execute them but report what whould be done.
+  | Time Bool Bool
+    -- ^ Report or set the simulated time.
+    -- If True, advance the time by a second.
+    -- If True, advance the time to the next minute.
   | Log Text P.Conf
     -- Log a line of text to the logs.
   | ShowId Text
@@ -354,6 +358,12 @@ parser =
            "step"
            ( A.info (parserStep <**> A.helper)
            $ A.progDesc "Run the next automated action(s)"
+           )
+
+      <> A.command
+           "time"
+           ( A.info (parserTime <**> A.helper)
+           $ A.progDesc "Report or set the simulated time"
            )
 
       <> A.command
@@ -885,6 +895,11 @@ parserStep :: A.Parser Command
 parserStep = Step <$> A.switch
   (A.long "all" <> A.help "Execute all possible actions (default is one action).")
   <*> A.switch (A.long "dry" <> A.help "Don't actually execute actions, but report what would be done.")
+
+parserTime :: A.Parser Command
+parserTime = Time
+  <$> A.switch (A.long "step" <> A.help "Advance the time of 1 second.")
+  <*> A.switch (A.long "minute" <> A.help "Advance the time to the next minute.")
 
 parserLog :: A.Parser Command
 parserLog =

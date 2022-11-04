@@ -120,10 +120,12 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
+import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
 import qualified Network.HTTP.Types            as HTTP
 import           Prelude                 hiding ( state )
 import qualified Servant
 import           System.Directory               ( doesFileExist )
+import           System.PosixCompat.Types       ( EpochTime )
 
 
 --------------------------------------------------------------------------------
@@ -309,6 +311,18 @@ state :: RunM Data.HaskDb
 state = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readFullStmDbInHask' db
+
+-- | Retrieve the current simulated time.
+time :: RunM EpochTime
+time = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.readTime db
+
+-- | Advance the time by a second or to the next minute.
+stepTime :: Bool -> RunM EpochTime
+stepTime minute = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.stepTime db minute
 
 -- | Retrieve the threads state.
 threads :: RunM [Text]
@@ -844,6 +858,14 @@ handleCommand runtime@Runtime {..} user command = do
           output1 = map displayUser users
           output2 = map displayEmail emails
       pure (ExitSuccess, output1 <> output2 <> ["All steps done."])
+    Command.Time step minute -> do
+      let fmt = "%d/%b/%Y:%T %z"
+      output <-
+        if step
+          then runRunM runtime $ stepTime minute
+          else runRunM runtime time
+      output' <- liftIO $ formatUnixTime fmt $ fromEpochTime output
+      pure (ExitSuccess, [TE.decodeUtf8 output'])
     _ -> do
       -- TODO It seems that showing the command causes a stack overflow. For
       -- instance the error happens by passing the Log or the Reset commands.

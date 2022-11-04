@@ -1,0 +1,5 @@
+reset
+time
+time --step
+time --step --minute
+time
