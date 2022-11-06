@@ -1,6 +1,6 @@
 module Curiosity.Runtime.Error
   ( IOErr(..)
-  , UnspeciedErr(..)
+  , UnspecifiedErr(..)
   ) where
 
 import qualified Commence.Runtime.Errors       as Errs
@@ -25,11 +25,11 @@ instance Errs.IsRuntimeErr IOErr where
 
 -- | A placeholder error type, used until better handling (at the call site) is
 -- put in place.
-newtype UnspeciedErr = UnspeciedErr Text
+newtype UnspecifiedErr = UnspecifiedErr Text
   deriving Show
 
-instance Errs.IsRuntimeErr UnspeciedErr where
-  errCode UnspeciedErr{} = "ERR.FILE_NOT_FOUND"
-  httpStatus UnspeciedErr{} = HTTP.notFound404
+instance Errs.IsRuntimeErr UnspecifiedErr where
+  errCode UnspecifiedErr{} = "ERR.FILE_NOT_FOUND"
+  httpStatus UnspecifiedErr{} = HTTP.notFound404
   userMessage = Just . \case
-    UnspeciedErr msg -> T.unwords ["Error:", msg]
+    UnspecifiedErr msg -> T.unwords ["Error:", msg]

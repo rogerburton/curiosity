@@ -1164,7 +1164,7 @@ handleUserProfileUpdate update profile = do
   case eIds of
     Right (Right [_]) ->
       pure $ addHeader @"Location" ("/settings/profile") NoContent
-    _ -> Errs.throwError' $ Rt.UnspeciedErr "Cannot update the user."
+    _ -> Errs.throwError' $ Rt.UnspecifiedErr "Cannot update the user."
 
 
 --------------------------------------------------------------------------------
