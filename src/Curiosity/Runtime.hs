@@ -14,9 +14,6 @@ module Curiosity.Runtime
   , state
   , handleCommand
   , submitQuotationSuccess
-  , powerdown
-  , saveDb
-  , saveDbAs
   , runAppMSafe
   , runRunM
   , withRuntimeAtomically
@@ -78,6 +75,7 @@ module Curiosity.Runtime
   -- * Re-exports for backwards compat: must be removed in the future.
   , module RType
   , module RErr
+  , module RIO
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -103,15 +101,13 @@ import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
-import qualified Curiosity.Parse               as Command
 import           Curiosity.Runtime.Error       as RErr
+import           Curiosity.Runtime.IO          as RIO
 import           Curiosity.Runtime.Type        as RType
 import qualified Data.Aeson.Text               as Aeson
-import qualified Data.ByteString.Lazy          as BS
 import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
 import qualified Data.Text.Encoding            as TE
-import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
 import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
 import           System.PosixCompat.Types       ( EpochTime )
@@ -196,49 +192,6 @@ reset = do
     $ "Resetting to the empty state."
   db <- asks _rDb
   liftIO . STM.atomically $ Core.reset db
-
--- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask
-  :: forall runtime m
-   . MonadIO m
-  => Core.StmDb
-  -> m Data.HaskDb
-readFullStmDbInHask = liftIO . STM.atomically . Core.readFullStmDbInHask'
-
--- | Power down the application: attempting to save the DB state in given file,
--- if possible, and reporting errors otherwise.
-powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-powerdown runtime@Runtime {..} = do
-  mDbSaveErr <- saveDb runtime
-  reportDbSaveErr mDbSaveErr
-  -- finally, close loggers.
-  eLoggingCloseErrs <- liftIO . try @SomeException $ ML.flushAndCloseLoggers
-    _rLoggers
-  reportLoggingCloseErrs eLoggingCloseErrs
-  pure $ mDbSaveErr <|> first Errs.RuntimeException eLoggingCloseErrs ^? _Left
- where
-  reportLoggingCloseErrs eLoggingCloseErrs =
-    when (isLeft eLoggingCloseErrs)
-      .  putStrLn @Text
-      $  "Errors when closing loggers: "
-      <> show eLoggingCloseErrs
-  reportDbSaveErr mDbSaveErr =
-    when (isJust mDbSaveErr)
-      .  putStrLn @Text
-      $  "DB state cannot be saved: "
-      <> show mDbSaveErr
-
-saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-saveDb runtime =
-  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. Command.confDbFile
-
-saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
-saveDbAs runtime fpath = do
-  haskDb <- readFullStmDbInHask $ _rDb runtime
-  let bs = Data.serialiseDb haskDb
-  liftIO
-      (try @SomeException (T.writeFile fpath . TE.decodeUtf8 $ BS.toStrict bs))
-    <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb

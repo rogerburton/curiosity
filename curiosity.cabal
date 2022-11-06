@@ -129,9 +129,13 @@ library
     Curiosity.Parse
     Curiosity.Process
     Curiosity.Run
+    -- runtime: datatypes, errors etc. 
     Curiosity.Runtime
     Curiosity.Runtime.Type
     Curiosity.Runtime.Error
+    --- runtime: effectful operations that are run in IO. 
+    Curiosity.Runtime.IO
+
     Curiosity.Server
     Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended
