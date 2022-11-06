@@ -69,6 +69,7 @@ instance S.DBTransaction AppM STM where
 
 --------------------------------------------------------------------------------
 -- | Definition of all operations for the UserProfiles (selects and updates)
+-- The instance must reside here to avoid an Orphan instance. 
 instance S.DBStorage AppM STM User.UserProfile where
 
   type Db AppM STM User.UserProfile = Core.StmDb
