@@ -49,6 +49,7 @@ module Curiosity.Data.User
   , Storage.DBSelect(..)
   -- * Errors
   , Err(..)
+  , userNotFound
   , usernameBlocklist
   ) where
 
@@ -174,7 +175,7 @@ data AccessRight = CanCreateContracts | CanVerifyEmailAddr
   deriving anyclass (ToJSON, FromJSON)
 
 permissions :: [AccessRight]
-permissions = [toEnum 0..]
+permissions = [toEnum 0 ..]
 
 -- | The username is an identifier (i.e. it is unique).
 newtype UserName = UserName { unUserName :: Text }
@@ -383,3 +384,7 @@ usernameBlocklist =
   , "state"
   , "views"
   ]
+
+-- | Convenient way to create a `UserNotFound` value on `Left.`
+userNotFound :: forall a . Text -> Either Err a
+userNotFound = Left . UserNotFound . mappend "User not found: "

@@ -84,7 +84,7 @@ instance S.DBStorage AppM STM User.UserProfile where
 
     User.UserDelete id ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
+        (pure . User.userNotFound $ show id)
         (fmap Right . deleteUser)
      where
       deleteUser _ =
@@ -92,7 +92,7 @@ instance S.DBStorage AppM STM User.UserProfile where
 
     User.UserUpdate id (User.Update mname mbio) ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
+        (pure . User.userNotFound $ show id)
         (fmap Right . updateUser)
      where
       updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
@@ -109,8 +109,6 @@ instance S.DBStorage AppM STM User.UserProfile where
 
     User.SelectUserByUserName username ->
       toList <$> Core.selectUserByUsername db username
-
-userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
 modifyUserProfiles id f userProfiles = STM.modifyTVar userProfiles f $> [id]
 
