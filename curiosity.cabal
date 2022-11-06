@@ -135,6 +135,7 @@ library
     Curiosity.Runtime.Error
     --- runtime: effectful operations that are run in IO. 
     Curiosity.Runtime.IO
+    Curiosity.Runtime.IO.AppM
 
     Curiosity.Server
     Curiosity.Server.Helpers

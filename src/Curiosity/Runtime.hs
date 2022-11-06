@@ -5,8 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 -- brittany-disable-next-binding
 module Curiosity.Runtime
-  ( AppM(..)
-  , emptyReplThreads
+  ( emptyReplThreads
   , emptyHttpThreads
   , spawnEmailThread
   , RunM(..)
@@ -14,7 +13,6 @@ module Curiosity.Runtime
   , state
   , handleCommand
   , submitQuotationSuccess
-  , runAppMSafe
   , runRunM
   , withRuntimeAtomically
   -- * High-level user operations
@@ -25,7 +23,6 @@ module Curiosity.Runtime
   , filterUsers
   , filterUsers'
   , createUser
-  , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
   , selectEntityBySlugResolved
@@ -76,12 +73,12 @@ module Curiosity.Runtime
   , module RType
   , module RErr
   , module RIO
+  , module AppM
   ) where
 
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
-import           Commence.Types.Secret          ( (=:=) )
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens                  as Lens
 import "exceptions" Control.Monad.Catch         ( MonadCatch
@@ -103,6 +100,7 @@ import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Runtime.Error       as RErr
 import           Curiosity.Runtime.IO          as RIO
+import           Curiosity.Runtime.IO.AppM     as AppM
 import           Curiosity.Runtime.Type        as RType
 import qualified Data.Aeson.Text               as Aeson
 import           Data.List                      ( lookup, nub )
@@ -113,8 +111,6 @@ import           Data.UnixTime                  ( formatUnixTime, fromEpochTime 
 import           System.PosixCompat.Types       ( EpochTime )
 import           Prelude                 hiding ( state )
 import qualified Servant
-
-
 
 --------------------------------------------------------------------------------
 showThreads :: Threads -> IO [Text]
@@ -133,32 +129,6 @@ showThreads' mvar = do
 
 
 --------------------------------------------------------------------------------
-newtype AppM a = AppM { runAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadIO
-           , MonadReader Runtime
-           , MonadError Errs.RuntimeErr
-           , MonadThrow
-           , MonadCatch
-           , MonadMask
-           )
-
--- | Run the `AppM` computation catching all possible exceptions.
-runAppMSafe
-  :: forall a m
-   . MonadIO m
-  => Runtime
-  -> AppM a
-  -> m (Either Errs.RuntimeErr a)
-runAppMSafe runtime AppM {..} =
-  liftIO
-    . fmap (join . first Errs.RuntimeException)
-    . try @SomeException
-    . runExceptT
-    $ runReaderT runAppM runtime
-
 -- | `RunM` is basically STM operations (from `Curiosity.Core`) together with
 -- the ability to do IO for logging.
 newtype RunM a = RunM { unRunM :: ReaderT Runtime IO a }
@@ -334,17 +304,9 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in 
+  in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
-
-
---------------------------------------------------------------------------------
--- | Support for logging for the application
-instance ML.MonadAppNameLogMulti AppM where
-  askLoggers = asks _rLoggers
-  localLoggers modLogger =
-    local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
 
 
 --------------------------------------------------------------------------------
@@ -718,13 +680,6 @@ setUserEmailAddrAsVerifiedFull db (user, input) = transaction
     if b
       then setUserEmailAddrAsVerified db input
       else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
-
-instance S.DBTransaction AppM STM where
-  liftTxn =
-    liftIO
-      . fmap (first Errs.RuntimeException)
-      . try @SomeException
-      . STM.atomically
 
 
 --------------------------------------------------------------------------------
@@ -1509,51 +1464,6 @@ createTwoRemittanceAdvs db = do
     (Right id0, Right id1) -> pure (id0, id1)
     _ -> STM.throwSTM $ Invoice.Err "Failed to create remittance advices."
 
---------------------------------------------------------------------------------
--- | Definition of all operations for the UserProfiles (selects and updates)
-instance S.DBStorage AppM STM User.UserProfile where
-
-  type Db AppM STM User.UserProfile = Core.StmDb
-
-  type DBError AppM STM User.UserProfile = User.Err
-
-  dbUpdate db@Data.Db {..} = \case
-
-    User.UserCreate input -> second pure <$> Core.createUserFull db input
-
-    User.UserCreateGeneratingUserId input ->
-      second (pure . fst) <$> Core.createUser db input
-
-    User.UserDelete id ->
-      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
-        (fmap Right . deleteUser)
-     where
-      deleteUser _ =
-        modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
-
-    User.UserUpdate id (User.Update mname mbio) ->
-      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
-        (fmap Right . updateUser)
-     where
-      updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
-      change =
-        set User.userProfileBio mbio . set User.userProfileDisplayName mname
-      replaceOlder users =
-        [ if S.dbId u == id then change u else u | u <- users ]
-
-  dbSelect db = \case
-
-    User.UserLoginWithUserName input -> toList <$> checkCredentials db input
-
-    User.SelectUserById        id    -> toList <$> Core.selectUserById db id
-
-    User.SelectUserByUserName username ->
-      toList <$> Core.selectUserByUsername db username
-
-modifyUserProfiles id f userProfiles = STM.modifyTVar userProfiles f $> [id]
-
 selectUserByIdResolved db id = do
   let usersTVar = Data._dbUserProfiles db
   users' <- STM.readTVar usersTVar
@@ -1629,24 +1539,6 @@ setUserEmailAddrAsVerified db username = do
         pure $ Right ()
       Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
     Nothing -> pure . Left $ User.UserNotFound $ User.unUserName username
-
-checkCredentials
-  :: Core.StmDb -> User.Credentials -> STM (Maybe User.UserProfile)
-checkCredentials db User.Credentials {..} = do
-  mprofile <- Core.selectUserByUsername db _userCredsName
-  case mprofile of
-    Just profile | checkPassword profile _userCredsPassword ->
-      pure $ Just profile
-    _ -> pure Nothing
-
--- TODO Use constant-time string comparison.
-checkPassword :: User.UserProfile -> User.Password -> Bool
-checkPassword profile (User.Password passInput) = storedPass =:= passInput
- where
-  User.Password storedPass =
-    profile ^. User.userProfileCreds . User.userCredsPassword
-
-userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
 selectEntityBySlug :: Core.StmDb -> Text -> STM (Maybe Legal.Entity)
 selectEntityBySlug db name = do
