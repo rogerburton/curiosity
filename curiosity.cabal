@@ -131,6 +131,7 @@ library
     Curiosity.Run
     Curiosity.Runtime
     Curiosity.Runtime.Type
+    Curiosity.Runtime.Error
     Curiosity.Server
     Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended

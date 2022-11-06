@@ -5,22 +5,16 @@
 {-# LANGUAGE TypeFamilies #-}
 -- brittany-disable-next-binding
 module Curiosity.Runtime
-  ( IOErr(..)
-  , UnspeciedErr(..)
+  ( AppM(..)
   , emptyReplThreads
   , emptyHttpThreads
   , spawnEmailThread
-  , AppM(..)
   , RunM(..)
-  , boot
-  , boot'
   , reset
   , state
   , handleCommand
   , submitQuotationSuccess
   , powerdown
-  , readDb
-  , readDbSafe
   , saveDb
   , saveDbAs
   , runAppMSafe
@@ -83,6 +77,7 @@ module Curiosity.Runtime
   , appMHandlerNatTrans
   -- * Re-exports for backwards compat: must be removed in the future.
   , module RType
+  , module RErr
   ) where
 
 import qualified Commence.Multilogging         as ML
@@ -109,21 +104,19 @@ import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
+import           Curiosity.Runtime.Error       as RErr
 import           Curiosity.Runtime.Type        as RType
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
 import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
-import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
 import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
-import qualified Network.HTTP.Types            as HTTP
+import           System.PosixCompat.Types       ( EpochTime )
 import           Prelude                 hiding ( state )
 import qualified Servant
-import           System.Directory               ( doesFileExist )
-import           System.PosixCompat.Types       ( EpochTime )
 
 
 
@@ -195,43 +188,6 @@ instance ML.MonadAppNameLogMulti RunM where
 
 
 --------------------------------------------------------------------------------
--- | Boot up a runtime.
-boot
-  :: MonadIO m
-  => Command.Conf -- ^ configuration to boot with.
-  -> Threads
-  -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf _rThreads =
-  liftIO
-      (  try @SomeException
-      .  ML.makeDefaultLoggersWithConf
-      $  _rConf
-      ^. Command.confLogging
-      )
-    >>= \case
-          Left loggerErrs ->
-            putStrLn @Text
-                (  "Cannot instantiate, logger instantiation failed: "
-                <> show loggerErrs
-                )
-              $> Left (Errs.RuntimeException loggerErrs)
-          Right _rLoggers -> do
-            eDb <- instantiateDb _rConf
-            case eDb of
-              Left  err  -> pure $ Left err
-              Right _rDb -> do
-                pure $ Right Runtime { .. }
-
--- | Create a runtime from a given state.
-boot' :: MonadIO m => Data.HaskDb -> FilePath -> m Runtime
-boot' db logsPath = do
-  let loggingConf = Command.mkLoggingConf logsPath
-      _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
-  _rDb      <- liftIO . STM.atomically $ Core.instantiateStmDb db
-  _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
-  let _rThreads = NoThreads
-  pure $ Runtime { .. }
-
 -- | Reset the database to the empty state.
 reset :: RunM ()
 reset = do
@@ -413,71 +369,6 @@ verifyEmailStepDryRun = do
   records <- liftIO . STM.atomically $
     filterUsers db User.PredicateEmailAddrToVerify
   pure records
-
-{- | Instantiate the db.
-
-1. The state is either the empty db, or if a _confDbFile file is specified, is
-read from the file.
-
-2. Whenever the application exits, the state is written to disk, if a
-_confDbFile is specified.
--}
-instantiateDb
-  :: forall m
-   . MonadIO m
-  => Command.Conf
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-instantiateDb Command.Conf {..} = readDbSafe _confDbFile
-
-readDb
-  :: forall m
-   . MonadIO m
-  => Maybe FilePath
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-readDb mpath = case mpath of
-  Just fpath -> do
-    -- We may want to read the file only when the file exists.
-    exists <- liftIO $ doesFileExist fpath
-    if exists then fromFile fpath else useEmpty
-  Nothing -> useEmpty
- where
-  fromFile fpath = liftIO (try @SomeException $ T.readFile fpath) >>= \case
-    Left err ->
-      putStrLn @Text ("Unable to read db file: " <> maybe "" T.pack mpath)
-        $> Left (Errs.RuntimeException err)
-    Right fdata ->
-           -- We may want to deserialise the data only when the data is non-empty.
-                   if T.null fdata
-      then useEmpty
-      else
-        Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
-          & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
-  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
-
--- | A safer version of readDb: this fails if the file doesn't exist or is
--- empty. This helps in catching early mistake, e.g. from user specifying the
--- wrong file name on the command-line.
-readDbSafe
-  :: forall m
-   . MonadIO m
-  => Maybe FilePath
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-readDbSafe mpath = case mpath of
-  Just fpath -> do
-    -- We may want to read the file only when the file exists.
-    exists <- liftIO $ doesFileExist fpath
-    if exists
-      then fromFile fpath
-      else pure . Left . Errs.knownErr $ FileDoesntExistErr fpath
-  Nothing -> useEmpty
- where
-  fromFile fpath = do
-    fdata <- liftIO (T.readFile fpath)
-    Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
-      & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
-  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
 
 -- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.
@@ -1921,29 +1812,3 @@ deleteForm getTVar db (profile, key) =
   where username = User._userCredsName $ User._userProfileCreds profile
 
 
---------------------------------------------------------------------------------
--- TODO Integrity check:
--- All UserIds must resolve: _entityUsersAndRoles.
--- List containing UserIds should not have duplicates: _entityUsersAndRoles.
-
-
---------------------------------------------------------------------------------
-newtype IOErr = FileDoesntExistErr FilePath
-  deriving Show
-
-instance Errs.IsRuntimeErr IOErr where
-  errCode FileDoesntExistErr{} = "ERR.FILE_NOT_FOUND"
-  httpStatus FileDoesntExistErr{} = HTTP.notFound404
-  userMessage = Just . \case
-    FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
-
--- | A placeholder error type, used until better handling (at the call site) is
--- put in place.
-newtype UnspeciedErr = UnspeciedErr Text
-  deriving Show
-
-instance Errs.IsRuntimeErr UnspeciedErr where
-  errCode UnspeciedErr{} = "ERR.FILE_NOT_FOUND"
-  httpStatus UnspeciedErr{} = HTTP.notFound404
-  userMessage = Just . \case
-    UnspeciedErr msg -> T.unwords ["Error:", msg]
