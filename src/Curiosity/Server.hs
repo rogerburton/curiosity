@@ -3,7 +3,7 @@
            , TypeOperators
 #-} -- Language extensions needed for servant.
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {- |
 Module: Curiosity.Server
 Description: Server root module, split up into public and private sub-modules.
@@ -1048,14 +1048,14 @@ privateT conf authResult =
         => (User.UserProfile -> [Legal.EntityAndRole] -> m' a)
         -> m' a
       withUserResolved' = withUserResolved authResult
-  in  (withUserResolved' showProfilePage)
-        :<|> (withUser' showProfileAsJson)
-        :<|> (withUser' showEditProfilePage)
-        :<|> (withUser' showCreateEntityPage)
-        :<|> (withUser' showCreateUnitPage)
-        :<|> (withUser' showCreateQuotationPage)
-        :<|> (withUser' showCreateContractPage)
-        :<|> (withUser' showCreateInvoicePage)
+  in  withUserResolved' showProfilePage
+        :<|> withUser' showProfileAsJson
+        :<|> withUser' showEditProfilePage
+        :<|> withUser' showCreateEntityPage
+        :<|> withUser' showCreateUnitPage
+        :<|> withUser' showCreateQuotationPage
+        :<|> withUser' showCreateContractPage
+        :<|> withUser' showCreateInvoicePage
         :<|> (withUser' . showEditQuotationPage)
         :<|> (withUser' . showConfirmQuotationPage)
         :<|> (withUser' . handleUserProfileUpdate)
@@ -1163,7 +1163,7 @@ handleUserProfileUpdate update profile = do
 
   case eIds of
     Right (Right [_]) ->
-      pure $ addHeader @"Location" ("/settings/profile") NoContent
+      pure $ addHeader @"Location" "/settings/profile" NoContent
     _ -> Errs.throwError' $ Rt.UnspecifiedErr "Cannot update the user."
 
 
@@ -1208,7 +1208,7 @@ handleNewQuotation'
   :: ServerC m => Quotation.CreateQuotationAll -> User.UserProfile -> m Text
 handleNewQuotation' quotation profile =
   ML.localEnv (<> "HTTP" <> "CreateQuotationAll") $ do
-    ML.info $ "Instanciating new quotation form..."
+    ML.info "Instantiating new quotation form..."
     key <- withRuntime $ Rt.formNewQuotation' profile quotation
     ML.info $ "New quotation form instanciated: " <> key
     pure key
@@ -2254,7 +2254,7 @@ withUser
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> m a)
   -> m a
-withUser authResult f = withMaybeUser authResult (authFailedErr . show) f
+withUser authResult = withMaybeUser authResult (authFailedErr . show) 
  where
   authFailedErr = Errs.throwError' . User.UserNotFound . mappend
     "Authentication failed, please login again. Error: "
@@ -2481,8 +2481,8 @@ handleRun
   -> m Pages.EchoPage
 handleRun authResult (Data.Command cmd) = withMaybeUser
   authResult
-  (\_ -> run' Nothing >>= pure . Pages.EchoPage)
-  (\profile -> run' (Just profile) >>= pure . Pages.EchoPage)
+  (\_ -> run' Nothing <&> Pages.EchoPage)
+  (\profile -> run' (Just profile) <&> Pages.EchoPage)
  where
   run' mprofile = do
     runtime <- ask
