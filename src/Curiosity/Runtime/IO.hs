@@ -1,8 +1,8 @@
 module Curiosity.Runtime.IO
   (
     -- * managing runtimes: boot, shutdown etc. 
-    boot
-  , boot'
+    bootConf
+  , bootDbAndLogFile
   , instantiateDb
   , readDb
   , readDbSafe
@@ -30,12 +30,12 @@ import           System.Directory               ( doesFileExist )
 
 --------------------------------------------------------------------------------
 -- | Boot up a runtime.
-boot
+bootConf
   :: MonadIO m
-  => Command.Conf -- ^ configuration to boot with.
+  => Command.Conf -- ^ configuration to bootConf with.
   -> Threads
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf _rThreads =
+bootConf _rConf _rThreads =
   liftIO
       (  try @SomeException
       .  ML.makeDefaultLoggersWithConf
@@ -56,8 +56,8 @@ boot _rConf _rThreads =
               Right _rDb -> Right Runtime { .. }
 
 -- | Create a runtime from a given state.
-boot' :: MonadIO m => Data.HaskDb -> FilePath -> m Runtime
-boot' db logsPath = do
+bootDbAndLogFile :: MonadIO m => Data.HaskDb -> FilePath -> m Runtime
+bootDbAndLogFile db logsPath = do
   let loggingConf = Command.mkLoggingConf logsPath
       _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
   _rDb      <- liftIO . STM.atomically $ Core.instantiateStmDb db
