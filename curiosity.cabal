@@ -130,6 +130,7 @@ library
     Curiosity.Process
     Curiosity.Run
     Curiosity.Runtime
+    Curiosity.Runtime.Type
     Curiosity.Server
     Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended
