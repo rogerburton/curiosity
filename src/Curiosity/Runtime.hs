@@ -1040,7 +1040,7 @@ formNewQuotation
   -> RunM (Either User.Err Text)
 formNewQuotation user input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
-    ML.info $ "Instanciating new quotation form..."
+    ML.info "Instantiating new quotation form..."
     db   <- asks _rDb
     mkey <-
       liftIO . STM.atomically $ Core.selectUserByUsername db user >>= \case
@@ -1059,7 +1059,7 @@ formNewQuotation'
   :: User.UserProfile -> Quotation.CreateQuotationAll -> RunM Text
 formNewQuotation' profile input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
-    ML.info $ "Instanciating new quotation form..."
+    ML.info "Instantiating new quotation form..."
     db  <- asks _rDb
     key <- liftIO . STM.atomically $ do
       newCreateQuotationForm db (profile, input)
@@ -1178,8 +1178,8 @@ submitCreateQuotationForm'
   -> Maybe User.UserProfile
   -> STM
        (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
-submitCreateQuotationForm' db (profile, input) resolvedClient = do
-  let mc = Quotation.validateCreateQuotation profile input resolvedClient
+submitCreateQuotationForm' db (profile, input) mResolvedClient = do
+  let mc = Quotation.validateCreateQuotation profile input mResolvedClient
   case mc of
     Right (c, resolvedClient) -> do
       mid <- createQuotation db c
@@ -1508,7 +1508,7 @@ filterUsers' predicate = do
 
 createUser :: User.Signup -> RunM (Either User.Err User.UserId)
 createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
-  ML.info $ "Creating user..."
+  ML.info "Creating user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.createUser db input
   case muid of

@@ -1190,12 +1190,12 @@ handleSetQuotationAsSigned
   => Quotation.SetQuotationAsSigned
   -> User.UserProfile
   -> m Pages.ActionResult
-handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned id) profile
+handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned qid) profile
   = do
     db     <- asks Rt._rDb
     output <- liftIO . atomically $ Rt.setQuotationAsSignedFull
       db
-      (profile, id)
+      (profile, qid)
     pure $ Pages.ActionResult "Set quotation as signed" $ case output of
       Right id  -> "Success. Order created: " <> Order.unOrderId id
       Left  err -> "Failure: " <> show err
