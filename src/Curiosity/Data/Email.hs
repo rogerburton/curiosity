@@ -114,7 +114,7 @@ applyPredicate (AndEmails predicates) email =
 
 
 --------------------------------------------------------------------------------
-data Err = Err
+newtype Err = Err
   { unErr :: Text
   }
   deriving (Eq, Exception, Show)
