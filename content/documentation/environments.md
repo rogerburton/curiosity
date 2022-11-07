@@ -81,10 +81,11 @@ automatically.
 
 ## Environment variables
 
-When running `cty serve`, the location of the documentation and the example
-data files must be known by the application in order to serve them. Those
-locations can be passed by using the `--static-dir` and `--data-dir`
-command-line options. For convenience, the above environments contain two
-environment variables, `CURIOSITY_STATIC_DIR` and `CURIOSITY_DATA_DIR` that are
-set to the right values. Those environment variables take precedence over the
-command-line options.
+When running `cty serve`, the location of the documentation, the example
+data files, and the scenarios must be known by the application in order to
+serve them. Those locations can be passed by using the `--static-dir`,
+`--data-dir`, and `scenarios-dir` command-line options. For convenience, the
+above environments contain three environment variables, `CURIOSITY_STATIC_DIR`,
+`CURIOSITY_DATA_DIR`, and `CURIOSITY_SCENARIOS_DIR` that are set to the right
+values. Those environment variables take precedence over the command-line
+options.

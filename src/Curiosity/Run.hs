@@ -77,11 +77,13 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
   -- Allow to set the static and data directories through environment
   -- variable. This is useful to bake the correct values in a Docker image
   -- or a virtual machine image, instead of having the user provide them.
-  mstaticDir <- lookupEnv "CURIOSITY_STATIC_DIR"
-  mdataDir   <- lookupEnv "CURIOSITY_DATA_DIR"
+  mstaticDir   <- lookupEnv "CURIOSITY_STATIC_DIR"
+  mdataDir     <- lookupEnv "CURIOSITY_DATA_DIR"
+  mscenariosDir <- lookupEnv "CURIOSITY_SCENARIOS_DIR"
   let serverConf' =
         maybe identity (\a c -> c { P._serverDataDir = a }) mdataDir
           . maybe identity (\a c -> c { P._serverStaticDir = a }) mstaticDir
+          . maybe identity (\a c -> c { P._serverScenariosDir = a }) mscenariosDir
           $ serverConf
 
   case target of
