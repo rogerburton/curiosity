@@ -47,6 +47,14 @@ data Command =
     -- ^ Parse a single command.
   | State Bool
     -- ^ Show the full state. If True, use Haskell format instead of JSON.
+  | Threads
+    -- ^ Show the state of the threads.
+  | StartEmail
+    -- ^ Spwan the thread processing enqueued emails.
+  | StopEmail
+    -- ^ Kill the thread processing enqueued emails.
+  | StepEmail
+    -- ^ Run one iteration of the email processing loop.
   | CreateBusinessEntity Business.Create
   | UpdateBusinessEntity Business.Update
   | CreateLegalEntity Legal.Create
@@ -231,6 +239,30 @@ parser =
            )
 
       <> A.command
+           "threads"
+           ( A.info (parserThreads <**> A.helper)
+           $ A.progDesc "Show the threads state"
+           )
+
+      <> A.command
+           "start-email"
+           ( A.info (parserStartEmail <**> A.helper)
+           $ A.progDesc "Start the thread processing enqueued emails"
+           )
+
+      <> A.command
+           "stop-email"
+           ( A.info (parserStopEmail <**> A.helper)
+           $ A.progDesc "Stop the thread processing enqueued emails"
+           )
+
+      <> A.command
+           "step-email"
+           ( A.info (parserStepEmail <**> A.helper)
+           $ A.progDesc "Run one iteration of the email processing loop"
+           )
+
+      <> A.command
            "business"
            ( A.info (parserBusiness <**> A.helper)
            $ A.progDesc "Commands related to business entities"
@@ -369,6 +401,18 @@ parserObject =
 parserState :: A.Parser Command
 parserState = State <$> A.switch
   (A.long "hs" <> A.help "Use the Haskell format (default is JSON).")
+
+parserThreads :: A.Parser Command
+parserThreads = pure Threads
+
+parserStartEmail :: A.Parser Command
+parserStartEmail = pure StartEmail
+
+parserStopEmail :: A.Parser Command
+parserStopEmail = pure StopEmail
+
+parserStepEmail :: A.Parser Command
+parserStepEmail = pure StepEmail
 
 parserBusiness :: A.Parser Command
 parserBusiness =

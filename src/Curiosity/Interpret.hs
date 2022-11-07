@@ -30,7 +30,7 @@ import qualified System.FilePath.Glob          as Glob
 --------------------------------------------------------------------------------
 handleRun :: P.Conf -> User.UserName -> FilePath -> IO ExitCode
 handleRun conf user scriptPath = do
-  runtime <- Rt.boot conf >>= either throwIO pure
+  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
   code    <- interpret runtime user scriptPath
   Rt.powerdown runtime
   exitWith code
@@ -43,7 +43,7 @@ handleRun' scriptPath = do
         { P._confLogging = P.mkLoggingConf "/tmp/cty-serve-explore.log"
         , P._confDbFile  = Nothing
         }
-  runtime <- Rt.boot conf >>= either throwIO pure
+  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
   output  <- interpretFile runtime "system" scriptPath 0
   Rt.powerdown runtime
   pure output

@@ -754,7 +754,10 @@ showHomePage authResult = withMaybeUser
     mquotationForms <-
           withRuntime $ Rt.readCreateQuotationForms' profile
     emails <- withRuntime $ Rt.filterEmails'
-      (Email.EmailsFor $ User._userProfileEmailAddr profile)
+      (Email.AndEmails
+        [ Email.EmailsFor $ User._userProfileEmailAddr profile
+        , Email.EmailsDone
+        ])
     quotations <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
     orders <- withRuntime $ Rt.filterOrders' Order.AllOrders
     let quotationForms = either (const []) identity mquotationForms

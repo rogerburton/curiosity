@@ -106,12 +106,22 @@ spec = do
               , Data._dbNextEmailId  = C.CounterValue 2
               , Data._dbEmails       = Identity
                   [Email.Email "EMAIL-1" Email.SignupConfirmationEmail
-                    Email.systemEmailAddr "alice@example.com"]
+                    Email.systemEmailAddr "alice@example.com" Email.EmailTodo]
+              }
+        -- The same state, but with the email set to DONE.
+        let aliceState' = Data.emptyHask
+              { Data._dbNextUserId   = C.CounterValue 2
+              , Data._dbUserProfiles = Identity [alice]
+              , Data._dbNextEmailId  = C.CounterValue 2
+              , Data._dbEmails       = Identity
+                  [Email.Email "EMAIL-1" Email.SignupConfirmationEmail
+                    Email.systemEmailAddr "alice@example.com" Email.EmailDone]
               }
         mapM_
           go
           [ ("init" , Data.emptyHask)
           , ("user create alice a alice@example.com --accept-tos", aliceState)
+          , ("step-email", aliceState')
           , ("reset", Data.emptyHask)
           ]
 

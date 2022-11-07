@@ -8,6 +8,10 @@ module Curiosity.Runtime
   ( IOErr(..)
   , UnspeciedErr(..)
   , Runtime(..)
+  , Threads(..)
+  , emptyReplThreads
+  , emptyHttpThreads
+  , spawnEmailThread
   , rConf
   , rDb
   , rLoggers
@@ -124,12 +128,41 @@ import           System.Directory               ( doesFileExist )
 
 --------------------------------------------------------------------------------
 -- | The runtime, a central product type that should contain all our runtime
--- supporting values: the STM state, and loggers.
+-- supporting values: the STM state, loggers, and processing threads.
 data Runtime = Runtime
   { _rConf    :: Command.Conf -- ^ The application configuration.
   , _rDb      :: Core.StmDb Runtime -- ^ The Storage.
   , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
+  , _rThreads :: Threads -- ^ Additional threads running e.g. async tasks.
   }
+
+-- | Describes the threading configuration: what the main thread is, and what
+-- additional threads can be created.
+data Threads =
+    NoThreads
+    -- ^ Means that threads can't be started or stopped dynamically.
+  | ReplThreads
+    -- ^ Means the main thread is the REPL, started with `cty repl`.
+    { _tEmailThread :: MVar ThreadId
+    }
+  | HttpThreads
+    -- ^ Means the main thread is the HTTP server, started with `cty serve`.
+    { _tEmailThread :: MVar ThreadId
+    }
+
+showThreads :: Threads -> IO [Text]
+showThreads ts =
+  case ts of
+    NoThreads -> pure ["Threads are disabled."]
+    ReplThreads mvar -> showThreads' mvar
+    HttpThreads mvar -> showThreads' mvar
+
+showThreads' :: MVar ThreadId -> IO [Text]
+showThreads' mvar = do
+  b <- isEmptyMVar mvar
+  if b
+    then pure ["Email thread: stopped."]
+    else pure ["Email thread: running."]
 
 makeLenses ''Runtime
 
@@ -190,8 +223,9 @@ instance ML.MonadAppNameLogMulti RunM where
 boot
   :: MonadIO m
   => Command.Conf -- ^ configuration to boot with.
+  -> Threads
   -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf =
+boot _rConf _rThreads =
   liftIO
       (  try @SomeException
       .  ML.makeDefaultLoggersWithConf
@@ -207,9 +241,10 @@ boot _rConf =
               $> Left (Errs.RuntimeException loggerErrs)
           Right _rLoggers -> do
             eDb <- instantiateDb _rConf
-            pure $ case eDb of
-              Left  err  -> Left err
-              Right _rDb -> Right Runtime { .. }
+            case eDb of
+              Left  err  -> pure $ Left err
+              Right _rDb -> do
+                pure $ Right Runtime { .. }
 
 -- | Create a runtime from a given state.
 boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
@@ -218,6 +253,7 @@ boot' db logsPath = do
       _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
   _rDb      <- liftIO . STM.atomically $ Core.instantiateStmDb db
   _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
+  let _rThreads = NoThreads
   pure $ Runtime { .. }
 
 -- | Reset the database to the empty state.
@@ -274,6 +310,86 @@ state :: RunM (Data.HaskDb Runtime)
 state = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readFullStmDbInHask' db
+
+-- | Retrieve the threads state.
+threads :: RunM [Text]
+threads = do
+  ts <- asks _rThreads
+  liftIO $ showThreads ts
+
+emptyReplThreads :: IO Threads
+emptyReplThreads = do
+  mvar <- newEmptyMVar
+  pure $ ReplThreads mvar
+
+emptyHttpThreads :: IO Threads
+emptyHttpThreads = do
+  mvar <- newEmptyMVar
+  pure $ HttpThreads mvar
+
+spawnEmailThread :: RunM Text
+spawnEmailThread = do
+  runtime <- ask
+  ts <- asks _rThreads
+  case ts of
+    NoThreads -> pure "Threads are disabled."
+    ReplThreads mvar -> spawnEmailThread' runtime mvar
+    HttpThreads mvar -> spawnEmailThread' runtime mvar
+
+spawnEmailThread' :: Runtime -> MVar ThreadId -> RunM Text
+spawnEmailThread' runtime mvar = do
+  mthread <- liftIO $ tryTakeMVar mvar
+  case mthread of
+    Nothing -> do
+      ML.localEnv (<> "Threads" <> "Email") $ do
+        ML.info $ "Starting email thread."
+      liftIO $ do
+        t <- forkIO $ runRunM runtime emailThread
+        putMVar mvar t
+        pure "Email thread started."
+    Just t -> do
+      liftIO $ putMVar mvar t
+      pure "Email thread alread running."
+
+killEmailThread :: RunM Text
+killEmailThread = do
+  ts <- asks _rThreads
+  case ts of
+    NoThreads -> pure "Threads are disabled."
+    ReplThreads mvar -> killEmailThread' mvar
+    HttpThreads mvar -> killEmailThread' mvar
+
+killEmailThread' :: MVar ThreadId -> RunM Text
+killEmailThread' mvar = do
+  mthread <- liftIO $ tryTakeMVar mvar
+  case mthread of
+    Nothing -> do
+      pure "Email thread already stopped."
+    Just t -> do
+      ML.localEnv (<> "Threads" <> "Email") $ do
+        ML.info $ "Stopping email thread."
+      liftIO $ killThread t
+      pure "Email thread stopped."
+
+emailThread :: RunM ()
+emailThread = do
+  let loop = do
+        liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
+        emailStep
+        loop
+  loop
+
+-- | One iteration of the `emailThread` loop.
+emailStep :: RunM ()
+emailStep = do
+  db <- asks _rDb
+  emails <- liftIO . STM.atomically $
+    filterEmails db Email.EmailsTodo
+  ML.localEnv (<> "Threads" <> "Email") $ do
+    when (not . null $ emails) $
+      ML.info $ "Processing " <> show (length emails) <> " emails..."
+  -- TODO Have a single operation ?
+  liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
 
 {- | Instantiate the db.
 
@@ -381,6 +497,18 @@ handleCommand runtime@Runtime {..} user command = do
             then show value
             else LT.toStrict (Aeson.encodeToLazyText value)
       pure (ExitSuccess, [value'])
+    Command.Threads -> do
+      value <- runRunM runtime threads
+      pure (ExitSuccess, value)
+    Command.StartEmail -> do
+      value <- runRunM runtime spawnEmailThread
+      pure (ExitSuccess, [value])
+    Command.StopEmail -> do
+      value <- runRunM runtime killEmailThread
+      pure (ExitSuccess, [value])
+    Command.StepEmail -> do
+      runRunM runtime emailStep
+      pure (ExitSuccess, ["Email queue processed."])
     Command.CreateBusinessEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
         _rDb
@@ -724,6 +852,7 @@ createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
 
+updateLegal :: Core.StmDb runtime -> Legal.Update -> STM (Either User.Err ())
 updateLegal db Legal.Update {..} = do
   mentity <- selectEntityBySlug db _updateSlug
   case mentity of
@@ -1578,7 +1707,7 @@ createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
   case muid of
     Right (User.UserId uid, Email.EmailId eid) -> do
       ML.info $ "User created: " <> uid
-      ML.info $ "Signup confirmation email sent: " <> eid
+      ML.info $ "Signup confirmation email enqueued: " <> eid
       pure . Right $ User.UserId uid
     Left err -> do
       ML.info $ "Failed to create user: " <> show err
@@ -1688,6 +1817,21 @@ filterEmails' :: Email.Predicate -> RunM [Email.Email]
 filterEmails' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterEmails db predicate
+
+setEmailDone :: Core.StmDb runtime -> Email.Email -> STM (Either Email.Err ())
+setEmailDone db Email.Email {..} = do
+  mrecord <- Core.selectEmailById db _emailId
+  case mrecord of
+    Just Email.Email {} -> do
+      let replaceOlder records =
+            [ if Email._emailId e == _emailId
+                then e { Email._emailState = Email.EmailDone }
+                else e
+            | e <- records
+            ]
+      Core.modifyEmails db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ Email.Err "Email not found" -- TODO
 
 
 --------------------------------------------------------------------------------
