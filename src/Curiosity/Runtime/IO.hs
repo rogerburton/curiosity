@@ -167,8 +167,7 @@ saveDbAs runtime fpath = do
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHask
-  :: forall runtime m
-   . MonadIO m
+  :: MonadIO m
   => Core.StmDb
   -> m Data.HaskDb
 readFullStmDbInHask = liftIO . STM.atomically . Core.readFullStmDbInHask'
