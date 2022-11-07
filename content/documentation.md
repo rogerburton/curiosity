@@ -24,6 +24,7 @@ title: Curiosity
 - [Permissions](/documentation/permissions)
 - [Scenarios](/documentation/scenarios)
 - [Sitemap](/documentation/sitemap)
+- [Smart](/documentation/smart)
 - [Source code](/documentation/source)
 - [state-0](/documentation/state-0)
 - [UBL](/documentation/ubl)

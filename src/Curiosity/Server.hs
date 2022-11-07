@@ -490,6 +490,9 @@ type Partials =
   :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
   :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
 
+  :<|> "partials" :> "scenarios"
+       :> Capture "name" FilePath :> Get '[B.HTML] H.Html
+
   -- live data
   :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
   :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
@@ -629,6 +632,7 @@ partials scenariosDir =
     :<|> partialPermissionsAsJson
     :<|> partialScenarios scenariosDir
     :<|> partialScenariosAsJson scenariosDir
+    :<|> partialScenario scenariosDir
 
     -- live data
     :<|> partialLegalEntities
@@ -2492,7 +2496,7 @@ showScenario :: ServerC m => FilePath -> FilePath -> m H.Html
 showScenario scenariosDir name = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
-  pure . H.code . H.pre $ mapM_ displayTrace ts
+  pure . H.pre . H.code $ mapM_ displayTrace ts
  where
   displayTrace Inter.Trace {..} = do
     H.text
@@ -2548,6 +2552,58 @@ partialScenarios scenariosDir = do
 
 partialScenariosAsJson :: ServerC m => FilePath -> m [FilePath]
 partialScenariosAsJson = listScenarioNames
+
+-- | Similar to `showScenario` but with a richer rendering.
+partialScenario :: ServerC m => FilePath -> FilePath -> m H.Html
+partialScenario scenariosDir name = do
+  let path = scenariosDir </> name <> ".txt"
+  ts <- liftIO $ Inter.handleRun' path
+  pure $ do
+    H.style
+      ".c-display table code {\n\
+      \background: white;\n\
+      \ white-space: normal;\n\
+      \}\n\
+      \.c-display table td {\n\
+      \  padding-top: 0;\n\
+      \  padding-bottom: 0;\n\
+      \}\n\
+      \.c-display table a {\n\
+      \  border-bottom: 0;\n\
+      \}\n"
+    H.table $ do
+      H.thead $
+        H.tr ! A.class_ "header" $ do
+          H.th "Line"
+          H.th "Command"
+          H.th "State"
+      H.tbody $
+        mapM_ displayTrace ts
+ where
+  displayTrace Inter.Trace {..} = do
+    H.tr $ do
+      H.td $ H.text
+        $  Inter.pad traceNesting
+        <> show traceLineNbr
+      H.td . H.code $ H.text $ traceCommand
+      H.td $ H.a
+        ! A.href
+            (  H.toValue
+            $  "/scenarios/"
+            <> name
+            <> "/"
+            <> show traceNumber
+            <> "/state.json"
+            )
+        $ "View"
+    mapM_ (\o -> H.tr $ do
+                   H.td ""
+                   (H.td ! A.colspan "3") . H.code $ H.text (Inter.pad traceNesting) >> H.text o)
+          traceOutput
+    mapM_ displayTrace traceNested
+  -- CSS improvements: remove whitespace: pre
+  --                   remove background: F2F2F2
+  --                   remove padding on td
 
 listScenarioNames scenariosDir = do
   paths <- liftIO $ Inter.listScenarios scenariosDir
