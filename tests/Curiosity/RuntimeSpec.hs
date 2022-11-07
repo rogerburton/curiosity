@@ -5,7 +5,8 @@ module Curiosity.RuntimeSpec
 import           Curiosity.Core
 import           Curiosity.Data
 import           Curiosity.Data.User
-import           Curiosity.Runtime              (boot', _rDb)
+import           Curiosity.Runtime.IO           ( bootDbAndLogFile )
+import           Curiosity.Runtime.Type         ( _rDb )
 import           Test.Hspec
 
 
@@ -15,7 +16,7 @@ spec = do
   describe "Runtime" $ do
     it "Should boot." $ do
       -- TODO I don't like that this involves logging stuff.
-      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-1.log"
+      runtime <- bootDbAndLogFile emptyHask "/tmp/curiosity-test-xxx-1.log"
       let db = _rDb runtime
       st <- atomically $ readFullStmDbInHask' db
       st `shouldBe` emptyHask
@@ -26,14 +27,14 @@ spec = do
       -- otherwise a "resource busy (file is locked)" will occur.
       -- Which is indeed related to logging, which I'd like to remove from
       -- these tests / runtime.
-      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-2.log"
+      runtime <- bootDbAndLogFile emptyHask "/tmp/curiosity-test-xxx-2.log"
       let db = _rDb runtime
       muser <- atomically $ selectUserById db "USER-1"
 
       muser `shouldBe` Nothing
 
     it "Adding a user, returns a user and an email." $ do
-      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-3.log"
+      runtime <- bootDbAndLogFile emptyHask "/tmp/curiosity-test-xxx-3.log"
       let db = _rDb runtime
           input = Signup "alice" "secret" "alice@example.com" True
       Right (uid, eid) <- atomically $ createUser db input
@@ -45,7 +46,7 @@ spec = do
       eid `shouldBe` "EMAIL-1"
 
     it "Blocklisted username cannot be used." $ do
-      runtime <- boot' emptyHask "/tmp/curiosity-test-xxx-4.log"
+      runtime <- bootDbAndLogFile emptyHask "/tmp/curiosity-test-xxx-4.log"
       let db = _rDb runtime
           input = Signup "smartcoop" "secret" "smartcoop@example.com" True
       muser <- atomically $ createUser db input

@@ -29,7 +29,7 @@ mainParserInfo =
 
 runWithConf conf = do
   putStrLn @Text "Creating runtime..."
-  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
 
   putStrLn @Text "Creating curiosity.sock..."
   sock <- socket AF_UNIX Stream 0

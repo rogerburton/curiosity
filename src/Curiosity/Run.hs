@@ -59,7 +59,7 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
 run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget path) _)
   = do
     runtime <-
-      Rt.boot conf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
+      Rt.bootConf conf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
     Rt.runRunM runtime $ Rt.reset
     Rt.powerdown runtime
     exitSuccess
@@ -67,7 +67,7 @@ run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget pat
 run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget _) (Command.User user))
   = do
     threads <- Rt.emptyReplThreads
-    runtime <- Rt.boot conf threads >>= either throwIO pure
+    runtime <- Rt.bootConf conf threads >>= either throwIO pure
     let handleExceptions = (`catch` P.shutdown runtime . Just)
     handleExceptions $ do
       repl runtime user
@@ -200,7 +200,7 @@ run (Command.CommandWithTarget (Command.Step isAll dryRun) target (Command.User 
 run (Command.CommandWithTarget (Command.Log msg conf) (Command.StateFileTarget path) _)
   = do
     runtime <-
-      Rt.boot conf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
+      Rt.bootConf conf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
     P.logInfo (<> "CLI" <> "Log") (Rt._rLoggers runtime) msg
     Rt.powerdown runtime
     exitSuccess
@@ -230,7 +230,7 @@ run (Command.CommandWithTarget command target (Command.User user)) = do
 handleServe :: P.Conf -> P.ServerConf -> IO ExitCode
 handleServe conf serverConf = do
   threads <- Rt.emptyHttpThreads
-  runtime@Rt.Runtime {..} <- Rt.boot conf threads >>= either throwIO pure
+  runtime@Rt.Runtime {..} <- Rt.bootConf conf threads >>= either throwIO pure
   Rt.runRunM runtime Rt.spawnEmailThread
   P.startServer serverConf runtime >>= P.endServer _rLoggers
   mPowerdownErrs <- Rt.powerdown runtime
@@ -266,7 +266,7 @@ handleShowId conf user i = do
 
 --------------------------------------------------------------------------------
 handleCommand conf user command = do
-  runtime            <- Rt.boot conf Rt.NoThreads >>= either handleError pure
+  runtime            <- Rt.bootConf conf Rt.NoThreads >>= either handleError pure
 
   (exitCode, output) <- Rt.handleCommand runtime user command
   mapM_ putStrLn output

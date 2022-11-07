@@ -1,34 +1,18 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 -- brittany-disable-next-binding
 module Curiosity.Runtime
-  ( IOErr(..)
-  , UnspeciedErr(..)
-  , Runtime(..)
-  , Threads(..)
-  , emptyReplThreads
+  ( emptyReplThreads
   , emptyHttpThreads
   , spawnEmailThread
-  , rConf
-  , rDb
-  , rLoggers
-  , AppM(..)
   , RunM(..)
-  , boot
-  , boot'
   , reset
   , state
   , handleCommand
   , submitQuotationSuccess
-  , powerdown
-  , readDb
-  , readDbSafe
-  , saveDb
-  , saveDbAs
-  , runAppMSafe
   , runRunM
   , withRuntimeAtomically
   -- * High-level user operations
@@ -39,7 +23,6 @@ module Curiosity.Runtime
   , filterUsers
   , filterUsers'
   , createUser
-  , checkCredentials
   -- * High-level entity operations
   , selectEntityBySlug
   , selectEntityBySlugResolved
@@ -86,12 +69,16 @@ module Curiosity.Runtime
   , filterEmails'
   -- * Servant compat
   , appMHandlerNatTrans
+  -- * Re-exports for backwards compat: must be removed in the future.
+  , module RType
+  , module RErr
+  , module RIO
+  , module AppM
   ) where
 
 import qualified Commence.Multilogging         as ML
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Commence.Runtime.Storage      as S
-import           Commence.Types.Secret          ( (=:=) )
 import qualified Control.Concurrent.STM        as STM
 import           Control.Lens                  as Lens
 import "exceptions" Control.Monad.Catch         ( MonadCatch
@@ -111,47 +98,21 @@ import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.SimpleContract as SimpleContract
 import qualified Curiosity.Data.User           as User
-import qualified Curiosity.Parse               as Command
+import           Curiosity.Runtime.Error       as RErr
+import           Curiosity.Runtime.IO          as RIO
+import           Curiosity.Runtime.IO.AppM     as AppM
+import           Curiosity.Runtime.Type        as RType
 import qualified Data.Aeson.Text               as Aeson
-import qualified Data.ByteString.Lazy          as BS
 import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
-import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
-import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
 import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
-import qualified Network.HTTP.Types            as HTTP
+import           System.PosixCompat.Types       ( EpochTime )
 import           Prelude                 hiding ( state )
 import qualified Servant
-import           System.Directory               ( doesFileExist )
-import           System.PosixCompat.Types       ( EpochTime )
-
 
 --------------------------------------------------------------------------------
--- | The runtime, a central product type that should contain all our runtime
--- supporting values: the STM state, loggers, and processing threads.
-data Runtime = Runtime
-  { _rConf    :: Command.Conf -- ^ The application configuration.
-  , _rDb      :: Core.StmDb -- ^ The Storage.
-  , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
-  , _rThreads :: Threads -- ^ Additional threads running e.g. async tasks.
-  }
-
--- | Describes the threading configuration: what the main thread is, and what
--- additional threads can be created.
-data Threads =
-    NoThreads
-    -- ^ Means that threads can't be started or stopped dynamically.
-  | ReplThreads
-    -- ^ Means the main thread is the REPL, started with `cty repl`.
-    { _tEmailThread :: MVar ThreadId
-    }
-  | HttpThreads
-    -- ^ Means the main thread is the HTTP server, started with `cty serve`.
-    { _tEmailThread :: MVar ThreadId
-    }
-
 showThreads :: Threads -> IO [Text]
 showThreads ts =
   case ts of
@@ -166,36 +127,8 @@ showThreads' mvar = do
     then pure ["Email thread: stopped."]
     else pure ["Email thread: running."]
 
-makeLenses ''Runtime
-
 
 --------------------------------------------------------------------------------
-newtype AppM a = AppM { runAppM :: ReaderT Runtime (ExceptT Errs.RuntimeErr IO) a }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadIO
-           , MonadReader Runtime
-           , MonadError Errs.RuntimeErr
-           , MonadThrow
-           , MonadCatch
-           , MonadMask
-           )
-
--- | Run the `AppM` computation catching all possible exceptions.
-runAppMSafe
-  :: forall a m
-   . MonadIO m
-  => Runtime
-  -> AppM a
-  -> m (Either Errs.RuntimeErr a)
-runAppMSafe runtime AppM {..} =
-  liftIO
-    . fmap (join . first Errs.RuntimeException)
-    . try @SomeException
-    . runExceptT
-    $ runReaderT runAppM runtime
-
 -- | `RunM` is basically STM operations (from `Curiosity.Core`) together with
 -- the ability to do IO for logging.
 newtype RunM a = RunM { unRunM :: ReaderT Runtime IO a }
@@ -221,90 +154,14 @@ instance ML.MonadAppNameLogMulti RunM where
 
 
 --------------------------------------------------------------------------------
--- | Boot up a runtime.
-boot
-  :: MonadIO m
-  => Command.Conf -- ^ configuration to boot with.
-  -> Threads
-  -> m (Either Errs.RuntimeErr Runtime)
-boot _rConf _rThreads =
-  liftIO
-      (  try @SomeException
-      .  ML.makeDefaultLoggersWithConf
-      $  _rConf
-      ^. Command.confLogging
-      )
-    >>= \case
-          Left loggerErrs ->
-            putStrLn @Text
-                (  "Cannot instantiate, logger instantiation failed: "
-                <> show loggerErrs
-                )
-              $> Left (Errs.RuntimeException loggerErrs)
-          Right _rLoggers -> do
-            eDb <- instantiateDb _rConf
-            case eDb of
-              Left  err  -> pure $ Left err
-              Right _rDb -> do
-                pure $ Right Runtime { .. }
-
--- | Create a runtime from a given state.
-boot' :: MonadIO m => Data.HaskDb -> FilePath -> m Runtime
-boot' db logsPath = do
-  let loggingConf = Command.mkLoggingConf logsPath
-      _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
-  _rDb      <- liftIO . STM.atomically $ Core.instantiateStmDb db
-  _rLoggers <- ML.makeDefaultLoggersWithConf loggingConf
-  let _rThreads = NoThreads
-  pure $ Runtime { .. }
-
 -- | Reset the database to the empty state.
 reset :: RunM ()
 reset = do
   ML.localEnv (<> "Command" <> "Reset")
-    $ ML.info
+    . ML.info
     $ "Resetting to the empty state."
   db <- asks _rDb
   liftIO . STM.atomically $ Core.reset db
-
--- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask :: MonadIO m => Core.StmDb -> m Data.HaskDb
-readFullStmDbInHask = liftIO . STM.atomically . Core.readFullStmDbInHask'
-
--- | Power down the application: attempting to save the DB state in given file,
--- if possible, and reporting errors otherwise.
-powerdown :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-powerdown runtime@Runtime {..} = do
-  mDbSaveErr <- saveDb runtime
-  reportDbSaveErr mDbSaveErr
-  -- finally, close loggers.
-  eLoggingCloseErrs <- liftIO . try @SomeException $ ML.flushAndCloseLoggers
-    _rLoggers
-  reportLoggingCloseErrs eLoggingCloseErrs
-  pure $ mDbSaveErr <|> first Errs.RuntimeException eLoggingCloseErrs ^? _Left
- where
-  reportLoggingCloseErrs eLoggingCloseErrs =
-    when (isLeft eLoggingCloseErrs)
-      .  putStrLn @Text
-      $  "Errors when closing loggers: "
-      <> show eLoggingCloseErrs
-  reportDbSaveErr mDbSaveErr =
-    when (isJust mDbSaveErr)
-      .  putStrLn @Text
-      $  "DB state cannot be saved: "
-      <> show mDbSaveErr
-
-saveDb :: MonadIO m => Runtime -> m (Maybe Errs.RuntimeErr)
-saveDb runtime =
-  maybe (pure Nothing) (saveDbAs runtime) $ _rConf runtime ^. Command.confDbFile
-
-saveDbAs :: MonadIO m => Runtime -> FilePath -> m (Maybe Errs.RuntimeErr)
-saveDbAs runtime fpath = do
-  haskDb <- readFullStmDbInHask $ _rDb runtime
-  let bs = Data.serialiseDb haskDb
-  liftIO
-      (try @SomeException (T.writeFile fpath . TE.decodeUtf8 $ BS.toStrict bs))
-    <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
@@ -436,71 +293,6 @@ verifyEmailStepDryRun = do
     filterUsers db User.PredicateEmailAddrToVerify
   pure records
 
-{- | Instantiate the db.
-
-1. The state is either the empty db, or if a _confDbFile file is specified, is
-read from the file.
-
-2. Whenever the application exits, the state is written to disk, if a
-_confDbFile is specified.
--}
-instantiateDb
-  :: forall m
-   . MonadIO m
-  => Command.Conf
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-instantiateDb Command.Conf {..} = readDbSafe _confDbFile
-
-readDb
-  :: forall m
-   . MonadIO m
-  => Maybe FilePath
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-readDb mpath = case mpath of
-  Just fpath -> do
-    -- We may want to read the file only when the file exists.
-    exists <- liftIO $ doesFileExist fpath
-    if exists then fromFile fpath else useEmpty
-  Nothing -> useEmpty
- where
-  fromFile fpath = liftIO (try @SomeException $ T.readFile fpath) >>= \case
-    Left err ->
-      putStrLn @Text ("Unable to read db file: " <> maybe "" T.pack mpath)
-        $> Left (Errs.RuntimeException err)
-    Right fdata ->
-           -- We may want to deserialise the data only when the data is non-empty.
-                   if T.null fdata
-      then useEmpty
-      else
-        Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
-          & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
-  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
-
--- | A safer version of readDb: this fails if the file doesn't exist or is
--- empty. This helps in catching early mistake, e.g. from user specifying the
--- wrong file name on the command-line.
-readDbSafe
-  :: forall m
-   . MonadIO m
-  => Maybe FilePath
-  -> m (Either Errs.RuntimeErr Core.StmDb)
-readDbSafe mpath = case mpath of
-  Just fpath -> do
-    -- We may want to read the file only when the file exists.
-    exists <- liftIO $ doesFileExist fpath
-    if exists
-      then fromFile fpath
-      else pure . Left . Errs.knownErr $ FileDoesntExistErr fpath
-  Nothing -> useEmpty
- where
-  fromFile fpath = do
-    fdata <- liftIO (T.readFile fpath)
-    Data.deserialiseDbStrict (TE.encodeUtf8 fdata)
-      & either (pure . Left . Errs.knownErr) useState
-  useEmpty = Right <$> (liftIO $ STM.atomically Core.instantiateEmptyStmDb)
-  useState = fmap Right . liftIO . STM.atomically . Core.instantiateStmDb
-
 -- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.
 appMHandlerNatTrans :: forall a . Runtime -> AppM a -> Servant.Handler a
@@ -515,14 +307,6 @@ appMHandlerNatTrans rt appM =
   in
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
-
-
---------------------------------------------------------------------------------
--- | Support for logging for the application
-instance ML.MonadAppNameLogMulti AppM where
-  askLoggers = asks _rLoggers
-  localLoggers modLogger =
-    local (over rLoggers . over ML.appNameLoggers $ fmap modLogger)
 
 
 --------------------------------------------------------------------------------
@@ -555,9 +339,10 @@ handleCommand runtime@Runtime {..} user command = do
       runRunM runtime emailStep
       pure (ExitSuccess, ["Email queue processed."])
     Command.CreateBusinessEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
-        _rDb
-        input
+      output <-
+        runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
+          _rDb
+          input
       case output of
         Right mid -> do
           case mid of
@@ -566,9 +351,10 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.UpdateBusinessEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
-        _rDb
-        input
+      output <-
+        runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
+          _rDb
+          input
       case output of
         Right mid -> do
           case mid of
@@ -720,9 +506,13 @@ handleCommand runtime@Runtime {..} user command = do
           mcontract <- readCreateQuotationFormResolved _rDb profile input
           case mcontract of
             Right (contract, resolvedClient) -> do
-              case Quotation.validateCreateQuotation profile contract resolvedClient of
-                Right _    -> pure (ExitSuccess, ["Quotation form is valid."])
-                Left  errs -> pure (ExitFailure 1, map Quotation.unErr errs)
+              case
+                  Quotation.validateCreateQuotation profile
+                                                    contract
+                                                    resolvedClient
+                of
+                  Right _    -> pure (ExitSuccess, ["Quotation form is valid."])
+                  Left  errs -> pure (ExitFailure 1, map Quotation.unErr errs)
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
@@ -731,11 +521,8 @@ handleCommand runtime@Runtime {..} user command = do
         Just profile -> do
           mid <- submitCreateQuotationForm _rDb (profile, input)
           case mid of
-            Right id -> pure
-              ( ExitSuccess
-              , submitQuotationSuccess id
-              )
-            Left err -> pure (ExitFailure 1, [Quotation.unErr err])
+            Right id  -> pure (ExitSuccess, submitQuotationSuccess id)
+            Left  err -> pure (ExitFailure 1, [Quotation.unErr err])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.SignQuotation input ->
@@ -772,7 +559,10 @@ handleCommand runtime@Runtime {..} user command = do
     Command.SendReminder input ->
       -- TODO Check this is the "system" user ?
                                   liftIO . STM.atomically $ do
-      Core.createEmail _rDb Email.InvoiceReminderEmail "TODO sender email addr" "TODO client email addr"
+      Core.createEmail _rDb
+                       Email.InvoiceReminderEmail
+                       "TODO sender email addr"
+                       "TODO client email addr"
       pure
         ( ExitSuccess
         , ["Reminder for invoice sent: " <> Invoice.unInvoiceId input]
@@ -890,13 +680,6 @@ setUserEmailAddrAsVerifiedFull db (user, input) = transaction
     if b
       then setUserEmailAddrAsVerified db input
       else pure . Left $ User.MissingRight User.CanVerifyEmailAddr
-
-instance S.DBTransaction AppM STM where
-  liftTxn =
-    liftIO
-      . fmap (first Errs.RuntimeException)
-      . try @SomeException
-      . STM.atomically
 
 
 --------------------------------------------------------------------------------
@@ -1065,9 +848,10 @@ invoiceOrder db (profile, _) = do
   case mids of
     Right (id0, id1, id2, id3) -> do
       -- Invoices and remittance advices created, do the rest of the atomic process.
-      Core.createEmail db Email.InvoiceEmail
-        (User._userProfileEmailAddr profile)
-        (User._userProfileEmailAddr profile)
+      Core.createEmail db
+                       Email.InvoiceEmail
+                       (User._userProfileEmailAddr profile)
+                       (User._userProfileEmailAddr profile)
       -- TODO The email address should be the one from the client.
       pure $ Right (id0, id1, id2, id3)
     Left (Invoice.Err err) -> pure $ Left $ Order.Err err
@@ -1256,7 +1040,7 @@ formNewQuotation
   -> RunM (Either User.Err Text)
 formNewQuotation user input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
-    ML.info $ "Instanciating new quotation form..."
+    ML.info "Instantiating new quotation form..."
     db   <- asks _rDb
     mkey <-
       liftIO . STM.atomically $ Core.selectUserByUsername db user >>= \case
@@ -1275,7 +1059,7 @@ formNewQuotation'
   :: User.UserProfile -> Quotation.CreateQuotationAll -> RunM Text
 formNewQuotation' profile input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
-    ML.info $ "Instanciating new quotation form..."
+    ML.info "Instantiating new quotation form..."
     db  <- asks _rDb
     key <- liftIO . STM.atomically $ do
       newCreateQuotationForm db (profile, input)
@@ -1296,7 +1080,10 @@ newCreateQuotationForm db (profile, form) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateQuotationFormResolved'
-  :: User.UserProfile -> Text -> RunM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+  :: User.UserProfile
+  -> Text
+  -> RunM
+       (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
 readCreateQuotationFormResolved' profile key = do
   db <- asks _rDb
   liftIO . STM.atomically $ readCreateQuotationFormResolved db profile key
@@ -1304,14 +1091,22 @@ readCreateQuotationFormResolved' profile key = do
 -- | A version of `readCreateQuotationForm'` that also tries to lookup related
 -- data, e.g. the client, which is used for validation.
 readCreateQuotationFormResolved
-  :: Core.StmDb -> User.UserProfile -> Text -> STM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+  :: Core.StmDb
+  -> User.UserProfile
+  -> Text
+  -> STM
+       ( Either
+           ()
+           (Quotation.CreateQuotationAll, Maybe User.UserProfile)
+       )
 readCreateQuotationFormResolved db profile key = do
-    mform <- readCreateQuotationForm db (profile, key)
-    case mform of
-      Right form -> do
-        mclient <- maybe (pure Nothing) (Core.selectUserByUsername db) $ Quotation._createQuotationClientUsername form
-        pure $ Right (form, mclient)
-      Left err -> pure $ Left err
+  mform <- readCreateQuotationForm db (profile, key)
+  case mform of
+    Right form -> do
+      mclient <- maybe (pure Nothing) (Core.selectUserByUsername db)
+        $ Quotation._createQuotationClientUsername form
+      pure $ Right (form, mclient)
+    Left err -> pure $ Left err
 
 readCreateQuotationForm'
   :: User.UserProfile -> Text -> RunM (Either () Quotation.CreateQuotationAll)
@@ -1346,9 +1141,7 @@ writeCreateQuotationForm db (profile, key, form) = do
   pure key
  where
   -- TODO Return an error when the key is not found.
-  save = M.adjust
-    (const form)
-    (username, key)
+  save     = M.adjust (const form) (username, key)
   username = User._userCredsName $ User._userProfileCreds profile
 
 deleteCreateQuotationForm
@@ -1370,9 +1163,10 @@ submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
         Right (id, resolvedClient) -> do
           -- Quotation created, do the rest of the atomic process.
           deleteCreateQuotationForm db (profile, key)
-          Core.createEmail db Email.QuotationEmail
-            (User._userProfileEmailAddr profile)
-            (User._userProfileEmailAddr resolvedClient)
+          Core.createEmail db
+                           Email.QuotationEmail
+                           (User._userProfileEmailAddr profile)
+                           (User._userProfileEmailAddr resolvedClient)
           pure $ Right id
         Left err -> pure $ Left err
     Left err -> pure . Left $ Quotation.Err (show err)
@@ -1382,23 +1176,25 @@ submitCreateQuotationForm'
   :: Core.StmDb
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> Maybe User.UserProfile
-  -> STM (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
-submitCreateQuotationForm' db (profile, input) resolvedClient = do
-  let mc = Quotation.validateCreateQuotation profile input resolvedClient
+  -> STM
+       (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
+submitCreateQuotationForm' db (profile, input) mResolvedClient = do
+  let mc = Quotation.validateCreateQuotation profile input mResolvedClient
   case mc of
-    Right (c, resolvedClient)   -> do
+    Right (c, resolvedClient) -> do
       mid <- createQuotation db c
       case mid of
-        Right id -> pure $ Right (id, resolvedClient)
-        Left err -> pure $ Left err
-    Left  err -> pure . Left $ Quotation.Err (show err)
+        Right id  -> pure $ Right (id, resolvedClient)
+        Left  err -> pure $ Left err
+    Left err -> pure . Left $ Quotation.Err (show err)
 
 setQuotationAsSignedFull
   :: Core.StmDb
   -> (User.UserProfile, Quotation.QuotationId)
   -> STM (Either Quotation.Err Order.OrderId)
-setQuotationAsSignedFull db (user, input) =
-  STM.catchSTM (Right <$> transaction) (pure . Left)
+setQuotationAsSignedFull db (user, input) = STM.catchSTM
+  (Right <$> transaction)
+  (pure . Left)
  where
   transaction = do
     -- TODO Check the user can sign (e.g. the quotation is her).
@@ -1418,7 +1214,9 @@ setQuotationAsSigned db id oid = do
       Quotation.QuotationSent -> do
         let replaceOlder records =
               [ if Quotation._quotationId r == id
-                  then r { Quotation._quotationState = Quotation.QuotationSigned oid }
+                  then r
+                    { Quotation._quotationState = Quotation.QuotationSigned oid
+                    }
                   else r
               | r <- records
               ]
@@ -1427,7 +1225,8 @@ setQuotationAsSigned db id oid = do
       _ -> pure . Left $ Quotation.Err "Quotation is not in the Sent state."
     Nothing -> pure . Left $ Quotation.Err "No such quotation."
 
-filterQuotations :: Core.StmDb -> Quotation.Predicate -> STM [Quotation.Quotation]
+filterQuotations
+  :: Core.StmDb -> Quotation.Predicate -> STM [Quotation.Quotation]
 filterQuotations db predicate = do
   let tvar = Data._dbQuotations db
   records <- STM.readTVar tvar
@@ -1442,8 +1241,7 @@ selectQuotationById
   :: Core.StmDb
   -> Quotation.QuotationId
   -> IO (Maybe Quotation.Quotation)
-selectQuotationById db id =
-  STM.atomically $ Core.selectQuotationById db id
+selectQuotationById db id = STM.atomically $ Core.selectQuotationById db id
 
 
 --------------------------------------------------------------------------------
@@ -1666,51 +1464,6 @@ createTwoRemittanceAdvs db = do
     (Right id0, Right id1) -> pure (id0, id1)
     _ -> STM.throwSTM $ Invoice.Err "Failed to create remittance advices."
 
---------------------------------------------------------------------------------
--- | Definition of all operations for the UserProfiles (selects and updates)
-instance S.DBStorage AppM STM User.UserProfile where
-
-  type Db AppM STM User.UserProfile = Core.StmDb
-
-  type DBError AppM STM User.UserProfile = User.Err
-
-  dbUpdate db@Data.Db {..} = \case
-
-    User.UserCreate input -> second pure <$> Core.createUserFull db input
-
-    User.UserCreateGeneratingUserId input ->
-      second (pure . fst) <$> Core.createUser db input
-
-    User.UserDelete id ->
-      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
-        (fmap Right . deleteUser)
-     where
-      deleteUser _ =
-        modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
-
-    User.UserUpdate id (User.Update mname mbio) ->
-      S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
-        (pure . userNotFound $ show id)
-        (fmap Right . updateUser)
-     where
-      updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
-      change =
-        set User.userProfileBio mbio . set User.userProfileDisplayName mname
-      replaceOlder users =
-        [ if S.dbId u == id then change u else u | u <- users ]
-
-  dbSelect db = \case
-
-    User.UserLoginWithUserName input -> toList <$> checkCredentials db input
-
-    User.SelectUserById        id    -> toList <$> Core.selectUserById db id
-
-    User.SelectUserByUserName username ->
-      toList <$> Core.selectUserByUsername db username
-
-modifyUserProfiles id f userProfiles = STM.modifyTVar userProfiles f $> [id]
-
 selectUserByIdResolved db id = do
   let usersTVar = Data._dbUserProfiles db
   users' <- STM.readTVar usersTVar
@@ -1755,7 +1508,7 @@ filterUsers' predicate = do
 
 createUser :: User.Signup -> RunM (Either User.Err User.UserId)
 createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
-  ML.info $ "Creating user..."
+  ML.info "Creating user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.createUser db input
   case muid of
@@ -1786,24 +1539,6 @@ setUserEmailAddrAsVerified db username = do
         pure $ Right ()
       Just _ -> pure . Left $ User.EmailAddrAlreadyVerified
     Nothing -> pure . Left $ User.UserNotFound $ User.unUserName username
-
-checkCredentials
-  :: Core.StmDb -> User.Credentials -> STM (Maybe User.UserProfile)
-checkCredentials db User.Credentials {..} = do
-  mprofile <- Core.selectUserByUsername db _userCredsName
-  case mprofile of
-    Just profile | checkPassword profile _userCredsPassword ->
-      pure $ Just profile
-    _ -> pure Nothing
-
--- TODO Use constant-time string comparison.
-checkPassword :: User.UserProfile -> User.Password -> Bool
-checkPassword profile (User.Password passInput) = storedPass =:= passInput
- where
-  User.Password storedPass =
-    profile ^. User.userProfileCreds . User.userCredsPassword
-
-userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
 selectEntityBySlug :: Core.StmDb -> Text -> STM (Maybe Legal.Entity)
 selectEntityBySlug db name = do
@@ -1922,29 +1657,3 @@ deleteForm getTVar db (profile, key) =
   where username = User._userCredsName $ User._userProfileCreds profile
 
 
---------------------------------------------------------------------------------
--- TODO Integrity check:
--- All UserIds must resolve: _entityUsersAndRoles.
--- List containing UserIds should not have duplicates: _entityUsersAndRoles.
-
-
---------------------------------------------------------------------------------
-newtype IOErr = FileDoesntExistErr FilePath
-  deriving Show
-
-instance Errs.IsRuntimeErr IOErr where
-  errCode FileDoesntExistErr{} = "ERR.FILE_NOT_FOUND"
-  httpStatus FileDoesntExistErr{} = HTTP.notFound404
-  userMessage = Just . \case
-    FileDoesntExistErr fpath -> T.unwords ["File doesn't exist:", T.pack fpath]
-
--- | A placeholder error type, used until better handling (at the call site) is
--- put in place.
-newtype UnspeciedErr = UnspeciedErr Text
-  deriving Show
-
-instance Errs.IsRuntimeErr UnspeciedErr where
-  errCode UnspeciedErr{} = "ERR.FILE_NOT_FOUND"
-  httpStatus UnspeciedErr{} = HTTP.notFound404
-  userMessage = Just . \case
-    UnspeciedErr msg -> T.unwords ["Error:", msg]

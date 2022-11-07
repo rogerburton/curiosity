@@ -51,7 +51,7 @@ import qualified System.FilePath.Glob          as Glob
 --------------------------------------------------------------------------------
 handleRun :: P.Conf -> User.UserName -> FilePath -> Bool -> IO ExitCode
 handleRun conf user scriptPath withFinal = do
-  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
   (code, output) <- interpret runtime user scriptPath
   Rt.powerdown runtime
   when withFinal $ print output
@@ -59,7 +59,7 @@ handleRun conf user scriptPath withFinal = do
 
 handleRunNoTrace :: P.Conf -> User.UserName -> FilePath -> Bool -> IO ExitCode
 handleRunNoTrace conf user scriptPath withFinal = do
-  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
   output <- interpretFile' runtime user scriptPath 0
   Rt.powerdown runtime
   when withFinal $ print output
@@ -77,7 +77,7 @@ handleRun' scriptPath = do
             -- RuntimeException openFile: resource busy (file is locked)
         , P._confDbFile  = Nothing
         }
-  runtime <- Rt.boot conf Rt.NoThreads >>= either throwIO pure
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
   output  <- interpretFile runtime "system" scriptPath 0
   Rt.powerdown runtime
   pure output
