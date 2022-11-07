@@ -23,9 +23,8 @@ module Curiosity.Server
     -- * Scenarios
     --
     -- $scenarios
-  , showScenario
-  , showScenarioState
-  , showScenarioStateAsJson
+  , partialScenarioState
+  , partialScenarioStateAsJson
   , partialScenarios
   , partialScenariosAsJson
   ) where
@@ -223,19 +222,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> ReqBody '[FormUrlEncoded] Data.Command
                   :> Post '[B.HTML] Pages.EchoPage
 
-             :<|> "scenarios"
-                  :> Capture "name" FilePath
-                  :> Get '[B.HTML] H.Html
-             :<|> "scenarios"
-                  :> Capture "name" FilePath
-                  :> Capture "nbr" Int
-                  :> "state"
-                  :> Get '[B.HTML] H.Html
-             :<|> "scenarios"
-                  :> Capture "name" FilePath
-                  :> Capture "nbr" Int
-                  :> "state.json"
-                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
+             :<|> "scenarios" :> Raw
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json"
@@ -492,6 +479,16 @@ type Partials =
 
   :<|> "partials" :> "scenarios"
        :> Capture "name" FilePath :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "scenarios"
+       :> Capture "name" FilePath
+       :> Capture "nbr" Int
+       :> "state"
+       :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "scenarios"
+       :> Capture "name" FilePath
+       :> Capture "nbr" Int
+       :> "state.json"
+       :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
   -- live data
   :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
@@ -549,9 +546,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 
     :<|> showRun
     :<|> handleRun
-    :<|> showScenario scenariosDir
-    :<|> showScenarioState scenariosDir
-    :<|> showScenarioStateAsJson scenariosDir
+    :<|> serveScenario scenariosDir
 
     :<|> showState
     :<|> showStateAsJson
@@ -633,10 +628,20 @@ partials scenariosDir =
     :<|> partialScenarios scenariosDir
     :<|> partialScenariosAsJson scenariosDir
     :<|> partialScenario scenariosDir
+    :<|> partialScenarioState scenariosDir
+    :<|> partialScenarioStateAsJson scenariosDir
 
     -- live data
     :<|> partialLegalEntities
     :<|> partialLegalEntitiesAsJson
+
+
+--------------------------------------------------------------------------------
+serveScenario :: ServerC m => FilePath -> Tagged m Application
+serveScenario path = serveDirectoryWith settings
+ where
+  settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }
+
 
 --------------------------------------------------------------------------------
 -- | Minimal set of constraints needed on some monad @m@ to be satisfied to be
@@ -2481,7 +2486,8 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
  where
   run' mprofile = do
     runtime <- ask
-    output  <- liftIO $ Inter.interpret' runtime username "/tmp/nowhere" [cmd] 0
+    output  <- liftIO $ Inter.interpretLines runtime username "/tmp/nowhere" [cmd] 0
+      [] (\t acc -> acc ++ [t])
     let (_, ls) = Inter.formatOutput output
     pure $ unlines ls
    where
@@ -2495,50 +2501,22 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
 --
 -- Expose @cty run@ scenarios found in the @`scenarios/`@ directory.
 
-showScenario :: ServerC m => FilePath -> FilePath -> m H.Html
-showScenario scenariosDir name = do
-  let path = scenariosDir </> name <> ".txt"
-  ts <- liftIO $ Inter.handleRun' path
-  pure . H.pre . H.code $ mapM_ displayTrace ts
- where
-  displayTrace Inter.Trace {..} = do
-    H.text
-      $  Inter.pad traceNesting
-      <> show traceLineNbr
-      <> ": "
-      <> traceCommand
-      <> "    "
-    H.a
-      ! A.href
-          (  H.toValue
-          $  "/scenarios/"
-          <> name
-          <> "/"
-          <> show traceNumber
-          <> "/state.json"
-          )
-      $ "View state"
-    H.text "\n"
-    mapM_ (\o -> H.text (Inter.pad traceNesting) >> H.text o >> H.text "\n")
-          traceOutput
-    mapM_ displayTrace traceNested
-
 -- | Show the state after a specific command, given as its number within the
 -- script.
-showScenarioState :: ServerC m => FilePath -> FilePath -> Int -> m H.Html
-showScenarioState scenariosDir name nbr = do
+partialScenarioState :: ServerC m => FilePath -> FilePath -> Int -> m H.Html
+partialScenarioState scenariosDir name nbr = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
   let ts' = Inter.flatten ts
   pure . H.code . H.pre $ H.text $ show . Inter.traceState $ ts' !! nbr
 
-showScenarioStateAsJson
+partialScenarioStateAsJson
   :: ServerC m
   => FilePath
   -> FilePath
   -> Int
   -> m (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
-showScenarioStateAsJson scenariosDir name nbr = do
+partialScenarioStateAsJson scenariosDir name nbr = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
   let ts' = Inter.flatten ts
@@ -2551,12 +2529,11 @@ partialScenarios scenariosDir = do
   pure . H.ul $ mapM_ displayScenario names
  where
   displayScenario name = H.li $ do
-    H.a ! A.href (H.toValue $ "/scenarios/" <> name) $ H.code $ H.string name
+    H.a ! A.href (H.toValue $ "/partials/scenarios/" <> name) $ H.code $ H.string name
 
 partialScenariosAsJson :: ServerC m => FilePath -> m [FilePath]
 partialScenariosAsJson = listScenarioNames
 
--- | Similar to `showScenario` but with a richer rendering.
 partialScenario :: ServerC m => FilePath -> FilePath -> m H.Html
 partialScenario scenariosDir name = do
   let path = scenariosDir </> name <> ".txt"
@@ -2592,7 +2569,7 @@ partialScenario scenariosDir name = do
       H.td $ H.a
         ! A.href
             (  H.toValue
-            $  "/scenarios/"
+            $  "/partials/scenarios/"
             <> name
             <> "/"
             <> show traceNumber
@@ -2694,6 +2671,7 @@ custom404 _request sendResponse = sendResponse $ Wai.responseLBS
 
 --------------------------------------------------------------------------------
 -- | Serve example data as JSON files.
+serveData :: ServerC m => FilePath -> Tagged m Application
 serveData path = serveDirectoryWith settings
  where
   settings = (defaultWebAppSettings path) { ss404Handler = Just custom404 }

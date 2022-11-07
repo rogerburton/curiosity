@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 module Curiosity.Command
   ( Command(..)
+  , RunOutput(..)
   , QueueName(..)
   , Queues(..)
   , ParseConf(..)
@@ -41,8 +42,8 @@ data Command =
     -- ^ Run a REPL.
   | Serve P.Conf P.ServerConf
     -- ^ Run an HTTP server.
-  | Run P.Conf FilePath
-    -- ^ Interpret a script.
+  | Run P.Conf FilePath RunOutput
+    -- ^ Interpret a script. If True, outputs traces, otherwise only the final state.
   | Parse ParseConf
     -- ^ Parse a single command.
   | State Bool
@@ -97,6 +98,16 @@ data Command =
   | ShowId Text
     -- ^ If not a command per se, assume it's an ID to be looked up.
   deriving (Eq, Show)
+
+-- | Select if traces and/or the final state should be output.
+--   run --silent      # no traces, no final state
+--   run --final-only  # no traces,    final state, for streaming
+--   run --final       #    traces,    final state
+--   run               #    traces, no final state, equivalent to
+--   run --traces-only #    traces, no final state
+data RunOutput = RunOutput Bool Bool
+  deriving (Eq, Show)
+
 
 data QueueName = EmailAddrToVerify
   deriving (Eq, Show)
@@ -367,9 +378,26 @@ parserRun :: A.Parser Command
 parserRun = Run <$> P.confParser <*> A.argument
   A.str
   (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
+  <*>
+      (   (A.flag' (RunOutput False False) $ A.long "silent" <> A.help
+           "Don't display traces, nor the final state."
+          )
+      <|> (A.flag' (RunOutput False True) $ A.long "final-only" <> A.help
+           "Don't display traces, but display the final state."
+           -- Showing the final state ensures that the effect of the commands
+           -- are applied.
+          )
+      <|> (A.flag' (RunOutput True True) $ A.long "final" <> A.help
+           "Display both traces and the final state."
+          )
+      <|> (A.flag (RunOutput True False) (RunOutput True False) $ A.long "traces-only"
+           <> A.help
+           "Display traces but not the final state. This is the default."
+          )
+      )
 
 parserParse :: A.Parser Command
-parserParse = Parse <$> (parserCommand <|> parserObject <|> parserFileName)
+parserParse = Parse <$> (parserCommand <|> parserFileName <|> parserObject)
 
 parserCommand :: A.Parser ParseConf
 parserCommand = ConfCommand <$> A.strOption

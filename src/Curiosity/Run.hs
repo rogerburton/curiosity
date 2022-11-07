@@ -91,12 +91,18 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget (Command.Run _ scriptPath) target (Command.User user))
+run (Command.CommandWithTarget (Command.Run _ scriptPath runOutput) target (Command.User user))
   = case target of
-    Command.MemoryTarget -> do
-      Inter.handleRun P.defaultConf user scriptPath
-    Command.StateFileTarget path -> do
-      Inter.handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath
+    Command.MemoryTarget ->
+      let  Command.RunOutput withTraces withFinal = runOutput in
+      if withTraces
+      then Inter.handleRun P.defaultConf user scriptPath withFinal
+      else Inter.handleRunNoTrace P.defaultConf user scriptPath withFinal
+    Command.StateFileTarget path ->
+      let Command.RunOutput withTraces withFinal = runOutput in
+      if withTraces
+      then Inter.handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath withFinal
+      else Inter.handleRunNoTrace P.defaultConf { P._confDbFile = Just path } user scriptPath withFinal
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
@@ -144,7 +150,7 @@ run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
     -- TODO We need a parser for multiple commands separated by newlines.
     Command.ConfFileName fileName -> do
       content <- T.lines <$> readFile fileName
-      print content
+      mapM_ print content
       exitSuccess
 
     Command.ConfStdin -> do
@@ -327,8 +333,8 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
             -- We ignore the Configuration here. Probably this should be moved
             -- to Rt.handleCommand too.
             Command.Reset _          -> Rt.runRunM runtime $ Rt.reset
-            Command.Run _ scriptPath -> do
-              code <- liftIO $ Inter.interpret runtime user scriptPath
+            Command.Run _ scriptPath _ -> do
+              (code, _) <- liftIO $ Inter.interpret runtime user scriptPath
               case code of
                 ExitSuccess   -> pure ()
                 ExitFailure _ -> output' "Script failed."

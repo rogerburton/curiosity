@@ -27,6 +27,7 @@ title: Curiosity
 - [Smart](/documentation/smart)
 - [Source code](/documentation/source)
 - [state-0](/documentation/state-0)
+- [Tests](/documentation/tests)
 - [UBL](/documentation/ubl)
 - [Validation rules](/documentation/validation)
 - [Views](/documentation/views)
