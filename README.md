@@ -112,6 +112,13 @@ $ nix-build -A run
 $ result/bin/run-full-environment
 ```
 
+The `run-full-environment` script is also available from the above shell:
+
+```
+$ nix-shell default.nix -A shell
+$ run-full-environment
+```
+
 And finally, we can run a local virtual machine running `cty serve` and a Nginx
 reverse proxy using [see below](#qemu):
 

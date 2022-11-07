@@ -49,6 +49,7 @@ in rec
         man-pages # This works in environment.systemPackages but here we need
                   # to set MANPATH below.
                   # I guess it would work if it was packaged with the binaries.
+        run.run-full-environment
       ];
       # Setting the CURIOSITY_STATIC_DIR, CURIOSITY_DATA_DIR, and
       # CURIOSITY_SCENARIOS_DIR is not strictly necessary as this shell is
