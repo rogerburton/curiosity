@@ -5,6 +5,11 @@ This repository contains a prototype application for the
 "prototype" is written in `commence`'s
 [README](https://github.com/hypered/commence#readme).
 
+A demonstration instance of Curiosity is running at
+[smartcoop.sh](https://smartcoop.sh). It contains
+[documentation](https://smartcoop.sh/documentation) that complements this
+README.
+
 # Related repositories
 
 - The prototype uses [`design-hs`](https://github.com/hypered/smart-design-hs/) as
@@ -67,36 +72,52 @@ $ cabal repl curiosity
 Instead it's possible to use a helper script to call `:main` with GHCi.
 
 ```
-$ script/run-example.sh
+$ script/ghci.sh
+ghci> :main --help
 ```
 
 We can also use Cabal to run the example:
 
 ```
 $ nix-shell
-$ cabal run -- cty serve
+$ cabal run -- cty --help
 ```
 
 The binary can be built and run also this way, which bypass building the tests:
 
 ```
 $ cabal build curiosity
-$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/curiosity-0.1.0.0/x/curiosity/build/curiosity/cty serve
+$ ./dist-newstyle/build/x86_64-linux/ghc-8.6.5/curiosity-0.1.0.0/x/curiosity/build/curiosity/cty --help
 ```
 
 We can build a binary with Nix:
 
 ```
 $ nix-build -A curiosity
-$ ./result/bin/cty serve
+$ ./result/bin/cty --help
 ```
 
-And finally, we can run a local dev environment containing curiosity and a
-Nginx reverse proxy using:
+We can have a shell populated with the Curiosity binaries and man pages with:
+
+```
+$ nix-shell default.nix -A shell
+$ cty --help
+```
+
+We can run a local environment running `cty serve` and a Nginx reverse proxy
+using:
 
 ```
 $ nix-build -A run
 $ result/bin/run-full-environment
+```
+
+And finally, we can run a local virtual machine running `cty serve` and a Nginx
+reverse proxy using [see below](#qemu):
+
+```
+$ nix-build -A runvm
+$ result/bin/run-nixos-vm
 ```
 
 
