@@ -131,7 +131,7 @@ import           System.Directory               ( doesFileExist )
 -- supporting values: the STM state, loggers, and processing threads.
 data Runtime = Runtime
   { _rConf    :: Command.Conf -- ^ The application configuration.
-  , _rDb      :: Core.StmDb Runtime -- ^ The Storage.
+  , _rDb      :: Core.StmDb -- ^ The Storage.
   , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
   , _rThreads :: Threads -- ^ Additional threads running e.g. async tasks.
   }
@@ -247,7 +247,7 @@ boot _rConf _rThreads =
                 pure $ Right Runtime { .. }
 
 -- | Create a runtime from a given state.
-boot' :: MonadIO m => Data.HaskDb Runtime -> FilePath -> m Runtime
+boot' :: MonadIO m => Data.HaskDb -> FilePath -> m Runtime
 boot' db logsPath = do
   let loggingConf = Command.mkLoggingConf logsPath
       _rConf      = Command.defaultConf { Command._confLogging = loggingConf }
@@ -266,8 +266,7 @@ reset = do
   liftIO . STM.atomically $ Core.reset db
 
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
-readFullStmDbInHask
-  :: forall runtime m . MonadIO m => Core.StmDb runtime -> m (Data.HaskDb runtime)
+readFullStmDbInHask :: MonadIO m => Core.StmDb -> m Data.HaskDb
 readFullStmDbInHask = liftIO . STM.atomically . Core.readFullStmDbInHask'
 
 -- | Power down the application: attempting to save the DB state in given file,
@@ -306,7 +305,7 @@ saveDbAs runtime fpath = do
     <&> either (Just . Errs.RuntimeException) (const Nothing)
 
 -- | Retrieve the whole state as a pure value.
-state :: RunM (Data.HaskDb Runtime)
+state :: RunM Data.HaskDb
 state = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readFullStmDbInHask' db
@@ -403,14 +402,14 @@ instantiateDb
   :: forall m
    . MonadIO m
   => Command.Conf
-  -> m (Either Errs.RuntimeErr (Core.StmDb Runtime))
+  -> m (Either Errs.RuntimeErr Core.StmDb)
 instantiateDb Command.Conf {..} = readDbSafe _confDbFile
 
 readDb
   :: forall m
    . MonadIO m
   => Maybe FilePath
-  -> m (Either Errs.RuntimeErr (Core.StmDb Runtime))
+  -> m (Either Errs.RuntimeErr Core.StmDb)
 readDb mpath = case mpath of
   Just fpath -> do
     -- We may want to read the file only when the file exists.
@@ -439,7 +438,7 @@ readDbSafe
   :: forall m
    . MonadIO m
   => Maybe FilePath
-  -> m (Either Errs.RuntimeErr (Core.StmDb Runtime))
+  -> m (Either Errs.RuntimeErr Core.StmDb)
 readDbSafe mpath = case mpath of
   Just fpath -> do
     -- We may want to read the file only when the file exists.
@@ -804,7 +803,7 @@ submitQuotationSuccess id =
   ]
 
 setUserEmailAddrAsVerifiedFull
-  :: Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, User.UserName)
   -> STM (Either User.Err ())
 setUserEmailAddrAsVerifiedFull db (user, input) = transaction
@@ -825,8 +824,7 @@ instance S.DBTransaction AppM STM where
 
 --------------------------------------------------------------------------------
 createLegal
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Legal.Create
   -> STM (Either Legal.Err Legal.EntityId)
 createLegal db Legal.Create {..} = do
@@ -844,15 +842,14 @@ createLegal db Legal.Create {..} = do
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Legal.Entity
   -> STM (Either Legal.Err Legal.EntityId)
 createLegalFull db new = do
   modifyLegalEntities db (++ [new])
   pure . Right $ Legal._entityId new
 
-updateLegal :: Core.StmDb runtime -> Legal.Update -> STM (Either User.Err ())
+updateLegal :: Core.StmDb -> Legal.Update -> STM (Either User.Err ())
 updateLegal db Legal.Update {..} = do
   mentity <- selectEntityBySlug db _updateSlug
   case mentity of
@@ -868,8 +865,7 @@ updateLegal db Legal.Update {..} = do
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
 
 modifyLegalEntities
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([Legal.Entity] -> [Legal.Entity])
   -> STM ()
 modifyLegalEntities db f =
@@ -885,8 +881,7 @@ selectUnitBySlug slug = do
 
 --------------------------------------------------------------------------------
 createQuotation
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Quotation.Quotation
   -> STM (Either Quotation.Err Quotation.QuotationId)
 createQuotation db quotation = do
@@ -898,8 +893,7 @@ createQuotation db quotation = do
     createQuotationFull db new >>= either STM.throwSTM pure
 
 createQuotationFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Quotation.Quotation
   -> STM (Either Quotation.Err Quotation.QuotationId)
 createQuotationFull db new = do
@@ -907,16 +901,14 @@ createQuotationFull db new = do
   pure . Right $ Quotation._quotationId new
 
 modifyQuotations
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([Quotation.Quotation] -> [Quotation.Quotation])
   -> STM ()
 modifyQuotations db f =
   let tvar = Data._dbQuotations db in STM.modifyTVar tvar f
 
 signQuotation
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Quotation.QuotationId)
      -- ^ TODO SignQuotation data type, including e.g. the signature data.
   -> STM (Either Quotation.Err Order.OrderId)
@@ -928,8 +920,7 @@ signQuotation db _ = do
 
 
 --------------------------------------------------------------------------------
-createOrder
-  :: forall runtime . Core.StmDb runtime -> STM (Either Order.Err Order.OrderId)
+createOrder :: Core.StmDb -> STM (Either Order.Err Order.OrderId)
 createOrder db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
@@ -939,8 +930,7 @@ createOrder db = do
     createOrderFull db new >>= either STM.throwSTM pure
 
 createOrderFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Order.Order
   -> STM (Either Order.Err Order.OrderId)
 createOrderFull db new = do
@@ -948,15 +938,13 @@ createOrderFull db new = do
   pure . Right $ Order._orderId new
 
 modifyOrders
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([Order.Order] -> [Order.Order])
   -> STM ()
 modifyOrders db f = let tvar = Data._dbOrders db in STM.modifyTVar tvar f
 
 invoiceOrder
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Order.OrderId)
   -> STM
        ( Either
@@ -991,8 +979,7 @@ createTwoInvoices db = do
 
 --------------------------------------------------------------------------------
 createRemittanceAdv
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> STM (Either RemittanceAdv.Err RemittanceAdv.RemittanceAdvId)
 createRemittanceAdv db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
@@ -1003,8 +990,7 @@ createRemittanceAdv db = do
     createRemittanceAdvFull db new >>= either STM.throwSTM pure
 
 createRemittanceAdvFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> RemittanceAdv.RemittanceAdv
   -> STM (Either RemittanceAdv.Err RemittanceAdv.RemittanceAdvId)
 createRemittanceAdvFull db new = do
@@ -1012,8 +998,7 @@ createRemittanceAdvFull db new = do
   pure . Right $ RemittanceAdv._remittanceAdvId new
 
 modifyRemittanceAdvs
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([RemittanceAdv.RemittanceAdv] -> [RemittanceAdv.RemittanceAdv])
   -> STM ()
 modifyRemittanceAdvs db f =
@@ -1022,8 +1007,7 @@ modifyRemittanceAdvs db f =
 
 --------------------------------------------------------------------------------
 createEmployment
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Employment.Contract
   -> STM (Either Employment.Err Employment.ContractId)
 createEmployment db _ = do
@@ -1035,8 +1019,7 @@ createEmployment db _ = do
     createEmploymentFull db new >>= either STM.throwSTM pure
 
 createEmploymentFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Employment.Contract
   -> STM (Either Employment.Err Employment.ContractId)
 createEmploymentFull db new = do
@@ -1044,16 +1027,14 @@ createEmploymentFull db new = do
   pure . Right $ Employment._contractId new
 
 modifyEmployments
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([Employment.Contract] -> [Employment.Contract])
   -> STM ()
 modifyEmployments db f =
   let tvar = Data._dbEmployments db in STM.modifyTVar tvar f
 
 newCreateContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Employment.CreateContractAll')
   -> STM Text
 newCreateContractForm db (profile, Employment.CreateContractAll' gi ty ld rs inv)
@@ -1067,8 +1048,7 @@ newCreateContractForm db (profile, Employment.CreateContractAll' gi ty ld rs inv
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text)
   -> STM (Either () Employment.CreateContractAll)
 readCreateContractForm db (profile, key) = do
@@ -1078,8 +1058,7 @@ readCreateContractForm db (profile, key) = do
   where username = User._userCredsName $ User._userProfileCreds profile
 
 writeCreateContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Employment.CreateContractAll')
   -> STM Text
 writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ty ld rs inv)
@@ -1096,8 +1075,7 @@ writeCreateContractForm db (profile, key, Employment.CreateContractAll' gi ty ld
   username = User._userCredsName $ User._userProfileCreds profile
 
 addExpenseToContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Employment.AddExpense)
   -> STM () -- TODO Possible errors
 addExpenseToContractForm db (profile, key, expense) = do
@@ -1111,8 +1089,7 @@ addExpenseToContractForm db (profile, key, expense) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 writeExpenseToContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int, Employment.AddExpense)
   -> STM () -- TODO Possible errors
 writeExpenseToContractForm db (profile, key, idx, expense) = do
@@ -1128,8 +1105,7 @@ writeExpenseToContractForm db (profile, key, idx, expense) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 removeExpenseFromContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
 removeExpenseFromContractForm db (profile, key, idx) = do
@@ -1146,8 +1122,7 @@ removeExpenseFromContractForm db (profile, key, idx) = do
 -- | Fetch the contract form from the staging area, then attempt to validate
 -- and create it.
 submitCreateContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Employment.SubmitContract)
   -> STM (Either Employment.Err Employment.ContractId)
 submitCreateContractForm db (profile, Employment.SubmitContract key) = do
@@ -1158,8 +1133,7 @@ submitCreateContractForm db (profile, Employment.SubmitContract key) = do
 
 -- | Attempt to validate a contract form and create it.
 submitCreateContractForm'
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Employment.CreateContractAll)
   -> STM (Either Employment.Err Employment.ContractId)
 submitCreateContractForm' db (profile, input) = do
@@ -1205,8 +1179,7 @@ formNewQuotation' profile input =
 
 -- | Create a new form instance in the staging area.
 newCreateQuotationForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> STM Text
 newCreateQuotationForm db (profile, form) = do
@@ -1226,7 +1199,7 @@ readCreateQuotationFormResolved' profile key = do
 -- | A version of `readCreateQuotationForm'` that also tries to lookup related
 -- data, e.g. the client, which is used for validation.
 readCreateQuotationFormResolved
-  :: Core.StmDb runtime -> User.UserProfile -> Text -> STM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
+  :: Core.StmDb -> User.UserProfile -> Text -> STM (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
 readCreateQuotationFormResolved db profile key = do
     mform <- readCreateQuotationForm db (profile, key)
     case mform of
@@ -1242,8 +1215,7 @@ readCreateQuotationForm' profile key = do
   liftIO . STM.atomically $ readCreateQuotationForm db (profile, key)
 
 readCreateQuotationForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text)
   -> STM (Either () Quotation.CreateQuotationAll)
 readCreateQuotationForm = readForm Data._dbFormCreateQuotationAll
@@ -1255,15 +1227,13 @@ readCreateQuotationForms' profile = do
   liftIO . STM.atomically $ readCreateQuotationForms db profile
 
 readCreateQuotationForms
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> User.UserProfile
   -> STM (Either () [(Text, Quotation.CreateQuotationAll)])
 readCreateQuotationForms = readForms Data._dbFormCreateQuotationAll
 
 writeCreateQuotationForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Quotation.CreateQuotationAll)
   -> STM Text
 writeCreateQuotationForm db (profile, key, form) = do
@@ -1277,14 +1247,13 @@ writeCreateQuotationForm db (profile, key, form) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 deleteCreateQuotationForm
-  :: forall runtime . Core.StmDb runtime -> (User.UserProfile, Text) -> STM () -- TODO Error
+  :: Core.StmDb -> (User.UserProfile, Text) -> STM () -- TODO Error
 deleteCreateQuotationForm = deleteForm Data._dbFormCreateQuotationAll
 
 -- | Fetch the quotation form from the staging area, then attempt to validate
 -- and create it. If successfull, the form is deleted.
 submitCreateQuotationForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Quotation.SubmitQuotation)
   -> STM (Either Quotation.Err Quotation.QuotationId)
 submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
@@ -1305,8 +1274,7 @@ submitCreateQuotationForm db (profile, Quotation.SubmitQuotation key) = do
 
 -- | Attempt to validate a quotation form and create it.
 submitCreateQuotationForm'
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Quotation.CreateQuotationAll)
   -> Maybe User.UserProfile
   -> STM (Either Quotation.Err (Quotation.QuotationId, User.UserProfile))
@@ -1321,7 +1289,7 @@ submitCreateQuotationForm' db (profile, input) resolvedClient = do
     Left  err -> pure . Left $ Quotation.Err (show err)
 
 setQuotationAsSignedFull
-  :: Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Quotation.QuotationId)
   -> STM (Either Quotation.Err Order.OrderId)
 setQuotationAsSignedFull db (user, input) =
@@ -1334,8 +1302,7 @@ setQuotationAsSignedFull db (user, input) =
     pure oid
 
 setQuotationAsSigned
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Quotation.QuotationId
   -> Order.OrderId
   -> STM (Either Quotation.Err ())
@@ -1355,7 +1322,7 @@ setQuotationAsSigned db id oid = do
       _ -> pure . Left $ Quotation.Err "Quotation is not in the Sent state."
     Nothing -> pure . Left $ Quotation.Err "No such quotation."
 
-filterQuotations :: Core.StmDb runtime -> Quotation.Predicate -> STM [Quotation.Quotation]
+filterQuotations :: Core.StmDb -> Quotation.Predicate -> STM [Quotation.Quotation]
 filterQuotations db predicate = do
   let tvar = Data._dbQuotations db
   records <- STM.readTVar tvar
@@ -1367,8 +1334,7 @@ filterQuotations' predicate = do
   liftIO . STM.atomically $ filterQuotations db predicate
 
 selectQuotationById
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Quotation.QuotationId
   -> IO (Maybe Quotation.Quotation)
 selectQuotationById db id =
@@ -1376,7 +1342,7 @@ selectQuotationById db id =
 
 
 --------------------------------------------------------------------------------
-filterOrders :: Core.StmDb runtime -> Order.Predicate -> STM [Order.Order]
+filterOrders :: Core.StmDb -> Order.Predicate -> STM [Order.Order]
 filterOrders db predicate = do
   let tvar = Data._dbOrders db
   records <- STM.readTVar tvar
@@ -1391,8 +1357,7 @@ filterOrders' predicate = do
 --------------------------------------------------------------------------------
 -- | Create a new form instance in the staging area.
 newCreateSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, SimpleContract.CreateContractAll')
   -> STM Text
 newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs cl inv)
@@ -1406,15 +1371,13 @@ newCreateSimpleContractForm db (profile, SimpleContract.CreateContractAll' ty rs
   username = User._userCredsName $ User._userProfileCreds profile
 
 readCreateSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text)
   -> STM (Either () SimpleContract.CreateContractAll)
 readCreateSimpleContractForm = readForm Data._dbFormCreateSimpleContractAll
 
 writeCreateSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, SimpleContract.CreateContractAll')
   -> STM Text
 writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll' ty rs cl inv)
@@ -1431,8 +1394,7 @@ writeCreateSimpleContractForm db (profile, key, SimpleContract.CreateContractAll
   username = User._userCredsName $ User._userProfileCreds profile
 
 addRoleToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, SimpleContract.SelectRole)
   -> STM () -- TODO Possible errors
 addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
@@ -1448,8 +1410,7 @@ addRoleToSimpleContractForm db (profile, key, SimpleContract.SelectRole role) =
   username = User._userCredsName $ User._userProfileCreds profile
 
 addDateToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, SimpleContract.AddDate)
   -> STM () -- TODO Possible errors
 addDateToSimpleContractForm db (profile, key, date) = do
@@ -1463,8 +1424,7 @@ addDateToSimpleContractForm db (profile, key, date) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 writeDateToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int, SimpleContract.AddDate)
   -> STM () -- TODO Possible errors
 writeDateToSimpleContractForm db (profile, key, idx, date) = do
@@ -1480,8 +1440,7 @@ writeDateToSimpleContractForm db (profile, key, idx, date) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 removeDateFromSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
 removeDateFromSimpleContractForm db (profile, key, idx) = do
@@ -1496,8 +1455,7 @@ removeDateFromSimpleContractForm db (profile, key, idx) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 addVATToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, SimpleContract.SelectVAT)
   -> STM () -- TODO Possible errors
 addVATToSimpleContractForm db (profile, key, SimpleContract.SelectVAT rate) =
@@ -1513,8 +1471,7 @@ addVATToSimpleContractForm db (profile, key, SimpleContract.SelectVAT rate) =
   username = User._userCredsName $ User._userProfileCreds profile
 
 addExpenseToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, SimpleContract.AddExpense)
   -> STM () -- TODO Possible errors
 addExpenseToSimpleContractForm db (profile, key, expense) = do
@@ -1528,8 +1485,7 @@ addExpenseToSimpleContractForm db (profile, key, expense) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 writeExpenseToSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int, SimpleContract.AddExpense)
   -> STM () -- TODO Possible errors
 writeExpenseToSimpleContractForm db (profile, key, idx, expense) = do
@@ -1545,8 +1501,7 @@ writeExpenseToSimpleContractForm db (profile, key, idx, expense) = do
   username = User._userCredsName $ User._userProfileCreds profile
 
 removeExpenseFromSimpleContractForm
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> (User.UserProfile, Text, Int)
   -> STM () -- TODO Possible errors
 removeExpenseFromSimpleContractForm db (profile, key, idx) = do
@@ -1563,8 +1518,7 @@ removeExpenseFromSimpleContractForm db (profile, key, idx) = do
 
 --------------------------------------------------------------------------------
 createInvoice
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> STM (Either Invoice.Err Invoice.InvoiceId)
 createInvoice db = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
@@ -1575,8 +1529,7 @@ createInvoice db = do
     createInvoiceFull db new >>= either STM.throwSTM pure
 
 createInvoiceFull
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Invoice.Invoice
   -> STM (Either Invoice.Err Invoice.InvoiceId)
 createInvoiceFull db new = do
@@ -1584,15 +1537,13 @@ createInvoiceFull db new = do
   pure . Right $ Invoice._entityId new
 
 modifyInvoices
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> ([Invoice.Invoice] -> [Invoice.Invoice])
   -> STM ()
 modifyInvoices db f = let tvar = Data._dbInvoices db in STM.modifyTVar tvar f
 
 matchPayment
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Invoice.InvoiceId
   -> STM
        ( Either
@@ -1614,7 +1565,7 @@ createTwoRemittanceAdvs db = do
 -- | Definition of all operations for the UserProfiles (selects and updates)
 instance S.DBStorage AppM STM User.UserProfile where
 
-  type Db AppM STM User.UserProfile = Core.StmDb Runtime
+  type Db AppM STM User.UserProfile = Core.StmDb
 
   type DBError AppM STM User.UserProfile = User.Err
 
@@ -1665,16 +1616,14 @@ selectUserByIdResolved db id = do
     Nothing -> pure Nothing
 
 selectUserByUsername
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> User.UserName
   -> IO (Maybe User.UserProfile)
 selectUserByUsername db username =
   STM.atomically $ Core.selectUserByUsername db username
 
 selectUserByUsernameResolved
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> User.UserName
   -> STM (Maybe (User.UserProfile, [Legal.EntityAndRole]))
 selectUserByUsernameResolved db username = do
@@ -1688,7 +1637,7 @@ selectUserByUsernameResolved db username = do
         pure $ Just (user, entities)
       Nothing -> pure Nothing
 
-filterUsers :: Core.StmDb runtime -> User.Predicate -> STM [User.UserProfile]
+filterUsers :: Core.StmDb -> User.Predicate -> STM [User.UserProfile]
 filterUsers db predicate = do
   let tvar = Data._dbUserProfiles db
   records <- STM.readTVar tvar
@@ -1714,8 +1663,7 @@ createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
       pure $ Left err
 
 setUserEmailAddrAsVerified
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> User.UserName
   -> STM (Either User.Err ())
 setUserEmailAddrAsVerified db username = do
@@ -1735,7 +1683,7 @@ setUserEmailAddrAsVerified db username = do
     Nothing -> pure . Left $ User.UserNotFound $ User.unUserName username
 
 checkCredentials
-  :: Core.StmDb Runtime -> User.Credentials -> STM (Maybe User.UserProfile)
+  :: Core.StmDb -> User.Credentials -> STM (Maybe User.UserProfile)
 checkCredentials db User.Credentials {..} = do
   mprofile <- Core.selectUserByUsername db _userCredsName
   case mprofile of
@@ -1752,16 +1700,14 @@ checkPassword profile (User.Password passInput) = storedPass =:= passInput
 
 userNotFound = Left . User.UserNotFound . mappend "User not found: "
 
-selectEntityBySlug
-  :: forall runtime . Core.StmDb runtime -> Text -> STM (Maybe Legal.Entity)
+selectEntityBySlug :: Core.StmDb -> Text -> STM (Maybe Legal.Entity)
 selectEntityBySlug db name = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
   pure $ find ((== name) . Legal._entitySlug) records
 
 selectEntityBySlugResolved
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> Text
   -> STM (Maybe (Legal.Entity, [Legal.ActingUser]))
 selectEntityBySlugResolved db name = do
@@ -1782,8 +1728,7 @@ selectEntityBySlugResolved db name = do
 
 -- | Select legal entities where the given user ID is "acting".
 selectEntitiesWhereUserId
-  :: forall runtime
-   . Core.StmDb runtime
+  :: Core.StmDb
   -> User.UserId
   -> STM [Legal.EntityAndRole]
 selectEntitiesWhereUserId db uid = do
@@ -1797,7 +1742,7 @@ selectEntitiesWhereUserId db uid = do
       . Legal._entityUsersAndRoles
   getEntityAndRole e = Legal.EntityAndRole e <$> getRole e
 
-readLegalEntities :: forall runtime . Core.StmDb runtime -> STM [Legal.Entity]
+readLegalEntities :: Core.StmDb -> STM [Legal.Entity]
 readLegalEntities db = do
   let tvar = Data._dbLegalEntities db
   records <- STM.readTVar tvar
@@ -1807,7 +1752,7 @@ withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
 
 
 --------------------------------------------------------------------------------
-filterEmails :: Core.StmDb runtime -> Email.Predicate -> STM [Email.Email]
+filterEmails :: Core.StmDb -> Email.Predicate -> STM [Email.Email]
 filterEmails db predicate = do
   let tvar = Data._dbEmails db
   records <- STM.readTVar tvar
@@ -1818,7 +1763,7 @@ filterEmails' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterEmails db predicate
 
-setEmailDone :: Core.StmDb runtime -> Email.Email -> STM (Either Email.Err ())
+setEmailDone :: Core.StmDb -> Email.Email -> STM (Either Email.Err ())
 setEmailDone db Email.Email {..} = do
   mrecord <- Core.selectEmailById db _emailId
   case mrecord of
@@ -1836,9 +1781,9 @@ setEmailDone db Email.Email {..} = do
 
 --------------------------------------------------------------------------------
 readForm
-  :: forall runtime a
-   . (Core.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
-  -> Core.StmDb runtime
+  :: forall a
+   . (Core.StmDb -> STM.TVar (Map (User.UserName, Text) a))
+  -> Core.StmDb
   -> (User.UserProfile, Text)
   -> STM (Either () a)
 readForm getTVar db (profile, key) = do
@@ -1848,9 +1793,9 @@ readForm getTVar db (profile, key) = do
   where username = User._userCredsName $ User._userProfileCreds profile
 
 readForms
-  :: forall runtime a
-   . (Core.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
-  -> Core.StmDb runtime
+  :: forall a
+   . (Core.StmDb -> STM.TVar (Map (User.UserName, Text) a))
+  -> Core.StmDb
   -> User.UserProfile
   -> STM (Either () [(Text, a)])
 readForms getTVar db profile = do
@@ -1860,9 +1805,9 @@ readForms getTVar db profile = do
   where username = User._userCredsName $ User._userProfileCreds profile
 
 deleteForm
-  :: forall runtime a
-   . (Core.StmDb runtime -> STM.TVar (Map (User.UserName, Text) a))
-  -> Core.StmDb runtime
+  :: forall a
+   . (Core.StmDb -> STM.TVar (Map (User.UserName, Text) a))
+  -> Core.StmDb
   -> (User.UserProfile, Text)
   -> STM ()
 deleteForm getTVar db (profile, key) =

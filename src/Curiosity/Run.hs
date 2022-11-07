@@ -125,7 +125,7 @@ run (Command.CommandWithTarget (Command.Parse confParser) _ _) =
         Command.ParseState -> do
           let result = Aeson.eitherDecodeStrict (T.encodeUtf8 content)
           case result of
-            Right (value :: Data.HaskDb Rt.Runtime) -> do
+            Right (value :: Data.HaskDb) -> do
               print value
               exitSuccess
             Left err -> do

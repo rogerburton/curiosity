@@ -235,11 +235,11 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                   :> Capture "name" FilePath
                   :> Capture "nbr" Int
                   :> "state.json"
-                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
              :<|> "state" :> Get '[B.HTML] Pages.EchoPage
              :<|> "state.json"
-                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+                  :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
              :<|> "emails"
                   :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
@@ -649,7 +649,7 @@ type ServerC m
     , MonadReader Rt.Runtime m
     , MonadIO m
     , Show (S.DBError m STM User.UserProfile)
-    , S.Db m STM User.UserProfile ~ Core.StmDb Rt.Runtime
+    , S.Db m STM User.UserProfile ~ Core.StmDb
     )
 
 
@@ -2537,7 +2537,7 @@ showScenarioStateAsJson
   => FilePath
   -> FilePath
   -> Int
-  -> m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+  -> m (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 showScenarioStateAsJson scenariosDir name nbr = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
@@ -2623,7 +2623,7 @@ showState = do
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.
 showStateAsJson
-  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] (HaskDb Rt.Runtime))
+  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 showStateAsJson = do
   db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db

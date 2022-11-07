@@ -67,7 +67,7 @@ data Trace = Trace
   , traceOutput   :: [Text]
   , traceExitCode :: ExitCode
   , traceNested   :: [Trace]
-  , traceState    :: Data.HaskDb Rt.Runtime -- ^ The resulting state.
+  , traceState    :: Data.HaskDb -- ^ The resulting state.
   }
 
 -- | Keep all traces, but removes the `traceNested` indirection.
