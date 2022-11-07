@@ -20,19 +20,19 @@ let
       ./machine/no-gui.nix
     ];
   };
-    # Build with nix-build -A <attr>
-    # binaries + haddock are also available as binaries.all.
     binaries = nixpkgs.haskellPackages.curiosity;
     content = (import ./content {}).html.all;
+    data = (import ./content {}).data;
+    scenarios = (import ./content {}).scenarios;
     haddock = nixpkgs.haskellPackages.curiosity.doc;
     run = import ./scripts/integration-tests {
-      inherit nixpkgs binaries haddock content;
+      inherit nixpkgs binaries haddock content data scenarios;
     };
 in rec
   {
+    # Build with nix-build -A <attr>
+    # binaries + haddock are also available as binaries.all.
     inherit nixpkgs binaries content haddock run;
-    data = (import ./content {}).data;
-    scenarios = (import ./content {}).scenarios;
     static = (import "${sources.design-hs}").static;
     man-pages = (import ./man {}).man-pages;
     toplevel = os.config.system.build.toplevel;
@@ -50,15 +50,17 @@ in rec
                   # to set MANPATH below.
                   # I guess it would work if it was packaged with the binaries.
       ];
-      # Setting the CURIOSITY_STATIC_DIR and CURIOSITY_DATA_DIR is not strictly
-      # necessary as this shell is usually run from the source repository, and
-      # the default paths will work (provided the _site/ directory has been
-      # built. But this makes the shell usable even without those conditions.
+      # Setting the CURIOSITY_STATIC_DIR, CURIOSITY_DATA_DIR, and
+      # CURIOSITY_SCENARIOS_DIR is not strictly necessary as this shell is
+      # usually run from the source repository, and the default paths will work
+      # (provided the _site/ directory has been built. But this makes the shell
+      # usable even without those conditions.
       shellHook = ''
         source <(cty             --bash-completion-script `which cty`)
         source <(cty-sock        --bash-completion-script `which cty-sock`)
         export CURIOSITY_STATIC_DIR=${content}
         export CURIOSITY_DATA_DIR=${data}
+        export CURIOSITY_SCENARIOS_DIR=${scenarios}
         export MANPATH=${man-pages}/share/man
       '';
     };

@@ -53,6 +53,7 @@ in
     source <(cty-sock        --bash-completion-script `which cty-sock`)
     export CURIOSITY_STATIC_DIR=${(import ../.).content}
     export CURIOSITY_DATA_DIR=${(import ../.).data}
+    export CURIOSITY_SCENARIOS_DIR=${(import ../.).scenarios}
   '';
 
   users.users.curiosity = {

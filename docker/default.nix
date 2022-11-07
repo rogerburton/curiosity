@@ -38,6 +38,7 @@ nixpkgs.dockerTools.buildImage {
         "MANPATH=${man-pages}/share/man"
         "CURIOSITY_STATIC_DIR=${(import ../.).content}"
         "CURIOSITY_DATA_DIR=${(import ../.).data}"
+        "CURIOSITY_SCENARIOS_DIR=${(import ../.).scenarios}"
     ];
     ExposedPorts = {
       "9000/tcp" = {};

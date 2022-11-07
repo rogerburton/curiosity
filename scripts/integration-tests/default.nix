@@ -4,6 +4,7 @@
   haddock ? (import ../../.).haddock,
   content ? (import ../../.).content,
   data ? (import ../../.).data,
+  scenarios ? (import ../../.).scenarios,
   system ? builtins.currentSystem,
   lib ? nixpkgs.lib
 }:
@@ -14,6 +15,7 @@ let
     PATH=${lib.strings.makeBinPath [ binaries ]}:$PATH
     export CURIOSITY_STATIC_DIR=${content}
     export CURIOSITY_DATA_DIR=${data}
+    export CURIOSITY_SCENARIOS_DIR=${scenarios}
     ${builtins.readFile ./run-curiosity.sh}
   '';
   nginxConf = nixpkgs.substituteAll {
