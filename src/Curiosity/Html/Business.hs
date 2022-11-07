@@ -33,6 +33,28 @@ unitView unit hasEditButton = containerMedium $ do
     keyValuePair "ID"   (Business._entityId unit)
     keyValuePair "Name" (Business._entityName unit)
     maybe mempty (keyValuePair "Description") (Business._entityDescription unit)
+    keyValuePair "Type (industry class)" (Business._entityType unit)
+
+    title' "Holders" Nothing
+    H.ul $ mapM_ displayHolder $ Business._entityHolders unit
+
+    title' "Authorizations" Nothing
+    H.ul $ mapM_ displayAuthorization $ Business._entityAuthorizations unit
+
+    title' "Scopes" Nothing
+    H.ul $ mapM_ displayScope $ Business._entityScopes unit
+
+displayHolder holder =
+  H.li $ do
+    H.code . H.text $ User.unUserId holder
+
+displayAuthorization auth =
+  H.li $ do
+    H.code . H.text $ show auth
+
+displayScope scope =
+  H.li $ do
+    H.code . H.text $ show scope
 
 --------------------------------------------------------------------------------
 data CreateUnitPage = CreateUnitPage

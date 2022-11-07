@@ -302,6 +302,8 @@ createUser db User.Signup {..} = do
           (User.UserCompletion2 Nothing Nothing)
           -- The very first user has plenty of rights:
           (if newId == firstUserId then firstUserRights else [])
+          -- TODO Define some mechanism to get the initial authorizations
+          [User.AuthorizedAsEmployee]
     emailId <- createEmail db Email.SignupConfirmationEmail
                  Email.systemEmailAddr
                  email
@@ -385,7 +387,7 @@ createBusiness db Business.Create {..} = do
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Unit newId _createSlug _createName Nothing
+    let new = Business.Unit newId _createSlug _createName Nothing "TODO" [] [] []
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull

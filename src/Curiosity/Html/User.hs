@@ -247,10 +247,18 @@ profileView profile entities hasEditButton =
             )
           keyValuePair "Rights"
                        (show . User._userProfileRights $ profile :: Text)
-    title' "Related entities" Nothing
-    H.ul $ mapM_ displayEntities entities
 
-displayEntities (Legal.EntityAndRole entity role) =
+    title' "Authorizations" Nothing
+    H.ul $ mapM_ displayAuthorization $ User._userProfileAuthorizations profile
+
+    title' "Related entities" Nothing
+    H.ul $ mapM_ displayEntitie entities
+
+displayAuthorization auth =
+  H.li $ do
+    H.code . H.text $ show auth
+
+displayEntitie (Legal.EntityAndRole entity role) =
   H.li $ do
     H.a ! A.href (H.toValue $ "/entity/" <> Legal._entitySlug entity) $
       H.text . Legal.unRegistrationName $ Legal._entityName entity

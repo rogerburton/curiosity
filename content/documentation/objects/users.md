@@ -20,7 +20,10 @@ The email address is necessary because it is used by the password reset process
 Most features of the system are available to users "upgraded" from the "base"
 status.
 
-See [example](/views/profile/bob-0.json). — [JSON](/data/bob-0.json)
+Bob
+
+:   See [static example](/views/profile/bob-0.json) (—
+    [JSON](/data/bob-0.json)), or [live example](/bob).
 
 ## Completion-1 user
 
@@ -33,7 +36,10 @@ The additional information are:
 - Postal address
 - Telephone number
 
-See [example](/views/profile/bob-1.json). — [JSON](/data/bob-1.json)
+Bob
+
+:   See [static example](/views/profile/bob-1.json) (—
+    [JSON](/data/bob-1.json)), or [live example](/bob).
 
 ## Completion-2 user
 
@@ -44,7 +50,14 @@ The additional information are:
 
 - EId
 
-See [example](/views/profile/bob-2.json). — [JSON](/data/bob-2.json)
+Bob
+
+:   See [static example](/views/profile/bob-2.json) (—
+    [JSON](/data/bob-2.json)), or [live example](/bob).
+
+## Authorizations
+
+See the [library documentation](/haddock/Curiosity-Data-User.html#t:Authorization).
 
 ## Questions
 

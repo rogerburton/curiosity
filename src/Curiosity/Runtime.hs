@@ -114,7 +114,7 @@ import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Parse               as Command
 import qualified Data.Aeson.Text               as Aeson
 import qualified Data.ByteString.Lazy          as BS
-import           Data.List                      ( lookup )
+import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
@@ -545,18 +545,22 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.UpdateLegalEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ updateLegal
-        _rDb
-        input
-      case output of
-        Right mid -> do
-          case mid of
-            Right () -> do
-              pure
-                ( ExitSuccess
-                , ["Legal entity updated: " <> Legal._updateSlug input]
-                )
-            Left err -> pure (ExitFailure 1, [show err])
+      mid <- runRunM runtime $ updateLegal' input
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> Legal._updateSlug input]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.LinkLegalEntityToUser slug uid role -> do
+      mid <- runRunM runtime $ linkLegalToUser' slug uid role
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> slug]
+            )
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       muid <- runRunM runtime $ createUser input
@@ -839,6 +843,7 @@ createLegal db Legal.Create {..} = do
                            _createVatNumber
                            Nothing
                            []
+                           [Legal.AuthorizedAsBuyer] -- TODO Better logic for initial values.
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -863,6 +868,33 @@ updateLegal db Legal.Update {..} = do
       modifyLegalEntities db replaceOlder
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound _updateSlug -- TODO
+
+updateLegal' :: Legal.Update -> RunM (Either User.Err ())
+updateLegal' update = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ updateLegal db update
+
+linkLegalToUser :: Core.StmDb -> Text -> User.UserId -> Legal.ActingRole -> STM (Either User.Err ())
+linkLegalToUser db slug uid role = do
+  mentity <- selectEntityBySlug db slug
+  case mentity of
+    Just Legal.Entity {..} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == slug
+                then e { Legal._entityUsersAndRoles =
+                           nub $ Legal.ActingUserId uid role : _entityUsersAndRoles
+                       }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+linkLegalToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
+linkLegalToUser' slug uid role = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ linkLegalToUser db slug uid role
 
 modifyLegalEntities
   :: Core.StmDb

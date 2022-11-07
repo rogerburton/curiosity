@@ -1,5 +1,9 @@
 {
   "_entityId": "BENT-1",
   "_entitySlug": "alpha",
-  "_entityName": "Alpha"
+  "_entityName": "Alpha",
+  "_entityType": "TODO",
+  "_entityHolders": [],
+  "_entityAuthorizations": [],
+  "_entityScopes": []
 }
