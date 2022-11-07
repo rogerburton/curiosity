@@ -132,6 +132,8 @@ real [About](/about) page. Even if such a page didn't exist, we would still
 need to prevent users from creating pages that may look like official Curiosity
 pages when they are not.
 
+# Coverage
+
 # See also
 
 - [Scenarios](/documentation/scenarios)
