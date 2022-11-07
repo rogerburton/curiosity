@@ -91,14 +91,12 @@ $ nix-build -A curiosity
 $ ./result/bin/cty serve
 ```
 
-And finally, we can run a local dev environment containing curiosity and a Nginx reverse proxy using:
+And finally, we can run a local dev environment containing curiosity and a
+Nginx reverse proxy using:
 
 ```
-$ nix-build -A integration-tests.local-dev-environment
-$ ./result/bin/run-interactive-integration-env
-$ # Or alternatively from a nix-shell via an injected alias
-$ nix-shell
-$ interactive-integration-env
+$ nix-build -A run
+$ result/bin/run-full-environment
 ```
 
 
