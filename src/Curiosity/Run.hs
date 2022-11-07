@@ -5,6 +5,7 @@ module Curiosity.Run
 import qualified Commence.Runtime.Errors       as Errs
 import qualified Curiosity.Command             as Command
 import qualified Curiosity.Data                as Data
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.User           as User
 import qualified Curiosity.Interpret           as Inter
 import qualified Curiosity.Parse               as P
@@ -173,21 +174,25 @@ run (Command.CommandWithTarget (Command.ViewQueues queues) target (Command.User 
   = do
     case target of
       Command.MemoryTarget -> do
-        handleViewQueues P.defaultConf user queues
+        handleCommand P.defaultConf
+                      user
+                      (Command.ViewQueues queues)
       Command.StateFileTarget path -> do
-        handleViewQueues P.defaultConf { P._confDbFile = Just path } user queues
+        handleCommand P.defaultConf { P._confDbFile = Just path }
+                      user
+                      (Command.ViewQueues queues)
       Command.UnixDomainTarget _ -> do
         putStrLn @Text "TODO"
         exitFailure
 
-run (Command.CommandWithTarget Command.Step target (Command.User user)) = do
+run (Command.CommandWithTarget (Command.Step isAll dryRun) target (Command.User user)) = do
   case target of
     Command.MemoryTarget -> do
-      handleCommand P.defaultConf user Command.Step
+      handleCommand P.defaultConf user $ Command.Step isAll dryRun
     Command.StateFileTarget path -> do
       handleCommand P.defaultConf { P._confDbFile = Just path }
                     user
-                    Command.Step
+                    (Command.Step isAll dryRun)
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
@@ -240,18 +245,11 @@ handleViewQueue conf user name = do
       handleCommand conf
                     user
                     (Command.FilterUsers User.PredicateEmailAddrToVerify)
-
-
---------------------------------------------------------------------------------
-handleViewQueues conf user queues = do
-  case queues of
-    Command.CurrentUserQueues -> do
-      -- TODO Check first if the user has the necessary rights to handle this
-      -- queue.
-      handleViewQueue conf user Command.EmailAddrToVerify
-    _ -> do
-      putStrLn @Text "TODO handleViewQueues"
-      exitFailure
+    Command.EmailsToSend -> do
+      putStrLn @Text "Emails to send:"
+      handleCommand conf
+                    user
+                    (Command.FilterEmails Email.EmailsTodo)
 
 
 --------------------------------------------------------------------------------

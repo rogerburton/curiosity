@@ -120,10 +120,12 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as LT
+import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
 import qualified Network.HTTP.Types            as HTTP
 import           Prelude                 hiding ( state )
 import qualified Servant
 import           System.Directory               ( doesFileExist )
+import           System.PosixCompat.Types       ( EpochTime )
 
 
 --------------------------------------------------------------------------------
@@ -310,6 +312,18 @@ state = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readFullStmDbInHask' db
 
+-- | Retrieve the current simulated time.
+time :: RunM EpochTime
+time = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.readTime db
+
+-- | Advance the time by a second or to the next minute.
+stepTime :: Bool -> RunM EpochTime
+stepTime minute = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.stepTime db minute
+
 -- | Retrieve the threads state.
 threads :: RunM [Text]
 threads = do
@@ -374,21 +388,53 @@ emailThread :: RunM ()
 emailThread = do
   let loop = do
         liftIO $ threadDelay $ 5 * 1000 * 1000 -- 5 seconds.
-        emailStep
+        ML.localEnv (<> "Threads") $ do
+          emailStep
         loop
   loop
 
 -- | One iteration of the `emailThread` loop.
-emailStep :: RunM ()
+emailStep :: RunM [Email.Email]
 emailStep = do
   db <- asks _rDb
-  emails <- liftIO . STM.atomically $
-    filterEmails db Email.EmailsTodo
-  ML.localEnv (<> "Threads" <> "Email") $ do
-    when (not . null $ emails) $
-      ML.info $ "Processing " <> show (length emails) <> " emails..."
+  records <- emailStepDryRun
+  ML.localEnv (<> "Actions" <> "SendEmails") $ do
+    when (not . null $ records) $
+      ML.info $ "Processing " <> show (length records) <> " emails..."
   -- TODO Have a single operation ?
-  liftIO . STM.atomically $ mapM_ (setEmailDone db) emails
+  liftIO . STM.atomically $ mapM_ (setEmailDone db) records
+  pure records
+
+emailStepDryRun :: RunM [Email.Email]
+emailStepDryRun = do
+  db <- asks _rDb
+  records <- liftIO . STM.atomically $
+    filterEmails db Email.EmailsTodo
+  pure records
+
+verifyEmailStep :: RunM [User.UserProfile]
+verifyEmailStep = do
+  db <- asks _rDb
+  records <- verifyEmailStepDryRun
+  ML.localEnv (<> "Actions" <> "VerifyEmails") $ do
+    when (not . null $ records) $
+      ML.info $ "Processing " <> show (length records) <> " users..."
+  -- TODO Have a single operation ?
+  liftIO . STM.atomically $
+    mapM_
+      ( setUserEmailAddrAsVerified db
+      . User._userCredsName
+      . User._userProfileCreds
+      )
+      records
+  pure records
+
+verifyEmailStepDryRun :: RunM [User.UserProfile]
+verifyEmailStepDryRun = do
+  db <- asks _rDb
+  records <- liftIO . STM.atomically $
+    filterUsers db User.PredicateEmailAddrToVerify
+  pure records
 
 {- | Instantiate the db.
 
@@ -780,19 +826,46 @@ handleCommand runtime@Runtime {..} user command = do
             Left _ -> pure (ExitFailure 1, ["Key not found: " <> input])
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
-    Command.Step -> do
-      let transaction _ _ = do
-            users <- filterUsers _rDb User.PredicateEmailAddrToVerify
-            mapM
-              ( setUserEmailAddrAsVerified _rDb
-              . User._userCredsName
-              . User._userProfileCreds
-              )
-              users
-      output <- runAppMSafe runtime $ withRuntimeAtomically transaction ()
-      case output of
-        Right x   -> pure (ExitSuccess, map show x)
-        Left  err -> pure (ExitFailure 1, [Errs.displayErr err])
+    Command.FilterEmails predicate -> do
+      records <- runRunM runtime $ filterEmails' predicate
+      let f Email.Email {..} =
+            let Email.EmailId i              = _emailId
+                User.UserEmailAddr recipient = _emailRecipient
+            in  i <> " " <> recipient
+      pure (ExitSuccess, map f records)
+    Command.ViewQueues queues -> do
+      -- TODO Check first if the user has the necessary rights to handle this
+      -- queue.
+      (_, output1) <- handleCommand runtime
+                        user
+                        (Command.FilterUsers User.PredicateEmailAddrToVerify)
+      (_, output2) <- handleCommand runtime
+                         user
+                         (Command.FilterEmails Email.EmailsTodo)
+      pure (ExitSuccess, ["Email addresses to verify:"] <> output1 <>
+        ["Emails to send:"] <> output2)
+    Command.Step True dryRun -> do
+      (users, emails) <- runRunM runtime $ do
+        users <- if dryRun then verifyEmailStepDryRun else verifyEmailStep
+        emails <- if dryRun then emailStepDryRun else emailStep
+        pure (users, emails)
+      let displayUser User.UserProfile {..} =
+            "Setting user email addr. to verified: " <>
+            User.unUserEmailAddr _userProfileEmailAddr
+          displayEmail Email.Email {..} =
+            "Sending email: " <>
+            Email.unEmailId _emailId
+          output1 = map displayUser users
+          output2 = map displayEmail emails
+      pure (ExitSuccess, output1 <> output2 <> ["All steps done."])
+    Command.Time step minute -> do
+      let fmt = "%d/%b/%Y:%T %z"
+      output <-
+        if step
+          then runRunM runtime $ stepTime minute
+          else runRunM runtime time
+      output' <- liftIO $ formatUnixTime fmt $ fromEpochTime output
+      pure (ExitSuccess, [TE.decodeUtf8 output'])
     _ -> do
       -- TODO It seems that showing the command causes a stack overflow. For
       -- instance the error happens by passing the Log or the Reset commands.

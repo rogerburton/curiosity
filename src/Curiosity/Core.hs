@@ -40,6 +40,9 @@ module Curiosity.Core
   , genRandomText
   , readStdGen
   , writeStdGen
+  -- * Simulated time
+  , readTime
+  , stepTime
   -- * User rights
   , canPerform
   ) where
@@ -59,7 +62,9 @@ import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.User           as User
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
+import           Foreign.C.Types                ( CTime(..) )
 import qualified Language.Haskell.TH.Syntax    as Syntax
+import           System.PosixCompat.Types       ( EpochTime )
 import qualified System.Random                 as Rand
 import qualified System.Random.Internal        as Rand
 import qualified System.Random.SplitMix        as SM
@@ -94,6 +99,7 @@ instantiateStmDb Db
   , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
   , _dbEmployments = Identity seedEmployments
   , _dbRandomGenState = Identity seedRandomGenState
+  , _dbEpochTime = Identity seedEpochTime
   , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
   , _dbFormCreateContractAll = Identity seedFormCreateContractAll
   , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -119,6 +125,8 @@ instantiateStmDb Db
     _dbEmployments                 <- STM.newTVar seedEmployments
 
     _dbRandomGenState              <- STM.newTVar seedRandomGenState
+    _dbEpochTime                   <- STM.newTVar seedEpochTime
+
     _dbFormCreateQuotationAll      <- STM.newTVar seedFormCreateQuotationAll
     _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
     _dbFormCreateSimpleContractAll <- STM.newTVar
@@ -150,6 +158,8 @@ reset stmDb = do
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
   STM.writeTVar (_dbRandomGenState stmDb) seedRandomGenState
+  STM.writeTVar (_dbEpochTime stmDb) seedEpochTime
+
   STM.writeTVar (_dbFormCreateQuotationAll stmDb) seedFormCreateQuotationAll
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
   STM.writeTVar (_dbFormCreateSimpleContractAll stmDb)
@@ -176,6 +186,7 @@ reset stmDb = do
     , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments = Identity seedEmployments
     , _dbRandomGenState = Identity seedRandomGenState
+    , _dbEpochTime = Identity seedEpochTime
     , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
     , _dbFormCreateContractAll = Identity seedFormCreateContractAll
     , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -205,6 +216,8 @@ readFullStmDbInHask' stmDb = do
   _dbEmployments            <- pure <$> STM.readTVar (_dbEmployments stmDb)
 
   _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
+  _dbEpochTime              <- pure <$> STM.readTVar (_dbEpochTime stmDb)
+
   _dbFormCreateQuotationAll <- pure
     <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
   _dbFormCreateContractAll  <- pure
@@ -476,7 +489,6 @@ canPerform action _ User.UserProfile {..}
 
 
 --------------------------------------------------------------------------------
-
 readStdGen :: StmDb -> STM Rand.StdGen
 readStdGen db = do
   (seed, gamma) <- STM.readTVar $ _dbRandomGenState db
@@ -498,3 +510,16 @@ genRandomText db = do
       g2 = snd $ L.last ags
   writeStdGen db g2
   pure s
+
+
+--------------------------------------------------------------------------------
+readTime :: StmDb -> STM EpochTime
+readTime db = STM.readTVar $ _dbEpochTime db
+
+stepTime :: StmDb -> Bool -> STM EpochTime
+stepTime db minute = do
+  CTime t <- STM.readTVar $ _dbEpochTime db
+  let d = 60 - (t `mod` 60) -- seconds remaining before the next minute
+      t' = CTime $ if minute then t + d else t + 1
+  STM.writeTVar (_dbEpochTime db) t'
+  pure t'

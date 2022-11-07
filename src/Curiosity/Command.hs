@@ -16,6 +16,7 @@ module Curiosity.Command
 
 import qualified Commence.Runtime.Storage      as S
 import qualified Curiosity.Data.Business       as Business
+import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
 import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Invoice        as Invoice
@@ -86,14 +87,21 @@ data Command =
     -- ^ Submit a quotation.
   | FormNewSimpleContract SimpleContract.CreateContractAll'
   | FormValidateSimpleContract Text
+  | FilterEmails Email.Predicate
   | ViewQueue QueueName
     -- ^ View queue. The queues can be filters applied to objects, not
     -- necessarily explicit list in database.
   | ViewQueues Queues
-  | Step
+  | Step Bool Bool
     -- ^ Execute the next automated action when using stepped (non-wallclock)
     -- mode, or mixed-mode, or the next automated action when the automation is
     -- "disabled".
+    -- If True, execute all of them.
+    -- If True, don't actually execute them but report what whould be done.
+  | Time Bool Bool
+    -- ^ Report or set the simulated time.
+    -- If True, advance the time by a second.
+    -- If True, advance the time to the next minute.
   | Log Text P.Conf
     -- Log a line of text to the logs.
   | ShowId Text
@@ -110,7 +118,7 @@ data RunOutput = RunOutput Bool Bool
   deriving (Eq, Show)
 
 
-data QueueName = EmailAddrToVerify
+data QueueName = EmailAddrToVerify | EmailsToSend
   deriving (Eq, Show)
 
 data Queues = CurrentUserQueues | AllQueues | AutomatedQueues | ManualQueues | UserQueues User.UserName
@@ -348,8 +356,14 @@ parser =
 
       <> A.command
            "step"
-           ( A.info (pure Step <**> A.helper)
-           $ A.progDesc "Run the next automated action"
+           ( A.info (parserStep <**> A.helper)
+           $ A.progDesc "Run the next automated action(s)"
+           )
+
+      <> A.command
+           "time"
+           ( A.info (parserTime <**> A.helper)
+           $ A.progDesc "Report or set the simulated time"
            )
 
       <> A.command
@@ -827,16 +841,29 @@ parserFormValidateSimpleContract = do
 --
 --     Available commands:
 --       user-email-addr-to-verify
+--
+-- The advantage compared to a metavar and a completer is that there is a help
+-- text.
 parserQueue :: A.Parser Command
-parserQueue = A.subparser $ A.command
+parserQueue = ViewQueue <$> A.subparser (
+  A.command
   "user-email-addr-to-verify"
-  ( A.info (p <**> A.helper)
+  ( A.info (pure EmailAddrToVerify <**> A.helper)
   $ A.progDesc
       "Show users with an email address that need verification. \
       \Use `cty user do set-email-addr-as-verified` to mark an email address \
       \as verified."
   )
-  where p = pure $ ViewQueue EmailAddrToVerify
+  <>
+  A.command
+  "emails-to-send"
+  ( A.info (pure EmailsToSend <**> A.helper)
+  $ A.progDesc
+      "Show users with an email address that need verification. \
+      \Use `cty user do set-email-addr-as-verified` to mark an email address \
+      \as verified."
+  )
+  )
 
 parserQueues :: A.Parser Command
 parserQueues =
@@ -863,6 +890,16 @@ parserQueues =
             <> A.metavar "USERNAME"
             )
         )
+
+parserStep :: A.Parser Command
+parserStep = Step <$> A.switch
+  (A.long "all" <> A.help "Execute all possible actions (default is one action).")
+  <*> A.switch (A.long "dry" <> A.help "Don't actually execute actions, but report what would be done.")
+
+parserTime :: A.Parser Command
+parserTime = Time
+  <$> A.switch (A.long "step" <> A.help "Advance the time of 1 second.")
+  <*> A.switch (A.long "minute" <> A.help "Advance the time to the next minute.")
 
 parserLog :: A.Parser Command
 parserLog =

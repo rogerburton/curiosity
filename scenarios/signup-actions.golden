@@ -1,0 +1,23 @@
+1: reset
+Resetting to the empty state.
+2: queues
+Email addresses to verify:
+Emails to send:
+3: user create alice secret alice@example.com --accept-tos
+User created: USER-1
+4: queues
+Email addresses to verify:
+USER-1 alice
+Emails to send:
+EMAIL-1 alice@example.com
+5: step --all --dry
+Setting user email addr. to verified: alice@example.com
+Sending email: EMAIL-1
+All steps done.
+6: step --all
+Setting user email addr. to verified: alice@example.com
+Sending email: EMAIL-1
+All steps done.
+7: queues
+Email addresses to verify:
+Emails to send:

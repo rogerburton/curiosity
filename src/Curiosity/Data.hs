@@ -39,6 +39,7 @@ import qualified Curiosity.Data.User           as User
 import           Data.Aeson
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types.Status     as S
+import           System.PosixCompat.Types       ( EpochTime )
 import qualified System.Random                 as Rand
 import qualified System.Random.Internal        as Rand
 import qualified System.Random.SplitMix        as SM
@@ -74,6 +75,10 @@ data Db (datastore :: Type -> Type) = Db
 
   , _dbRandomGenState   :: datastore (Word64, Word64)
     -- ^ The internal representation of a StdGen.
+  , _dbEpochTime        :: datastore EpochTime
+    -- ^ The internal time, possibly disconnected from the real wall clock.
+    -- This is used to simulate the advance of time for automated processes
+    -- triggered by the `step` command.
 
   , _dbFormCreateQuotationAll ::
       datastore (Map (User.UserName, Text) Quotation.CreateQuotationAll)
@@ -116,6 +121,8 @@ emptyHask = Db (pure 1)
                (pure mempty)
 
                (pure initialGenState)
+               (pure 0) -- 01/Jan/1970:01:00:00 +0100
+
                (pure mempty)
                (pure mempty)
                (pure mempty)
