@@ -16,4 +16,4 @@ cty init
 
 # Start server
 echo "[+] Starting the curiosity server"
-cty serve --server-port 9100
+cty serve --server-port 9000

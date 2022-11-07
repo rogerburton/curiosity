@@ -119,6 +119,9 @@ $ nix-shell default.nix -A shell
 $ run-full-environment
 ```
 
+It is also possible to only run Nginx in that shell with `run-nginx`. This is
+usefull for instance to proxy a `cty serve` running from GHCi.
+
 And finally, we can run a local virtual machine running `cty serve` and a Nginx
 reverse proxy using [see below](#qemu):
 
