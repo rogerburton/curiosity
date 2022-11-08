@@ -11,6 +11,6 @@ cd "$rundir"
 cp "$NGINX_CONF" nginx.conf
 mkdir -p nginx-cache
 sed -i "s~@tmpdir@~$rundir/nginx-cache~g" nginx.conf
-echo "[+] Starting nginx on port 8888"
-echo "[+] Home page: http://127.0.0.1:8888"
+echo "[+] Starting nginx on port 8180"
+echo "[+] Home page: http://127.0.0.1:8180"
 nginx -c "$rundir"/nginx.conf

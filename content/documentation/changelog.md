@@ -12,6 +12,97 @@ developers (or more generally, contributors) to apply changes to the [code
 base](/documentation/source).  PRs may contain additional details and
 discussions, or provide historical context.
 
+## 2022-11-08
+
+**Document the main sale flow.** This adds a dedicated [documentation
+page](https://smartcoop.sh/documentation/smart) written by Roger to document
+some business matter, and in particular a Sale flow. To contrast that flow with
+the existing `quotation-flow.golden`, this scenario is now rendered within a
+[documentation page](/documentation/scenarios/quotation-flow). See
+[PR-93](https://github.com/hypered/curiosity/pull/93).
+
+**Add a processing thread to send emails.** A thread is now running in the HTTP
+server and in the REPL to "send" emails. Currently it simply changes the email
+state from "TODO" to "DONE". Commands are added to stop or start the thread, or
+to run its logic manually. This can be used within the HTTP server or the REPL
+when the thread is stopped, or with `cty` or `cty run`. See
+[PR-94](https://github.com/hypered/curiosity/pull/94).
+
+**Simplify the `Data.Db` data type.** The `Data.Db` type was parameterized by a
+"runtime" type, propagated to `HaskDb` and `StmDb`. I think the parameter was
+no longer necessary since I removed the `RuntimeHasStmDb` class in
+`b9972e90281723a3b18f857bf7ddfb763a17e7e9`. See
+[PR-95](https://github.com/hypered/curiosity/pull/95).
+
+**Document golden testing, improve `cty run`.** This mainly adds a
+[documentation page](/documentation/tests) to explain how golden testing works
+in the Curiosity project. To do so, some new routes are added to be able to
+embed scenarios and their golden files within the documentation page.
+
+This also adds some flags to `cty run` to be able to control whether
+regular output and/or the final state of the scenario should be printed to the
+console.
+
+A nice aspect of using the new flags is that `cty run`, when only reporting
+the final state, should not retain in memory more than the runtime state, and
+that displaying it should make sure its final state is fully evaluated. This
+could be the basis for some benchmarking code (e.g. process a long scenario as
+fast as possible). See [PR-96](https://github.com/hypered/curiosity/pull/96).
+
+**Add a script to generate a code coverage report.** This currently only calls
+the `cty` binary, and not the tests. The result is a set of HTML pages showing
+the code that is never executed. See
+[PR-97](https://github.com/hypered/curiosity/pull/97).
+
+**Update the OpenSSL library from 3.0.5 to 3.0.7.** This fixes a vulnerability,
+see [this blog
+post](https://www.openssl.org/blog/blog/2022/11/01/email-address-overflows/).
+See [PR-98](https://github.com/hypered/curiosity/pull/98).
+
+**Augment the legal entity, user profile, and business unit types.** This PR is
+based on an email from Roger titled 'pour les visuels web des fiches "legal"
+"person", business unit"' from 2022-08-27.
+
+- Add some notion of legal entity authorization: This makes it possible to
+  add a user, specifying a role, to a list of "acting" users within the
+  entity. Maybe this should be called "contacts" instead.
+- Add some notion of user profile authorization.
+- Add some notion of business unit authorization, and also notions of Scope
+  Code, Holders, and Activity types.
+- See [PR-99](https://github.com/hypered/curiosity/pull/99).
+
+**Document the concepts of queues and steps:**
+
+- Add command to show emails to send:
+  - This adds `queue emails-to-send`
+  - And now `queues` reports also the emails to send
+- Now step `--all` also send emails; it was only "verifying" emails
+  (i.e. set users as having a verified email address).
+- Add a [scenario](/documentation/queues) for signup email and email
+  verification. This shows that after a user is created, an email must be sent
+  to that user, and their email address must be verified. After running `step
+  --all`, queues are empty. (Currently, email verification is just  setting the
+  "verified" bit to true, without actually checking some one-time token.)
+- Add a `--dry` option to the step command, to show what would happen, but
+  without actually doing it.
+- Add a `time` command with a small scenario and a [documentation
+  page](/documentation/time).
+- See [PR-100](https://github.com/hypered/curiosity/pull/100).
+
+**Modules reorganization.** This PR splits the `Curiosity.Runtime` module into
+additional modules. See [PR-92](https://github.com/hypered/curiosity/pull/92).
+
+**`procfile`-based environment.** This is a first step towards writing an
+integration test suite.
+
+We set up an environment running the Curiosity server behind an Nginx reverse
+proxy. This environment is mostly provisioned using the various existing Nix
+build artifacts.
+
+While this setup does not provides an isolation level comparable to a VM-based
+one, it's much more lightweight. See
+[PR-101](https://github.com/hypered/curiosity/pull/101).
+
 ## 2022-10-21
 
 **Add a "Quick start" section to the [CLIs

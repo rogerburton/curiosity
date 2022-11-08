@@ -32,7 +32,7 @@ in rec
   {
     # Build with nix-build -A <attr>
     # binaries + haddock are also available as binaries.all.
-    inherit nixpkgs binaries content haddock run;
+    inherit nixpkgs binaries content data scenarios haddock run;
     static = (import "${sources.design-hs}").static;
     man-pages = (import ./man {}).man-pages;
     toplevel = os.config.system.build.toplevel;
@@ -49,6 +49,8 @@ in rec
         man-pages # This works in environment.systemPackages but here we need
                   # to set MANPATH below.
                   # I guess it would work if it was packaged with the binaries.
+        run.run-full-environment
+        run.run-nginx
       ];
       # Setting the CURIOSITY_STATIC_DIR, CURIOSITY_DATA_DIR, and
       # CURIOSITY_SCENARIOS_DIR is not strictly necessary as this shell is
