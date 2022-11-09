@@ -3,7 +3,7 @@ Module: Curiosity.Html.User
 Description: Profile pages (view and edit).
 -}
 module Curiosity.Html.User
-  ( ProfilePage(..)
+  ( EditProfilePage(..)
   , ProfileView(..)
   , PublicProfileView(..)
   ) where
@@ -29,13 +29,13 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 
 --------------------------------------------------------------------------------
-data ProfilePage = ProfilePage
+data EditProfilePage = EditProfilePage
   { _profilePageUserProfile      :: User.UserProfile
   , _profilePageSubmitURL        :: H.AttributeValue
   }
 
-instance H.ToMarkup ProfilePage where
-  toMarkup (ProfilePage profile submitUrl) =
+instance H.ToMarkup EditProfilePage where
+  toMarkup (EditProfilePage profile submitUrl) =
     renderForm profile $ groupLayout $ do
       title "User profile"
       disabledText

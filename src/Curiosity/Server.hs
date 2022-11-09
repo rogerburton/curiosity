@@ -123,7 +123,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
 
              :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
              :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
-             :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.ProfilePage
+             :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.EditProfilePage
 
              :<|> "forms" :> "new" :> "quotation"
                   :> Get '[B.HTML] Pages.CreateQuotationPage
@@ -991,7 +991,7 @@ type Private = H.UserAuthentication :> (
              :<|>  "settings" :> "profile.json"
                    :> Get '[JSON] User.UserProfile
              :<|>  "settings" :> "profile" :> "edit"
-                   :> Get '[B.HTML] Pages.ProfilePage
+                   :> Get '[B.HTML] Pages.EditProfilePage
 
              :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
              :<|> "new" :> "unit" :> Get '[B.HTML] Pages.CreateUnitPage
@@ -1085,7 +1085,7 @@ showProfileAsJson
 showProfileAsJson = pure
 
 showEditProfilePage profile =
-  pure $ Pages.ProfilePage profile "/a/set-user-profile"
+  pure $ Pages.EditProfilePage profile "/a/set-user-profile"
 
 showCreateEntityPage
   :: ServerC m => User.UserProfile -> m Pages.CreateEntityPage
@@ -1273,10 +1273,10 @@ handleSubmitQuotation input@(Quotation.SubmitQuotation key) profile =
 -- The \`document` -prefixed functions display the same page as the \`show`
 -- -prefixed one.
 
-documentEditProfilePage :: ServerC m => FilePath -> m Pages.ProfilePage
+documentEditProfilePage :: ServerC m => FilePath -> m Pages.EditProfilePage
 documentEditProfilePage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
-  pure $ Pages.ProfilePage profile "/echo/update-profile"
+  pure $ Pages.EditProfilePage profile "/echo/update-profile"
 
 echoUpdateProfile :: ServerC m => User.Update -> m Pages.EchoPage
 echoUpdateProfile input = pure $ Pages.EchoPage $ show input
