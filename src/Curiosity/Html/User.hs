@@ -113,7 +113,8 @@ profileView profile entities hasEditButton =
           keyValuePair @Text "Password" ""
           keyValuePair "Display name"
             $ maybe "" identity (User._userProfileDisplayName profile)
-          keyValuePair "Bio" $ maybe "" identity (User._userProfileBio profile)
+          keyValuePair "Bio"
+            $ maybe "" linkifyAts (User._userProfileBio profile)
           keyValuePair "Email address" (User._userProfileEmailAddr profile)
           keyValuePair
             "Email addr. verified"
@@ -218,4 +219,6 @@ publicProfileView profile =
           maybe mempty
                 (keyValuePair "Display name")
                 (User._userProfileDisplayName profile)
-          maybe mempty (keyValuePair "Bio") (User._userProfileBio profile)
+          maybe mempty
+                (keyValuePair "Bio" . linkifyAts)
+                (User._userProfileBio profile)

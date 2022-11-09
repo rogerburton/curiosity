@@ -35,8 +35,10 @@ module Curiosity.Html.Misc
 
   -- View
   , editButton
-
   , iconError
+
+  -- Links
+  , linkifyAts
 
   -- Keep here:
   , renderView
@@ -51,13 +53,14 @@ import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Navbar          ( navbar
                                                 , navbarWebsite
                                                 )
+import qualified Data.Text                     as T
 import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Render             as Render
-import           Smart.Html.Shared.Html.Icons   ( divIconAdd
+import           Smart.Html.Shared.Html.Icons   ( OSvgIconDiv(..)
+                                                , divIconAdd
                                                 , divIconCheck
                                                 , svgIconCircleError
                                                 , svgIconEdit
-                                                , OSvgIconDiv(..)
                                                 )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!)
@@ -346,7 +349,9 @@ buttonSecondary submitUrl label =
     ! A.formmethod "POST"
     $ H.span
     ! A.class_ "c-button__content"
-    $ H.span ! A.class_ "c-button__label" $ H.text label
+    $ H.span
+    ! A.class_ "c-button__label"
+    $ H.text label
 
 buttonSecondaryDisabled label =
   H.button
@@ -354,7 +359,9 @@ buttonSecondaryDisabled label =
     ! A.disabled "disabled"
     $ H.span
     ! A.class_ "c-button__content"
-    $ H.span ! A.class_ "c-button__label" $ H.text label
+    $ H.span
+    ! A.class_ "c-button__label"
+    $ H.text label
 
 buttonAdd submitUrl label =
   H.button
@@ -383,8 +390,21 @@ editButton lnk =
 
 
 --------------------------------------------------------------------------------
-iconError =
-  Just $ OSvgIconDiv @"circle-error" svgIconCircleError
+-- | Turn \@mentions into links. This is used for texts appearing in Bios and
+-- Descriptions of user and business unit profiles.
+linkifyAts :: Text -> H.Html
+linkifyAts = mapM_ f . T.words
+ where
+  f word | "@" `T.isPrefixOf` word = do
+    let (word', rest) = T.breakOn "." word
+    H.a ! A.href (H.toValue $ "/" <> T.tail word') $ H.text word'
+    H.text rest
+    " "
+  f word = H.text word >> " "
+
+
+--------------------------------------------------------------------------------
+iconError = Just $ OSvgIconDiv @"circle-error" svgIconCircleError
 
 
 --------------------------------------------------------------------------------

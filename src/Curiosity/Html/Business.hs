@@ -32,7 +32,9 @@ unitView unit hasEditButton = containerMedium $ do
   H.dl ! A.class_ "c-key-value c-key-value--horizontal c-key-value--short" $ do
     keyValuePair "ID"   (Business._entityId unit)
     keyValuePair "Name" (Business._entityName unit)
-    maybe mempty (keyValuePair "Description") (Business._entityDescription unit)
+    maybe mempty
+          (keyValuePair "Description" . linkifyAts)
+          (Business._entityDescription unit)
     keyValuePair "Type (industry class)" (Business._entityType unit)
 
     title' "Holders" Nothing
@@ -44,17 +46,14 @@ unitView unit hasEditButton = containerMedium $ do
     title' "Scopes" Nothing
     H.ul $ mapM_ displayScope $ Business._entityScopes unit
 
-displayHolder holder =
-  H.li $ do
-    H.code . H.text $ User.unUserId holder
+displayHolder holder = H.li $ do
+  H.code . H.text $ User.unUserId holder
 
-displayAuthorization auth =
-  H.li $ do
-    H.code . H.text $ show auth
+displayAuthorization auth = H.li $ do
+  H.code . H.text $ show auth
 
-displayScope scope =
-  H.li $ do
-    H.code . H.text $ show scope
+displayScope scope = H.li $ do
+  H.code . H.text $ show scope
 
 --------------------------------------------------------------------------------
 data CreateUnitPage = CreateUnitPage
