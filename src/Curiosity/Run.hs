@@ -39,7 +39,7 @@ run (Command.CommandWithTarget Command.Layout _ _) = do
   Srv.routingLayout >>= putStrLn
   exitSuccess
 
-run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
+run (Command.CommandWithTarget (Command.Init mode) (Command.StateFileTarget path) _) =
   do
     exists <- liftIO $ doesFileExist path
     if exists
@@ -48,7 +48,7 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
         putStrLn @Text "Aborting."
         exitFailure
       else do
-        let bs = Data.serialiseDb Data.emptyHask
+        let bs = Data.serialiseDb Data.emptyHask { Data._dbSteppingMode = pure mode }
         try @SomeException (BS.writeFile path bs) >>= either
           (\e -> print e >> exitFailure)
           (const $ do
@@ -56,10 +56,10 @@ run (Command.CommandWithTarget Command.Init (Command.StateFileTarget path) _) =
             exitSuccess
           )
 
-run (Command.CommandWithTarget (Command.Reset conf) (Command.StateFileTarget path) _)
+run (Command.CommandWithTarget Command.Reset (Command.StateFileTarget path) _)
   = do
     runtime <-
-      Rt.bootConf conf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
+      Rt.bootConf P.defaultConf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
     Rt.runRunM runtime $ Rt.reset
     Rt.powerdown runtime
     exitSuccess
@@ -94,18 +94,18 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
       putStrLn @Text "TODO"
       exitFailure
 
-run (Command.CommandWithTarget (Command.Run _ scriptPath runOutput) target (Command.User user))
+run (Command.CommandWithTarget (Command.Run conf scriptPath runOutput) target (Command.User user))
   = case target of
     Command.MemoryTarget ->
       let  Command.RunOutput withTraces withFinal = runOutput in
       if withTraces
-      then Inter.handleRun P.defaultConf user scriptPath withFinal
-      else Inter.handleRunNoTrace P.defaultConf user scriptPath withFinal
+      then Inter.handleRun conf user scriptPath withFinal
+      else Inter.handleRunNoTrace conf user scriptPath withFinal
     Command.StateFileTarget path ->
       let Command.RunOutput withTraces withFinal = runOutput in
       if withTraces
-      then Inter.handleRun P.defaultConf { P._confDbFile = Just path } user scriptPath withFinal
-      else Inter.handleRunNoTrace P.defaultConf { P._confDbFile = Just path } user scriptPath withFinal
+      then Inter.handleRun conf { P._confDbFile = Just path } user scriptPath withFinal
+      else Inter.handleRunNoTrace conf { P._confDbFile = Just path } user scriptPath withFinal
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
@@ -304,7 +304,7 @@ client path command = do
   exitSuccess
 
 commandToString = \case
-  Command.Init -> do
+  Command.Init _ -> do
     putStrLn @Text "Can't send `init` to a server."
     exitFailure
   Command.State useHs -> pure $ "state" <> if useHs then " --hs" else ""
@@ -332,7 +332,7 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
           case command of
             -- We ignore the Configuration here. Probably this should be moved
             -- to Rt.handleCommand too.
-            Command.Reset _          -> Rt.runRunM runtime $ Rt.reset
+            Command.Reset              -> Rt.runRunM runtime $ Rt.reset
             Command.Run _ scriptPath _ -> do
               (code, _) <- liftIO $ Inter.interpret runtime user scriptPath
               case code of

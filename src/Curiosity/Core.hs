@@ -41,7 +41,9 @@ module Curiosity.Core
   , writeStdGen
   -- * Simulated time
   , readTime
+  , writeTime
   , stepTime
+  , readSteppingMode
   -- * User rights
   , canPerform
   ) where
@@ -99,6 +101,7 @@ instantiateStmDb Db
   , _dbEmployments = Identity seedEmployments
   , _dbRandomGenState = Identity seedRandomGenState
   , _dbEpochTime = Identity seedEpochTime
+  , _dbSteppingMode = Identity seedSteppingMode
   , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
   , _dbFormCreateContractAll = Identity seedFormCreateContractAll
   , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -125,6 +128,7 @@ instantiateStmDb Db
 
     _dbRandomGenState              <- STM.newTVar seedRandomGenState
     _dbEpochTime                   <- STM.newTVar seedEpochTime
+    _dbSteppingMode                <- STM.newTVar seedSteppingMode
 
     _dbFormCreateQuotationAll      <- STM.newTVar seedFormCreateQuotationAll
     _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
@@ -137,8 +141,8 @@ instantiateStmDb Db
 
 -- brittany-disable-next-binding
 -- | Reset the database to the empty state.
-reset :: StmDb -> STM ()
-reset stmDb = do
+reset :: StmDb -> EpochTime -> STM ()
+reset stmDb now = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
   STM.writeTVar (_dbBusinessUnits stmDb) seedBusinessUnits
   C.writeCounter (_dbNextLegalId stmDb) seedNextLegalId
@@ -157,7 +161,8 @@ reset stmDb = do
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
   STM.writeTVar (_dbRandomGenState stmDb) seedRandomGenState
-  STM.writeTVar (_dbEpochTime stmDb) seedEpochTime
+  STM.writeTVar (_dbEpochTime stmDb) now
+  STM.writeTVar (_dbSteppingMode stmDb) seedSteppingMode
 
   STM.writeTVar (_dbFormCreateQuotationAll stmDb) seedFormCreateQuotationAll
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
@@ -185,7 +190,7 @@ reset stmDb = do
     , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments = Identity seedEmployments
     , _dbRandomGenState = Identity seedRandomGenState
-    , _dbEpochTime = Identity seedEpochTime
+    , _dbSteppingMode = Identity seedSteppingMode
     , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
     , _dbFormCreateContractAll = Identity seedFormCreateContractAll
     , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -217,6 +222,7 @@ readFullStmDbInHask' stmDb = do
 
   _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
   _dbEpochTime              <- pure <$> STM.readTVar (_dbEpochTime stmDb)
+  _dbSteppingMode           <- pure <$> STM.readTVar (_dbSteppingMode stmDb)
 
   _dbFormCreateQuotationAll <- pure
     <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
@@ -300,6 +306,7 @@ createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
+    now   <- readTime db
     newId <- generateUserId db
     let newProfile = User.UserProfile
           newId
@@ -311,6 +318,8 @@ createUser db User.Signup {..} = do
           tosConsent
           (User.UserCompletion1 Nothing Nothing Nothing)
           (User.UserCompletion2 Nothing Nothing)
+          now
+          Nothing
           -- The very first user has plenty of rights:
           (if newId == firstUserId then firstUserRights else [])
           -- TODO Define some mechanism to get the initial authorizations
@@ -486,6 +495,9 @@ genRandomText db = do
 readTime :: StmDb -> STM EpochTime
 readTime db = STM.readTVar $ _dbEpochTime db
 
+writeTime :: StmDb -> EpochTime -> STM ()
+writeTime db = STM.writeTVar (_dbEpochTime db)
+
 stepTime :: StmDb -> Bool -> STM EpochTime
 stepTime db minute = do
   CTime t <- STM.readTVar $ _dbEpochTime db
@@ -493,3 +505,6 @@ stepTime db minute = do
       t' = CTime $ if minute then t + d else t + 1
   STM.writeTVar (_dbEpochTime db) t'
   pure t'
+
+readSteppingMode :: StmDb -> STM SteppingMode
+readSteppingMode db = STM.readTVar $ _dbSteppingMode db

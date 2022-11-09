@@ -53,7 +53,7 @@ state :: Run HaskDb
 state = ask >>= (Run . lift . Core.readFullStmDbInHask')
 
 reset :: Run ()
-reset = ask >>= (Run . lift . Core.reset)
+reset = ask >>= (Run . lift . flip Core.reset 0)
 
 user :: User.UserName -> Run (Maybe User.UserProfile)
 user username = ask >>= (Run . lift . flip Core.selectUserByUsername username)

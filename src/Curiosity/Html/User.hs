@@ -66,6 +66,26 @@ instance H.ToMarkup EditProfilePage where
                    "email-addr"
                    (Just . H.toValue . User._userProfileEmailAddr $ profile)
         $ Just "Your email address is private."
+      disabledText
+          "Registered since"
+          "registered-since"
+          ( Just
+          . H.toValue @Text
+          . show
+          . User._userProfileRegistrationDate
+          $ profile
+          )
+        $ Nothing
+      inputText
+          "Twitter username"
+          "twitter-username"
+          ( Just
+          . H.toValue
+          . maybe "" identity
+          . User._userProfileTwitterUsername
+          $ profile
+          )
+        $ Nothing
       submitButton submitUrl "Update profile"
 
 
@@ -157,6 +177,12 @@ profileView profile entities hasEditButton =
             . User._userProfileCompletion2
             $ profile :: Text
             )
+          keyValuePair
+            "Registered since"
+            (H.text . show . User._userProfileRegistrationDate $ profile)
+          maybe mempty
+                (keyValuePair "Twitter" . linkTwitter)
+                (User._userProfileTwitterUsername profile)
           keyValuePair "Rights"
                        (show . User._userProfileRights $ profile :: Text)
 
@@ -239,6 +265,12 @@ publicProfileView profile =
           maybe mempty
                 (keyValuePair "Bio" . linkifyAts)
                 (User._userProfileBio profile)
+          keyValuePair
+            "Registered since"
+            (H.text . show . User._userProfileRegistrationDate $ profile)
+          maybe mempty
+                (keyValuePair "Twitter" . linkTwitter)
+                (User._userProfileTwitterUsername profile)
 
     title' "Advisors" Nothing
     displayAdvisors $ User._userProfileAdvisors profile

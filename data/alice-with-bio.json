@@ -10,6 +10,7 @@
   "_userProfileTosConsent": true,
   "_userProfileCompletion1": {},
   "_userProfileCompletion2": {},
+  "_userProfileRegistrationDate": 0,
   "_userProfileRights": ["CanVerifyEmailAddr"],
   "_userProfileAuthorizations": []
 }

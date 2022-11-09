@@ -11,14 +11,14 @@ module Curiosity.Runtime.Type
 import qualified Commence.Multilogging         as ML
 import           Control.Lens
 import qualified Curiosity.Core                as Core
-import qualified Curiosity.Parse               as Command
+import qualified Curiosity.Parse               as Parse
 
 
 --------------------------------------------------------------------------------
 -- | The runtime, a central product type that should contain all our runtime
 -- supporting values: the STM state, loggers, and processing threads.
 data Runtime = Runtime
-  { _rConf    :: Command.Conf -- ^ The application configuration.
+  { _rConf    :: Parse.Conf -- ^ The application configuration.
   , _rDb      :: Core.StmDb -- ^ The Storage.
   , _rLoggers :: ML.AppNameLoggers -- ^ Multiple loggers to log over.
   , _rThreads :: Threads -- ^ Additional threads running e.g. async tasks.

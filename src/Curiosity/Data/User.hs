@@ -34,6 +34,8 @@ module Curiosity.Data.User
   , userProfileTelephoneNbr
   , userProfileCompletion1
   , userProfileCompletion2
+  , userProfileRegistrationDate
+  , userProfileTwitterUsername
   , userProfileRights
   , userProfileAuthorizations
   , userProfileAdvisors
@@ -115,13 +117,18 @@ instance FromForm Login where
 
 -- | Represents the input data to update a user profile.
 data Update = Update
-  { _updateDisplayName :: Maybe UserDisplayName
-  , _updateBio         :: Maybe Text
+  { _updateDisplayName     :: Maybe UserDisplayName
+  , _updateBio             :: Maybe Text
+  , _updateTwitterUsername :: Maybe Text
   }
   deriving (Eq, Show, Generic)
 
 instance FromForm Update where
-  fromForm f = Update <$> parseMaybe "display-name" f <*> parseMaybe "bio" f
+  fromForm f =
+    Update
+      <$> parseMaybe "display-name"     f
+      <*> parseMaybe "bio"              f
+      <*> parseMaybe "twitter-username" f
 
 
 --------------------------------------------------------------------------------
@@ -142,6 +149,8 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   , _userProfileTosConsent        :: tosConsent
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
+  , _userProfileRegistrationDate  :: EpochTime
+  , _userProfileTwitterUsername   :: Maybe Text
   , _userProfileRights            :: [AccessRight]
   , _userProfileAuthorizations    :: [Authorization]
   , _userProfileAdvisors          :: Maybe Advisors

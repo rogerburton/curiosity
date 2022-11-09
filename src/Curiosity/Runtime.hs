@@ -11,6 +11,7 @@ module Curiosity.Runtime
   , RunM(..)
   , reset
   , state
+  , setTime
   , handleCommand
   , submitQuotationSuccess
   , runRunM
@@ -107,7 +108,7 @@ import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.Lazy                as LT
-import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
+import           Data.UnixTime                  ( formatUnixTime, fromEpochTime, getUnixTime, toEpochTime )
 import           System.PosixCompat.Types       ( EpochTime )
 import           Prelude                 hiding ( state )
 import qualified Servant
@@ -146,6 +147,23 @@ newtype RunM a = RunM { unRunM :: ReaderT Runtime IO a }
 runRunM :: forall a m . MonadIO m => Runtime -> RunM a -> m a
 runRunM runtime RunM {..} = liftIO $ runReaderT unRunM runtime
 
+-- | Same as `runRunM` but advance the simulated time.
+stepRunM :: forall a m . MonadIO m => Runtime -> RunM a -> m a
+stepRunM runtime RunM {..} = liftIO $ do
+  -- We're injecting (into the STM-readable state) the current time once per
+  -- `runRunM` call.
+  -- Maybe we should inject the time once per `atomically` instead.
+  now <- toEpochTime <$> getUnixTime
+  let RunM setNow = do
+        mode <- readSteppingMode
+        case mode of
+          Data.Normal -> setTime now
+            -- TODO This should be False on automated actions.
+          Data.Stepped -> void $ stepTime True
+            -- TODO Mixed is not yet implemented.
+          Data.Mixed -> void $ stepTime True
+  runReaderT (setNow >> unRunM) runtime
+
 -- | Support for logging for the application
 instance ML.MonadAppNameLogMulti RunM where
   askLoggers = asks _rLoggers
@@ -160,8 +178,13 @@ reset = do
   ML.localEnv (<> "Command" <> "Reset")
     . ML.info
     $ "Resetting to the empty state."
-  db <- asks _rDb
-  liftIO . STM.atomically $ Core.reset db
+  db   <- asks _rDb
+  mode <- readSteppingMode
+  now <- case mode of
+    Data.Normal  -> liftIO $ toEpochTime <$> getUnixTime
+    Data.Stepped -> pure 0
+    Data.Mixed   -> liftIO $ toEpochTime <$> getUnixTime
+  liftIO . STM.atomically $ Core.reset db now
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
@@ -175,11 +198,23 @@ time = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readTime db
 
+-- | Set the current simulated time.
+setTime :: EpochTime -> RunM ()
+setTime x = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.writeTime db x
+
 -- | Advance the time by a second or to the next minute.
 stepTime :: Bool -> RunM EpochTime
 stepTime minute = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.stepTime db minute
+
+-- | Retrieve the stepping mode.
+readSteppingMode :: RunM Data.SteppingMode
+readSteppingMode = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.readSteppingMode db
 
 -- | Retrieve the threads state.
 threads :: RunM [Text]
@@ -336,7 +371,7 @@ handleCommand runtime@Runtime {..} user command = do
       value <- runRunM runtime killEmailThread
       pure (ExitSuccess, [value])
     Command.StepEmail -> do
-      runRunM runtime emailStep
+      stepRunM runtime emailStep
       pure (ExitSuccess, ["Email queue processed."])
     Command.CreateBusinessEntity input -> do
       output <-
@@ -395,7 +430,7 @@ handleCommand runtime@Runtime {..} user command = do
             )
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
-      muid <- runRunM runtime $ createUser input
+      muid <- stepRunM runtime $ createUser input
       case muid of
         Right (User.UserId uid) ->
           pure (ExitSuccess, ["User created: " <> uid])

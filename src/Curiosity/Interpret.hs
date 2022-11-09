@@ -174,7 +174,7 @@ interpretLines runtime user dir content nesting acc0 accumulate = go user acc0 0
         case result of
           A.Success command -> do
             case command of
-              Command.Reset _ -> do
+              Command.Reset -> do
                 Rt.runRunM runtime $ Rt.reset
                 st <- Rt.runRunM runtime Rt.state
                 let t = trace' ["Resetting to the empty state."] ExitSuccess [] st

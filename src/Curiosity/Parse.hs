@@ -24,8 +24,9 @@ import qualified Servant.Auth.Server           as SAuth
 --------------------------------------------------------------------------------
 -- | Application config.
 data Conf = Conf
-  { _confLogging :: ML.LoggingConf -- ^ Logging configuration.
-  , _confDbFile  :: Maybe FilePath
+  { _confLogging      :: ML.LoggingConf
+    -- ^ Logging configuration.
+  , _confDbFile       :: Maybe FilePath
     -- ^ An optional filepath to write the DB to, or read it from. If the file
     -- is absent, it will be created on server exit, with the latest DB state
     -- written to it.
@@ -49,7 +50,8 @@ data ServerConf = ServerConf
 --------------------------------------------------------------------------------
 defaultConf :: Conf
 defaultConf =
-  let _confDbFile = Nothing in Conf { _confLogging = defaultLoggingConf, .. }
+  let _confDbFile = Nothing
+  in Conf { _confLogging = defaultLoggingConf, .. }
 
 defaultLoggingConf :: ML.LoggingConf
 defaultLoggingConf = mkLoggingConf "./curiosity.log"

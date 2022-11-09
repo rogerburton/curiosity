@@ -8,6 +8,7 @@
   "_userProfileTosConsent": true,
   "_userProfileCompletion1": {},
   "_userProfileCompletion2": {},
+  "_userProfileRegistrationDate": 60,
   "_userProfileRights": ["CanCreateContracts", "CanVerifyEmailAddr"],
   "_userProfileAuthorizations": ["AuthorizedAsEmployee"]
 }

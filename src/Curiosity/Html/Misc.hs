@@ -40,6 +40,7 @@ module Curiosity.Html.Misc
   -- Links
   , linkifyAts
   , linkEmail
+  , linkTwitter
 
   -- Keep here:
   , renderView
@@ -405,6 +406,10 @@ linkifyAts = mapM_ f . T.words
 
 linkEmail :: Text -> Html
 linkEmail s = H.a ! A.href (H.toValue $ "mailto:" <> s) $ H.text s
+
+linkTwitter :: Text -> Html
+linkTwitter s =
+  H.a ! A.href (H.toValue $ "https://twitter.com/" <> s) $ H.text ("@" <> s)
 
 
 --------------------------------------------------------------------------------
