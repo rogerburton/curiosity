@@ -115,7 +115,11 @@ profileView profile entities hasEditButton =
             $ maybe "" identity (User._userProfileDisplayName profile)
           keyValuePair "Bio"
             $ maybe "" linkifyAts (User._userProfileBio profile)
-          keyValuePair "Email address" (User._userProfileEmailAddr profile)
+          keyValuePair
+            "Email address"
+            (linkEmail . User.unUserEmailAddr $ User._userProfileEmailAddr
+              profile
+            )
           keyValuePair
             "Email addr. verified"
             (show $ User._userProfileEmailAddrVerified profile :: Text)

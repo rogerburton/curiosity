@@ -39,6 +39,7 @@ module Curiosity.Html.Misc
 
   -- Links
   , linkifyAts
+  , linkEmail
 
   -- Keep here:
   , renderView
@@ -401,6 +402,9 @@ linkifyAts = mapM_ f . T.words
     H.text rest
     " "
   f word = H.text word >> " "
+
+linkEmail :: Text -> H.Html
+linkEmail s = H.a ! A.href (H.toValue $ "mailto:" <> s) $ H.text s
 
 
 --------------------------------------------------------------------------------
