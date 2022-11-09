@@ -38,8 +38,7 @@ import           Control.Lens
 import "exceptions" Control.Monad.Catch         ( MonadMask )
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
-import           Curiosity.Data                 ( HaskDb
-                                                )
+import           Curiosity.Data                 ( HaskDb )
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Country        as Country
 import qualified Curiosity.Data.Email          as Email
@@ -615,7 +614,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
 partials :: ServerC m => FilePath -> ServerT Partials m
 partials scenariosDir =
     -- static data
-         partialUsernameBlocklist
+  partialUsernameBlocklist
     :<|> partialUsernameBlocklistAsJson
     :<|> partialRoles
     :<|> partialRolesAsJson
@@ -1190,15 +1189,12 @@ handleSetQuotationAsSigned
   => Quotation.SetQuotationAsSigned
   -> User.UserProfile
   -> m Pages.ActionResult
-handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned qid) profile
-  = do
-    db     <- asks Rt._rDb
-    output <- liftIO . atomically $ Rt.setQuotationAsSignedFull
-      db
-      (profile, qid)
-    pure $ Pages.ActionResult "Set quotation as signed" $ case output of
-      Right id  -> "Success. Order created: " <> Order.unOrderId id
-      Left  err -> "Failure: " <> show err
+handleSetQuotationAsSigned (Quotation.SetQuotationAsSigned qid) profile = do
+  db     <- asks Rt._rDb
+  output <- liftIO . atomically $ Rt.setQuotationAsSignedFull db (profile, qid)
+  pure $ Pages.ActionResult "Set quotation as signed" $ case output of
+    Right id  -> "Success. Order created: " <> Order.unOrderId id
+    Left  err -> "Failure: " <> show err
 
 
 --------------------------------------------------------------------------------
@@ -1256,17 +1252,16 @@ handleSubmitQuotation
   -> User.UserProfile
   -> m Pages.EchoPage
 handleSubmitQuotation input@(Quotation.SubmitQuotation key) profile =
-  ML.localEnv (<> "HTTP" <> "Quotation" <> "SubmitQuotation")
-    $   do
-          ML.info $ "Submitting new quotation: " <> key <> "..."
-          mid <- Rt.withRuntimeAtomically
-            (Rt.submitCreateQuotationForm . Rt._rDb) (profile, input)
-          case mid of
-            Right id -> do
-              let logs = Rt.submitQuotationSuccess id
-              mapM_ ML.info logs
-              pure . Pages.EchoPage $ unlines logs
-            Left err -> pure . Pages.EchoPage $ Quotation.unErr err
+  ML.localEnv (<> "HTTP" <> "Quotation" <> "SubmitQuotation") $ do
+    ML.info $ "Submitting new quotation: " <> key <> "..."
+    mid <- Rt.withRuntimeAtomically (Rt.submitCreateQuotationForm . Rt._rDb)
+                                    (profile, input)
+    case mid of
+      Right id -> do
+        let logs = Rt.submitQuotationSuccess id
+        mapM_ ML.info logs
+        pure . Pages.EchoPage $ unlines logs
+      Left err -> pure . Pages.EchoPage $ Quotation.unErr err
 
 -- $ documentationPages
 --
@@ -1287,16 +1282,16 @@ documentCreateQuotationPage dataDir = do
   profile <- readJson $ dataDir </> "alice.json"
   let quotationAll = Quotation.emptyCreateQuotationAll
   pure $ Pages.CreateQuotationPage profile
-                                  Nothing
-                                  quotationAll
-                                  "/echo/new-quotation"
+                                   Nothing
+                                   quotationAll
+                                   "/echo/new-quotation"
 
 -- | Same as documentCreateQuotationPage, but use an existing form.
 documentEditQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.CreateQuotationPage
 documentEditQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  output <- withRuntime $ Rt.readCreateQuotationForm' profile key
+  output  <- withRuntime $ Rt.readCreateQuotationForm' profile key
   case output of
     Right quotationAll -> pure $ Pages.CreateQuotationPage
       profile
@@ -1390,7 +1385,7 @@ echoNewQuotation'
   :: ServerC m => FilePath -> Quotation.CreateQuotationAll -> m Text
 echoNewQuotation' dataDir quotation = do
   profile <- readJson $ dataDir </> "alice.json"
-  key <- withRuntime $ Rt.formNewQuotation' profile quotation
+  key     <- withRuntime $ Rt.formNewQuotation' profile quotation
   pure key
 
 -- | Create a form, generating a new key.
@@ -1401,9 +1396,8 @@ echoNewQuotation
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewQuotation dataDir quotation = do
   key <- echoNewQuotation' dataDir quotation
-  pure $ addHeader @"Location"
-    ("/forms/edit/quotation/confirm/" <> key)
-    NoContent
+  pure $ addHeader @"Location" ("/forms/edit/quotation/confirm/" <> key)
+                               NoContent
 
 -- | Save a form, re-using a key. This is normally used with a \"Location"
 -- header.
@@ -1427,15 +1421,14 @@ echoSaveQuotation
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveQuotation dataDir key quotation = do
   echoSaveQuotation' dataDir key quotation
-  pure $ addHeader @"Location"
-    ("/forms/edit/quotation/confirm/" <> key)
-    NoContent
+  pure $ addHeader @"Location" ("/forms/edit/quotation/confirm/" <> key)
+                               NoContent
 
 documentConfirmQuotationPage
   :: ServerC m => FilePath -> Text -> m Pages.ConfirmQuotationPage
 documentConfirmQuotationPage dataDir key = do
   profile <- readJson $ dataDir </> "alice.json"
-  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
+  output  <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
     Right (quotationAll, clientProfile) -> do
       let
@@ -1454,10 +1447,12 @@ echoSubmitQuotation
   :: ServerC m => FilePath -> Quotation.SubmitQuotation -> m Pages.EchoPage
 echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
   profile <- readJson $ dataDir </> "alice.json"
-  output <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
+  output  <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
     Right (quotation, resovedClient) -> pure . Pages.EchoPage $ show
-      (quotation, Quotation.validateCreateQuotation profile quotation resovedClient)
+      ( quotation
+      , Quotation.validateCreateQuotation profile quotation resovedClient
+      )
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
 -- | Create a form, generating a new key. This is normally used with a
@@ -1478,9 +1473,8 @@ echoNewContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoNewContract dataDir contract = do
   key <- echoNewContract' dataDir contract
-  pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm/" <> key)
-    NoContent
+  pure
+    $ addHeader @"Location" ("/forms/edit/contract/confirm/" <> key) NoContent
 
 -- | Create a form, then move to the add expense part.
 echoNewContractAndAddExpense
@@ -1515,9 +1509,8 @@ echoSaveContract
   -> m (Headers '[Header "Location" Text] NoContent)
 echoSaveContract dataDir key contract = do
   echoSaveContract' dataDir key contract
-  pure $ addHeader @"Location"
-    ("/forms/edit/contract/confirm/" <> key)
-    NoContent
+  pure
+    $ addHeader @"Location" ("/forms/edit/contract/confirm/" <> key) NoContent
 
 -- | Save a form, re-using a key, then move to the add expense part.
 echoSaveContractAndAddExpense
@@ -2184,7 +2177,9 @@ echoSubmitSimpleContract
 echoSubmitSimpleContract dataDir (SimpleContract.SubmitContract key) = do
   profile <- readJson $ dataDir </> "mila.json"
   db      <- asks Rt._rDb
-  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm db (profile, key)
+  output  <- liftIO . atomically $ Rt.readCreateSimpleContractForm
+    db
+    (profile, key)
   case output of
     Right contract -> pure . Pages.EchoPage $ show
       (contract, SimpleContract.validateCreateSimpleContract profile contract)
@@ -2254,7 +2249,7 @@ withUser
   => SAuth.AuthResult User.UserId
   -> (User.UserProfile -> m a)
   -> m a
-withUser authResult = withMaybeUser authResult (authFailedErr . show) 
+withUser authResult = withMaybeUser authResult (authFailedErr . show)
  where
   authFailedErr = Errs.throwError' . User.UserNotFound . mappend
     "Authentication failed, please login again. Error: "
@@ -2486,8 +2481,13 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
  where
   run' mprofile = do
     runtime <- ask
-    output  <- liftIO $ Inter.interpretLines runtime username "/tmp/nowhere" [cmd] 0
-      [] (\t acc -> acc ++ [t])
+    output  <- liftIO $ Inter.interpretLines runtime
+                                             username
+                                             "/tmp/nowhere"
+                                             [cmd]
+                                             0
+                                             []
+                                             (\t acc -> acc ++ [t])
     let (_, ls) = Inter.formatOutput output
     pure $ unlines ls
    where
@@ -2529,7 +2529,10 @@ partialScenarios scenariosDir = do
   pure . H.ul $ mapM_ displayScenario names
  where
   displayScenario name = H.li $ do
-    H.a ! A.href (H.toValue $ "/partials/scenarios/" <> name) $ H.code $ H.string name
+    H.a
+      ! A.href (H.toValue $ "/partials/scenarios/" <> name)
+      $ H.code
+      $ H.string name
 
 partialScenariosAsJson :: ServerC m => FilePath -> m [FilePath]
 partialScenariosAsJson = listScenarioNames
@@ -2552,21 +2555,18 @@ partialScenario scenariosDir name = do
       \  border-bottom: 0;\n\
       \}\n"
     H.table $ do
-      H.thead $
-        H.tr ! A.class_ "header" $ do
-          H.th "Line"
-          H.th "Command"
-          H.th "State"
-      H.tbody $
-        mapM_ displayTrace ts
+      H.thead $ H.tr ! A.class_ "header" $ do
+        H.th "Line"
+        H.th "Command"
+        H.th "State"
+      H.tbody $ mapM_ displayTrace ts
  where
   displayTrace Inter.Trace {..} = do
     H.tr $ do
-      H.td $ H.text
-        $  Inter.pad traceNesting
-        <> show traceLineNbr
+      H.td $ H.text $ Inter.pad traceNesting <> show traceLineNbr
       H.td . H.code $ H.text $ traceCommand
-      H.td $ H.a
+      H.td
+        $ H.a
         ! A.href
             (  H.toValue
             $  "/partials/scenarios/"
@@ -2576,10 +2576,15 @@ partialScenario scenariosDir name = do
             <> "/state.json"
             )
         $ "View"
-    mapM_ (\o -> H.tr $ do
-                   H.td ""
-                   (H.td ! A.colspan "3") . H.code $ H.text (Inter.pad traceNesting) >> H.text o)
-          traceOutput
+    mapM_
+      (\o -> H.tr $ do
+        H.td ""
+        (H.td ! A.colspan "3")
+          .  H.code
+          $  H.text (Inter.pad traceNesting)
+          >> H.text o
+      )
+      traceOutput
     mapM_ displayTrace traceNested
   -- CSS improvements: remove whitespace: pre
   --                   remove background: F2F2F2
@@ -2599,8 +2604,7 @@ showState = do
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.
-showStateAsJson
-  :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
+showStateAsJson :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 showStateAsJson = do
   db <- withRuntime Rt.state
   pure $ JP.PrettyJSON db
@@ -2611,8 +2615,8 @@ showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailPage
 showEmails authResult = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
   withMaybeUser authResult
-    (const $ pure $ Pages.EmailPage Nothing emails)
-    (\profile -> pure $ Pages.EmailPage (Just profile) emails)
+                (const $ pure $ Pages.EmailPage Nothing emails)
+                (\profile -> pure $ Pages.EmailPage (Just profile) emails)
 
 showEmailsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
@@ -2622,12 +2626,13 @@ showEmailsAsJson = do
 
 
 --------------------------------------------------------------------------------
-showQuotations :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.QuotationPage
+showQuotations
+  :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.QuotationPage
 showQuotations authResult = do
   emails <- withRuntime $ Rt.filterQuotations' Quotation.AllQuotations
   withMaybeUser authResult
-    (const $ pure $ Pages.QuotationPage Nothing emails)
-    (\profile -> pure $ Pages.QuotationPage (Just profile) emails)
+                (const $ pure $ Pages.QuotationPage Nothing emails)
+                (\profile -> pure $ Pages.QuotationPage (Just profile) emails)
 
 showQuotationsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
@@ -2641,8 +2646,8 @@ showOrders :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.OrderPage
 showOrders authResult = do
   emails <- withRuntime $ Rt.filterOrders' Order.AllOrders
   withMaybeUser authResult
-    (const $ pure $ Pages.OrderPage Nothing emails)
-    (\profile -> pure $ Pages.OrderPage (Just profile) emails)
+                (const $ pure $ Pages.OrderPage Nothing emails)
+                (\profile -> pure $ Pages.OrderPage (Just profile) emails)
 
 showOrdersAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
