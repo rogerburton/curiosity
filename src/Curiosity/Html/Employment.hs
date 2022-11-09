@@ -16,7 +16,7 @@ import           Curiosity.Html.Misc
 import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -160,7 +160,7 @@ groupExpenses mkey expenses submitUrl = do
     :: Text
     -> Int
     -> Employment.AddExpense
-    -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+    -> ([Text], [(Html, Text, Text)], Maybe Text)
   display key i Employment.AddExpense {..} =
     ( [show _addExpenseAmount]
     , [ ( Misc.divIconDelete
@@ -176,7 +176,7 @@ groupEmployment = do
   inputText "Student / au cachet" "TODO"            Nothing Nothing
   inputText "Interim"             "interim"         Nothing Nothing
 
-formKeyValue :: Text -> Text -> H.Html
+formKeyValue :: Text -> Text -> Html
 formKeyValue label value = H.div ! A.class_ "o-form-group" $ do
   H.label ! A.class_ "o-form-group__label" $ H.text label
   H.div
@@ -304,6 +304,6 @@ instance H.ToMarkup ConfirmContractPage where
     titles = ["Amount"]
     display
       :: Employment.AddExpense
-      -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+      -> ([Text], [(Html, Text, Text)], Maybe Text)
     display Employment.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)

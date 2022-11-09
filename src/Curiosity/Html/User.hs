@@ -16,13 +16,9 @@ import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
 import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
-import           Smart.Html.Shared.Html.Icons   ( svgIconAdd
-                                                , svgIconArrowRight
-                                                )
 import           Smart.Html.SideMenu            ( SideMenu(..)
                                                 , SideMenuItem(..)
                                                 )
-import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A

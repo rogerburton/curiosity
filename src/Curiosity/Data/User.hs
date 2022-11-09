@@ -35,6 +35,7 @@ module Curiosity.Data.User
   , userProfileCompletion1
   , userProfileCompletion2
   , userProfileRights
+  , userProfileAuthorizations
   , UserId(..)
   , UserName(..)
   , UserDisplayName(..)

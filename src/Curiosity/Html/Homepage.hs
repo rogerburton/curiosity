@@ -19,7 +19,7 @@ import qualified Smart.Html.Dsl                as Dsl
 import qualified Smart.Html.Misc               as Misc
 import qualified Smart.Html.Render             as Render
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -62,7 +62,7 @@ instance H.ToMarkup WelcomePage where
 
             panelSentEmails welcomePageEmails
 
-panelEmailAddrToVerify :: [User.UserProfile] -> H.Html
+panelEmailAddrToVerify :: [User.UserProfile] -> Html
 panelEmailAddrToVerify profiles =
   panel' "Email addresses to verify" $ Misc.table "addr" titles display profiles
  where
@@ -80,7 +80,7 @@ panelEmailAddrToVerify profiles =
         , (Just $ "/" <> n)
         )
 
-panelQuotationForms :: [(Text, Quotation.CreateQuotationAll)] -> H.Html
+panelQuotationForms :: [(Text, Quotation.CreateQuotationAll)] -> Html
 panelQuotationForms forms =
   panel' "Quotation forms" $ Misc.table "quotation-forms" titles display forms
  where

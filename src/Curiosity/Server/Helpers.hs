@@ -13,7 +13,7 @@ import           Commence.Server.Auth           ( PostAuthHeaders )
 import qualified Curiosity.Data.User           as User
 import           Servant.API
 import qualified Servant.Auth.Server           as SAuth
-import qualified Servant.HTML.Blaze            as B
+import           Servant.HTML.Blaze             ( HTML )
 import qualified Smart.Server.Page             as SS.P
 
 
@@ -24,7 +24,7 @@ type PostUserPage pageData = UserPage Post pageData
 
 -- | A convenient alias to denote a GET endpoint to get a user-authenticated page.
 type UserPage method pageData
-  = method '[B.HTML] (SS.P.Page 'SS.P.Authd User.UserProfile pageData)
+  = method '[HTML] (SS.P.Page 'SS.P.Authd User.UserProfile pageData)
 
 -- brittany-disable-next-binding
 -- | Simple user authentication.

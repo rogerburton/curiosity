@@ -4,6 +4,7 @@ module Curiosity.Runtime.Type
   , rConf
   , rDb
   , rLoggers
+  , rThreads
   , Threads(..)
   ) where
 

@@ -86,14 +86,14 @@ import           Servant.API.WebSocket
 import qualified Servant.Auth.Server           as SAuth
 import qualified Servant.Auth.Server.Internal.Cookie
                                                as SAuth.Cookie
-import qualified Servant.HTML.Blaze            as B
+import           Servant.HTML.Blaze             ( HTML )
 import qualified Servant.Server                as Server
 import           Smart.Server.Page              ( PageEither )
 import qualified Smart.Server.Page             as SS.P
 import           System.FilePath                ( (</>)
                                                 , takeBaseName
                                                 )
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html5.Attributes   as A
 import qualified Text.Blaze.Renderer.Text      as R
@@ -113,144 +113,144 @@ import           WaiAppStatic.Types             ( ss404Handler
 --------------------------------------------------------------------------------
 -- brittany-disable-next-binding
 -- | This is the main Servant API definition for Curiosity.
-type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
+type App = H.UserAuthentication :> Get '[HTML] (PageEither
                Pages.LandingPage
                Pages.WelcomePage
              )
 
              -- Non-authenticated forms, for documentation purpose.
 
-             :<|> "forms" :> "login" :> Get '[B.HTML] Login.Page
-             :<|> "forms" :> "signup" :> Get '[B.HTML] Signup.Page
-             :<|> "forms" :> "profile" :> Get '[B.HTML] Pages.EditProfilePage
+             :<|> "forms" :> "login" :> Get '[HTML] Login.Page
+             :<|> "forms" :> "signup" :> Get '[HTML] Signup.Page
+             :<|> "forms" :> "profile" :> Get '[HTML] Pages.EditProfilePage
 
              :<|> "forms" :> "new" :> "quotation"
-                  :> Get '[B.HTML] Pages.CreateQuotationPage
+                  :> Get '[HTML] Pages.CreateQuotationPage
              :<|> "forms" :> "edit" :> "quotation"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.CreateQuotationPage
+                  :> Get '[HTML] Pages.CreateQuotationPage
              :<|> "forms" :> "edit" :> "quotation" :> "confirm"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.ConfirmQuotationPage
+                  :> Get '[HTML] Pages.ConfirmQuotationPage
 
              :<|> "forms" :> "new" :> "contract"
-                  :> Get '[B.HTML] Pages.CreateContractPage
+                  :> Get '[HTML] Pages.CreateContractPage
              :<|> "forms" :> "edit" :> "contract"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.CreateContractPage
+                  :> Get '[HTML] Pages.CreateContractPage
              :<|> "forms" :> "edit" :> "contract" :> "add-expense"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.AddExpensePage
+                  :> Get '[HTML] Pages.AddExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "edit-expense"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.AddExpensePage
+                  :> Get '[HTML] Pages.AddExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "remove-expense"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.RemoveExpensePage
+                  :> Get '[HTML] Pages.RemoveExpensePage
              :<|> "forms" :> "edit" :> "contract" :> "confirm"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.ConfirmContractPage
+                  :> Get '[HTML] Pages.ConfirmContractPage
 
              :<|> "forms" :> "new" :> "simple-contract"
-                  :> Get '[B.HTML] Pages.CreateSimpleContractPage
+                  :> Get '[HTML] Pages.CreateSimpleContractPage
              :<|> "forms" :> "edit" :> "simple-contract"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.CreateSimpleContractPage
+                  :> Get '[HTML] Pages.CreateSimpleContractPage
              :<|> "forms" :> "edit" :> "simple-contract" :> "select-role"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.SelectRolePage
+                  :> Get '[HTML] Pages.SelectRolePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-role"
                   :> Capture "key" Text
                   :> Capture "role" Text
-                  :> Get '[B.HTML] Pages.ConfirmRolePage
+                  :> Get '[HTML] Pages.ConfirmRolePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "add-date"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.AddDatePage
+                  :> Get '[HTML] Pages.AddDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "edit-date"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.AddDatePage
+                  :> Get '[HTML] Pages.AddDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "remove-date"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.RemoveDatePage
+                  :> Get '[HTML] Pages.RemoveDatePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "select-vat"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.SelectVATPage
+                  :> Get '[HTML] Pages.SelectVATPage
              :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-vat"
                   :> Capture "key" Text
                   :> Capture "rate" Int
-                  :> Get '[B.HTML] Pages.ConfirmVATPage
+                  :> Get '[HTML] Pages.ConfirmVATPage
              :<|> "forms" :> "edit" :> "simple-contract" :> "add-expense"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
+                  :> Get '[HTML] Pages.SimpleContractAddExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "edit-expense"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.SimpleContractAddExpensePage
+                  :> Get '[HTML] Pages.SimpleContractAddExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "remove-expense"
                   :> Capture "key" Text
                   :> Capture "idx" Int
-                  :> Get '[B.HTML] Pages.SimpleContractRemoveExpensePage
+                  :> Get '[HTML] Pages.SimpleContractRemoveExpensePage
              :<|> "forms" :> "edit" :> "simple-contract" :> "confirm-simple-contract"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.ConfirmSimpleContractPage
+                  :> Get '[HTML] Pages.ConfirmSimpleContractPage
 
              :<|> "views" :> "profile"
                   :> Capture "filename" FilePath
-                  :> Get '[B.HTML] Pages.ProfileView
+                  :> Get '[HTML] Pages.ProfileView
              :<|> "views" :> "entity"
                   :> Capture "filename" FilePath
-                  :> Get '[B.HTML] Pages.EntityView
+                  :> Get '[HTML] Pages.EntityView
              :<|> "views" :> "unit"
                   :> Capture "filename" FilePath
-                  :> Get '[B.HTML] Pages.UnitView
+                  :> Get '[HTML] Pages.UnitView
              :<|> "views" :> "contract"
                   :> Capture "filename" FilePath
-                  :> Get '[B.HTML] Pages.ContractView
+                  :> Get '[HTML] Pages.ContractView
              :<|> "views" :> "invoice"
                   :> Capture "filename" FilePath
-                  :> Get '[B.HTML] Pages.InvoiceView
+                  :> Get '[HTML] Pages.InvoiceView
 
-             :<|> "messages" :> "signup" :> Get '[B.HTML] Signup.SignupResultPage
+             :<|> "messages" :> "signup" :> Get '[HTML] Signup.SignupResultPage
 
-             :<|> "run" :> H.UserAuthentication :> Get '[B.HTML] Pages.RunPage
+             :<|> "run" :> H.UserAuthentication :> Get '[HTML] Pages.RunPage
              :<|> "a" :> "run" :> H.UserAuthentication
                   :> ReqBody '[FormUrlEncoded] Data.Command
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
 
              :<|> "scenarios" :> Raw
 
-             :<|> "state" :> Get '[B.HTML] Pages.EchoPage
+             :<|> "state" :> Get '[HTML] Pages.EchoPage
              :<|> "state.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
              :<|> "emails"
-                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.EmailPage
+                  :> H.UserAuthentication :>  Get '[HTML] Pages.EmailPage
              :<|> "emails.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 
              :<|> "quotations"
-                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.QuotationPage
+                  :> H.UserAuthentication :>  Get '[HTML] Pages.QuotationPage
              :<|> "quotations.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Quotation.Quotation])
 
              :<|> "orders"
-                  :> H.UserAuthentication :>  Get '[B.HTML] Pages.OrderPage
+                  :> H.UserAuthentication :>  Get '[HTML] Pages.OrderPage
              :<|> "orders.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Order.Order])
 
              :<|> "echo" :> "login"
                   :> ReqBody '[FormUrlEncoded] User.Login
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
              :<|> "echo" :> "update-profile"
                   :> ReqBody '[FormUrlEncoded] User.Update
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
 
              -- Quotation
              :<|> "echo" :> "new-quotation"
@@ -266,7 +266,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "submit-quotation"
                   :> ReqBody '[FormUrlEncoded] Quotation.SubmitQuotation
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
 
              -- Contract
              :<|> "echo" :> "new-contract"
@@ -312,7 +312,7 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "submit-contract"
                   :> ReqBody '[FormUrlEncoded] Employment.SubmitContract
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
 
              -- Simple conctract
              :<|> "echo" :> "new-simple-contract"
@@ -422,30 +422,30 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
                                             )
              :<|> "echo" :> "submit-simple-contract"
                   :> ReqBody '[FormUrlEncoded] SimpleContract.SubmitContract
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
 
              :<|> Partials
 
-             :<|> "login" :> Get '[B.HTML] Login.Page
-             :<|> "signup" :> Get '[B.HTML] Signup.Page
+             :<|> "login" :> Get '[HTML] Login.Page
+             :<|> "signup" :> Get '[HTML] Signup.Page
 
              :<|> "action" :> "set-email-addr-as-verified"
                   :> Capture "username" User.UserName
-                  :> Get '[B.HTML] Pages.SetUserEmailAddrAsVerifiedPage
+                  :> Get '[HTML] Pages.SetUserEmailAddrAsVerifiedPage
              :<|> "action" :> "set-quotation-as-signed"
                   :> Capture "quotation-id" Quotation.QuotationId
-                  :> Get '[B.HTML] Pages.SetQuotationAsSignedPage
+                  :> Get '[HTML] Pages.SetQuotationAsSignedPage
 
              :<|> Public
              :<|> Private
              :<|> "data" :> Raw
              :<|> "ubl" :> Capture "schema" Text
                   :> Capture "filename" FilePath :> Get '[JSON] Value
-             :<|> "errors" :> "500" :> Get '[B.HTML, JSON] Text
-             :<|> "alice+" :> Get '[B.HTML] Pages.ProfileView
+             :<|> "errors" :> "500" :> Get '[HTML, JSON] Text
+             :<|> "alice+" :> Get '[HTML] Pages.ProfileView
              :<|> "entity" :> H.UserAuthentication
                   :> Capture "name" Text
-                  :> Get '[B.HTML] Pages.EntityView
+                  :> Get '[HTML] Pages.EntityView
              :<|> WebSocketApi
              -- Catchall for user profiles and business units. This also serves
              -- static files (documentation), and a custom 404 when no user or
@@ -453,36 +453,36 @@ type App = H.UserAuthentication :> Get '[B.HTML] (PageEither
              :<|> Capture "namespace" Text :> Raw
 
 -- brittany-disable-next-binding
-type NamespaceAPI = Get '[B.HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
+type NamespaceAPI = Get '[HTML] (PageEither Pages.PublicProfileView Pages.UnitView)
 
 -- brittany-disable-next-binding
 type Partials =
   -- static data
-       "partials" :> "username-blocklist" :> Get '[B.HTML] H.Html
+       "partials" :> "username-blocklist" :> Get '[HTML] Html
   :<|> "partials" :> "username-blocklist.json" :> Get '[JSON] [User.UserName]
 
-  :<|> "partials" :> "roles" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "roles" :> Get '[HTML] Html
   :<|> "partials" :> "roles.json" :> Get '[JSON] [SimpleContract.Role0]
 
-  :<|> "partials" :> "countries" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "countries" :> Get '[HTML] Html
   :<|> "partials" :> "countries.json" :> Get '[JSON] [(Text, Text)]
 
-  :<|> "partials" :> "vat-rates" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "vat-rates" :> Get '[HTML] Html
   :<|> "partials" :> "vat-rates.json" :> Get '[JSON] [(Text, Text)]
 
-  :<|> "partials" :> "permissions" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "permissions" :> Get '[HTML] Html
   :<|> "partials" :> "permissions.json" :> Get '[JSON] [User.AccessRight]
 
-  :<|> "partials" :> "scenarios" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "scenarios" :> Get '[HTML] Html
   :<|> "partials" :> "scenarios.json" :> Get '[JSON] [FilePath]
 
   :<|> "partials" :> "scenarios"
-       :> Capture "name" FilePath :> Get '[B.HTML] H.Html
+       :> Capture "name" FilePath :> Get '[HTML] Html
   :<|> "partials" :> "scenarios"
        :> Capture "name" FilePath
        :> Capture "nbr" Int
        :> "state"
-       :> Get '[B.HTML] H.Html
+       :> Get '[HTML] Html
   :<|> "partials" :> "scenarios"
        :> Capture "name" FilePath
        :> Capture "nbr" Int
@@ -490,7 +490,7 @@ type Partials =
        :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
   -- live data
-  :<|> "partials" :> "legal-entities" :> Get '[B.HTML] H.Html
+  :<|> "partials" :> "legal-entities" :> Get '[HTML] Html
   :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
 
 -- | This is the main Servant server definition, corresponding to @App@.
@@ -796,7 +796,7 @@ showSetQuotationAsignedPage id =
 
 
 --------------------------------------------------------------------------------
-partialUsernameBlocklist :: ServerC m => m H.Html
+partialUsernameBlocklist :: ServerC m => m Html
 partialUsernameBlocklist =
   pure . H.ul $ mapM_ (H.li . H.code . H.toHtml) User.usernameBlocklist
 
@@ -805,7 +805,7 @@ partialUsernameBlocklistAsJson = pure User.usernameBlocklist
 
 
 --------------------------------------------------------------------------------
-partialRoles :: ServerC m => m H.Html
+partialRoles :: ServerC m => m Html
 partialRoles = pure . H.ul $ mapM_ displayRole0 SimpleContract.roles
  where
   displayRole0 (SimpleContract.Role0 title roles1) = do
@@ -827,7 +827,7 @@ partialRolesAsJson = pure SimpleContract.roles
 
 
 --------------------------------------------------------------------------------
-partialCountries :: ServerC m => m H.Html
+partialCountries :: ServerC m => m Html
 partialCountries = pure . H.ul $ mapM_ displayCountry Country.countries
  where
   displayCountry (value, label) = H.li $ do
@@ -839,7 +839,7 @@ partialCountriesAsJson = pure Country.countries
 
 
 --------------------------------------------------------------------------------
-partialVatRates :: ServerC m => m H.Html
+partialVatRates :: ServerC m => m Html
 partialVatRates = pure . H.ul $ mapM_ displayVatRate SimpleContract.vatRates
  where
   displayVatRate (value, label) = H.li $ do
@@ -851,7 +851,7 @@ partialVatRatesAsJson = pure SimpleContract.vatRates
 
 
 --------------------------------------------------------------------------------
-partialPermissions :: ServerC m => m H.Html
+partialPermissions :: ServerC m => m Html
 partialPermissions = pure . H.ul $ mapM_ displayPermission User.permissions
   where displayPermission p = H.li $ H.code . H.text $ show p
 
@@ -860,7 +860,7 @@ partialPermissionsAsJson = pure User.permissions
 
 
 --------------------------------------------------------------------------------
-partialLegalEntities :: ServerC m => m H.Html
+partialLegalEntities :: ServerC m => m Html
 partialLegalEntities = do
   db       <- asks Rt._rDb
   entities <- liftIO . atomically $ Rt.readLegalEntities db
@@ -893,7 +893,7 @@ echoLogin = pure . Pages.EchoPage . show
 -- | A publicly available login page.
 type Public =    "a" :> "signup"
                  :> ReqBody '[FormUrlEncoded] User.Signup
-                 :> Post '[B.HTML] Signup.SignupResultPage
+                 :> Post '[HTML] Signup.SignupResultPage
             :<|> "a" :> "login"
                  :> ReqBody '[FormUrlEncoded] User.Login
                  :> Verb 'POST 303 '[JSON] ( Headers CAuth.PostAuthHeaders
@@ -986,24 +986,24 @@ handleLogin conf jwtSettings input =
 -- | The private API with authentication.
 type Private = H.UserAuthentication :> (
                    "settings" :> "profile"
-                   :> Get '[B.HTML] Pages.ProfileView
+                   :> Get '[HTML] Pages.ProfileView
              :<|>  "settings" :> "profile.json"
                    :> Get '[JSON] User.UserProfile
              :<|>  "settings" :> "profile" :> "edit"
-                   :> Get '[B.HTML] Pages.EditProfilePage
+                   :> Get '[HTML] Pages.EditProfilePage
 
-             :<|> "new" :> "entity" :> Get '[B.HTML] Pages.CreateEntityPage
-             :<|> "new" :> "unit" :> Get '[B.HTML] Pages.CreateUnitPage
-             :<|> "new" :> "quotation" :> Get '[B.HTML] Pages.CreateQuotationPage
-             :<|> "new" :> "contract" :> Get '[B.HTML] Pages.CreateContractPage
-             :<|> "new" :> "invoice" :> Get '[B.HTML] Pages.CreateInvoicePage
+             :<|> "new" :> "entity" :> Get '[HTML] Pages.CreateEntityPage
+             :<|> "new" :> "unit" :> Get '[HTML] Pages.CreateUnitPage
+             :<|> "new" :> "quotation" :> Get '[HTML] Pages.CreateQuotationPage
+             :<|> "new" :> "contract" :> Get '[HTML] Pages.CreateContractPage
+             :<|> "new" :> "invoice" :> Get '[HTML] Pages.CreateInvoicePage
 
              :<|> "edit" :> "quotation"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.CreateQuotationPage
+                  :> Get '[HTML] Pages.CreateQuotationPage
              :<|> "edit" :> "quotation" :> "confirm"
                   :> Capture "key" Text
-                  :> Get '[B.HTML] Pages.ConfirmQuotationPage
+                  :> Get '[HTML] Pages.ConfirmQuotationPage
 
              :<|>  "a" :>"set-user-profile"
                    :> ReqBody '[FormUrlEncoded] User.Update
@@ -1015,10 +1015,10 @@ type Private = H.UserAuthentication :> (
                                                             )
              :<|> "a" :> "set-email-addr-as-verified"
                    :> ReqBody '[FormUrlEncoded] User.SetUserEmailAddrAsVerified
-                   :> Post '[B.HTML] Pages.ActionResult
+                   :> Post '[HTML] Pages.ActionResult
              :<|> "a" :> "set-quotation-as-signed"
                    :> ReqBody '[FormUrlEncoded] Quotation.SetQuotationAsSigned
-                   :> Post '[B.HTML] Pages.ActionResult
+                   :> Post '[HTML] Pages.ActionResult
 
              :<|> "a" :> "new-quotation"
                   :> ReqBody '[FormUrlEncoded] Quotation.CreateQuotationAll
@@ -1033,7 +1033,7 @@ type Private = H.UserAuthentication :> (
                                             )
              :<|> "a" :> "submit-quotation"
                   :> ReqBody '[FormUrlEncoded] Quotation.SubmitQuotation
-                  :> Post '[B.HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage
   )
 
 privateT :: forall m . ServerC m => Parse.ServerConf -> ServerT Private m
@@ -2503,7 +2503,7 @@ handleRun authResult (Data.Command cmd) = withMaybeUser
 
 -- | Show the state after a specific command, given as its number within the
 -- script.
-partialScenarioState :: ServerC m => FilePath -> FilePath -> Int -> m H.Html
+partialScenarioState :: ServerC m => FilePath -> FilePath -> Int -> m Html
 partialScenarioState scenariosDir name nbr = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path
@@ -2523,7 +2523,7 @@ partialScenarioStateAsJson scenariosDir name nbr = do
       db  = Inter.traceState $ ts' !! nbr -- TODO Proper input validation
   pure $ JP.PrettyJSON db
 
-partialScenarios :: ServerC m => FilePath -> m H.Html
+partialScenarios :: ServerC m => FilePath -> m Html
 partialScenarios scenariosDir = do
   names <- listScenarioNames scenariosDir
   pure . H.ul $ mapM_ displayScenario names
@@ -2537,7 +2537,7 @@ partialScenarios scenariosDir = do
 partialScenariosAsJson :: ServerC m => FilePath -> m [FilePath]
 partialScenariosAsJson = listScenarioNames
 
-partialScenario :: ServerC m => FilePath -> FilePath -> m H.Html
+partialScenario :: ServerC m => FilePath -> FilePath -> m Html
 partialScenario scenariosDir name = do
   let path = scenariosDir </> name <> ".txt"
   ts <- liftIO $ Inter.handleRun' path

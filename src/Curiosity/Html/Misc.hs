@@ -98,7 +98,7 @@ containerLarge content =
     ! A.class_ "u-spacer-bottom-xl"
     $ content
 
-keyValuePair :: H.ToMarkup a => Text -> a -> H.Html
+keyValuePair :: H.ToMarkup a => Text -> a -> Html
 keyValuePair key value = H.div ! A.class_ "c-key-value-item" $ do
   H.dt ! A.class_ "c-key-value-item__key" $ H.toHtml key
   H.dd ! A.class_ "c-key-value-item__value" $ H.toHtml value
@@ -393,7 +393,7 @@ editButton lnk =
 --------------------------------------------------------------------------------
 -- | Turn \@mentions into links. This is used for texts appearing in Bios and
 -- Descriptions of user and business unit profiles.
-linkifyAts :: Text -> H.Html
+linkifyAts :: Text -> Html
 linkifyAts = mapM_ f . T.words
  where
   f word | "@" `T.isPrefixOf` word = do
@@ -403,7 +403,7 @@ linkifyAts = mapM_ f . T.words
     " "
   f word = H.text word >> " "
 
-linkEmail :: Text -> H.Html
+linkEmail :: Text -> Html
 linkEmail s = H.a ! A.href (H.toValue $ "mailto:" <> s) $ H.text s
 
 

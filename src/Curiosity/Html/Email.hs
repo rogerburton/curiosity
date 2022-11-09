@@ -11,6 +11,7 @@ import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import qualified Smart.Html.Misc               as Misc
+import           Text.Blaze.Html5               ( Html )
 import qualified Text.Blaze.Html5              as H
 
 
@@ -30,7 +31,7 @@ instance H.ToMarkup EmailPage where
 
 --------------------------------------------------------------------------------
 -- | Display emails.
-panelSentEmails :: [Email.Email] -> H.Html
+panelSentEmails :: [Email.Email] -> Html
 panelSentEmails emails =
   panel' "Emails" $ Misc.table "emails" titles display emails
  where
