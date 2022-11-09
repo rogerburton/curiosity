@@ -317,6 +317,7 @@ createUser db User.Signup {..} = do
           (if newId == firstUserId then firstUserRights else [])
           -- TODO Define some mechanism to get the initial authorizations
           [User.AuthorizedAsEmployee]
+          Nothing
     emailId <- createEmail db Email.SignupConfirmationEmail
                  Email.systemEmailAddr
                  email

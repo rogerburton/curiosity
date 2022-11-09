@@ -163,11 +163,28 @@ profileView profile entities hasEditButton =
     title' "Authorizations" Nothing
     H.ul $ mapM_ displayAuthorization $ User._userProfileAuthorizations profile
 
+    title' "Advisors" Nothing
+    displayAdvisors $ User._userProfileAdvisors profile
+
     title' "Related entities" Nothing
     H.ul $ mapM_ displayEntitie entities
 
 displayAuthorization auth = H.li $ do
   H.code . H.text $ show auth
+
+displayAdvisors Nothing                     = "No current or past advisors."
+
+displayAdvisors (Just (User.Advisors {..})) = do
+  "Current advisor: "
+  H.text . User.unUserId $ _userAdvisorsCurrent
+  "Past advisors:"
+  H.ul $ mapM_
+    (\(from, to, id) -> H.li
+      (  H.text (User.unUserId id)
+      >> H.text (" (From " <> show from <> ", to " <> show to <> ")")
+      )
+    )
+    _userAdvisorsPast
 
 displayEntitie (Legal.EntityAndRole entity role) = H.li $ do
   H.a
@@ -222,3 +239,6 @@ publicProfileView profile =
           maybe mempty
                 (keyValuePair "Bio" . linkifyAts)
                 (User._userProfileBio profile)
+
+    title' "Advisors" Nothing
+    displayAdvisors $ User._userProfileAdvisors profile
