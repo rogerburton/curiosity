@@ -30,8 +30,8 @@ import qualified Text.Blaze.Html5.Attributes   as A
 
 --------------------------------------------------------------------------------
 data EditProfilePage = EditProfilePage
-  { _profilePageUserProfile      :: User.UserProfile
-  , _profilePageSubmitURL        :: H.AttributeValue
+  { _profilePageUserProfile :: User.UserProfile
+  , _profilePageSubmitURL   :: H.AttributeValue
   }
 
 instance H.ToMarkup EditProfilePage where
@@ -75,9 +75,9 @@ instance H.ToMarkup EditProfilePage where
 
 --------------------------------------------------------------------------------
 data ProfileView = ProfileView
-  { _profileViewUserProfile   :: User.UserProfile
+  { _profileViewUserProfile      :: User.UserProfile
   , _profileViewEntitiesAndRoles :: [Legal.EntityAndRole]
-  , _profileViewHasEditButton :: Maybe H.AttributeValue
+  , _profileViewHasEditButton    :: Maybe H.AttributeValue
   }
 
 instance H.ToMarkup ProfileView where
@@ -93,7 +93,8 @@ instance H.ToMarkup ProfileView where
             . User.unUserName
             . User._userCredsName
             $ User._userProfileCreds profile
-          withSideMenuFullScroll menu $ profileView profile entities hasEditButton
+          withSideMenuFullScroll menu
+            $ profileView profile entities hasEditButton
 
 menu :: SideMenu
 menu = SideMenuWithActive []
@@ -164,15 +165,16 @@ profileView profile entities hasEditButton =
     title' "Related entities" Nothing
     H.ul $ mapM_ displayEntitie entities
 
-displayAuthorization auth =
-  H.li $ do
-    H.code . H.text $ show auth
+displayAuthorization auth = H.li $ do
+  H.code . H.text $ show auth
 
-displayEntitie (Legal.EntityAndRole entity role) =
-  H.li $ do
-    H.a ! A.href (H.toValue $ "/entity/" <> Legal._entitySlug entity) $
-      H.text . Legal.unRegistrationName $ Legal._entityName entity
-    H.code . H.text $ show role
+displayEntitie (Legal.EntityAndRole entity role) = H.li $ do
+  H.a
+    ! A.href (H.toValue $ "/entity/" <> Legal._entitySlug entity)
+    $ H.text
+    . Legal.unRegistrationName
+    $ Legal._entityName entity
+  H.code . H.text $ show role
 
 
 --------------------------------------------------------------------------------
