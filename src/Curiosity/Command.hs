@@ -60,6 +60,7 @@ data Command =
     -- ^ Run one iteration of the email processing loop.
   | CreateBusinessUnit Business.Create
   | UpdateBusinessUnit Business.Update
+  | LinkBusinessUnitToUser Text User.UserId Business.ActingRole
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
   | LinkLegalEntityToUser Text User.UserId Legal.ActingRole
@@ -486,6 +487,11 @@ parserUnit =
          ( A.info (parserUpdateBusinessUnit <**> A.helper)
          $ A.progDesc "Update a business unit"
          )
+    <> A.command
+         "link-user"
+         ( A.info (parserBusinessUnitLinkUser <**> A.helper)
+         $ A.progDesc "Link a user to the unit, specifying a role"
+         )
 
 parserCreateBusinessUnit :: A.Parser Command
 parserCreateBusinessUnit = do
@@ -500,6 +506,16 @@ parserUpdateBusinessUnit = do
   slug        <- argumentUnitSlug
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateBusinessUnit $ Business.Update slug (Just description)
+
+parserBusinessUnitLinkUser :: A.Parser Command
+parserBusinessUnitLinkUser = do
+  slug <- argumentUnitSlug
+  uid  <- argumentUserId
+  role <-
+    (A.flag' Business.Holder $ A.long "holder" <> A.help
+      "TODO Add a description for the holder flag"
+    )
+  pure $ LinkBusinessUnitToUser slug uid role
 
 argumentUnitId = Legal.EntityId <$> A.argument A.str metavarUnitId
 
@@ -532,7 +548,7 @@ parserLegal =
          )
     <> A.command
          "link-user"
-         ( A.info (parserLegalLinkUser <**> A.helper)
+         ( A.info (parserLegalEntityLinkUser <**> A.helper)
          $ A.progDesc "Link a user to the entity, specifying a role"
          )
 
@@ -558,8 +574,8 @@ parserUpdateLegalEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
 
-parserLegalLinkUser :: A.Parser Command
-parserLegalLinkUser = do
+parserLegalEntityLinkUser :: A.Parser Command
+parserLegalEntityLinkUser = do
   slug <- argumentEntitySlug
   uid  <- argumentUserId
   role <-

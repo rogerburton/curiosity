@@ -400,6 +400,15 @@ handleCommand runtime@Runtime {..} user command = do
                 )
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
+    Command.LinkBusinessUnitToUser slug uid role -> do
+      mid <- runRunM runtime $ linkBusinessUnitToUser' slug uid role
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Business unit updated: " <> slug]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateLegalEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal
         _rDb
@@ -421,7 +430,7 @@ handleCommand runtime@Runtime {..} user command = do
             )
         Left err -> pure (ExitFailure 1, [show err])
     Command.LinkLegalEntityToUser slug uid role -> do
-      mid <- runRunM runtime $ linkLegalToUser' slug uid role
+      mid <- runRunM runtime $ linkLegalEntityToUser' slug uid role
       case mid of
         Right () -> do
           pure
@@ -765,8 +774,8 @@ updateLegal' update = do
   db <- asks _rDb
   liftIO . STM.atomically $ updateLegal db update
 
-linkLegalToUser :: Core.StmDb -> Text -> User.UserId -> Legal.ActingRole -> STM (Either User.Err ())
-linkLegalToUser db slug uid role = do
+linkLegalEntityToUser :: Core.StmDb -> Text -> User.UserId -> Legal.ActingRole -> STM (Either User.Err ())
+linkLegalEntityToUser db slug uid role = do
   mentity <- selectEntityBySlug db slug
   case mentity of
     Just Legal.Entity {..} -> do
@@ -782,10 +791,10 @@ linkLegalToUser db slug uid role = do
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound slug -- TODO
 
-linkLegalToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
-linkLegalToUser' slug uid role = do
+linkLegalEntityToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
+linkLegalEntityToUser' slug uid role = do
   db <- asks _rDb
-  liftIO . STM.atomically $ linkLegalToUser db slug uid role
+  liftIO . STM.atomically $ linkLegalEntityToUser db slug uid role
 
 modifyLegalEntities
   :: Core.StmDb
@@ -800,6 +809,11 @@ selectUnitBySlug :: Text -> RunM (Maybe Business.Unit)
 selectUnitBySlug slug = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.selectUnitBySlug db slug
+
+linkBusinessUnitToUser' :: Text -> User.UserId -> Business.ActingRole -> RunM (Either User.Err ())
+linkBusinessUnitToUser' slug uid role = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.linkBusinessUnitToUser db slug uid role
 
 
 --------------------------------------------------------------------------------

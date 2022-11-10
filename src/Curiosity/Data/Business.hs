@@ -10,6 +10,7 @@ module Curiosity.Data.Business
   , Update(..)
   , UnitId(..)
   , unitIdPrefix
+  , ActingRole(..)
   , Authorization(..)
   , Scope(..)
   , Err(..)
@@ -74,6 +75,10 @@ newtype UnitId = UnitId { unUnitId :: Text }
 
 unitIdPrefix :: Text
 unitIdPrefix = "BENT-"
+
+data ActingRole = Dummy | Holder
+  deriving (Eq, Generic, Show)
+  deriving (FromJSON, ToJSON)
 
 -- TODO Ask Roger the meaning of these.
 data Authorization = Bundle0 | Bundle1

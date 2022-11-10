@@ -31,6 +31,7 @@ module Curiosity.Core
   , createBusiness
   , updateBusiness
   , selectUnitBySlug
+  , linkBusinessUnitToUser
   -- * Operations on emails
   , createEmail
   , modifyEmails
@@ -61,6 +62,7 @@ import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.User           as User
+import           Data.List                      ( nub )
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import           Foreign.C.Types                ( CTime(..) )
@@ -416,6 +418,26 @@ updateBusiness db Business.Update {..} = do
       pure $ Right ()
     Nothing ->
       pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
+
+linkBusinessUnitToUser :: StmDb -> Text -> User.UserId -> Business.ActingRole -> STM (Either User.Err ())
+linkBusinessUnitToUser db slug uid role = do
+  mentity <- selectUnitBySlug db slug
+  case mentity of
+    Just Business.Unit {..} -> do
+      let replaceOlder units =
+            [ if Business._entitySlug e == slug
+                then
+                  case role of
+                    Business.Holder ->
+                      e { Business._entityHolders =
+                          nub $ uid : _entityHolders
+                      }
+                else e
+            | e <- units
+            ]
+      modifyBusinessUnits db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
 
 modifyBusinessUnits :: StmDb -> ([Business.Unit] -> [Business.Unit]) -> STM ()
 modifyBusinessUnits db f =
