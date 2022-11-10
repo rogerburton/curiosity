@@ -1,4 +1,4 @@
-1: business create alpha Alpha
+1: unit create alpha Alpha
 Business entity created: BENT-1
-2: business update alpha The first business unit of the prototype, Alpha is run by @mila.
+2: unit update alpha The first business unit of the prototype, Alpha is run by @mila.
 Business unit updated: alpha

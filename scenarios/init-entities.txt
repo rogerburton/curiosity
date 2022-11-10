@@ -1,3 +1,3 @@
-legal create one "One S.A." 100200300 BE0100200300
-legal update one "One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One."
-legal link-user one USER-1 --validator
+entity create one "One S.A." 100200300 BE0100200300
+entity update one "One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One."
+entity link-user one USER-1 --validator

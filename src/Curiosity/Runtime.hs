@@ -373,7 +373,7 @@ handleCommand runtime@Runtime {..} user command = do
     Command.StepEmail -> do
       stepRunM runtime emailStep
       pure (ExitSuccess, ["Email queue processed."])
-    Command.CreateBusinessEntity input -> do
+    Command.CreateBusinessUnit input -> do
       output <-
         runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
           _rDb
@@ -385,7 +385,7 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Business entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
-    Command.UpdateBusinessEntity input -> do
+    Command.UpdateBusinessUnit input -> do
       output <-
         runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
           _rDb

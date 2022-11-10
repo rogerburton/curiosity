@@ -58,8 +58,8 @@ data Command =
     -- ^ Kill the thread processing enqueued emails.
   | StepEmail
     -- ^ Run one iteration of the email processing loop.
-  | CreateBusinessEntity Business.Create
-  | UpdateBusinessEntity Business.Update
+  | CreateBusinessUnit Business.Create
+  | UpdateBusinessUnit Business.Update
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
   | LinkLegalEntityToUser Text User.UserId Legal.ActingRole
@@ -284,13 +284,13 @@ parser =
            )
 
       <> A.command
-           "business"
-           ( A.info (parserBusiness <**> A.helper)
-           $ A.progDesc "Commands related to business entities"
+           "unit"
+           ( A.info (parserUnit <**> A.helper)
+           $ A.progDesc "Commands related to business units"
            )
 
       <> A.command
-           "legal"
+           "entity"
            ( A.info (parserLegal <**> A.helper)
            $ A.progDesc "Commands related to legal entities"
            )
@@ -473,33 +473,33 @@ parserStopEmail = pure StopEmail
 parserStepEmail :: A.Parser Command
 parserStepEmail = pure StepEmail
 
-parserBusiness :: A.Parser Command
-parserBusiness =
+parserUnit :: A.Parser Command
+parserUnit =
   A.subparser
     $  A.command
          "create"
-         ( A.info (parserCreateBusinessEntity <**> A.helper)
-         $ A.progDesc "Create a new business entity"
+         ( A.info (parserCreateBusinessUnit <**> A.helper)
+         $ A.progDesc "Create a new business unit"
          )
     <> A.command
          "update"
-         ( A.info (parserUpdateBusinessEntity <**> A.helper)
+         ( A.info (parserUpdateBusinessUnit <**> A.helper)
          $ A.progDesc "Update a business unit"
          )
 
-parserCreateBusinessEntity :: A.Parser Command
-parserCreateBusinessEntity = do
+parserCreateBusinessUnit :: A.Parser Command
+parserCreateBusinessUnit = do
   slug <- A.argument
     A.str
     (A.metavar "SLUG" <> A.help "An identifier suitable for URLs")
   name <- A.argument A.str (A.metavar "NAME" <> A.help "A name")
-  pure $ CreateBusinessEntity $ Business.Create slug name
+  pure $ CreateBusinessUnit $ Business.Create slug name
 
-parserUpdateBusinessEntity :: A.Parser Command
-parserUpdateBusinessEntity = do
+parserUpdateBusinessUnit :: A.Parser Command
+parserUpdateBusinessUnit = do
   slug        <- argumentUnitSlug
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
-  pure $ UpdateBusinessEntity $ Business.Update slug (Just description)
+  pure $ UpdateBusinessUnit $ Business.Update slug (Just description)
 
 argumentUnitId = Legal.EntityId <$> A.argument A.str metavarUnitId
 
