@@ -9,3 +9,11 @@ entity update two "Two S.A. is the second legal entity of the prototype."
 entity link-user two USER-1 --validator
 entity set-supervised two
 entity set-host two
+
+entity create three "Three S.R.L." 100200500 BE0100200500
+entity update three "Three S.R.L. is the first un-supervised legal entity of the prototype."
+entity link-user three USER-3 --validator
+
+entity create four "Four S.R.L." 100200600 BE0100200600
+entity update four "Four S.R.L. is the second un-supervised legal entity of the prototype."
+entity link-user four USER-5 --validator

@@ -22,12 +22,16 @@ file](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden).
 ## Users
 
 - [Alice](/alice)
+- [Charlie](/charlie)
+- [Chloe](/chloe)
 - [Mila](/mila)
 
 ## Legal entities
 
 - [One S.A.](/entity/one)
 - [Two S.A.](/entity/two)
+- [Three S.R.L.](/entity/three)
+- [Four S.R.L.](/entity/four)
 
 ## Business units
 

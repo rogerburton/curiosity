@@ -13,6 +13,8 @@ Resetting to the empty state.
 > User created: USER-4
 > 9: user update USER-4 Mila I'm Mila, the first member to join this prototype. My advisor is @alice and I've created @alpha.
 > User updated: USER-4
+> 11: user create chloe c chloe@example.com --accept-tos
+> User created: USER-5
 3: run init-entities.txt
 > 1: entity create one One S.A. 100200300 BE0100200300
 > Legal entity created: LENT-1
@@ -34,6 +36,18 @@ Resetting to the empty state.
 > Legal entity updated: two
 > 11: entity set-host two
 > Legal entity updated: two
+> 13: entity create three Three S.R.L. 100200500 BE0100200500
+> Legal entity created: LENT-3
+> 14: entity update three Three S.R.L. is the first un-supervised legal entity of the prototype.
+> Legal entity updated: three
+> 15: entity link-user three USER-3 --validator
+> Legal entity updated: three
+> 17: entity create four Four S.R.L. 100200600 BE0100200600
+> Legal entity created: LENT-4
+> 18: entity update four Four S.R.L. is the second un-supervised legal entity of the prototype.
+> Legal entity updated: four
+> 19: entity link-user four USER-5 --validator
+> Legal entity updated: four
 4: run init-units.txt
 > 1: unit create alpha Alpha
 > Business entity created: BENT-1

@@ -7,3 +7,5 @@ user create charlie c charlie@example.com --accept-tos
 
 user create mila m mila@example.com --accept-tos
 user update USER-4 Mila "I'm Mila, the first member to join this prototype. My advisor is @alice and I've created @alpha."
+
+user create chloe c chloe@example.com --accept-tos
