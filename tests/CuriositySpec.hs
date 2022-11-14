@@ -37,6 +37,7 @@ spec = do
       , ("bob-1.json"         , "bob")
       , ("bob-2.json"         , "bob")
       , ("charlie.json"       , "charlie")
+      , ("mila.json"          , "mila")
       ]
 
   -- Same here.
