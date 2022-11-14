@@ -27,6 +27,7 @@ file](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden).
 ## Legal entities
 
 - [One S.A.](/entity/one)
+- [Two S.A.](/entity/two)
 
 ## Business units
 

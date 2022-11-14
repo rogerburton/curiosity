@@ -3,3 +3,9 @@ entity update one "One S.A. is the main legal entity of the prototype. Unless re
 entity link-user one USER-1 --validator
 entity set-supervised one
 entity set-host one
+
+entity create two "Two S.A." 100200400 BE0100200400
+entity update two "Two S.A. is the second legal entity of the prototype."
+entity link-user two USER-1 --validator
+entity set-supervised two
+entity set-host two
