@@ -4,3 +4,5 @@ Legal entity created: LENT-1
 Legal entity updated: one
 3: entity link-user one USER-1 --validator
 Legal entity updated: one
+4: entity set-supervised one
+Legal entity updated: one

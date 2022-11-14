@@ -438,6 +438,15 @@ handleCommand runtime@Runtime {..} user command = do
             , ["Legal entity updated: " <> slug]
             )
         Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntityIsSupervised slug b -> do
+      mid <- runRunM runtime $ updateLegalEntityIsSupervised' slug b
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> slug]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       muid <- stepRunM runtime $ createUser input
       case muid of
@@ -667,7 +676,7 @@ handleCommand runtime@Runtime {..} user command = do
                 User.UserEmailAddr recipient = _emailRecipient
             in  i <> " " <> recipient
       pure (ExitSuccess, map f records)
-    Command.ViewQueues queues -> do
+    Command.ViewQueues _ -> do
       -- TODO Check first if the user has the necessary rights to handle this
       -- queue.
       (_, output1) <- handleCommand runtime
@@ -744,6 +753,7 @@ createLegal db Legal.Create {..} = do
                            Nothing
                            []
                            [Legal.AuthorizedAsBuyer] -- TODO Better logic for initial values.
+                           False
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -795,6 +805,27 @@ linkLegalEntityToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Eithe
 linkLegalEntityToUser' slug uid role = do
   db <- asks _rDb
   liftIO . STM.atomically $ linkLegalEntityToUser db slug uid role
+
+updateLegalEntityIsSupervised :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
+updateLegalEntityIsSupervised db slug b = do
+  mentity <- selectEntityBySlug db slug
+  case mentity of
+    Just Legal.Entity {} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == slug
+                then e { Legal._entityIsSupervised = b
+                       }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+updateLegalEntityIsSupervised' :: Text -> Bool -> RunM (Either User.Err ())
+updateLegalEntityIsSupervised' slug b = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ updateLegalEntityIsSupervised db slug b
 
 modifyLegalEntities
   :: Core.StmDb

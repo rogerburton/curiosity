@@ -64,6 +64,9 @@ data Command =
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
   | LinkLegalEntityToUser Text User.UserId Legal.ActingRole
+  | UpdateLegalEntityIsSupervised Text Bool
+    -- ^ Make a legal entity as 'supervised' (True) or 'not supervised'
+    -- (False).
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -551,6 +554,16 @@ parserLegal =
          ( A.info (parserLegalEntityLinkUser <**> A.helper)
          $ A.progDesc "Link a user to the entity, specifying a role"
          )
+    <> A.command
+         "set-supervised"
+         ( A.info (parserUpdateLegalEntityIsSupervised True <**> A.helper)
+         $ A.progDesc "Mark the entity as 'supervised'"
+         )
+    <> A.command
+         "unset-supervised"
+         ( A.info (parserUpdateLegalEntityIsSupervised False <**> A.helper)
+         $ A.progDesc "Mark the entity as 'not supervised'"
+         )
 
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
@@ -583,6 +596,11 @@ parserLegalEntityLinkUser = do
       "TODO Add a description for the validator flag"
     )
   pure $ LinkLegalEntityToUser slug uid role
+
+parserUpdateLegalEntityIsSupervised :: Bool -> A.Parser Command
+parserUpdateLegalEntityIsSupervised b = do
+  slug <- argumentEntitySlug
+  pure $ UpdateLegalEntityIsSupervised slug b
 
 argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 

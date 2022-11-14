@@ -20,6 +20,8 @@ Resetting to the empty state.
 > Legal entity updated: one
 > 3: entity link-user one USER-1 --validator
 > Legal entity updated: one
+> 4: entity set-supervised one
+> Legal entity updated: one
 4: run init-units.txt
 > 1: unit create alpha Alpha
 > Business entity created: BENT-1
