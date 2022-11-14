@@ -917,7 +917,7 @@ handleSignup input@User.Signup {..} =
   ML.localEnv (<> "HTTP" <> "Signup")
     $   do
           ML.info $ "Signing up new user: " <> show username <> "..."
-          withRuntime $ Rt.createUser input
+          withRuntime $ Rt.signupUser input
     >>= \case
           Right uid -> do
             ML.info

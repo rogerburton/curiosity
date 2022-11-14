@@ -71,6 +71,10 @@ emailIdPrefix = "EMAIL-"
 data EmailTemplate =
     SignupConfirmationEmail
     -- ^ An email sent upon signup (see `Curiosity.Data.User.Signup`).
+  | InviteEmail Text -- TODO Proper Text wrapper.
+    -- ^ An email sent to invite a user. Their user profile was already created
+    -- (in particular with an email address), and the email gives them a token
+    -- (that serves as credentials).
   | QuotationEmail
     -- ^ An email sent when a quotation form is successfully submitted to the
     -- system (see `Curiosity.Data.Quotation.SubmitQuotation`).
@@ -82,6 +86,7 @@ data EmailTemplate =
 emailTemplateName :: EmailTemplate -> Text
 emailTemplateName t = case t of
   SignupConfirmationEmail -> "SignupConfirmation"
+  InviteEmail _ -> "Invite"
   QuotationEmail -> "Quotation"
   InvoiceEmail -> "Invoice"
   InvoiceReminderEmail -> "InvoiceReminder"
