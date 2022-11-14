@@ -1,10 +1,10 @@
 reset
-user create alice a alice@example.com --accept-tos
+user signup alice a alice@example.com --accept-tos
 
-user create susie s susie@example.com --accept-tos
+user signup susie s susie@example.com --accept-tos
 user update USER-2 Susie "I'm Susie, the Seller in the quotation-flow scenario."
 
-user create charlie c charlie@example.com --accept-tos
+user signup charlie c charlie@example.com --accept-tos
 user update USER-3 Charlie "I'm Charlie, a Client in the quotation-flow scenario."
 
 as susie

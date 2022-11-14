@@ -69,7 +69,7 @@ data Command =
     -- (False).
   | UpdateLegalEntityIsHost Text Bool
     -- ^ Make a legal entity as 'host' (True) or 'not host' (False).
-  | CreateUser User.Signup
+  | Signup User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
     -- True, show only the user ID and username.
@@ -638,8 +638,8 @@ metavarEntitySlug = A.metavar "SLUG" <> A.completer complete <> A.help
 parserUser :: A.Parser Command
 parserUser = A.subparser
   (  A.command
-      "create"
-      (A.info (parserCreateUser <**> A.helper) $ A.progDesc "Create a new user")
+      "signup"
+      (A.info (parserSignup <**> A.helper) $ A.progDesc "Create a new user")
   <> A.command
        "delete"
        (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
@@ -673,8 +673,8 @@ parserUsers = do
         )
   pure $ FilterUsers predicate
 
-parserCreateUser :: A.Parser Command
-parserCreateUser = do
+parserSignup :: A.Parser Command
+parserSignup = do
   username   <- A.argument A.str (A.metavar "USERNAME" <> A.help "A username")
   password   <- A.argument A.str (A.metavar "PASSWORD" <> A.help "A password")
   email <- A.argument A.str (A.metavar "EMAIL" <> A.help "An email address")
@@ -682,7 +682,7 @@ parserCreateUser = do
     (  A.long "accept-tos"
     <> A.help "Indicate if the user being created consents to the TOS."
     )
-  pure $ CreateUser $ User.Signup username password email tosConsent
+  pure $ Signup $ User.Signup username password email tosConsent
 
 parserDeleteUser :: A.Parser Command
 parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId

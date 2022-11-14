@@ -1,11 +1,11 @@
 # Initialize a state with four users.
-user create alice a alice@example.com --accept-tos
+user signup alice a alice@example.com --accept-tos
 user update USER-1 Alice "Hi ! I'm the first advisor registered on this prototype. I know and have access to everything... Let me know if you need anything !"
 
-user create bob b bob@example.com --accept-tos
-user create charlie c charlie@example.com --accept-tos
+user signup bob b bob@example.com --accept-tos
+user signup charlie c charlie@example.com --accept-tos
 
-user create mila m mila@example.com --accept-tos
+user signup mila m mila@example.com --accept-tos
 user update USER-4 Mila "I'm Mila, the first member to join this prototype. My advisor is @alice and I've created @alpha."
 
-user create chloe c chloe@example.com --accept-tos
+user signup chloe c chloe@example.com --accept-tos

@@ -3,13 +3,13 @@
 
 reset
 as alice
-user create alice secret alice@example.com --accept-tos
-user create bob secret bob@example.com --accept-tos
+user signup alice secret alice@example.com --accept-tos
+user signup bob secret bob@example.com --accept-tos
 user do set-email-addr-as-verified bob  # Will succeed.
 user do set-email-addr-as-verified bob  # This is already done.
 
 reset
 as bob
-user create alice secret alice@example.com --accept-tos
-user create bob secret bob@example.com --accept-tos
+user signup alice secret alice@example.com --accept-tos
+user signup bob secret bob@example.com --accept-tos
 user do set-email-addr-as-verified alice  # Will fail: missing right.

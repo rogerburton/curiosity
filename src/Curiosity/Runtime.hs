@@ -456,7 +456,7 @@ handleCommand runtime@Runtime {..} user command = do
             , ["Legal entity updated: " <> slug]
             )
         Left err -> pure (ExitFailure 1, [show err])
-    Command.CreateUser input -> do
+    Command.Signup input -> do
       muid <- stepRunM runtime $ createUser input
       case muid of
         Right (User.UserId uid) ->
@@ -1619,7 +1619,7 @@ filterUsers' predicate = do
   liftIO . STM.atomically $ filterUsers db predicate
 
 createUser :: User.Signup -> RunM (Either User.Err User.UserId)
-createUser input = ML.localEnv (<> "Command" <> "CreateUser") $ do
+createUser input = ML.localEnv (<> "Command" <> "Signup") $ do
   ML.info "Creating user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.createUser db input

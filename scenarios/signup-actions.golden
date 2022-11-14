@@ -3,7 +3,7 @@ Resetting to the empty state.
 2: queues
 Email addresses to verify:
 Emails to send:
-3: user create alice secret alice@example.com --accept-tos
+3: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
 4: queues
 Email addresses to verify:

@@ -1,3 +1,3 @@
 reset
 # Shows that a user called "about" cannot be created
-user create about secret alice@example.com --accept-tos
+user signup about secret alice@example.com --accept-tos

@@ -126,7 +126,7 @@ spec = do
         mapM_
           go
           [ ("init --stepped", Data.emptyHask)
-          , ("user create alice a alice@example.com --accept-tos", aliceState)
+          , ("user signup alice a alice@example.com --accept-tos", aliceState)
           , ("step-email"    , aliceState')
           , ("reset"         , Data.emptyHask)
           ]

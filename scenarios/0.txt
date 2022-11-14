@@ -1,5 +1,5 @@
 reset                    # Make sure to start from a known state
 # Create an initial user
-user create alice secret alice@example.com --accept-tos
+user signup alice secret alice@example.com --accept-tos
 user get USER-1 --short  # Display the created user
 quit                     # Exit the script, not required at the end
