@@ -67,6 +67,8 @@ data Command =
   | UpdateLegalEntityIsSupervised Text Bool
     -- ^ Make a legal entity as 'supervised' (True) or 'not supervised'
     -- (False).
+  | UpdateLegalEntityIsHost Text Bool
+    -- ^ Make a legal entity as 'host' (True) or 'not host' (False).
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -564,6 +566,16 @@ parserLegal =
          ( A.info (parserUpdateLegalEntityIsSupervised False <**> A.helper)
          $ A.progDesc "Mark the entity as 'not supervised'"
          )
+    <> A.command
+         "set-host"
+         ( A.info (parserUpdateLegalEntityIsHost True <**> A.helper)
+         $ A.progDesc "Mark the entity as 'host'"
+         )
+    <> A.command
+         "unset-host"
+         ( A.info (parserUpdateLegalEntityIsHost False <**> A.helper)
+         $ A.progDesc "Mark the entity as 'not host'"
+         )
 
 parserCreateLegalEntity :: A.Parser Command
 parserCreateLegalEntity = do
@@ -601,6 +613,11 @@ parserUpdateLegalEntityIsSupervised :: Bool -> A.Parser Command
 parserUpdateLegalEntityIsSupervised b = do
   slug <- argumentEntitySlug
   pure $ UpdateLegalEntityIsSupervised slug b
+
+parserUpdateLegalEntityIsHost :: Bool -> A.Parser Command
+parserUpdateLegalEntityIsHost b = do
+  slug <- argumentEntitySlug
+  pure $ UpdateLegalEntityIsHost slug b
 
 argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 

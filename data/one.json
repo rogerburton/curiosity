@@ -6,5 +6,6 @@
   "_entityVatNumber": "BE0100200300",
   "_entityUsersAndRoles": [],
   "_entityAuthorizations": [],
-  "_entityIsSupervised": true
+  "_entityIsSupervised": true,
+  "_entityIsHost": true
 }

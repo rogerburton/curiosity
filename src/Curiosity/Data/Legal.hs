@@ -78,6 +78,8 @@ data Entity = Entity
     -- ^ Whether the entity has its accounting done by the group operating
     -- Curiosity. Maybe this should be something like
     -- IsSupervisedBy :: Maybe GroupId.
+  , _entityIsHost         :: Bool
+    -- ^ Whether the entity can hosts contracts from business units.
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

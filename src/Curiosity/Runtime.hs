@@ -447,6 +447,15 @@ handleCommand runtime@Runtime {..} user command = do
             , ["Legal entity updated: " <> slug]
             )
         Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntityIsHost slug b -> do
+      mid <- runRunM runtime $ updateLegalEntityIsHost' slug b
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> slug]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
       muid <- stepRunM runtime $ createUser input
       case muid of
@@ -754,6 +763,7 @@ createLegal db Legal.Create {..} = do
                            []
                            [Legal.AuthorizedAsBuyer] -- TODO Better logic for initial values.
                            False
+                           False
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -826,6 +836,27 @@ updateLegalEntityIsSupervised' :: Text -> Bool -> RunM (Either User.Err ())
 updateLegalEntityIsSupervised' slug b = do
   db <- asks _rDb
   liftIO . STM.atomically $ updateLegalEntityIsSupervised db slug b
+
+updateLegalEntityIsHost :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
+updateLegalEntityIsHost db slug b = do
+  mentity <- selectEntityBySlug db slug
+  case mentity of
+    Just Legal.Entity {} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == slug
+                then e { Legal._entityIsHost = b
+                       }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+updateLegalEntityIsHost' :: Text -> Bool -> RunM (Either User.Err ())
+updateLegalEntityIsHost' slug b = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ updateLegalEntityIsHost db slug b
 
 modifyLegalEntities
   :: Core.StmDb

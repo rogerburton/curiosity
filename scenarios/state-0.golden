@@ -22,6 +22,8 @@ Resetting to the empty state.
 > Legal entity updated: one
 > 4: entity set-supervised one
 > Legal entity updated: one
+> 5: entity set-host one
+> Legal entity updated: one
 4: run init-units.txt
 > 1: unit create alpha Alpha
 > Business entity created: BENT-1
