@@ -160,6 +160,8 @@ data QuotationState =
   | QuotationSent
   | QuotationSigned Order.OrderId
     -- ^ A signed quotation is necessarily linked to a created order.
+  | QuotationRejected (Maybe Text)
+    -- ^ A possible rejection comment.
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -168,6 +170,7 @@ displayQuotationState = \case
   QuotationCreated    -> "Created"
   QuotationSent       -> "Sent"
   QuotationSigned oid -> "Signed (" <> Order.unOrderId oid <> ")"
+  QuotationRejected _ -> "Rejected (" <> "..." <> ")"
 
 
 --------------------------------------------------------------------------------
