@@ -19,6 +19,7 @@ module Curiosity.Data.Email
   , EmailTemplate(..)
   , emailTemplateName
   , displayEmailBody
+  , displayEmailTitle
   , EmailState(..)
   , Predicate(..)
   , applyPredicate
@@ -92,6 +93,14 @@ emailTemplateName = \case
   QuotationEmail -> "Quotation"
   InvoiceEmail -> "Invoice"
   InvoiceReminderEmail -> "InvoiceReminder"
+
+displayEmailTitle :: EmailTemplate -> Text
+displayEmailTitle = \case
+  SignupConfirmationEmail -> "Signup confirmation"
+  InviteEmail _ -> "Invitation"
+  QuotationEmail -> "Quotation"
+  InvoiceEmail -> "Invoice"
+  InvoiceReminderEmail -> "Reminder"
 
 displayEmailBody :: EmailTemplate -> Text
 displayEmailBody = \case

@@ -76,16 +76,19 @@ panelEmail Email.Email {..} =
             (Email.unEmailId _emailId)
           keyValuePair
             "Template"
-            (Email.emailTemplateName _emailTemplate)
+            (H.code . H.text $ Email.emailTemplateName _emailTemplate)
           keyValuePair
             "Sender"
-            (User.unUserEmailAddr _emailSender)
+            (linkEmail $ User.unUserEmailAddr _emailSender)
           keyValuePair
             "Recipient"
-            (User.unUserEmailAddr _emailRecipient)
+            (linkEmail $ User.unUserEmailAddr _emailRecipient)
           keyValuePair
             "State"
-            (displayEmailState _emailState)
+            (H.code . H.text $ displayEmailState _emailState)
+          keyValuePair
+            "Title"
+            (Email.displayEmailTitle _emailTemplate)
           keyValuePair
             "Body"
             (Email.displayEmailBody _emailTemplate)
