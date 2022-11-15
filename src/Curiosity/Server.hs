@@ -228,9 +228,13 @@ type App = H.UserAuthentication :> Get '[HTML] (PageEither
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
              :<|> "emails"
-                  :> H.UserAuthentication :>  Get '[HTML] Pages.EmailPage
+                  :> H.UserAuthentication :>  Get '[HTML] Pages.EmailsPage
              :<|> "emails.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+             :<|> "emails"
+                  :> H.UserAuthentication
+                  :> Capture "email-id" Email.EmailId
+                  :>  Get '[HTML] Pages.EmailPage
 
              :<|> "quotations"
                   :> H.UserAuthentication :>  Get '[HTML] Pages.QuotationPage
@@ -551,6 +555,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showStateAsJson
     :<|> showEmails
     :<|> showEmailsAsJson
+    :<|> showEmail
     :<|> showQuotations
     :<|> showQuotationsAsJson
     :<|> showOrders
@@ -2611,18 +2616,29 @@ showStateAsJson = do
 
 
 --------------------------------------------------------------------------------
-showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailPage
+showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailsPage
 showEmails authResult = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
   withMaybeUser authResult
-                (const $ pure $ Pages.EmailPage Nothing emails)
-                (\profile -> pure $ Pages.EmailPage (Just profile) emails)
+                (const $ pure $ Pages.EmailsPage Nothing emails)
+                (\profile -> pure $ Pages.EmailsPage (Just profile) emails)
 
 showEmailsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 showEmailsAsJson = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
   pure $ JP.PrettyJSON emails
+
+showEmail :: ServerC m => SAuth.AuthResult User.UserId -> Email.EmailId -> m Pages.EmailPage
+showEmail authResult eid = do
+  memail <- withRuntime $ Rt.selectEmailById eid
+  case memail of
+    Nothing ->
+      Errs.throwError' . Rt.FileDoesntExistErr $ show eid -- TODO Specific error.
+    Just email ->
+      withMaybeUser authResult
+                    (const $ pure $ Pages.EmailPage Nothing email)
+                    (\profile -> pure $ Pages.EmailPage (Just profile) email)
 
 
 --------------------------------------------------------------------------------
