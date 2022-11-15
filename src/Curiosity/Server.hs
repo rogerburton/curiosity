@@ -108,6 +108,8 @@ import           WaiAppStatic.Storage.Filesystem.Extended
                                                 )
 import           WaiAppStatic.Types             ( ss404Handler
                                                 , ssLookupFile
+                                                , ssMaxAge
+                                                , MaxAge(NoMaxAge)
                                                 )
 
 
@@ -2697,6 +2699,7 @@ serveDocumentation root = serveDirectoryWith settings
   settings = (defaultWebAppSettings root)
     { ss404Handler = Just custom404
     , ssLookupFile = webAppLookup hashFileIfExists root
+    , ssMaxAge = NoMaxAge
     }
 
 custom404 :: Application
