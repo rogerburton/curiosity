@@ -45,12 +45,7 @@ instance H.ToMarkup WelcomePage where
       $ H.div
       ! A.class_ "c-app-layout u-scroll-vertical"
       $ do
-          H.header
-            $ H.toMarkup
-            . navbar
-            . User.unUserName
-            . User._userCredsName
-            $ User._userProfileCreds welcomePageUser
+          header $ Just welcomePageUser
           H.main ! A.class_ "u-scroll-wrapper" $ do
             maybe (pure ()) panelEmailAddrToVerify welcomePageEmailAddrToVerify
 

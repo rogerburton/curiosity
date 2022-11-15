@@ -19,6 +19,10 @@ in
     virtualHosts."smartcoop.sh" = {
       locations = {
         "/".proxyPass = "http://127.0.0.1:9100";
+        "/about" = {
+          proxyPass = "http://127.0.0.1:9100";
+          extraConfig = "ssi on;";
+        };
         "/documentation" = {
           proxyPass = "http://127.0.0.1:9100";
           extraConfig = "ssi on;";

@@ -124,10 +124,10 @@ renderView content =
     $ H.div
     ! A.class_ "c-app-layout u-scroll-vertical"
     $ do
-        H.header $ H.toMarkup . navbar $ "TODO username"
+        H.toMarkup . navbar $ "TODO username"
         fullScroll content
 
-header mprofile = H.header $ case mprofile of
+header mprofile = case mprofile of
   Just profile ->
     H.toMarkup
       . navbar

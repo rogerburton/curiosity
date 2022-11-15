@@ -59,6 +59,7 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
+import qualified Curiosity.Html.Misc           as Misc
 import qualified Curiosity.Html.Order          as Pages
 import qualified Curiosity.Html.Quotation      as Pages
 import qualified Curiosity.Html.Run            as Pages
@@ -493,6 +494,8 @@ type Partials =
        :> "state.json"
        :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
+  :<|> "partials" :> "nav" :> H.UserAuthentication :> Get '[HTML] Html
+
   -- live data
   :<|> "partials" :> "legal-entities" :> Get '[HTML] Html
   :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
@@ -634,6 +637,8 @@ partials scenariosDir =
     :<|> partialScenario scenariosDir
     :<|> partialScenarioState scenariosDir
     :<|> partialScenarioStateAsJson scenariosDir
+
+    :<|> partialNav
 
     -- live data
     :<|> partialLegalEntities
@@ -880,6 +885,17 @@ partialLegalEntitiesAsJson = do
   db       <- asks Rt._rDb
   entities <- liftIO . atomically $ Rt.readLegalEntities db
   pure entities
+
+--------------------------------------------------------------------------------
+-- | render partial html with the main navigation bar. this is used within
+-- documentation. (the navigation is different depending on the user being
+-- logged in or not.)
+partialNav :: ServerC m => SAuth.AuthResult User.UserId -> m Html
+partialNav authResult = withMaybeUser
+  authResult
+  (\_ -> pure $ Misc.header Nothing)
+  (\profile -> pure . Misc.header $ Just profile
+  )
 
 
 --------------------------------------------------------------------------------
