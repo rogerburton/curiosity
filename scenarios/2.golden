@@ -1,5 +1,5 @@
 4: reset
-Resetting to the empty state.
+State is now empty.
 5: as alice
 Modifying default user.
 6: user signup alice secret alice@example.com --accept-tos
@@ -13,7 +13,7 @@ User successfully updated.
 9: user do set-email-addr-as-verified bob
 EmailAddrAlreadyVerified
 11: reset
-Resetting to the empty state.
+State is now empty.
 12: as bob
 Modifying default user.
 13: user signup alice secret alice@example.com --accept-tos

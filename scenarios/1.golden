@@ -1,4 +1,4 @@
 1: reset
-Resetting to the empty state.
+State is now empty.
 3: user signup about secret alice@example.com --accept-tos
 UsernameBlocked

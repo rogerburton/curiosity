@@ -1,5 +1,5 @@
 1: reset
-Resetting to the empty state.
+State is now empty.
 2: run init-users.txt
 > 2: user signup alice a alice@example.com --accept-tos
 > User created: USER-1

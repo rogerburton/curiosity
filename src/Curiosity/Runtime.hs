@@ -178,10 +178,8 @@ instance ML.MonadAppNameLogMulti RunM where
 --------------------------------------------------------------------------------
 -- | Reset the database to the empty state.
 reset :: RunM ()
-reset = do
-  ML.localEnv (<> "Command" <> "Reset")
-    . ML.info
-    $ "Resetting to the empty state."
+reset = ML.localEnv (<> "Command" <> "Reset") $ do
+  ML.info "Resetting to the empty state."
   db   <- asks _rDb
   mode <- readSteppingMode
   now  <- case mode of
@@ -189,6 +187,7 @@ reset = do
     Data.Stepped -> pure 0
     Data.Mixed   -> liftIO $ toEpochTime <$> getUnixTime
   liftIO . STM.atomically $ Core.reset db now
+  ML.info "State is now empty."
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
