@@ -349,6 +349,7 @@ applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
 data Err = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
+             | NoTosConsent
              | UserNotFound Text -- Username or ID.
              | IncorrectUsernameOrPassword
              | EmailAddrAlreadyVerified
@@ -360,6 +361,7 @@ instance Errs.IsRuntimeErr Err where
   errCode = errCode' . \case
     UserExists                  -> "USER_EXISTS"
     UsernameBlocked             -> "USERNAME_BLOCKED"
+    NoTosConsent                -> "NO_TOS_CONSENT"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
@@ -370,10 +372,12 @@ instance Errs.IsRuntimeErr Err where
   httpStatus = \case
     UserExists                  -> HTTP.conflict409
     UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
+    NoTosConsent                -> HTTP.conflict409
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
     EmailAddrAlreadyVerified    -> HTTP.conflict409
     MissingRight _              -> HTTP.unauthorized401
+    ValidationErrs _            -> HTTP.conflict409
 
   userMessage = Just . \case
     UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -385,6 +389,11 @@ instance Errs.IsRuntimeErr Err where
         409 -- TODO
         "Username disallowed"
         "Some usernames are not allowed. Please select another."
+    NoTosConsent ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409 -- TODO
+        "TOS consent required"
+        "To use our services, accepting the Terms of Services is required."
     UserNotFound msg ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
         404
@@ -407,6 +416,7 @@ instance Errs.IsRuntimeErr Err where
         $  Pages.ErrorPage 401 "Unauthorized action"
         $  "The user has not the required access right "
         <> show a
+    ValidationErrs [err] -> maybe "TODO" identity $ Errs.userMessage err
     ValidationErrs _ ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
         409 -- TODO
@@ -454,7 +464,10 @@ validateSignup now id Signup {..} = if null errors
           [AuthorizedAsEmployee]
           Nothing
   errors = concat
-    [ if username `elem` usernameBlocklist
+    [ if not tosConsent
+      then [NoTosConsent]
+      else []
+    , if username `elem` usernameBlocklist
       then [UsernameBlocked]
       else []
     ]

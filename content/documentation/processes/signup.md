@@ -30,4 +30,5 @@ The scenarios are:
 
 - [user-signup](/partials/scenarios/user-signup)
 - [user-signup--blocked](/partials/scenarios/user-signup--blocked)
+- [user-signup--no-tos](/partials/scenarios/user-signup--no-tos)
 - [user-signup--step](/partials/scenarios/user-signup--step)
