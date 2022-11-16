@@ -456,7 +456,9 @@ handleCommand runtime@Runtime {..} user command = do
         Right (User.UserId uid, Email.EmailId eid) ->
           pure (ExitSuccess, ["User created: " <> uid,
             "Signup confirmation email enqueued: " <> eid])
-        Left err -> pure (ExitFailure 1, [show err])
+        Left err -> case err of
+          User.ValidationErrs errs -> pure (ExitFailure 1, map show errs)
+          _ -> pure (ExitFailure 1, [show err])
     Command.Invite input -> do
       muid <- stepRunM runtime $ inviteUser input
       case muid of

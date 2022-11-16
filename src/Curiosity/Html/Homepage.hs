@@ -12,7 +12,6 @@ import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Email
 import           Curiosity.Html.Misc
-import           Curiosity.Html.Navbar          ( navbar )
 import           Curiosity.Html.Order           ( panelOrders )
 import           Curiosity.Html.Quotation       ( panelQuotations )
 import qualified Smart.Html.Dsl                as Dsl

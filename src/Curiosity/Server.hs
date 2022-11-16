@@ -254,7 +254,7 @@ type App = H.UserAuthentication :> Get '[HTML] (PageEither
                   :> Post '[HTML] Pages.EchoPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
-                  :> Post '[HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage'
              :<|> "echo" :> "update-profile"
                   :> ReqBody '[FormUrlEncoded] User.Update
                   :> Post '[HTML] Pages.EchoPage
@@ -791,8 +791,9 @@ documentSignupPage = pure $ Signup.Page "/echo/signup"
 messageSignupSuccess :: ServerC m => m Signup.SignupResultPage
 messageSignupSuccess = pure Signup.SignupSuccess
 
-echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage
-echoSignup input = pure $ Pages.EchoPage Nothing $ show input
+echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage'
+echoSignup input = pure $ Pages.EchoPage' Nothing (show input) $
+  map show (User.validateSignup' 0 "USER-0" input)
 
 
 --------------------------------------------------------------------------------

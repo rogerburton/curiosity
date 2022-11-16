@@ -19,6 +19,8 @@ the `cty user signup` command.
 
 - Upon successfull submittal, this [message](/messages/signup) can be seen.
 
+- A [confirmation email](/emails/EMAIL-1) is sent.
+
 ## Scenarios
 
 The sign up process is used to explain [how golden tests are
