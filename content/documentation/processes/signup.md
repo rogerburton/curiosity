@@ -9,8 +9,8 @@ with a username and password credentials pair.
 
 ## CLI
 
-From the CLI, the sign up process can be initiated with the `cty user signup`
-command.
+From the [CLI](/documentation/clis), the sign up process can be initiated with
+the `cty user signup` command.
 
 ## Web interface
 

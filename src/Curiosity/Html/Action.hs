@@ -109,11 +109,19 @@ actionResultPanel title_ msg =
 
 
 --------------------------------------------------------------------------------
-data EchoPage = EchoPage Text
+data EchoPage = EchoPage
+  { _echoPageUserProfile :: (Maybe User.UserProfile)
+    -- ^ The logged in user, if any
+  , _echoPageContent     :: Text
+    -- ^ Text, displayed as code
+  }
 
 instance H.ToMarkup EchoPage where
-  toMarkup = \case
-    EchoPage msg -> withText msg
+  toMarkup EchoPage {..} =
+    renderView' _echoPageUserProfile $
+      panelWrapper
+        $ H.div ! A.class_ "c-display" $
+          H.pre . H.code $ H.text _echoPageContent
    where
     withText msg =
       Render.renderCanvas
