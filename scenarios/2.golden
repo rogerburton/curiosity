@@ -4,8 +4,10 @@ Resetting to the empty state.
 Modifying default user.
 6: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
 7: user signup bob secret bob@example.com --accept-tos
 User created: USER-2
+Signup confirmation email enqueued: EMAIL-2
 8: user do set-email-addr-as-verified bob
 User successfully updated.
 9: user do set-email-addr-as-verified bob
@@ -16,7 +18,9 @@ Resetting to the empty state.
 Modifying default user.
 13: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
 14: user signup bob secret bob@example.com --accept-tos
 User created: USER-2
+Signup confirmation email enqueued: EMAIL-2
 15: user do set-email-addr-as-verified alice
 MissingRight CanVerifyEmailAddr

@@ -2,6 +2,7 @@
 Resetting to the empty state.
 3: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
 4: user get USER-1 --short
 USER-1 alice
 5: quit

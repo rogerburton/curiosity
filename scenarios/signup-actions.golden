@@ -5,6 +5,7 @@ Email addresses to verify:
 Emails to send:
 3: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
 4: queues
 Email addresses to verify:
 USER-1 alice
