@@ -28,20 +28,20 @@ In the rest of this section, we go into some details of their usage.
 # `cty run` scripts
 
 Let's use the scenario called
-[`0.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/0.txt),
+[`user-signup.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup.txt),
 reproduced here:
 
-<pre><code><!--# include virtual="/scenarios/0.txt" --></code></pre>
+<pre><code><!--# include virtual="/scenarios/user-signup.txt" --></code></pre>
 
 It can be executed by the `cty run` command:
 
-<pre><code>$ cty run scenarios/0.txt
-<!--# include virtual="/scenarios/0.golden" --></code></pre>
+<pre><code>$ cty run scenarios/user-signup.txt
+<!--# include virtual="/scenarios/user-signup.golden" --></code></pre>
 
 In the web interface, we can also show the same execution, but with additional
 links to intermediate states:
 
-<!--# include virtual="/partials/scenarios/0" -->
+<!--# include virtual="/partials/scenarios/user-signup" -->
 
 Let's comment what's happening. Each command in the source script is visible in
 the output of `cty run`, prefixed with its line number. Because the second line
@@ -81,7 +81,7 @@ file (ending with a `.golden` file extension).
 
 The content of a golden file is supposed to be exactly the same as the ouptut
 of running the corresponding script; i.e. the content of
-[`0.golden`](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden)
+[`user-signup.golden`](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup.golden)
 should be the same as what you can see above.
 
 To make sure this is the case, especially as the project evolves, an [automated
@@ -108,19 +108,19 @@ We now show a scenario that fails a validation rule regarding the [valid
 usernames](/documentation/validation-data#users).
 
 The scenario is called
-[`1.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/1.txt),
+[`user-signup--blocked.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup--blocked.txt),
 reproduced here:
 
-<pre><code><!--# include virtual="/scenarios/1.txt" --></code></pre>
+<pre><code><!--# include virtual="/scenarios/user-signup--blocked.txt" --></code></pre>
 
 Again, it can be executed by the `cty run` command:
 
-<pre><code>$ cty run scenarios/1.txt
-<!--# include virtual="/scenarios/1.golden" --></code></pre>
+<pre><code>$ cty run scenarios/user-signup--blocked.txt
+<!--# include virtual="/scenarios/user-signup--blocked.golden" --></code></pre>
 
 And can be displayed in the web interface as a nice table:
 
-<!--# include virtual="/partials/scenarios/1" -->
+<!--# include virtual="/partials/scenarios/user-signup--blocked" -->
 
 This scenario checks that the username `about` cannot be used when creating a
 new user. Indeed the golden file ensures that the `UsernameBlocked` error

@@ -39,19 +39,19 @@ above commands, we can devise scenarios to describe and test automated
 processes.
 
 Consider the following scenario:
-[`signup-actions.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/signup-actions.txt),
+[`user-signup--step.txt`](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup--step.txt),
 reproduced here:
 
-<pre><code><!--# include virtual="/scenarios/signup-actions.txt" --></code></pre>
+<pre><code><!--# include virtual="/scenarios/user-signup--step.txt" --></code></pre>
 
 Here is how it looks like when run with `cty run`:
 
-<pre><code>$ cty run scenarios/1.txt
-<!--# include virtual="/scenarios/signup-actions.golden" --></code></pre>
+<pre><code>$ cty run scenarios/user-signup--step.txt
+<!--# include virtual="/scenarios/user-signup--step.golden" --></code></pre>
 
 And here it is as a nice table:
 
-<!--# include virtual="/partials/scenarios/signup-actions" -->
+<!--# include virtual="/partials/scenarios/user-signup--step" -->
 
 This scenario shows that initially, queues are empty (there is no tasks that
 the system can take autonomously), and that creating a new user also creates

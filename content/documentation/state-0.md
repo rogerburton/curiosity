@@ -15,9 +15,9 @@ system was initialized.
 
 Note: if you are operating Curiosity yourself, you can initialize Curiosity's
 state by running `cty run scenarios/state-0.txt`. Here is [an example
-scenario](https://github.com/hypered/curiosity/blob/main/scenarios/0.txt), and
-its [corresponding golden
-file](https://github.com/hypered/curiosity/blob/main/scenarios/0.golden).
+scenario](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup.txt),
+and its [corresponding golden
+file](https://github.com/hypered/curiosity/blob/main/scenarios/user-signup.golden).
 
 ## Users
 
