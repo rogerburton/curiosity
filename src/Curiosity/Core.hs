@@ -9,11 +9,13 @@ module Curiosity.Core
   , instantiateStmDb
   , reset
   , readFullStmDbInHask'
-  , createUser
+  , signupUser
+  , inviteUser
   , createUserFull
   , modifyUsers
   , selectUserById
   , selectUserByUsername
+  , selectUserByInviteToken
   , modifyQuotations
   , selectQuotationById
   -- * ID generation
@@ -50,7 +52,6 @@ module Curiosity.Core
   ) where
 
 import qualified Control.Concurrent.STM        as STM
-import           Control.Lens
 import           Curiosity.Data
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Counter        as C
@@ -302,9 +303,9 @@ firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
 
 
 --------------------------------------------------------------------------------
-createUser
+signupUser
   :: StmDb -> User.Signup -> STM (Either User.Err (User.UserId, Email.EmailId))
-createUser db User.Signup {..} = do
+signupUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
@@ -335,25 +336,77 @@ createUser db User.Signup {..} = do
     userId <- createUserFull db newProfile >>= either STM.throwSTM pure
     pure (userId, emailId)
 
+inviteUser
+  :: StmDb -> User.Invite -> STM (Either User.Err (User.UserId, Email.EmailId))
+inviteUser db User.Invite {..} = do
+  STM.catchSTM (Right <$> transaction) (pure . Left)
+ where
+  transaction = do
+    now   <- readTime db
+    newId <- generateUserId db
+    let email = _inviteEmail
+        token = "TODO"
+        newProfile = User.UserProfile
+          newId
+          (User.InviteToken token)
+          Nothing
+          Nothing
+          email
+          Nothing
+          False
+          (User.UserCompletion1 Nothing Nothing Nothing)
+          (User.UserCompletion2 Nothing Nothing)
+          now
+          Nothing
+          -- The very first user has plenty of rights:
+          (if newId == firstUserId then firstUserRights else [])
+          -- TODO Define some mechanism to get the initial authorizations
+          [User.AuthorizedAsEmployee]
+          Nothing
+    emailId <-
+      createEmail db (Email.InviteEmail token) Email.systemEmailAddr email
+        >>= either STM.throwSTM pure
+    -- We fail the transaction if createUserFull returns an error,
+    -- so that we don't increment _dbNextUserId.
+    userId <- createUserFull db newProfile >>= either STM.throwSTM pure
+    pure (userId, emailId)
+
 createUserFull
   :: StmDb -> User.UserProfile -> STM (Either User.Err User.UserId)
-createUserFull db newProfile = if username `elem` User.usernameBlocklist
-  then pure . Left $ User.UsernameBlocked
-  else do
-    mprofile <- selectUserById db newProfileId
-    case mprofile of
-      Just _  -> existsErr
-      Nothing -> createNew
+createUserFull db newProfile = case User._userProfileCreds newProfile of
+  User.Credentials { .. } -> do
+    let username     = _userCredsName
+        newProfileId = User._userProfileId newProfile
+        createNew    = do
+          mprofile <- selectUserByUsername db username
+          case mprofile of
+            Just _  -> existsErr
+            Nothing -> do
+              modifyUsers db (++ [newProfile])
+              pure $ Right newProfileId
+        existsErr = pure . Left $ User.UserExists
+    if username `elem` User.usernameBlocklist
+      then pure . Left $ User.UsernameBlocked
+      else do
+        mprofile <- selectUserById db newProfileId
+        case mprofile of
+          Just _  -> existsErr
+          Nothing -> createNew
+  User.InviteToken _ -> createUserFull' db newProfile
+
+-- | Similar to `createUserFull` but doesn't check usernames.
+createUserFull'
+  :: StmDb -> User.UserProfile -> STM (Either User.Err User.UserId)
+createUserFull' db newProfile = do
+  mprofile <- selectUserById db newProfileId
+  case mprofile of
+    Just _  -> existsErr
+    Nothing -> createNew
  where
-  username     = newProfile ^. User.userProfileCreds . User.userCredsName
   newProfileId = User._userProfileId newProfile
   createNew    = do
-    mprofile <- selectUserByUsername db username
-    case mprofile of
-      Just _  -> existsErr
-      Nothing -> do
-        modifyUsers db (++ [newProfile])
-        pure $ Right newProfileId
+    modifyUsers db (++ [newProfile])
+    pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
 modifyUsers :: StmDb -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
@@ -368,7 +421,14 @@ selectUserByUsername :: StmDb -> User.UserName -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
   let tvar = _dbUserProfiles db
   records <- STM.readTVar tvar
-  pure $ find ((== username) . User._userCredsName . User._userProfileCreds)
+  pure $ find ((== Just username) . User.getUsername . User._userProfileCreds)
+              records
+
+selectUserByInviteToken :: StmDb -> Text -> STM (Maybe User.UserProfile)
+selectUserByInviteToken db token = do
+  let tvar = _dbUserProfiles db
+  records <- STM.readTVar tvar
+  pure $ find ((== Just token) . User.getInviteToken . User._userProfileCreds)
               records
 
 

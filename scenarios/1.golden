@@ -1,4 +1,4 @@
 1: reset
 Resetting to the empty state.
-3: user create about secret alice@example.com --accept-tos
+3: user signup about secret alice@example.com --accept-tos
 UsernameBlocked

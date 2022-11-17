@@ -1,6 +1,7 @@
 {
   "_userProfileId": "USER-3",
   "_userProfileCreds": {
+    "tag": "Credentials",
     "_userCredsName": "charlie",
     "_userCredsPassword": "secret"
   },

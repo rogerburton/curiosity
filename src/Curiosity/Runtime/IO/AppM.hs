@@ -81,7 +81,7 @@ instance S.DBStorage AppM STM User.UserProfile where
     User.UserCreate input -> second pure <$> Core.createUserFull db input
 
     User.UserCreateGeneratingUserId input ->
-      second (pure . fst) <$> Core.createUser db input
+      second (pure . fst) <$> Core.signupUser db input
 
     User.UserDelete id ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
@@ -122,10 +122,16 @@ checkCredentials db User.Credentials {..} = do
     Just profile | checkPassword profile _userCredsPassword ->
       pure $ Just profile
     _ -> pure Nothing
+checkCredentials db User.InviteToken {..} = do
+  mprofile <- Core.selectUserByInviteToken db _inviteToken
+  case mprofile of
+    Just profile -> pure $ Just profile
+    _ -> pure Nothing
 
 -- TODO Use constant-time string comparison.
 checkPassword :: User.UserProfile -> User.Password -> Bool
-checkPassword profile (User.Password passInput) = storedPass =:= passInput
- where
-  User.Password storedPass =
-    profile ^. User.userProfileCreds . User.userCredsPassword
+checkPassword profile (User.Password passInput) = case User._userProfileCreds profile of
+  User.Credentials {..} ->
+    let User.Password storedPass = _userCredsPassword
+    in storedPass =:= passInput
+  User.InviteToken _ -> False

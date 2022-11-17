@@ -1,6 +1,6 @@
 reset
 queues
-user create alice secret alice@example.com --accept-tos
+user signup alice secret alice@example.com --accept-tos
 queues
 step --all --dry
 step --all

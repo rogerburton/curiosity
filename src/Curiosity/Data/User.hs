@@ -8,11 +8,15 @@ Description: User related datatypes
 -}
 module Curiosity.Data.User
   ( Signup(..)
+  , Invite(..)
   , Login(..)
   , Credentials(..)
+  , getUsername
+  , getInviteToken
   , Update(..)
   , userCredsName
   , userCredsPassword
+  , inviteToken
   , UserProfile'(..)
   , UserProfile
   , UserCompletion1(..)
@@ -104,6 +108,18 @@ instance FromForm Signup where
           <$> parseMaybe "tos-consent" f
           )
 
+-- | Represents the input data used for user invite. This creates a user
+-- profile without associated username/password.
+data Invite = Invite
+  { _inviteEmail :: UserEmailAddr
+  }
+  deriving (Generic, Eq, Show)
+
+instance FromForm Invite where
+  fromForm f =
+    Invite
+      <$> parseUnique "email-addr"   f
+
 -- | Represents the input data to log in a user.
 data Login = Login
   { _loginUsername :: UserName
@@ -158,13 +174,25 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Represents user credentials.
-data Credentials = Credentials
-  { _userCredsName     :: UserName
-  , _userCredsPassword :: Password
-  }
+-- | Represents user credentials (username / password pairs, or invite tokens)
+data Credentials =
+    Credentials
+    { _userCredsName     :: UserName
+    , _userCredsPassword :: Password
+    }
+  | InviteToken
+    { _inviteToken :: Text
+    }
   deriving (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
+
+getUsername :: Credentials -> Maybe UserName
+getUsername Credentials {..} = Just _userCredsName
+getUsername _ = Nothing
+
+getInviteToken :: Credentials -> Maybe Text
+getInviteToken InviteToken {..} = Just _inviteToken
+getInviteToken _ = Nothing
 
 -- For Completion-1 level
 data UserCompletion1 = UserCompletion1

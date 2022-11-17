@@ -64,7 +64,7 @@ signup
   -> User.UserEmailAddr
   -> Run (Either User.Err (User.UserId, Email.EmailId))
 signup username password email =
-  ask >>= (Run . lift . flip Core.createUser input)
+  ask >>= (Run . lift . flip Core.signupUser input)
   where input = User.Signup username password email True
 
 can :: User.UserProfile -> Syntax.Name -> Run Bool
