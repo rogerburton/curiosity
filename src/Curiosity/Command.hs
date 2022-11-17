@@ -79,6 +79,7 @@ data Command =
   | SetUserEmailAddrAsVerified User.UserName
     -- ^ High-level operations on users.
   | SignQuotation Quotation.QuotationId
+  | RejectQuotation Quotation.QuotationId (Maybe Text)
   | CreateEmployment Employment.CreateContractAll
   | CreateInvoice
   | EmitInvoice Order.OrderId
@@ -642,8 +643,8 @@ parserUser = A.subparser
       "signup"
       (A.info (parserSignup <**> A.helper) $ A.progDesc "Create a new user")
   <> A.command
-      "invite"
-      (A.info (parserInvite <**> A.helper) $ A.progDesc "Invite a new user")
+       "invite"
+       (A.info (parserInvite <**> A.helper) $ A.progDesc "Invite a new user")
   <> A.command
        "delete"
        (A.info (parserDeleteUser <**> A.helper) $ A.progDesc "Delete a user")
@@ -756,11 +757,18 @@ parserCreateEmployment =
   pure $ CreateEmployment Employment.emptyCreateContractAll
 
 parserQuotation :: A.Parser Command
-parserQuotation = A.subparser $ A.command
-  "sign"
-  ( A.info (parserSignQuotation <**> A.helper)
-  $ A.progDesc "Accept (sign) a quotation"
-  )
+parserQuotation =
+  A.subparser
+    $  A.command
+         "sign"
+         ( A.info (parserSignQuotation <**> A.helper)
+         $ A.progDesc "Accept (sign) a quotation"
+         )
+    <> A.command
+         "reject"
+         ( A.info (parserRejectQuotation <**> A.helper)
+         $ A.progDesc "Reject a quotation"
+         )
 
 parserSignQuotation :: A.Parser Command
 parserSignQuotation = do
@@ -768,6 +776,16 @@ parserSignQuotation = do
     A.str
     (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
   pure $ SignQuotation id
+
+parserRejectQuotation :: A.Parser Command
+parserRejectQuotation = do
+  id <- A.argument
+    A.str
+    (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
+  mcomment <-
+    optional $ A.strOption $ A.long "comment" <> A.metavar "COMMENT" <> A.help
+      "A possible comment accompanying the rejection."
+  pure $ RejectQuotation id mcomment
 
 parserInvoice :: A.Parser Command
 parserInvoice =

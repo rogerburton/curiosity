@@ -1,0 +1,16 @@
+reset
+user signup alice a alice@example.com --accept-tos
+
+user signup susie s susie@example.com --accept-tos
+user update USER-2 Susie "I'm Susie, the Seller in the quotation-flow scenario."
+
+user signup charlie c charlie@example.com --accept-tos
+user update USER-3 Charlie "I'm Charlie, a Client in the quotation-flow scenario."
+
+as susie
+forms quotation new --client charlie
+# forms quotation edit
+forms quotation submit TBPJLIUG
+
+as charlie
+quotation reject QUOT-1 --comment "Rejecting, for some reason."

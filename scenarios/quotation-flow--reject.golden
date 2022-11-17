@@ -1,0 +1,24 @@
+1: reset
+Resetting to the empty state.
+2: user signup alice a alice@example.com --accept-tos
+User created: USER-1
+4: user signup susie s susie@example.com --accept-tos
+User created: USER-2
+5: user update USER-2 Susie I'm Susie, the Seller in the quotation-flow scenario.
+User updated: USER-2
+7: user signup charlie c charlie@example.com --accept-tos
+User created: USER-3
+8: user update USER-3 Charlie I'm Charlie, a Client in the quotation-flow scenario.
+User updated: USER-3
+10: as susie
+Modifying default user.
+11: forms quotation new --client charlie
+Quotation form created: TBPJLIUG
+13: forms quotation submit TBPJLIUG
+Quotation form validated.
+Quotation created: QUOT-1
+Quotation sent to client: QUOT-1
+15: as charlie
+Modifying default user.
+16: quotation reject QUOT-1 --comment Rejecting, for some reason.
+Quotation rejected.
