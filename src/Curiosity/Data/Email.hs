@@ -18,6 +18,8 @@ module Curiosity.Data.Email
   , emailIdPrefix
   , EmailTemplate(..)
   , emailTemplateName
+  , displayEmailBody
+  , displayEmailTitle
   , EmailState(..)
   , Predicate(..)
   , applyPredicate
@@ -30,6 +32,7 @@ import           Data.Aeson
 import qualified Text.Blaze.Html5              as H
 import           Web.FormUrlEncoded             ( FromForm(..)
                                                 )
+import           Web.HttpApiData                ( FromHttpApiData(..) )
 
 --------------------------------------------------------------------------------
 systemEmailAddr :: User.UserEmailAddr
@@ -57,7 +60,7 @@ newtype EmailId = EmailId { unEmailId :: Text }
                         , H.ToMarkup
                         , H.ToValue
                         ) via Text
-               deriving FromForm via W.Wrapped "email-id" Text
+               deriving (FromHttpApiData, FromForm) via W.Wrapped "email-id" Text
 
 emailIdPrefix :: Text
 emailIdPrefix = "EMAIL-"
@@ -84,12 +87,28 @@ data EmailTemplate =
   deriving anyclass (ToJSON, FromJSON)
 
 emailTemplateName :: EmailTemplate -> Text
-emailTemplateName t = case t of
+emailTemplateName = \case
   SignupConfirmationEmail -> "SignupConfirmation"
   InviteEmail _ -> "Invite"
   QuotationEmail -> "Quotation"
   InvoiceEmail -> "Invoice"
   InvoiceReminderEmail -> "InvoiceReminder"
+
+displayEmailTitle :: EmailTemplate -> Text
+displayEmailTitle = \case
+  SignupConfirmationEmail -> "Signup confirmation"
+  InviteEmail _ -> "Invitation"
+  QuotationEmail -> "Quotation"
+  InvoiceEmail -> "Invoice"
+  InvoiceReminderEmail -> "Reminder"
+
+displayEmailBody :: EmailTemplate -> Text
+displayEmailBody = \case
+  SignupConfirmationEmail -> "Hi, thank you for registering."
+  InviteEmail token -> "Hi, you've been invited to Curiosity. Here is a token: " <> token
+  QuotationEmail -> "Hi, here is a quotation."
+  InvoiceEmail -> "Hi, here is an invoice."
+  InvoiceReminderEmail -> "Hi, we didn't receive any payment for an invoice."
 
 
 --------------------------------------------------------------------------------

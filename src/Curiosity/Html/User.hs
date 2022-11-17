@@ -12,6 +12,9 @@ import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import           Curiosity.Html.Navbar          ( navbar )
+import qualified Data.Text                     as T
+import           Data.Time.Clock.POSIX          ( posixSecondsToUTCTime )
+import           Data.Time.Format.ISO8601       ( iso8601Show )
 import qualified Smart.Html.Dsl                as Dsl
 import           Smart.Html.Layout
 import qualified Smart.Html.Misc               as Misc
@@ -19,10 +22,10 @@ import qualified Smart.Html.Render             as Render
 import           Smart.Html.SideMenu            ( SideMenu(..)
                                                 , SideMenuItem(..)
                                                 )
+import           System.PosixCompat.Types       ( EpochTime )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
-
 
 --------------------------------------------------------------------------------
 data EditProfilePage = EditProfilePage
@@ -70,8 +73,8 @@ instance H.ToMarkup EditProfilePage where
           "Registered since"
           "registered-since"
           ( Just
-          . H.toValue @Text
-          . show
+          . H.toValue
+          . formatEpochIso8601
           . User._userProfileRegistrationDate
           $ profile
           )
@@ -179,7 +182,11 @@ profileView profile entities hasEditButton =
             )
           keyValuePair
             "Registered since"
-            (H.text . show . User._userProfileRegistrationDate $ profile)
+            ( H.toHtml
+            . formatEpochIso8601
+            . User._userProfileRegistrationDate
+            $ profile
+            )
           maybe mempty
                 (keyValuePair "Twitter" . linkTwitter)
                 (User._userProfileTwitterUsername profile)
@@ -267,10 +274,18 @@ publicProfileView profile =
                 (User._userProfileBio profile)
           keyValuePair
             "Registered since"
-            (H.text . show . User._userProfileRegistrationDate $ profile)
+            ( H.toHtml
+            . formatEpochIso8601
+            . User._userProfileRegistrationDate
+            $ profile
+            )
           maybe mempty
                 (keyValuePair "Twitter" . linkTwitter)
                 (User._userProfileTwitterUsername profile)
 
     title' "Advisors" Nothing
     displayAdvisors $ User._userProfileAdvisors profile
+
+
+formatEpochIso8601 :: EpochTime -> Text
+formatEpochIso8601 = T.pack . iso8601Show . posixSecondsToUTCTime . realToFrac

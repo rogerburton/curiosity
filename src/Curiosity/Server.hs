@@ -59,6 +59,7 @@ import qualified Curiosity.Html.Homepage       as Pages
 import qualified Curiosity.Html.Invoice        as Pages
 import qualified Curiosity.Html.LandingPage    as Pages
 import qualified Curiosity.Html.Legal          as Pages
+import qualified Curiosity.Html.Misc           as Misc
 import qualified Curiosity.Html.Order          as Pages
 import qualified Curiosity.Html.Quotation      as Pages
 import qualified Curiosity.Html.Run            as Pages
@@ -107,6 +108,8 @@ import           WaiAppStatic.Storage.Filesystem.Extended
                                                 )
 import           WaiAppStatic.Types             ( ss404Handler
                                                 , ssLookupFile
+                                                , ssMaxAge
+                                                , MaxAge(NoMaxAge)
                                                 )
 
 
@@ -228,9 +231,13 @@ type App = H.UserAuthentication :> Get '[HTML] (PageEither
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
              :<|> "emails"
-                  :> H.UserAuthentication :>  Get '[HTML] Pages.EmailPage
+                  :> H.UserAuthentication :>  Get '[HTML] Pages.EmailsPage
              :<|> "emails.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
+             :<|> "emails"
+                  :> H.UserAuthentication
+                  :> Capture "email-id" Email.EmailId
+                  :>  Get '[HTML] Pages.EmailPage
 
              :<|> "quotations"
                   :> H.UserAuthentication :>  Get '[HTML] Pages.QuotationPage
@@ -489,6 +496,8 @@ type Partials =
        :> "state.json"
        :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
+  :<|> "partials" :> "nav" :> H.UserAuthentication :> Get '[HTML] Html
+
   -- live data
   :<|> "partials" :> "legal-entities" :> Get '[HTML] Html
   :<|> "partials" :> "legal-entities.json" :> Get '[JSON] [Legal.Entity]
@@ -551,6 +560,7 @@ serverT natTrans ctx conf jwtS root dataDir scenariosDir =
     :<|> showStateAsJson
     :<|> showEmails
     :<|> showEmailsAsJson
+    :<|> showEmail
     :<|> showQuotations
     :<|> showQuotationsAsJson
     :<|> showOrders
@@ -629,6 +639,8 @@ partials scenariosDir =
     :<|> partialScenario scenariosDir
     :<|> partialScenarioState scenariosDir
     :<|> partialScenarioStateAsJson scenariosDir
+
+    :<|> partialNav
 
     -- live data
     :<|> partialLegalEntities
@@ -875,6 +887,17 @@ partialLegalEntitiesAsJson = do
   db       <- asks Rt._rDb
   entities <- liftIO . atomically $ Rt.readLegalEntities db
   pure entities
+
+--------------------------------------------------------------------------------
+-- | render partial html with the main navigation bar. this is used within
+-- documentation. (the navigation is different depending on the user being
+-- logged in or not.)
+partialNav :: ServerC m => SAuth.AuthResult User.UserId -> m Html
+partialNav authResult = withMaybeUser
+  authResult
+  (\_ -> pure $ Misc.header Nothing)
+  (\profile -> pure . Misc.header $ Just profile
+  )
 
 
 --------------------------------------------------------------------------------
@@ -2611,18 +2634,29 @@ showStateAsJson = do
 
 
 --------------------------------------------------------------------------------
-showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailPage
+showEmails :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EmailsPage
 showEmails authResult = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
   withMaybeUser authResult
-                (const $ pure $ Pages.EmailPage Nothing emails)
-                (\profile -> pure $ Pages.EmailPage (Just profile) emails)
+                (const $ pure $ Pages.EmailsPage Nothing emails)
+                (\profile -> pure $ Pages.EmailsPage (Just profile) emails)
 
 showEmailsAsJson
   :: ServerC m => m (JP.PrettyJSON '[ 'JP.DropNulls] [Email.Email])
 showEmailsAsJson = do
   emails <- withRuntime $ Rt.filterEmails' Email.AllEmails
   pure $ JP.PrettyJSON emails
+
+showEmail :: ServerC m => SAuth.AuthResult User.UserId -> Email.EmailId -> m Pages.EmailPage
+showEmail authResult eid = do
+  memail <- withRuntime $ Rt.selectEmailById eid
+  case memail of
+    Nothing ->
+      Errs.throwError' . Rt.FileDoesntExistErr $ show eid -- TODO Specific error.
+    Just email ->
+      withMaybeUser authResult
+                    (const $ pure $ Pages.EmailPage Nothing email)
+                    (\profile -> pure $ Pages.EmailPage (Just profile) email)
 
 
 --------------------------------------------------------------------------------
@@ -2665,6 +2699,7 @@ serveDocumentation root = serveDirectoryWith settings
   settings = (defaultWebAppSettings root)
     { ss404Handler = Just custom404
     , ssLookupFile = webAppLookup hashFileIfExists root
+    , ssMaxAge = NoMaxAge
     }
 
 custom404 :: Application

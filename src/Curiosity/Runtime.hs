@@ -68,6 +68,7 @@ module Curiosity.Runtime
   -- * Emails
   , filterEmails
   , filterEmails'
+  , selectEmailById
   -- * Servant compat
   , appMHandlerNatTrans
   -- * Re-exports for backwards compat: must be removed in the future.
@@ -1803,6 +1804,10 @@ setEmailDone db Email.Email {..} = do
       pure $ Right ()
     Nothing -> pure . Left $ Email.Err "Email not found" -- TODO
 
+selectEmailById :: Email.EmailId -> RunM (Maybe Email.Email)
+selectEmailById eid = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.selectEmailById db eid
 
 --------------------------------------------------------------------------------
 readForm

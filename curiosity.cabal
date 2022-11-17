@@ -79,6 +79,7 @@ common common-dependencies
     , blaze-html
     , blaze-markup
     , template-haskell
+    , time
     , unix
     , unix-time
   -- mixins: design-hs-lib hiding (Prelude)
