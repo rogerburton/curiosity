@@ -1,5 +1,5 @@
 1: reset
-Resetting to the empty state.
+State is now empty.
 2: user invite alice@example.com
 User created: USER-1
 3: queues

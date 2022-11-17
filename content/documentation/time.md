@@ -27,7 +27,7 @@ reproduced here:
 
 Here is how it looks like when run with `cty run`:
 
-<pre><code>$ cty run scenarios/1.txt
+<pre><code>$ cty run scenarios/user-signup--blocked.txt
 <!--# include virtual="/scenarios/time.golden" --></code></pre>
 
 And here it is as a nice table:

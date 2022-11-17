@@ -1,6 +1,7 @@
 1: user get USER-1 --short
 No such user.
-2: user signup alice secret alice@example.com
+2: user signup alice secret alice@example.com --accept-tos
 User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
 3: user get USER-1 --short
 USER-1 alice

@@ -8,6 +8,7 @@ module Curiosity.Html.Action
   , SetQuotationAsSignedPage(..)
   , ActionResult(..)
   , EchoPage(..)
+  , EchoPage'(..)
   ) where
 
 import qualified Curiosity.Data.Quotation      as Quotation
@@ -109,11 +110,48 @@ actionResultPanel title_ msg =
 
 
 --------------------------------------------------------------------------------
-data EchoPage = EchoPage Text
+data EchoPage = EchoPage
+  { _echoPageUserProfile :: (Maybe User.UserProfile)
+    -- ^ The logged in user, if any
+  , _echoPageContent     :: Text
+    -- ^ Text, displayed as code
+  }
 
 instance H.ToMarkup EchoPage where
-  toMarkup = \case
-    EchoPage msg -> withText msg
+  toMarkup EchoPage {..} =
+    renderView' _echoPageUserProfile $
+      panelWrapper
+        $ H.div ! A.class_ "c-display" $
+          H.pre . H.code $ H.text _echoPageContent
+   where
+    withText msg =
+      Render.renderCanvas
+        $ Dsl.SingletonCanvas
+        $ H.div
+        ! A.class_ "c-display"
+        $ H.code
+        $ H.toMarkup msg
+
+-- | Similar to `EchoPage` but also shows validation errors
+data EchoPage' = EchoPage'
+  { _echoPage'UserProfile :: (Maybe User.UserProfile)
+    -- ^ The logged in user, if any
+  , _echoPage'Content     :: Text
+    -- ^ Text, displayed as code
+  , _echoPage'Errors      :: [Text]
+  }
+
+instance H.ToMarkup EchoPage' where
+  toMarkup EchoPage' {..} =
+    renderView' _echoPage'UserProfile $
+      panelWrapper
+        $ H.div ! A.class_ "c-display" $ do
+          H.pre . H.code $ H.text _echoPage'Content
+          if null _echoPage'Errors
+            then
+              H.pre . H.code $ "Valid."
+            else
+              H.pre . H.code . H.text $ unlines _echoPage'Errors
    where
     withText msg =
       Render.renderCanvas

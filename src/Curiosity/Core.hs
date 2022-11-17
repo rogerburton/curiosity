@@ -28,7 +28,6 @@ module Curiosity.Core
   , generateEmploymentId
   , generateInvoiceId
   , generateEmailId
-  , firstUserId
   -- * Operations on business units
   , createBusiness
   , updateBusiness
@@ -293,41 +292,16 @@ generateEmailId Db {..} =
 
 
 --------------------------------------------------------------------------------
--- | Define the first user ID. A test exists to make sure this matches the
--- behavior of `generateUserId`.
-firstUserId :: User.UserId
-firstUserId = User.UserId $ User.userIdPrefix <> "1"
-
-firstUserRights :: [User.AccessRight]
-firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
-
-
---------------------------------------------------------------------------------
 signupUser
   :: StmDb -> User.Signup -> STM (Either User.Err (User.UserId, Email.EmailId))
-signupUser db User.Signup {..} = do
+signupUser db signup@User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     now   <- readTime db
     newId <- generateUserId db
-    let newProfile = User.UserProfile
-          newId
-          (User.Credentials username password)
-          Nothing
-          Nothing
-          email
-          Nothing
-          tosConsent
-          (User.UserCompletion1 Nothing Nothing Nothing)
-          (User.UserCompletion2 Nothing Nothing)
-          now
-          Nothing
-          -- The very first user has plenty of rights:
-          (if newId == firstUserId then firstUserRights else [])
-          -- TODO Define some mechanism to get the initial authorizations
-          [User.AuthorizedAsEmployee]
-          Nothing
+    newProfile <- pure (User.validateSignup now newId signup)
+      >>= either (STM.throwSTM . User.ValidationErrs) pure
     emailId <-
       createEmail db Email.SignupConfirmationEmail Email.systemEmailAddr email
         >>= either STM.throwSTM pure
@@ -359,7 +333,7 @@ inviteUser db User.Invite {..} = do
           now
           Nothing
           -- The very first user has plenty of rights:
-          (if newId == firstUserId then firstUserRights else [])
+          (if newId == User.firstUserId then User.firstUserRights else [])
           -- TODO Define some mechanism to get the initial authorizations
           [User.AuthorizedAsEmployee]
           Nothing

@@ -51,4 +51,4 @@ spec = do
           input = Signup "smartcoop" "secret" "smartcoop@example.com" True
       muser <- atomically $ signupUser db input
 
-      muser `shouldBe` Left UsernameBlocked
+      muser `shouldBe` Left (ValidationErrs [UsernameBlocked])

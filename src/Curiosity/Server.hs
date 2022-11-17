@@ -226,7 +226,7 @@ type App = H.UserAuthentication :> Get '[HTML] (PageEither
 
              :<|> "scenarios" :> Raw
 
-             :<|> "state" :> Get '[HTML] Pages.EchoPage
+             :<|> "state" :> H.UserAuthentication :> Get '[HTML] Pages.EchoPage
              :<|> "state.json"
                   :> Get '[JSON] (JP.PrettyJSON '[ 'JP.DropNulls] HaskDb)
 
@@ -254,7 +254,7 @@ type App = H.UserAuthentication :> Get '[HTML] (PageEither
                   :> Post '[HTML] Pages.EchoPage
              :<|> "echo" :> "signup"
                   :> ReqBody '[FormUrlEncoded] User.Signup
-                  :> Post '[HTML] Pages.EchoPage
+                  :> Post '[HTML] Pages.EchoPage'
              :<|> "echo" :> "update-profile"
                   :> ReqBody '[FormUrlEncoded] User.Update
                   :> Post '[HTML] Pages.EchoPage
@@ -791,8 +791,9 @@ documentSignupPage = pure $ Signup.Page "/echo/signup"
 messageSignupSuccess :: ServerC m => m Signup.SignupResultPage
 messageSignupSuccess = pure Signup.SignupSuccess
 
-echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage
-echoSignup input = pure $ Pages.EchoPage $ show input
+echoSignup :: ServerC m => User.Signup -> m Pages.EchoPage'
+echoSignup input = pure $ Pages.EchoPage' Nothing (show input) $
+  map show (User.validateSignup' 0 "USER-0" input)
 
 
 --------------------------------------------------------------------------------
@@ -908,7 +909,7 @@ documentLoginPage :: ServerC m => m Login.Page
 documentLoginPage = pure $ Login.Page "/echo/login"
 
 echoLogin :: ServerC m => User.Login -> m Pages.EchoPage
-echoLogin = pure . Pages.EchoPage . show
+echoLogin = pure . Pages.EchoPage Nothing . show
 
 
 --------------------------------------------------------------------------------
@@ -1283,8 +1284,8 @@ handleSubmitQuotation input@(Quotation.SubmitQuotation key) profile =
       Right id -> do
         let logs = Rt.submitQuotationSuccess id
         mapM_ ML.info logs
-        pure . Pages.EchoPage $ unlines logs
-      Left err -> pure . Pages.EchoPage $ Quotation.unErr err
+        pure . Pages.EchoPage Nothing $ unlines logs
+      Left err -> pure . Pages.EchoPage Nothing $ Quotation.unErr err
 
 -- $ documentationPages
 --
@@ -1297,7 +1298,7 @@ documentEditProfilePage dataDir = do
   pure $ Pages.EditProfilePage profile "/echo/update-profile"
 
 echoUpdateProfile :: ServerC m => User.Update -> m Pages.EchoPage
-echoUpdateProfile input = pure $ Pages.EchoPage $ show input
+echoUpdateProfile input = pure $ Pages.EchoPage Nothing $ show input
 
 documentCreateQuotationPage
   :: ServerC m => FilePath -> m Pages.CreateQuotationPage
@@ -1472,7 +1473,7 @@ echoSubmitQuotation dataDir (Quotation.SubmitQuotation key) = do
   profile <- readJson $ dataDir </> "alice.json"
   output  <- withRuntime $ Rt.readCreateQuotationFormResolved' profile key
   case output of
-    Right (quotation, resovedClient) -> pure . Pages.EchoPage $ show
+    Right (quotation, resovedClient) -> pure . Pages.EchoPage (Just profile) $ show
       ( quotation
       , Quotation.validateCreateQuotation profile quotation resovedClient
       )
@@ -1618,7 +1619,7 @@ echoSubmitContract dataDir (Employment.SubmitContract key) = do
   db      <- asks Rt._rDb
   output  <- liftIO . atomically $ Rt.readCreateContractForm db (profile, key)
   case output of
-    Right contract -> pure . Pages.EchoPage $ show
+    Right contract -> pure . Pages.EchoPage (Just profile) $ show
       (contract, Employment.validateCreateContract profile contract)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -2204,7 +2205,7 @@ echoSubmitSimpleContract dataDir (SimpleContract.SubmitContract key) = do
     db
     (profile, key)
   case output of
-    Right contract -> pure . Pages.EchoPage $ show
+    Right contract -> pure . Pages.EchoPage (Just profile) $ show
       (contract, SimpleContract.validateCreateSimpleContract profile contract)
     Left _ -> Errs.throwError' . Rt.FileDoesntExistErr $ T.unpack key -- TODO Specific error.
 
@@ -2499,8 +2500,8 @@ handleRun
   -> m Pages.EchoPage
 handleRun authResult (Data.Command cmd) = withMaybeUser
   authResult
-  (\_ -> run' Nothing <&> Pages.EchoPage)
-  (\profile -> run' (Just profile) <&> Pages.EchoPage)
+  (\_ -> run' Nothing <&> Pages.EchoPage Nothing)
+  (\profile -> run' (Just profile) <&> Pages.EchoPage (Just profile))
  where
   run' mprofile = do
     runtime <- ask
@@ -2620,10 +2621,13 @@ listScenarioNames scenariosDir = do
 
 
 --------------------------------------------------------------------------------
-showState :: ServerC m => m Pages.EchoPage
-showState = do
+showState :: ServerC m => SAuth.AuthResult User.UserId -> m Pages.EchoPage
+showState authResult = do
   db <- withRuntime Rt.state
-  pure . Pages.EchoPage $ show db
+  withMaybeUser
+    authResult
+    (\_ -> pure . Pages.EchoPage Nothing $ show db)
+    (\profile -> pure . Pages.EchoPage (Just profile) $ show db)
 
 -- TODO The passwords are displayed in clear. Would be great to have the option
 -- to hide/show them.

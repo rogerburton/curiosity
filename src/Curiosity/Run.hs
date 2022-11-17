@@ -62,6 +62,7 @@ run (Command.CommandWithTarget Command.Reset (Command.StateFileTarget path) _)
       Rt.bootConf P.defaultConf { P._confDbFile = Just path } Rt.NoThreads >>= either throwIO pure
     Rt.runRunM runtime $ Rt.reset
     Rt.powerdown runtime
+    putStrLn @Text "State is now empty."
     exitSuccess
 
 run (Command.CommandWithTarget (Command.Repl conf) (Command.StateFileTarget _) (Command.User user))

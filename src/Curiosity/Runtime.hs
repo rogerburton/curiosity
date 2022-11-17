@@ -178,10 +178,8 @@ instance ML.MonadAppNameLogMulti RunM where
 --------------------------------------------------------------------------------
 -- | Reset the database to the empty state.
 reset :: RunM ()
-reset = do
-  ML.localEnv (<> "Command" <> "Reset")
-    . ML.info
-    $ "Resetting to the empty state."
+reset = ML.localEnv (<> "Command" <> "Reset") $ do
+  ML.info "Resetting to the empty state."
   db   <- asks _rDb
   mode <- readSteppingMode
   now  <- case mode of
@@ -189,6 +187,7 @@ reset = do
     Data.Stepped -> pure 0
     Data.Mixed   -> liftIO $ toEpochTime <$> getUnixTime
   liftIO . STM.atomically $ Core.reset db now
+  ML.info "State is now empty."
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
@@ -454,9 +453,12 @@ handleCommand runtime@Runtime {..} user command = do
     Command.Signup input -> do
       muid <- stepRunM runtime $ signupUser input
       case muid of
-        Right (User.UserId uid) ->
-          pure (ExitSuccess, ["User created: " <> uid])
-        Left err -> pure (ExitFailure 1, [show err])
+        Right (User.UserId uid, Email.EmailId eid) ->
+          pure (ExitSuccess, ["User created: " <> uid,
+            "Signup confirmation email enqueued: " <> eid])
+        Left err -> case err of
+          User.ValidationErrs errs -> pure (ExitFailure 1, map show errs)
+          _ -> pure (ExitFailure 1, [show err])
     Command.Invite input -> do
       muid <- stepRunM runtime $ inviteUser input
       case muid of
@@ -1684,23 +1686,23 @@ filterUsers' predicate = do
   db <- asks _rDb
   liftIO . STM.atomically $ filterUsers db predicate
 
-signupUser :: User.Signup -> RunM (Either User.Err User.UserId)
+signupUser :: User.Signup -> RunM (Either User.Err (User.UserId, Email.EmailId))
 signupUser input = ML.localEnv (<> "Command" <> "Signup") $ do
-  ML.info "Creating user..."
+  ML.info "Signing up new user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.signupUser db input
   case muid of
     Right (User.UserId uid, Email.EmailId eid) -> do
       ML.info $ "User created: " <> uid
       ML.info $ "Signup confirmation email enqueued: " <> eid
-      pure . Right $ User.UserId uid
+      pure $ Right (User.UserId uid, Email.EmailId eid)
     Left err -> do
       ML.info $ "Failed to create user: " <> show err
       pure $ Left err
 
 inviteUser :: User.Invite -> RunM (Either User.Err User.UserId)
 inviteUser input = ML.localEnv (<> "Command" <> "Signup") $ do
-  ML.info "Creating user..."
+  ML.info "Inviting new user..."
   db   <- asks _rDb
   muid <- liftIO . STM.atomically $ Core.inviteUser db input
   case muid of

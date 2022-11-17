@@ -53,6 +53,10 @@ module Curiosity.Data.User
   , applyPredicate
   , SetUserEmailAddrAsVerified(..)
   , userIdPrefix
+  , firstUserId
+  , firstUserRights
+  , validateSignup
+  , validateSignup'
   -- * Export all DB ops.
   , Storage.DBUpdate(..)
   , Storage.DBSelect(..)
@@ -345,29 +349,35 @@ applyPredicate (PredicateHas a) UserProfile {..} = a `elem` _userProfileRights
 
 data Err = UserExists
              | UsernameBlocked -- ^ See `usernameBlocklist`.
+             | NoTosConsent
              | UserNotFound Text -- Username or ID.
              | IncorrectUsernameOrPassword
              | EmailAddrAlreadyVerified
              | MissingRight AccessRight
+             | ValidationErrs [Err]
              deriving (Eq, Exception, Show)
 
 instance Errs.IsRuntimeErr Err where
   errCode = errCode' . \case
     UserExists                  -> "USER_EXISTS"
     UsernameBlocked             -> "USERNAME_BLOCKED"
+    NoTosConsent                -> "NO_TOS_CONSENT"
     UserNotFound{}              -> "USER_NOT_FOUND"
     IncorrectUsernameOrPassword -> "INCORRECT_CREDENTIALS"
     EmailAddrAlreadyVerified    -> "EMAIL_ADDR_ALREADY_VERIFIED"
     MissingRight _              -> "MISSING_RIGHT_" <> "TODO"
+    ValidationErrs _            -> "VALIDATION_ERRS"
     where errCode' = mappend "ERR.USER"
 
   httpStatus = \case
     UserExists                  -> HTTP.conflict409
     UsernameBlocked             -> HTTP.conflict409 -- TODO Check relevant code.
+    NoTosConsent                -> HTTP.conflict409
     UserNotFound{}              -> HTTP.notFound404
     IncorrectUsernameOrPassword -> HTTP.unauthorized401
     EmailAddrAlreadyVerified    -> HTTP.conflict409
     MissingRight _              -> HTTP.unauthorized401
+    ValidationErrs _            -> HTTP.conflict409
 
   userMessage = Just . \case
     UserExists -> LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
@@ -379,6 +389,11 @@ instance Errs.IsRuntimeErr Err where
         409 -- TODO
         "Username disallowed"
         "Some usernames are not allowed. Please select another."
+    NoTosConsent ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409 -- TODO
+        "TOS consent required"
+        "To use our services, accepting the Terms of Services is required."
     UserNotFound msg ->
       LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
         404
@@ -401,6 +416,12 @@ instance Errs.IsRuntimeErr Err where
         $  Pages.ErrorPage 401 "Unauthorized action"
         $  "The user has not the required access right "
         <> show a
+    ValidationErrs [err] -> maybe "TODO" identity $ Errs.userMessage err
+    ValidationErrs _ ->
+      LT.toStrict . renderMarkup . H.toMarkup $ Pages.ErrorPage
+        409 -- TODO
+        "Validation errors"
+        "TODO"
 
 
 --------------------------------------------------------------------------------
@@ -408,6 +429,64 @@ makeLenses ''UserCompletion2
 makeLenses ''UserCompletion1
 makeLenses ''Credentials
 makeLenses ''UserProfile'
+
+
+--------------------------------------------------------------------------------
+-- | Given a Signup form, tries to return a proper `UserProfile` value, although
+-- the ID is dummy. Maybe we should have separate data types (with or without
+-- the ID).
+-- This is a pure function: everything required to perform the validation
+-- should be provided as arguments.
+validateSignup
+  :: EpochTime
+  -> UserId
+  -> Signup
+  -> Either [Err] UserProfile
+validateSignup now id Signup {..} = if null errors
+  then Right profile
+  else Left errors
+ where
+  profile = UserProfile
+          id
+          (Credentials username password)
+          Nothing
+          Nothing
+          email
+          Nothing
+          tosConsent
+          (UserCompletion1 Nothing Nothing Nothing)
+          (UserCompletion2 Nothing Nothing)
+          now
+          Nothing
+          -- The very first user has plenty of rights:
+          (if id == firstUserId then firstUserRights else [])
+          -- TODO Define some mechanism to get the initial authorizations
+          [AuthorizedAsEmployee]
+          Nothing
+  errors = concat
+    [ if not tosConsent
+      then [NoTosConsent]
+      else []
+    , if username `elem` usernameBlocklist
+      then [UsernameBlocked]
+      else []
+    ]
+
+-- | Similar to `validateCreateQuotation` but throw away the returned
+-- contract, i.e. keep only the errors.
+validateSignup' :: EpochTime -> UserId -> Signup -> [Err]
+validateSignup' now id signup =
+  either identity (const []) $ validateSignup now id signup
+
+
+--------------------------------------------------------------------------------
+-- | Define the first user ID. A test exists to make sure this matches the
+-- behavior of `generateUserId`.
+firstUserId :: UserId
+firstUserId = UserId $ userIdPrefix <> "1"
+
+firstUserRights :: [AccessRight]
+firstUserRights = [CanCreateContracts, CanVerifyEmailAddr]
 
 
 --------------------------------------------------------------------------------
