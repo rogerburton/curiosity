@@ -12,6 +12,74 @@ developers (or more generally, contributors) to apply changes to the [code
 base](/documentation/source).  PRs may contain additional details and
 discussions, or provide historical context.
 
+## 2022-11-17
+
+**Make profiles more complete.** This PR enriches user profiles, legal
+entities, ...
+
+- Turns `@` mentions into link within user profile bios or legal
+  entities
+- Make email addresses clickable
+- Show advisors in user profile
+- Add a registration date to the user profile
+- Allow to link a user to a business unit
+- Rename `cty business` to `cty unit`, and `cty legal` to `cty entity`
+- Add a` IsSupervised` flag to entities, meaning their accounting is
+  managed by the group operating Curiosity
+- Add a `IsHost` flag to entities, meaning they can "host" business
+  units
+- Add additional users and entities to `state-0`
+- See [PR-102](https://github.com/hypered/curiosity/pull/102)
+
+**Add a `cty user invite` command.** This PR changes the user profile data type
+so that having a username / password is optional. Instead, it is possible to be
+"invited" (a token is used to authenticate instead). Accepting the invitation
+(and providing a username and a password) is not yet implemented. The
+invitation command is `cty user invite`.
+
+To make things clearer, `cty user create` is renamed to `cty user
+signup`. See [PR-103](https://github.com/hypered/curiosity/pull/103).
+
+**Add a `cty quotation reject` command.** It was possible to "accept" a
+quotation (thus creating an order). This PR adds the possibility to "reject" a
+quotation, and the rejection accepts an optional comment. See [PR-104](https://github.com/hypered/curiosity/pull/104).
+
+**Improve documentation.**
+
+- The navigation bar in the documentation part of the web site now shows
+  whether the user is logged in or not (just like in the rest of the
+  site).
+- The documentation part of the site was served with an aggressive cache
+  control policy, which made the pages not refreshed after changes. This
+  is now disabled.
+- See [PR-105](https://github.com/hypered/curiosity/pull/105)
+
+**Display individual emails.**
+
+- From the list of emails at `/emails`, it is now possible to see each
+  individual email.
+- Emails have now a body (a template) and a title, defined by their
+  template name. Those are visible in the individual email view.
+- See [PR-105](https://github.com/hypered/curiosity/pull/105).
+
+**Improve the signup flow.** This PRs improves the sign up flow:
+
+- After sign up, a message is shown. It was using a Dialog component; it
+  is now using a regular page. (The Dialog was using JavaScript, causing
+  the browser to focus on the Smart logo, making a blue border appear.)
+- The logs and `cty run` now makes clearly appear that an email is being
+  sent during sign up.
+- `cty reset` output is now slightly better.
+- Scenarios have been renamed (e.g. `0.txt` is now `user-signup.txt`).
+- A dedicated documentation page now exists for the sign up process.
+- The echo pages were just showing text (as code). They now have a
+  proper navigation bar too.
+- During sign up, some validation code was executed. That code is moved
+  to the `User` module.
+- It is also expanded to check that the TOS have been accepted, and a
+  scenario reflecting that is added.
+- See [PR-106](https://github.com/hypered/curiosity/pull/106).
+
 ## 2022-11-08
 
 **Document the main sale flow.** This adds a dedicated [documentation
