@@ -1,2 +1,3 @@
-business create alpha Alpha
-business update alpha "The first business unit of the prototype, Alpha is run by @mila."
+unit create alpha Alpha
+unit update alpha "The first business unit of the prototype, Alpha is run by @mila."
+unit link-user alpha USER-4 --holder

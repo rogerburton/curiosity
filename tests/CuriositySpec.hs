@@ -31,35 +31,28 @@ spec = do
             `shouldBe` username
     mapM_
       go
-      [ ("alice.json"  , "alice")
-      , ("alice-with-bio.json"  , "alice")
-      , ("bob-0.json"  , "bob")
-      , ("bob-1.json"  , "bob")
-      , ("bob-2.json"  , "bob")
-      , ("charlie.json", "charlie")
+      [ ("alice.json"         , "alice")
+      , ("alice-with-bio.json", "alice")
+      , ("bob-0.json"         , "bob")
+      , ("bob-1.json"         , "bob")
+      , ("bob-2.json"         , "bob")
+      , ("charlie.json"       , "charlie")
+      , ("mila.json"          , "mila")
       ]
 
   -- Same here.
   describe "Legal entity JSON parser" $ do
     let go (filename, slug) = it ("Parses " <> filename) $ do
           Right (result :: Legal.Entity) <- parseFile $ "data/" </> filename
-          Legal._entitySlug result
-            `shouldBe` slug
-    mapM_
-      go
-      [ ("one.json"  , "one")
-      ]
+          Legal._entitySlug result `shouldBe` slug
+    mapM_ go [("one.json", "one")]
 
   -- Same here.
   describe "Business unit JSON parser" $ do
     let go (filename, slug) = it ("Parses " <> filename) $ do
           Right (result :: Business.Unit) <- parseFile $ "data/" </> filename
-          Business._entitySlug result
-            `shouldBe` slug
-    mapM_
-      go
-      [ ("alpha.json", "alpha")
-      ]
+          Business._entitySlug result `shouldBe` slug
+    mapM_ go [("alpha.json", "alpha")]
 
   -- TODO Check that all the files in data/ are in one of the above lists.
 
@@ -73,9 +66,11 @@ spec = do
             x `shouldBe` command
     mapM_
       go
-      [ ("init"      , Command.Init)
-      , ("state"     , Command.State False)
-      , ("state --hs", Command.State True)
+      [ ("init"          , Command.Init Data.Normal)
+      , ("init --normal" , Command.Init Data.Normal)
+      , ("init --stepped", Command.Init Data.Stepped)
+      , ("state"         , Command.State False)
+      , ("state --hs"    , Command.State True)
       ]
 
   describe "Command-line interface execution" $ do
@@ -105,24 +100,35 @@ spec = do
               , Data._dbUserProfiles = Identity [alice]
               , Data._dbNextEmailId  = C.CounterValue 2
               , Data._dbEmails       = Identity
-                  [Email.Email "EMAIL-1" Email.SignupConfirmationEmail
-                    Email.systemEmailAddr "alice@example.com" Email.EmailTodo]
+                                         [ Email.Email "EMAIL-1"
+                                                       Email.SignupConfirmationEmail
+                                                       Email.systemEmailAddr
+                                                       "alice@example.com"
+                                                       Email.EmailTodo
+                                         ]
+              , Data._dbEpochTime    = 60
               }
-        -- The same state, but with the email set to DONE.
+        -- The same state, but with the email set to DONE, and the time
+        -- advanced a bit.
         let aliceState' = Data.emptyHask
               { Data._dbNextUserId   = C.CounterValue 2
               , Data._dbUserProfiles = Identity [alice]
               , Data._dbNextEmailId  = C.CounterValue 2
               , Data._dbEmails       = Identity
-                  [Email.Email "EMAIL-1" Email.SignupConfirmationEmail
-                    Email.systemEmailAddr "alice@example.com" Email.EmailDone]
+                                         [ Email.Email "EMAIL-1"
+                                                       Email.SignupConfirmationEmail
+                                                       Email.systemEmailAddr
+                                                       "alice@example.com"
+                                                       Email.EmailDone
+                                         ]
+              , Data._dbEpochTime    = 120
               }
         mapM_
           go
-          [ ("init" , Data.emptyHask)
+          [ ("init --stepped", Data.emptyHask)
           , ("user create alice a alice@example.com --accept-tos", aliceState)
-          , ("step-email", aliceState')
-          , ("reset", Data.emptyHask)
+          , ("step-email"    , aliceState')
+          , ("reset"         , Data.emptyHask)
           ]
 
 

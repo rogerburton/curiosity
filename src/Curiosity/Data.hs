@@ -11,6 +11,7 @@ Description: This module defines the central state data type.
 -- brittany-disable-next-binding
 module Curiosity.Data
   ( Db(..)
+  , SteppingMode(..)
   , HaskDb
   -- * Instantiating databases.
   , emptyHask
@@ -79,6 +80,9 @@ data Db (datastore :: Type -> Type) = Db
     -- ^ The internal time, possibly disconnected from the real wall clock.
     -- This is used to simulate the advance of time for automated processes
     -- triggered by the `step` command.
+  , _dbSteppingMode     :: datastore SteppingMode
+    -- ^ How the time should advance, following the system time, or manually
+    -- advancing it.
 
   , _dbFormCreateQuotationAll ::
       datastore (Map (User.UserName, Text) Quotation.CreateQuotationAll)
@@ -90,6 +94,20 @@ data Db (datastore :: Type -> Type) = Db
   , _dbNextEmailId :: C.CounterValue datastore Int
   , _dbEmails      :: datastore [Email.Email]
   }
+
+data SteppingMode =
+    Normal  -- ^ The time in STM is advanced by following the system time. This
+            -- is used e.g. when demoing the web interface.
+  | Stepped -- ^ The time is advanced by running normal commands, or commands
+            -- designed to change the time (e.g. @cty time@). This is used for
+            -- e.g. deterministic tests.
+  | Mixed   -- ^ The time is advanced by running normal commands, tracking the
+            -- elapsed time. It looks like `Normal` mode with the ability to
+            -- travel in the future.
+  deriving (Eq, Generic, Show)
+
+deriving anyclass instance ToJSON SteppingMode
+deriving anyclass instance FromJSON SteppingMode
 
 -- | Hask database type: used for starting the system, values reside in @Hask@
 -- (thus `Identity`)
@@ -122,6 +140,7 @@ emptyHask = Db (pure 1)
 
                (pure initialGenState)
                (pure 0) -- 01/Jan/1970:01:00:00 +0100
+               (pure Stepped)
 
                (pure mempty)
                (pure mempty)

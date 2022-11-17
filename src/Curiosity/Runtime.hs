@@ -11,6 +11,7 @@ module Curiosity.Runtime
   , RunM(..)
   , reset
   , state
+  , setTime
   , handleCommand
   , submitQuotationSuccess
   , runRunM
@@ -107,7 +108,7 @@ import           Data.List                      ( lookup, nub )
 import qualified Data.Map                      as M
 import qualified Data.Text.Encoding            as TE
 import qualified Data.Text.Lazy                as LT
-import           Data.UnixTime                  ( formatUnixTime, fromEpochTime )
+import           Data.UnixTime                  ( formatUnixTime, fromEpochTime, getUnixTime, toEpochTime )
 import           System.PosixCompat.Types       ( EpochTime )
 import           Prelude                 hiding ( state )
 import qualified Servant
@@ -146,6 +147,23 @@ newtype RunM a = RunM { unRunM :: ReaderT Runtime IO a }
 runRunM :: forall a m . MonadIO m => Runtime -> RunM a -> m a
 runRunM runtime RunM {..} = liftIO $ runReaderT unRunM runtime
 
+-- | Same as `runRunM` but advance the simulated time.
+stepRunM :: forall a m . MonadIO m => Runtime -> RunM a -> m a
+stepRunM runtime RunM {..} = liftIO $ do
+  -- We're injecting (into the STM-readable state) the current time once per
+  -- `runRunM` call.
+  -- Maybe we should inject the time once per `atomically` instead.
+  now <- toEpochTime <$> getUnixTime
+  let RunM setNow = do
+        mode <- readSteppingMode
+        case mode of
+          Data.Normal -> setTime now
+            -- TODO This should be False on automated actions.
+          Data.Stepped -> void $ stepTime True
+            -- TODO Mixed is not yet implemented.
+          Data.Mixed -> void $ stepTime True
+  runReaderT (setNow >> unRunM) runtime
+
 -- | Support for logging for the application
 instance ML.MonadAppNameLogMulti RunM where
   askLoggers = asks _rLoggers
@@ -160,8 +178,13 @@ reset = do
   ML.localEnv (<> "Command" <> "Reset")
     . ML.info
     $ "Resetting to the empty state."
-  db <- asks _rDb
-  liftIO . STM.atomically $ Core.reset db
+  db   <- asks _rDb
+  mode <- readSteppingMode
+  now <- case mode of
+    Data.Normal  -> liftIO $ toEpochTime <$> getUnixTime
+    Data.Stepped -> pure 0
+    Data.Mixed   -> liftIO $ toEpochTime <$> getUnixTime
+  liftIO . STM.atomically $ Core.reset db now
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
@@ -175,11 +198,23 @@ time = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.readTime db
 
+-- | Set the current simulated time.
+setTime :: EpochTime -> RunM ()
+setTime x = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.writeTime db x
+
 -- | Advance the time by a second or to the next minute.
 stepTime :: Bool -> RunM EpochTime
 stepTime minute = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.stepTime db minute
+
+-- | Retrieve the stepping mode.
+readSteppingMode :: RunM Data.SteppingMode
+readSteppingMode = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.readSteppingMode db
 
 -- | Retrieve the threads state.
 threads :: RunM [Text]
@@ -336,9 +371,9 @@ handleCommand runtime@Runtime {..} user command = do
       value <- runRunM runtime killEmailThread
       pure (ExitSuccess, [value])
     Command.StepEmail -> do
-      runRunM runtime emailStep
+      stepRunM runtime emailStep
       pure (ExitSuccess, ["Email queue processed."])
-    Command.CreateBusinessEntity input -> do
+    Command.CreateBusinessUnit input -> do
       output <-
         runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
           _rDb
@@ -350,7 +385,7 @@ handleCommand runtime@Runtime {..} user command = do
               pure (ExitSuccess, ["Business entity created: " <> id])
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
-    Command.UpdateBusinessEntity input -> do
+    Command.UpdateBusinessUnit input -> do
       output <-
         runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
           _rDb
@@ -364,6 +399,15 @@ handleCommand runtime@Runtime {..} user command = do
                 , ["Business unit updated: " <> Business._updateSlug input]
                 )
             Left err -> pure (ExitFailure 1, [show err])
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.LinkBusinessUnitToUser slug uid role -> do
+      mid <- runRunM runtime $ linkBusinessUnitToUser' slug uid role
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Business unit updated: " <> slug]
+            )
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateLegalEntity input -> do
       output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal
@@ -386,7 +430,25 @@ handleCommand runtime@Runtime {..} user command = do
             )
         Left err -> pure (ExitFailure 1, [show err])
     Command.LinkLegalEntityToUser slug uid role -> do
-      mid <- runRunM runtime $ linkLegalToUser' slug uid role
+      mid <- runRunM runtime $ linkLegalEntityToUser' slug uid role
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> slug]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntityIsSupervised slug b -> do
+      mid <- runRunM runtime $ updateLegalEntityIsSupervised' slug b
+      case mid of
+        Right () -> do
+          pure
+            ( ExitSuccess
+            , ["Legal entity updated: " <> slug]
+            )
+        Left err -> pure (ExitFailure 1, [show err])
+    Command.UpdateLegalEntityIsHost slug b -> do
+      mid <- runRunM runtime $ updateLegalEntityIsHost' slug b
       case mid of
         Right () -> do
           pure
@@ -395,7 +457,7 @@ handleCommand runtime@Runtime {..} user command = do
             )
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateUser input -> do
-      muid <- runRunM runtime $ createUser input
+      muid <- stepRunM runtime $ createUser input
       case muid of
         Right (User.UserId uid) ->
           pure (ExitSuccess, ["User created: " <> uid])
@@ -623,7 +685,7 @@ handleCommand runtime@Runtime {..} user command = do
                 User.UserEmailAddr recipient = _emailRecipient
             in  i <> " " <> recipient
       pure (ExitSuccess, map f records)
-    Command.ViewQueues queues -> do
+    Command.ViewQueues _ -> do
       -- TODO Check first if the user has the necessary rights to handle this
       -- queue.
       (_, output1) <- handleCommand runtime
@@ -699,7 +761,10 @@ createLegal db Legal.Create {..} = do
                            _createVatNumber
                            Nothing
                            []
-                           [Legal.AuthorizedAsBuyer] -- TODO Better logic for initial values.
+                           -- TODO Better logic for initial values.
+                           [Legal.AuthorizedAsBuyer, Legal.AuthorizedAsSeller]
+                           False
+                           False
     createLegalFull db new >>= either STM.throwSTM pure
 
 createLegalFull
@@ -730,8 +795,8 @@ updateLegal' update = do
   db <- asks _rDb
   liftIO . STM.atomically $ updateLegal db update
 
-linkLegalToUser :: Core.StmDb -> Text -> User.UserId -> Legal.ActingRole -> STM (Either User.Err ())
-linkLegalToUser db slug uid role = do
+linkLegalEntityToUser :: Core.StmDb -> Text -> User.UserId -> Legal.ActingRole -> STM (Either User.Err ())
+linkLegalEntityToUser db slug uid role = do
   mentity <- selectEntityBySlug db slug
   case mentity of
     Just Legal.Entity {..} -> do
@@ -747,10 +812,52 @@ linkLegalToUser db slug uid role = do
       pure $ Right ()
     Nothing -> pure . Left $ User.UserNotFound slug -- TODO
 
-linkLegalToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
-linkLegalToUser' slug uid role = do
+linkLegalEntityToUser' :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
+linkLegalEntityToUser' slug uid role = do
   db <- asks _rDb
-  liftIO . STM.atomically $ linkLegalToUser db slug uid role
+  liftIO . STM.atomically $ linkLegalEntityToUser db slug uid role
+
+updateLegalEntityIsSupervised :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
+updateLegalEntityIsSupervised db slug b = do
+  mentity <- selectEntityBySlug db slug
+  case mentity of
+    Just Legal.Entity {} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == slug
+                then e { Legal._entityIsSupervised = b
+                       }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+updateLegalEntityIsSupervised' :: Text -> Bool -> RunM (Either User.Err ())
+updateLegalEntityIsSupervised' slug b = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ updateLegalEntityIsSupervised db slug b
+
+updateLegalEntityIsHost :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
+updateLegalEntityIsHost db slug b = do
+  mentity <- selectEntityBySlug db slug
+  case mentity of
+    Just Legal.Entity {} -> do
+      let replaceOlder entities =
+            [ if Legal._entitySlug e == slug
+                then e { Legal._entityIsHost = b
+                       }
+                else e
+            | e <- entities
+            ]
+      modifyLegalEntities db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+updateLegalEntityIsHost' :: Text -> Bool -> RunM (Either User.Err ())
+updateLegalEntityIsHost' slug b = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ updateLegalEntityIsHost db slug b
 
 modifyLegalEntities
   :: Core.StmDb
@@ -765,6 +872,11 @@ selectUnitBySlug :: Text -> RunM (Maybe Business.Unit)
 selectUnitBySlug slug = do
   db <- asks _rDb
   liftIO . STM.atomically $ Core.selectUnitBySlug db slug
+
+linkBusinessUnitToUser' :: Text -> User.UserId -> Business.ActingRole -> RunM (Either User.Err ())
+linkBusinessUnitToUser' slug uid role = do
+  db <- asks _rDb
+  liftIO . STM.atomically $ Core.linkBusinessUnitToUser db slug uid role
 
 
 --------------------------------------------------------------------------------

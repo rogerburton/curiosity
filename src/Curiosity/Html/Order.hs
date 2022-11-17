@@ -11,6 +11,7 @@ import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.User           as User
 import           Curiosity.Html.Misc
 import qualified Smart.Html.Misc               as Misc
+import           Text.Blaze.Html5               ( Html )
 import qualified Text.Blaze.Html5              as H
 
 
@@ -30,7 +31,7 @@ instance H.ToMarkup OrderPage where
 
 --------------------------------------------------------------------------------
 -- | Display orders.
-panelOrders :: [Order.Order] -> H.Html
+panelOrders :: [Order.Order] -> Html
 panelOrders orders =
   panel' "Orders" $ Misc.table "orders" titles display orders
  where

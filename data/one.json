@@ -5,5 +5,7 @@
   "_entityCbeNumber": "100200300",
   "_entityVatNumber": "BE0100200300",
   "_entityUsersAndRoles": [],
-  "_entityAuthorizations": []
+  "_entityAuthorizations": [],
+  "_entityIsSupervised": true,
+  "_entityIsHost": true
 }

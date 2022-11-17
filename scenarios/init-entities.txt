@@ -1,3 +1,19 @@
-legal create one "One S.A." 100200300 BE0100200300
-legal update one "One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One."
-legal link-user one USER-1 --validator
+entity create one "One S.A." 100200300 BE0100200300
+entity update one "One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One."
+entity link-user one USER-1 --validator
+entity set-supervised one
+entity set-host one
+
+entity create two "Two S.A." 100200400 BE0100200400
+entity update two "Two S.A. is the second legal entity of the prototype."
+entity link-user two USER-1 --validator
+entity set-supervised two
+entity set-host two
+
+entity create three "Three S.R.L." 100200500 BE0100200500
+entity update three "Three S.R.L. is the first un-supervised legal entity of the prototype."
+entity link-user three USER-3 --validator
+
+entity create four "Four S.R.L." 100200600 BE0100200600
+entity update four "Four S.R.L. is the second un-supervised legal entity of the prototype."
+entity link-user four USER-5 --validator

@@ -3,8 +3,7 @@
 
 -- brittany-disable-next-binding
 module Curiosity.Core
-  (
-    StmDb
+  ( StmDb
   -- * Whole database manipulation
   , instantiateEmptyStmDb
   , instantiateStmDb
@@ -32,6 +31,7 @@ module Curiosity.Core
   , createBusiness
   , updateBusiness
   , selectUnitBySlug
+  , linkBusinessUnitToUser
   -- * Operations on emails
   , createEmail
   , modifyEmails
@@ -42,7 +42,9 @@ module Curiosity.Core
   , writeStdGen
   -- * Simulated time
   , readTime
+  , writeTime
   , stepTime
+  , readSteppingMode
   -- * User rights
   , canPerform
   ) where
@@ -60,6 +62,7 @@ import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.RemittanceAdv  as RemittanceAdv
 import qualified Curiosity.Data.User           as User
+import           Data.List                      ( nub )
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import           Foreign.C.Types                ( CTime(..) )
@@ -100,6 +103,7 @@ instantiateStmDb Db
   , _dbEmployments = Identity seedEmployments
   , _dbRandomGenState = Identity seedRandomGenState
   , _dbEpochTime = Identity seedEpochTime
+  , _dbSteppingMode = Identity seedSteppingMode
   , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
   , _dbFormCreateContractAll = Identity seedFormCreateContractAll
   , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -126,6 +130,7 @@ instantiateStmDb Db
 
     _dbRandomGenState              <- STM.newTVar seedRandomGenState
     _dbEpochTime                   <- STM.newTVar seedEpochTime
+    _dbSteppingMode                <- STM.newTVar seedSteppingMode
 
     _dbFormCreateQuotationAll      <- STM.newTVar seedFormCreateQuotationAll
     _dbFormCreateContractAll       <- STM.newTVar seedFormCreateContractAll
@@ -138,8 +143,8 @@ instantiateStmDb Db
 
 -- brittany-disable-next-binding
 -- | Reset the database to the empty state.
-reset :: StmDb -> STM ()
-reset stmDb = do
+reset :: StmDb -> EpochTime -> STM ()
+reset stmDb now = do
   C.writeCounter (_dbNextBusinessId stmDb) seedNextBusinessId
   STM.writeTVar (_dbBusinessUnits stmDb) seedBusinessUnits
   C.writeCounter (_dbNextLegalId stmDb) seedNextLegalId
@@ -158,7 +163,8 @@ reset stmDb = do
   STM.writeTVar (_dbEmployments stmDb) seedEmployments
 
   STM.writeTVar (_dbRandomGenState stmDb) seedRandomGenState
-  STM.writeTVar (_dbEpochTime stmDb) seedEpochTime
+  STM.writeTVar (_dbEpochTime stmDb) now
+  STM.writeTVar (_dbSteppingMode stmDb) seedSteppingMode
 
   STM.writeTVar (_dbFormCreateQuotationAll stmDb) seedFormCreateQuotationAll
   STM.writeTVar (_dbFormCreateContractAll stmDb) seedFormCreateContractAll
@@ -186,7 +192,7 @@ reset stmDb = do
     , _dbNextEmploymentId = C.CounterValue (Identity seedNextEmploymentId)
     , _dbEmployments = Identity seedEmployments
     , _dbRandomGenState = Identity seedRandomGenState
-    , _dbEpochTime = Identity seedEpochTime
+    , _dbSteppingMode = Identity seedSteppingMode
     , _dbFormCreateQuotationAll = Identity seedFormCreateQuotationAll
     , _dbFormCreateContractAll = Identity seedFormCreateContractAll
     , _dbFormCreateSimpleContractAll = Identity seedFormCreateSimpleContractAll
@@ -198,35 +204,37 @@ reset stmDb = do
 -- | Reads all values of the `Db` product type from `STM.STM` to @Hask@.
 readFullStmDbInHask' :: StmDb -> STM HaskDb
 readFullStmDbInHask' stmDb = do
-  _dbNextBusinessId         <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
-  _dbBusinessUnits          <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
-  _dbNextLegalId            <- pure <$> C.readCounter (_dbNextLegalId stmDb)
-  _dbLegalEntities          <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
-  _dbNextUserId             <- pure <$> C.readCounter (_dbNextUserId stmDb)
-  _dbUserProfiles           <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
-  _dbNextQuotationId        <- pure <$> C.readCounter (_dbNextQuotationId stmDb)
-  _dbQuotations             <- pure <$> STM.readTVar (_dbQuotations stmDb)
-  _dbNextOrderId            <- pure <$> C.readCounter (_dbNextOrderId stmDb)
-  _dbOrders                 <- pure <$> STM.readTVar (_dbOrders stmDb)
-  _dbNextInvoiceId          <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
-  _dbInvoices               <- pure <$> STM.readTVar (_dbInvoices stmDb)
-  _dbNextRemittanceAdvId    <- pure <$> C.readCounter (_dbNextRemittanceAdvId stmDb)
+  _dbNextBusinessId      <- pure <$> C.readCounter (_dbNextBusinessId stmDb)
+  _dbBusinessUnits       <- pure <$> STM.readTVar (_dbBusinessUnits stmDb)
+  _dbNextLegalId         <- pure <$> C.readCounter (_dbNextLegalId stmDb)
+  _dbLegalEntities       <- pure <$> STM.readTVar (_dbLegalEntities stmDb)
+  _dbNextUserId          <- pure <$> C.readCounter (_dbNextUserId stmDb)
+  _dbUserProfiles        <- pure <$> STM.readTVar (_dbUserProfiles stmDb)
+  _dbNextQuotationId     <- pure <$> C.readCounter (_dbNextQuotationId stmDb)
+  _dbQuotations          <- pure <$> STM.readTVar (_dbQuotations stmDb)
+  _dbNextOrderId         <- pure <$> C.readCounter (_dbNextOrderId stmDb)
+  _dbOrders              <- pure <$> STM.readTVar (_dbOrders stmDb)
+  _dbNextInvoiceId       <- pure <$> C.readCounter (_dbNextInvoiceId stmDb)
+  _dbInvoices            <- pure <$> STM.readTVar (_dbInvoices stmDb)
+  _dbNextRemittanceAdvId <- pure
+    <$> C.readCounter (_dbNextRemittanceAdvId stmDb)
   _dbRemittanceAdvs         <- pure <$> STM.readTVar (_dbRemittanceAdvs stmDb)
-  _dbNextEmploymentId       <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
+  _dbNextEmploymentId <- pure <$> C.readCounter (_dbNextEmploymentId stmDb)
   _dbEmployments            <- pure <$> STM.readTVar (_dbEmployments stmDb)
 
   _dbRandomGenState         <- pure <$> STM.readTVar (_dbRandomGenState stmDb)
   _dbEpochTime              <- pure <$> STM.readTVar (_dbEpochTime stmDb)
+  _dbSteppingMode           <- pure <$> STM.readTVar (_dbSteppingMode stmDb)
 
   _dbFormCreateQuotationAll <- pure
     <$> STM.readTVar (_dbFormCreateQuotationAll stmDb)
-  _dbFormCreateContractAll  <- pure
+  _dbFormCreateContractAll <- pure
     <$> STM.readTVar (_dbFormCreateContractAll stmDb)
   _dbFormCreateSimpleContractAll <- pure
     <$> STM.readTVar (_dbFormCreateSimpleContractAll stmDb)
 
-  _dbNextEmailId            <- pure <$> C.readCounter (_dbNextEmailId stmDb)
-  _dbEmails                 <- pure <$> STM.readTVar (_dbEmails stmDb)
+  _dbNextEmailId <- pure <$> C.readCounter (_dbNextEmailId stmDb)
+  _dbEmails      <- pure <$> STM.readTVar (_dbEmails stmDb)
   pure Db { .. }
 
 
@@ -295,13 +303,12 @@ firstUserRights = [User.CanCreateContracts, User.CanVerifyEmailAddr]
 
 --------------------------------------------------------------------------------
 createUser
-  :: StmDb
-  -> User.Signup
-  -> STM (Either User.Err (User.UserId, Email.EmailId))
+  :: StmDb -> User.Signup -> STM (Either User.Err (User.UserId, Email.EmailId))
 createUser db User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
+    now   <- readTime db
     newId <- generateUserId db
     let newProfile = User.UserProfile
           newId
@@ -313,23 +320,23 @@ createUser db User.Signup {..} = do
           tosConsent
           (User.UserCompletion1 Nothing Nothing Nothing)
           (User.UserCompletion2 Nothing Nothing)
+          now
+          Nothing
           -- The very first user has plenty of rights:
           (if newId == firstUserId then firstUserRights else [])
           -- TODO Define some mechanism to get the initial authorizations
           [User.AuthorizedAsEmployee]
-    emailId <- createEmail db Email.SignupConfirmationEmail
-                 Email.systemEmailAddr
-                 email
-               >>= either STM.throwSTM pure
+          Nothing
+    emailId <-
+      createEmail db Email.SignupConfirmationEmail Email.systemEmailAddr email
+        >>= either STM.throwSTM pure
     -- We fail the transaction if createUserFull returns an error,
     -- so that we don't increment _dbNextUserId.
     userId <- createUserFull db newProfile >>= either STM.throwSTM pure
     pure (userId, emailId)
 
 createUserFull
-  :: StmDb
-  -> User.UserProfile
-  -> STM (Either User.Err User.UserId)
+  :: StmDb -> User.UserProfile -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = if username `elem` User.usernameBlocklist
   then pure . Left $ User.UsernameBlocked
   else do
@@ -349,22 +356,15 @@ createUserFull db newProfile = if username `elem` User.usernameBlocklist
         pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
-modifyUsers
-  :: StmDb
-  -> ([User.UserProfile] -> [User.UserProfile])
-  -> STM ()
-modifyUsers db f =
-  let tvar = _dbUserProfiles db in STM.modifyTVar tvar f
+modifyUsers :: StmDb -> ([User.UserProfile] -> [User.UserProfile]) -> STM ()
+modifyUsers db f = let tvar = _dbUserProfiles db in STM.modifyTVar tvar f
 
 selectUserById :: StmDb -> User.UserId -> STM (Maybe User.UserProfile)
 selectUserById db id = do
   let tvar = _dbUserProfiles db
   STM.readTVar tvar <&> find ((== id) . User._userProfileId)
 
-selectUserByUsername
-  :: StmDb
-  -> User.UserName
-  -> STM (Maybe User.UserProfile)
+selectUserByUsername :: StmDb -> User.UserName -> STM (Maybe User.UserProfile)
 selectUserByUsername db username = do
   let tvar = _dbUserProfiles db
   records <- STM.readTVar tvar
@@ -374,16 +374,11 @@ selectUserByUsername db username = do
 
 --------------------------------------------------------------------------------
 modifyQuotations
-  :: StmDb
-  -> ([Quotation.Quotation] -> [Quotation.Quotation])
-  -> STM ()
-modifyQuotations db f =
-  let tvar = _dbQuotations db in STM.modifyTVar tvar f
+  :: StmDb -> ([Quotation.Quotation] -> [Quotation.Quotation]) -> STM ()
+modifyQuotations db f = let tvar = _dbQuotations db in STM.modifyTVar tvar f
 
 selectQuotationById
-  :: StmDb
-  -> Quotation.QuotationId
-  -> STM (Maybe Quotation.Quotation)
+  :: StmDb -> Quotation.QuotationId -> STM (Maybe Quotation.Quotation)
 selectQuotationById db id = do
   let tvar = _dbQuotations db
   records <- STM.readTVar tvar
@@ -392,29 +387,23 @@ selectQuotationById db id = do
 
 --------------------------------------------------------------------------------
 createBusiness
-  :: StmDb
-  -> Business.Create
-  -> STM (Either Business.Err Business.UnitId)
+  :: StmDb -> Business.Create -> STM (Either Business.Err Business.UnitId)
 createBusiness db Business.Create {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
     newId <- generateBusinessId db
-    let new = Business.Unit newId _createSlug _createName Nothing "TODO" [] [] []
+    let new =
+          Business.Unit newId _createSlug _createName Nothing "TODO" [] [] []
     createBusinessFull db new >>= either STM.throwSTM pure
 
 createBusinessFull
-  :: StmDb
-  -> Business.Unit
-  -> STM (Either Business.Err Business.UnitId)
+  :: StmDb -> Business.Unit -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
   modifyBusinessUnits db (++ [new])
   pure . Right $ Business._entityId new
 
-updateBusiness
-  :: StmDb
-  -> Business.Update
-  -> STM (Either Business.Err ())
+updateBusiness :: StmDb -> Business.Update -> STM (Either Business.Err ())
 updateBusiness db Business.Update {..} = do
   mentity <- selectUnitBySlug db _updateSlug
   case mentity of
@@ -430,10 +419,27 @@ updateBusiness db Business.Update {..} = do
     Nothing ->
       pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
 
-modifyBusinessUnits
-  :: StmDb
-  -> ([Business.Unit] -> [Business.Unit])
-  -> STM ()
+linkBusinessUnitToUser :: StmDb -> Text -> User.UserId -> Business.ActingRole -> STM (Either User.Err ())
+linkBusinessUnitToUser db slug uid role = do
+  mentity <- selectUnitBySlug db slug
+  case mentity of
+    Just Business.Unit {..} -> do
+      let replaceOlder units =
+            [ if Business._entitySlug e == slug
+                then
+                  case role of
+                    Business.Holder ->
+                      e { Business._entityHolders =
+                          nub $ uid : _entityHolders
+                      }
+                else e
+            | e <- units
+            ]
+      modifyBusinessUnits db replaceOlder
+      pure $ Right ()
+    Nothing -> pure . Left $ User.UserNotFound slug -- TODO
+
+modifyBusinessUnits :: StmDb -> ([Business.Unit] -> [Business.Unit]) -> STM ()
 modifyBusinessUnits db f =
   let tvar = _dbBusinessUnits db in STM.modifyTVar tvar f
 
@@ -457,21 +463,16 @@ createEmail db template senderAddr recipientAddr = do
  where
   transaction = do
     newId <- generateEmailId db
-    let new = Email.Email newId template senderAddr recipientAddr Email.EmailTodo
+    let new =
+          Email.Email newId template senderAddr recipientAddr Email.EmailTodo
     createEmailFull db new >>= either STM.throwSTM pure
 
-createEmailFull
-  :: StmDb
-  -> Email.Email
-  -> STM (Either Email.Err Email.EmailId)
+createEmailFull :: StmDb -> Email.Email -> STM (Either Email.Err Email.EmailId)
 createEmailFull db new = do
   modifyEmails db (++ [new])
   pure . Right $ Email._emailId new
 
-modifyEmails
-  :: StmDb
-  -> ([Email.Email] -> [Email.Email])
-  -> STM ()
+modifyEmails :: StmDb -> ([Email.Email] -> [Email.Email]) -> STM ()
 modifyEmails db f = let tvar = _dbEmails db in STM.modifyTVar tvar f
 
 selectEmailById :: StmDb -> Email.EmailId -> STM (Maybe Email.Email)
@@ -516,10 +517,16 @@ genRandomText db = do
 readTime :: StmDb -> STM EpochTime
 readTime db = STM.readTVar $ _dbEpochTime db
 
+writeTime :: StmDb -> EpochTime -> STM ()
+writeTime db = STM.writeTVar (_dbEpochTime db)
+
 stepTime :: StmDb -> Bool -> STM EpochTime
 stepTime db minute = do
   CTime t <- STM.readTVar $ _dbEpochTime db
-  let d = 60 - (t `mod` 60) -- seconds remaining before the next minute
+  let d  = 60 - (t `mod` 60) -- seconds remaining before the next minute
       t' = CTime $ if minute then t + d else t + 1
   STM.writeTVar (_dbEpochTime db) t'
   pure t'
+
+readSteppingMode :: StmDb -> STM SteppingMode
+readSteppingMode db = STM.readTVar $ _dbSteppingMode db

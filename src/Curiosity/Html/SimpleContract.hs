@@ -30,7 +30,7 @@ import           Smart.Html.Panel               ( Panel(..) )
 import           Smart.Html.Shared.Html.Icons
 import           Smart.Html.Shared.Types        ( Body(..) )
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -208,7 +208,7 @@ groupDates editDateBaseUrl removeDateBaseUrl mkey dates submitUrl = do
     :: Text
     -> Int
     -> SimpleContract.AddDate
-    -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+    -> ([Text], [(Html, Text, Text)], Maybe Text)
   display key i SimpleContract.AddDate {..} =
     ( [_addDateDate]
     , [ ( Misc.divIconDelete
@@ -310,7 +310,7 @@ groupExpenses editExpenseBaseUrl removeExpenseBaseUrl mkey expenses submitUrl = 
     :: Text
     -> Int
     -> SimpleContract.AddExpense
-    -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+    -> ([Text], [(Html, Text, Text)], Maybe Text)
   display key i SimpleContract.AddExpense {..} =
     ( [show _addExpenseAmount]
     , [ ( Misc.divIconDelete
@@ -675,7 +675,7 @@ instance H.ToMarkup ConfirmSimpleContractPage where
     titles = ["Amount"]
     display
       :: SimpleContract.AddExpense
-      -> ([Text], [(H.Html, Text, Text)], Maybe Text)
+      -> ([Text], [(Html, Text, Text)], Maybe Text)
     display SimpleContract.AddExpense {..} =
       ([show _addExpenseAmount], [], Nothing)
 

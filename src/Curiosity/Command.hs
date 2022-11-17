@@ -15,11 +15,12 @@ module Curiosity.Command
   ) where
 
 import qualified Commence.Runtime.Storage      as S
+import qualified Curiosity.Data                as Data
 import qualified Curiosity.Data.Business       as Business
 import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.Employment     as Employment
-import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Invoice        as Invoice
+import qualified Curiosity.Data.Legal          as Legal
 import qualified Curiosity.Data.Order          as Order
 import qualified Curiosity.Data.Quotation      as Quotation
 import qualified Curiosity.Data.SimpleContract as SimpleContract
@@ -35,9 +36,9 @@ import qualified Options.Applicative           as A
 data Command =
     Layout
     -- ^ Display the routing layout of the web server.
-  | Init
+  | Init Data.SteppingMode
     -- ^ Initialise a new, empty state file.
-  | Reset P.Conf
+  | Reset
     -- ^ Set the state file to the empty state.
   | Repl P.Conf
     -- ^ Run a REPL.
@@ -57,11 +58,17 @@ data Command =
     -- ^ Kill the thread processing enqueued emails.
   | StepEmail
     -- ^ Run one iteration of the email processing loop.
-  | CreateBusinessEntity Business.Create
-  | UpdateBusinessEntity Business.Update
+  | CreateBusinessUnit Business.Create
+  | UpdateBusinessUnit Business.Update
+  | LinkBusinessUnitToUser Text User.UserId Business.ActingRole
   | CreateLegalEntity Legal.Create
   | UpdateLegalEntity Legal.Update
   | LinkLegalEntityToUser Text User.UserId Legal.ActingRole
+  | UpdateLegalEntityIsSupervised Text Bool
+    -- ^ Make a legal entity as 'supervised' (True) or 'not supervised'
+    -- (False).
+  | UpdateLegalEntityIsHost Text Bool
+    -- ^ Make a legal entity as 'host' (True) or 'not host' (False).
   | CreateUser User.Signup
   | SelectUser Bool User.UserId Bool
     -- ^ Show a given user. If True, use Haskell format instead of JSON. If
@@ -283,13 +290,13 @@ parser =
            )
 
       <> A.command
-           "business"
-           ( A.info (parserBusiness <**> A.helper)
-           $ A.progDesc "Commands related to business entities"
+           "unit"
+           ( A.info (parserUnit <**> A.helper)
+           $ A.progDesc "Commands related to business units"
            )
 
       <> A.command
-           "legal"
+           "entity"
            ( A.info (parserLegal <**> A.helper)
            $ A.progDesc "Commands related to legal entities"
            )
@@ -378,10 +385,22 @@ parserLayout :: A.Parser Command
 parserLayout = pure Layout
 
 parserInit :: A.Parser Command
-parserInit = pure Init
+parserInit =
+  Init
+    <$> (   (A.flag' Data.Normal $ A.long "normal" <> A.help
+              "Select normal stepping mode (default)."
+            )
+        <|> (A.flag' Data.Stepped $ A.long "stepped" <> A.help
+              "Select stepped stepping mode."
+            )
+        <|> (A.flag' Data.Mixed $ A.long "mixed" <> A.help
+              "Select mixed stepping mode."
+            )
+        <|> (pure Data.Normal)
+        )
 
 parserReset :: A.Parser Command
-parserReset = Reset <$> P.confParser
+parserReset = pure Reset
 
 parserRepl :: A.Parser Command
 parserRepl = Repl <$> P.confParser
@@ -390,26 +409,29 @@ parserServe :: A.Parser Command
 parserServe = Serve <$> P.confParser <*> P.serverParser
 
 parserRun :: A.Parser Command
-parserRun = Run <$> P.confParser <*> A.argument
-  A.str
-  (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
-  <*>
-      (   (A.flag' (RunOutput False False) $ A.long "silent" <> A.help
-           "Don't display traces, nor the final state."
-          )
-      <|> (A.flag' (RunOutput False True) $ A.long "final-only" <> A.help
-           "Don't display traces, but display the final state."
+parserRun =
+  Run
+    <$> P.confParser
+    <*> A.argument
+          A.str
+          (A.metavar "FILE" <> A.action "file" <> A.help "Script to run.")
+    <*> (   (A.flag' (RunOutput False False) $ A.long "silent" <> A.help
+              "Don't display traces, nor the final state."
+            )
+        <|> (A.flag' (RunOutput False True) $ A.long "final-only" <> A.help
+              "Don't display traces, but display the final state."
            -- Showing the final state ensures that the effect of the commands
            -- are applied.
-          )
-      <|> (A.flag' (RunOutput True True) $ A.long "final" <> A.help
-           "Display both traces and the final state."
-          )
-      <|> (A.flag (RunOutput True False) (RunOutput True False) $ A.long "traces-only"
-           <> A.help
-           "Display traces but not the final state. This is the default."
-          )
-      )
+            )
+        <|> (A.flag' (RunOutput True True) $ A.long "final" <> A.help
+              "Display both traces and the final state."
+            )
+        <|> (  A.flag (RunOutput True False) (RunOutput True False)
+            $  A.long "traces-only"
+            <> A.help
+                 "Display traces but not the final state. This is the default."
+            )
+        )
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserFileName <|> parserObject)
@@ -457,33 +479,48 @@ parserStopEmail = pure StopEmail
 parserStepEmail :: A.Parser Command
 parserStepEmail = pure StepEmail
 
-parserBusiness :: A.Parser Command
-parserBusiness =
+parserUnit :: A.Parser Command
+parserUnit =
   A.subparser
     $  A.command
          "create"
-         ( A.info (parserCreateBusinessEntity <**> A.helper)
-         $ A.progDesc "Create a new business entity"
+         ( A.info (parserCreateBusinessUnit <**> A.helper)
+         $ A.progDesc "Create a new business unit"
          )
     <> A.command
          "update"
-         ( A.info (parserUpdateBusinessEntity <**> A.helper)
+         ( A.info (parserUpdateBusinessUnit <**> A.helper)
          $ A.progDesc "Update a business unit"
          )
+    <> A.command
+         "link-user"
+         ( A.info (parserBusinessUnitLinkUser <**> A.helper)
+         $ A.progDesc "Link a user to the unit, specifying a role"
+         )
 
-parserCreateBusinessEntity :: A.Parser Command
-parserCreateBusinessEntity = do
+parserCreateBusinessUnit :: A.Parser Command
+parserCreateBusinessUnit = do
   slug <- A.argument
     A.str
     (A.metavar "SLUG" <> A.help "An identifier suitable for URLs")
   name <- A.argument A.str (A.metavar "NAME" <> A.help "A name")
-  pure $ CreateBusinessEntity $ Business.Create slug name
+  pure $ CreateBusinessUnit $ Business.Create slug name
 
-parserUpdateBusinessEntity :: A.Parser Command
-parserUpdateBusinessEntity = do
+parserUpdateBusinessUnit :: A.Parser Command
+parserUpdateBusinessUnit = do
   slug        <- argumentUnitSlug
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
-  pure $ UpdateBusinessEntity $ Business.Update slug (Just description)
+  pure $ UpdateBusinessUnit $ Business.Update slug (Just description)
+
+parserBusinessUnitLinkUser :: A.Parser Command
+parserBusinessUnitLinkUser = do
+  slug <- argumentUnitSlug
+  uid  <- argumentUserId
+  role <-
+    (A.flag' Business.Holder $ A.long "holder" <> A.help
+      "TODO Add a description for the holder flag"
+    )
+  pure $ LinkBusinessUnitToUser slug uid role
 
 argumentUnitId = Legal.EntityId <$> A.argument A.str metavarUnitId
 
@@ -516,8 +553,28 @@ parserLegal =
          )
     <> A.command
          "link-user"
-         ( A.info (parserLegalLinkUser <**> A.helper)
+         ( A.info (parserLegalEntityLinkUser <**> A.helper)
          $ A.progDesc "Link a user to the entity, specifying a role"
+         )
+    <> A.command
+         "set-supervised"
+         ( A.info (parserUpdateLegalEntityIsSupervised True <**> A.helper)
+         $ A.progDesc "Mark the entity as 'supervised'"
+         )
+    <> A.command
+         "unset-supervised"
+         ( A.info (parserUpdateLegalEntityIsSupervised False <**> A.helper)
+         $ A.progDesc "Mark the entity as 'not supervised'"
+         )
+    <> A.command
+         "set-host"
+         ( A.info (parserUpdateLegalEntityIsHost True <**> A.helper)
+         $ A.progDesc "Mark the entity as 'host'"
+         )
+    <> A.command
+         "unset-host"
+         ( A.info (parserUpdateLegalEntityIsHost False <**> A.helper)
+         $ A.progDesc "Mark the entity as 'not host'"
          )
 
 parserCreateLegalEntity :: A.Parser Command
@@ -542,15 +599,25 @@ parserUpdateLegalEntity = do
   description <- A.argument A.str (A.metavar "TEXT" <> A.help "A description")
   pure $ UpdateLegalEntity $ Legal.Update slug (Just description)
 
-parserLegalLinkUser :: A.Parser Command
-parserLegalLinkUser = do
-  slug  <- argumentEntitySlug
+parserLegalEntityLinkUser :: A.Parser Command
+parserLegalEntityLinkUser = do
+  slug <- argumentEntitySlug
   uid  <- argumentUserId
   role <-
     (A.flag' Legal.Validator $ A.long "validator" <> A.help
       "TODO Add a description for the validator flag"
     )
   pure $ LinkLegalEntityToUser slug uid role
+
+parserUpdateLegalEntityIsSupervised :: Bool -> A.Parser Command
+parserUpdateLegalEntityIsSupervised b = do
+  slug <- argumentEntitySlug
+  pure $ UpdateLegalEntityIsSupervised slug b
+
+parserUpdateLegalEntityIsHost :: Bool -> A.Parser Command
+parserUpdateLegalEntityIsHost b = do
+  slug <- argumentEntitySlug
+  pure $ UpdateLegalEntityIsHost slug b
 
 argumentEntityId = Legal.EntityId <$> A.argument A.str metavarEntityId
 
@@ -622,10 +689,19 @@ parserDeleteUser = UpdateUser . User.UserDelete <$> argumentUserId
 
 parserUpdateUser :: A.Parser Command
 parserUpdateUser = do
-  uid  <- argumentUserId
-  name <- A.argument A.str (A.metavar "NAME" <> A.help "A display name")
-  bio  <- A.argument A.str (A.metavar "TEXT" <> A.help "A bio")
-  pure $ UpdateUser . User.UserUpdate uid $ User.Update (Just name) (Just bio)
+  uid      <- argumentUserId
+  name     <- A.argument A.str (A.metavar "NAME" <> A.help "A display name")
+  bio      <- A.argument A.str (A.metavar "TEXT" <> A.help "A bio")
+  mtwitter <- A.option
+    A.auto
+    (  A.long "twitter"
+    <> A.value Nothing
+    <> A.help "Twitter username."
+    <> A.metavar "USERNAME"
+    )
+  pure $ UpdateUser . User.UserUpdate uid $ User.Update (Just name)
+                                                        (Just bio)
+                                                        mtwitter
 
 parserGetUser :: A.Parser Command
 parserGetUser =
@@ -671,18 +747,17 @@ parserCreateEmployment =
   pure $ CreateEmployment Employment.emptyCreateContractAll
 
 parserQuotation :: A.Parser Command
-parserQuotation =
-  A.subparser
-    $  A.command
-         "sign"
-         ( A.info (parserSignQuotation <**> A.helper)
-         $ A.progDesc "Accept (sign) a quotation"
-         )
+parserQuotation = A.subparser $ A.command
+  "sign"
+  ( A.info (parserSignQuotation <**> A.helper)
+  $ A.progDesc "Accept (sign) a quotation"
+  )
 
 parserSignQuotation :: A.Parser Command
 parserSignQuotation = do
-  id <- A.argument A.str
-                   (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
+  id <- A.argument
+    A.str
+    (A.metavar "QUOTATION-ID" <> A.help "A quotation identifier.")
   pure $ SignQuotation id
 
 parserInvoice :: A.Parser Command
@@ -747,8 +822,8 @@ parserFormQuotation =
 
 parserFormNewQuotation :: A.Parser Command
 parserFormNewQuotation = do
-  client <-
-    A.option (A.eitherReader (Right . User.UserName . T.pack))
+  client <- A.option
+    (A.eitherReader (Right . User.UserName . T.pack))
     (A.long "client" <> A.help "Client username." <> A.metavar "USERNAME")
   pure $ FormNewQuotation $ Quotation.CreateQuotationAll (Just client)
 
@@ -845,24 +920,23 @@ parserFormValidateSimpleContract = do
 -- The advantage compared to a metavar and a completer is that there is a help
 -- text.
 parserQueue :: A.Parser Command
-parserQueue = ViewQueue <$> A.subparser (
-  A.command
-  "user-email-addr-to-verify"
-  ( A.info (pure EmailAddrToVerify <**> A.helper)
-  $ A.progDesc
-      "Show users with an email address that need verification. \
+parserQueue = ViewQueue <$> A.subparser
+  (  A.command
+      "user-email-addr-to-verify"
+      ( A.info (pure EmailAddrToVerify <**> A.helper)
+      $ A.progDesc
+          "Show users with an email address that need verification. \
       \Use `cty user do set-email-addr-as-verified` to mark an email address \
       \as verified."
-  )
-  <>
-  A.command
-  "emails-to-send"
-  ( A.info (pure EmailsToSend <**> A.helper)
-  $ A.progDesc
-      "Show users with an email address that need verification. \
+      )
+  <> A.command
+       "emails-to-send"
+       ( A.info (pure EmailsToSend <**> A.helper)
+       $ A.progDesc
+           "Show users with an email address that need verification. \
       \Use `cty user do set-email-addr-as-verified` to mark an email address \
       \as verified."
-  )
+       )
   )
 
 parserQueues :: A.Parser Command
@@ -892,14 +966,23 @@ parserQueues =
         )
 
 parserStep :: A.Parser Command
-parserStep = Step <$> A.switch
-  (A.long "all" <> A.help "Execute all possible actions (default is one action).")
-  <*> A.switch (A.long "dry" <> A.help "Don't actually execute actions, but report what would be done.")
+parserStep =
+  Step
+    <$> A.switch
+          (  A.long "all"
+          <> A.help "Execute all possible actions (default is one action)."
+          )
+    <*> A.switch
+          (A.long "dry" <> A.help
+            "Don't actually execute actions, but report what would be done."
+          )
 
 parserTime :: A.Parser Command
-parserTime = Time
-  <$> A.switch (A.long "step" <> A.help "Advance the time of 1 second.")
-  <*> A.switch (A.long "minute" <> A.help "Advance the time to the next minute.")
+parserTime =
+  Time
+    <$> A.switch (A.long "step" <> A.help "Advance the time of 1 second.")
+    <*> A.switch
+          (A.long "minute" <> A.help "Advance the time to the next minute.")
 
 parserLog :: A.Parser Command
 parserLog =

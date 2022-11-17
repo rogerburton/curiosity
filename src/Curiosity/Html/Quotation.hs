@@ -19,7 +19,7 @@ import qualified Smart.Html.Misc               as Misc
 import           Smart.Html.Panel               ( Panel(..) )
 import           Smart.Html.Shared.Types        ( Body(..) )
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -39,7 +39,7 @@ instance H.ToMarkup QuotationPage where
 
 --------------------------------------------------------------------------------
 -- | Display quotations.
-panelQuotations :: [Quotation.Quotation] -> H.Html
+panelQuotations :: [Quotation.Quotation] -> Html
 panelQuotations quotations =
   panel' "Quotations" $ Misc.table "quotations" titles display quotations
  where

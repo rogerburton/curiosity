@@ -11,7 +11,7 @@ import           Smart.Html.Shared.Html.Icons
 import qualified Smart.Html.Shared.Types       as HTypes
 import           Text.Blaze                     ( customAttribute )
 import qualified Text.Blaze.Html5              as H
-import           Text.Blaze.Html5               ( (!) )
+import           Text.Blaze.Html5               ( (!), Html )
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -147,7 +147,7 @@ instance H.ToMarkup SignupResultPage where
     withText msg =
       H.toMarkup @Dsl.HtmlCanvas $ Dsl.SingletonCanvas (HTypes.Title $ msg)
 
-withMessage :: Text -> H.Html -> H.Html
+withMessage :: Text -> Html -> Html
 withMessage title msg = do
   H.header
     $

@@ -38,6 +38,8 @@ entityView entity users hasEditButton = containerMedium $ do
     keyValuePair "CBE number"        (Legal._entityCbeNumber entity)
     keyValuePair "VAT number"        (Legal._entityVatNumber entity)
     maybe mempty (keyValuePair "Description") (Legal._entityDescription entity)
+    keyValuePair "Supervised" (Legal._entityIsSupervised entity)
+    keyValuePair "Host" (Legal._entityIsHost entity)
 
   title' "Authorizations" Nothing
   H.ul $ mapM_ displayAuthorization $ Legal._entityAuthorizations entity

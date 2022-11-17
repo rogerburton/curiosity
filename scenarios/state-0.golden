@@ -13,17 +13,47 @@ Resetting to the empty state.
 > User created: USER-4
 > 9: user update USER-4 Mila I'm Mila, the first member to join this prototype. My advisor is @alice and I've created @alpha.
 > User updated: USER-4
+> 11: user create chloe c chloe@example.com --accept-tos
+> User created: USER-5
 3: run init-entities.txt
-> 1: legal create one One S.A. 100200300 BE0100200300
+> 1: entity create one One S.A. 100200300 BE0100200300
 > Legal entity created: LENT-1
-> 2: legal update one One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One.
+> 2: entity update one One S.A. is the main legal entity of the prototype. Unless required for fiscal or legal reasons, new contracts are hosted in One.
 > Legal entity updated: one
-> 3: legal link-user one USER-1 --validator
+> 3: entity link-user one USER-1 --validator
 > Legal entity updated: one
+> 4: entity set-supervised one
+> Legal entity updated: one
+> 5: entity set-host one
+> Legal entity updated: one
+> 7: entity create two Two S.A. 100200400 BE0100200400
+> Legal entity created: LENT-2
+> 8: entity update two Two S.A. is the second legal entity of the prototype.
+> Legal entity updated: two
+> 9: entity link-user two USER-1 --validator
+> Legal entity updated: two
+> 10: entity set-supervised two
+> Legal entity updated: two
+> 11: entity set-host two
+> Legal entity updated: two
+> 13: entity create three Three S.R.L. 100200500 BE0100200500
+> Legal entity created: LENT-3
+> 14: entity update three Three S.R.L. is the first un-supervised legal entity of the prototype.
+> Legal entity updated: three
+> 15: entity link-user three USER-3 --validator
+> Legal entity updated: three
+> 17: entity create four Four S.R.L. 100200600 BE0100200600
+> Legal entity created: LENT-4
+> 18: entity update four Four S.R.L. is the second un-supervised legal entity of the prototype.
+> Legal entity updated: four
+> 19: entity link-user four USER-5 --validator
+> Legal entity updated: four
 4: run init-units.txt
-> 1: business create alpha Alpha
+> 1: unit create alpha Alpha
 > Business entity created: BENT-1
-> 2: business update alpha The first business unit of the prototype, Alpha is run by @mila.
+> 2: unit update alpha The first business unit of the prototype, Alpha is run by @mila.
+> Business unit updated: alpha
+> 3: unit link-user alpha USER-4 --holder
 > Business unit updated: alpha
 5: run init-form-simple-contracts.txt
 > 1: as mila

@@ -10,3 +10,5 @@ User created: USER-3
 User created: USER-4
 9: user update USER-4 Mila I'm Mila, the first member to join this prototype. My advisor is @alice and I've created @alpha.
 User updated: USER-4
+11: user create chloe c chloe@example.com --accept-tos
+User created: USER-5

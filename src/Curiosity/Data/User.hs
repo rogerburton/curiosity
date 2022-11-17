@@ -34,12 +34,17 @@ module Curiosity.Data.User
   , userProfileTelephoneNbr
   , userProfileCompletion1
   , userProfileCompletion2
+  , userProfileRegistrationDate
+  , userProfileTwitterUsername
   , userProfileRights
+  , userProfileAuthorizations
+  , userProfileAdvisors
   , UserId(..)
   , UserName(..)
   , UserDisplayName(..)
   , UserEmailAddr(..)
   , Password(..)
+  , Advisors(..)
   , Predicate(..)
   , applyPredicate
   , SetUserEmailAddrAsVerified(..)
@@ -65,6 +70,7 @@ import qualified Data.Text.Lazy                as LT
 import qualified Network.HTTP.Types            as HTTP
 import qualified Servant.Auth.Server           as SAuth
 import qualified Smart.Server.Page.Navbar      as Nav
+import           System.PosixCompat.Types       ( EpochTime )
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5               ( (!) )
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -111,13 +117,18 @@ instance FromForm Login where
 
 -- | Represents the input data to update a user profile.
 data Update = Update
-  { _updateDisplayName :: Maybe UserDisplayName
-  , _updateBio         :: Maybe Text
+  { _updateDisplayName     :: Maybe UserDisplayName
+  , _updateBio             :: Maybe Text
+  , _updateTwitterUsername :: Maybe Text
   }
   deriving (Eq, Show, Generic)
 
 instance FromForm Update where
-  fromForm f = Update <$> parseMaybe "display-name" f <*> parseMaybe "bio" f
+  fromForm f =
+    Update
+      <$> parseMaybe "display-name"     f
+      <*> parseMaybe "bio"              f
+      <*> parseMaybe "twitter-username" f
 
 
 --------------------------------------------------------------------------------
@@ -138,8 +149,11 @@ data UserProfile' creds userDisplayName userEmailAddr tosConsent = UserProfile
   , _userProfileTosConsent        :: tosConsent
   , _userProfileCompletion1       :: UserCompletion1
   , _userProfileCompletion2       :: UserCompletion2
+  , _userProfileRegistrationDate  :: EpochTime
+  , _userProfileTwitterUsername   :: Maybe Text
   , _userProfileRights            :: [AccessRight]
   , _userProfileAuthorizations    :: [Authorization]
+  , _userProfileAdvisors          :: Maybe Advisors
   }
   deriving (Show, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)
@@ -241,6 +255,14 @@ userIdPrefix = "USER-"
 data Authorization = AuthorizedAsEmployee | AuthorizedAsHolder | AuthorizedAsAdvisor | AuthorizedAsSuperAdvisor | AccountingAuthorized | OnlineAccountAuthorized
   deriving (Eq, Generic, Show)
   deriving (FromJSON, ToJSON)
+
+-- | Represents the user current advisor and past advisors.
+data Advisors = Advisors
+  { _userAdvisorsCurrent :: UserId
+  , _userAdvisorsPast    :: [(EpochTime, EpochTime, UserId)] -- From, to, user ID
+  }
+  deriving (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 
 --------------------------------------------------------------------------------

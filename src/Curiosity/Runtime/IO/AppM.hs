@@ -91,14 +91,15 @@ instance S.DBStorage AppM STM User.UserProfile where
       deleteUser _ =
         modifyUserProfiles id (filter $ (/= id) . S.dbId) _dbUserProfiles
 
-    User.UserUpdate id (User.Update mname mbio) ->
+    User.UserUpdate id (User.Update mname mbio mtwitter) ->
       S.dbSelect @AppM @STM db (User.SelectUserById id) <&> headMay >>= maybe
         (pure . User.userNotFound $ show id)
         (fmap Right . updateUser)
      where
       updateUser _ = modifyUserProfiles id replaceOlder _dbUserProfiles
       change =
-        set User.userProfileBio mbio . set User.userProfileDisplayName mname
+        set User.userProfileBio mbio . set User.userProfileDisplayName mname .
+          set User.userProfileTwitterUsername mtwitter
       replaceOlder users =
         [ if S.dbId u == id then change u else u | u <- users ]
 
