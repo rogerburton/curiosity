@@ -1385,6 +1385,7 @@ rejectQuotation' db user input mcomment =
         $  "Username not found: "
         <> User.unUserName user
 
+-- FIXME: Remove the "user" param since not used.
 setQuotationAsRejectedFull
   :: Core.StmDb
   -> User.UserProfile
