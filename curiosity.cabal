@@ -138,6 +138,11 @@ library
     Curiosity.Runtime.IO
     Curiosity.Runtime.IO.AppM
 
+    -- Modules that can help with STM computations, usually just for convenience
+    -- and easier reading.
+    -- Fixme: reconsider placing in Commence in some time.
+    Curiosity.STM.Helpers 
+
     Curiosity.Server
     Curiosity.Server.Helpers
     WaiAppStatic.Storage.Filesystem.Extended
