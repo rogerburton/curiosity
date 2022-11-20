@@ -1373,11 +1373,7 @@ setQuotationAsSigned db id oid = do
 
 rejectQuotation' db user input mcomment =
   Core.selectUserByUsername db user >>= \case
-    Just profile -> do
-      mid <- setQuotationAsRejectedFull db profile input mcomment
-      case mid of
-        Right id  -> pure $ Right id
-        Left  err -> pure $ Left err
+    Just profile -> setQuotationAsRejectedFull db profile input mcomment
     Nothing ->
       pure
         $  Left
