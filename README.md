@@ -77,6 +77,9 @@ environment):
 $ nix-build -A run-vm-tests
 ```
 
+A [GitHub action](https://github.com/hypered/curiosity/actions) is used to run
+the tests on every commit, and report the results on each Pull Request.
+
 # Running
 
 There are multiple ways to run Curiosity's code. Building the `cty` binary and
