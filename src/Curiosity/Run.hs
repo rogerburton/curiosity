@@ -292,15 +292,24 @@ handleError e
 
 
 --------------------------------------------------------------------------------
+-- | This is the UNIX-domain client code (i.e. meant to interact with
+-- `cty-sock`).
 client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
   connect sock $ SockAddrUnix path
+
+  _  <- recv sock 1024
+  -- Just swallow the initial server banner for now.
+  -- let response = T.decodeUtf8 msg -- TODO decodeUtf8
+  -- putStrLn response
+
   command' <- commandToString command
   send sock command'
   msg <- recv sock 1024
-  let response = map B.unpack $ B.words msg -- TODO decodeUtf8
-  print response
+  let response = T.decodeUtf8 msg -- TODO decodeUtf8
+  putStrLn response
+
   close sock
   exitSuccess
 
