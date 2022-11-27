@@ -204,6 +204,7 @@ test-suite curiosity-tests
     , QuickCheck
   other-modules:
       CuriositySpec
+    , Curiosity.CommandSpec
     , Curiosity.CoreSpec
     , Curiosity.DataSpec
     , Curiosity.RunSpec

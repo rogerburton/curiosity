@@ -1029,6 +1029,7 @@ parserShowId =
 commandToString :: Command -> Either Text Text
 commandToString = \case
   Init _      -> Left "Can't send `init` to a server."
+  Reset       -> Right "reset"
   State useHs -> Right $ "state" <> if useHs then " --hs" else ""
   Signup User.Signup {..} ->
     Right $ "user signup " <> User.unUserName username
