@@ -61,7 +61,6 @@ in rec
       # usable even without those conditions.
       shellHook = ''
         source <(cty             --bash-completion-script `which cty`)
-        source <(cty-sock        --bash-completion-script `which cty-sock`)
         export CURIOSITY_STATIC_DIR=${content}
         export CURIOSITY_DATA_DIR=${data}
         export CURIOSITY_SCENARIOS_DIR=${scenarios}

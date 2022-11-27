@@ -33,9 +33,9 @@ demonstrate and explore the features of the application.
   instead of an HTTP server to run commands and interact with the state.
 - `cty run` interprets scripts containing commands (the same commands that the
   REPL uses).
-- `cty-sock` offers a text interface similar to `cty repl` but through a
+- `cty sock` offers a text interface similar to `cty repl` but through a
   UNIX-domain socket, and accepts multiple clients.
-- Other commands of `cty` are meant to be a client for the `cty-sock` server.
+- Other commands of `cty` are meant to be a client for the `cty sock` server.
   It can also be run against a local state file.
 - `cty parse` is a helper command to play with the command parser used in `cty
   repl`.

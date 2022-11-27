@@ -19,7 +19,7 @@ demonstrating the above:
 ```
 $ ssh root@smartcoop.sh
 [root@curiosity-1:~]# cty<TAB><TAB>
-cty              cty-sock
+cty
 [root@curiosity-1:~]# man cty
 [root@curiosity-1:~]# man curiosity
 ```

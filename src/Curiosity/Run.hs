@@ -94,6 +94,15 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
       putStrLn @Text "TODO"
       exitFailure
 
+run (Command.CommandWithTarget (Command.Sock conf) target _) = do
+  case target of
+    Command.MemoryTarget -> handleSock conf
+    Command.StateFileTarget path ->
+      handleSock conf { P._confDbFile = Just path }
+    Command.UnixDomainTarget _ -> do
+      putStrLn @Text "TODO"
+      exitFailure
+
 run (Command.CommandWithTarget (Command.Run conf scriptPath runOutput) target (Command.User user))
   = case target of
     Command.MemoryTarget ->
@@ -242,6 +251,15 @@ handleServe conf serverConf = do
 
 
 --------------------------------------------------------------------------------
+handleSock :: P.Conf -> IO ExitCode
+handleSock conf = do
+  putStrLn @Text "Creating runtime..."
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
+  Rt.runWithRuntime runtime
+  exitSuccess
+
+
+--------------------------------------------------------------------------------
 handleViewQueue conf user name = do
   case name of
     Command.EmailAddrToVerify -> do
@@ -294,7 +312,7 @@ handleError e
 
 --------------------------------------------------------------------------------
 -- | This is the UNIX-domain client code (i.e. meant to interact with
--- `cty-sock`).
+-- `cty sock`).
 client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
