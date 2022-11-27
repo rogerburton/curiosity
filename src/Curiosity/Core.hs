@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 -- | STM operations around `Curiosity.Data`.
 
 -- brittany-disable-next-binding
@@ -298,10 +298,11 @@ signupUser db signup@User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    now   <- readTime db
-    newId <- generateUserId db
-    newProfile <- pure (User.validateSignup now newId signup)
-      >>= either (STM.throwSTM . User.ValidationErrs) pure
+    now        <- readTime db
+    newId      <- generateUserId db
+    newProfile <-
+      pure (User.validateSignup now newId signup)
+        >>= either (STM.throwSTM . User.ValidationErrs) pure
     emailId <-
       createEmail db Email.SignupConfirmationEmail Email.systemEmailAddr email
         >>= either STM.throwSTM pure
@@ -318,8 +319,8 @@ inviteUser db User.Invite {..} = do
   transaction = do
     now   <- readTime db
     newId <- generateUserId db
-    let email = _inviteEmail
-        token = "TODO"
+    let email      = _inviteEmail
+        token      = "TODO"
         newProfile = User.UserProfile
           newId
           (User.InviteToken token)
@@ -348,7 +349,7 @@ inviteUser db User.Invite {..} = do
 createUserFull
   :: StmDb -> User.UserProfile -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = case User._userProfileCreds newProfile of
-  User.Credentials { .. } -> do
+  User.Credentials {..} -> do
     let username     = _userCredsName
         newProfileId = User._userProfileId newProfile
         createNew    = do
@@ -453,7 +454,12 @@ updateBusiness db Business.Update {..} = do
     Nothing ->
       pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
 
-linkBusinessUnitToUser :: StmDb -> Text -> User.UserId -> Business.ActingRole -> STM (Either User.Err ())
+linkBusinessUnitToUser
+  :: StmDb
+  -> Text
+  -> User.UserId
+  -> Business.ActingRole
+  -> STM (Either User.Err ())
 linkBusinessUnitToUser db slug uid role = do
   mentity <- selectUnitBySlug db slug
   case mentity of
