@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 -- | STM operations around `Curiosity.Data`.
 
 -- brittany-disable-next-binding
@@ -298,10 +298,11 @@ signupUser db signup@User.Signup {..} = do
   STM.catchSTM (Right <$> transaction) (pure . Left)
  where
   transaction = do
-    now   <- readTime db
-    newId <- generateUserId db
-    newProfile <- pure (User.validateSignup now newId signup)
-      >>= either (STM.throwSTM . User.ValidationErrs) pure
+    now        <- readTime db
+    newId      <- generateUserId db
+    newProfile <-
+      pure (User.validateSignup now newId signup)
+        >>= either (STM.throwSTM . User.ValidationErrs) pure
     emailId <-
       createEmail db Email.SignupConfirmationEmail Email.systemEmailAddr email
         >>= either STM.throwSTM pure
@@ -318,8 +319,8 @@ inviteUser db User.Invite {..} = do
   transaction = do
     now   <- readTime db
     newId <- generateUserId db
-    let email = _inviteEmail
-        token = "TODO"
+    let email      = _inviteEmail
+        token      = "TODO"
         newProfile = User.UserProfile
           newId
           (User.InviteToken token)
@@ -348,7 +349,7 @@ inviteUser db User.Invite {..} = do
 createUserFull
   :: StmDb -> User.UserProfile -> STM (Either User.Err User.UserId)
 createUserFull db newProfile = case User._userProfileCreds newProfile of
-  User.Credentials { .. } -> do
+  User.Credentials {..} -> do
     let username     = _userCredsName
         newProfileId = User._userProfileId newProfile
         createNew    = do
@@ -379,7 +380,7 @@ createUserFull' db newProfile = do
  where
   newProfileId = User._userProfileId newProfile
   createNew    = do
-    modifyUsers db (++ [newProfile])
+    modifyUsers db (<> [newProfile])
     pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
@@ -434,7 +435,7 @@ createBusiness db Business.Create {..} = do
 createBusinessFull
   :: StmDb -> Business.Unit -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
-  modifyBusinessUnits db (++ [new])
+  modifyBusinessUnits db (<> [new])
   pure . Right $ Business._entityId new
 
 updateBusiness :: StmDb -> Business.Update -> STM (Either Business.Err ())
@@ -453,19 +454,22 @@ updateBusiness db Business.Update {..} = do
     Nothing ->
       pure . Left . Business.Err $ "No such business unit: " <> _updateSlug
 
-linkBusinessUnitToUser :: StmDb -> Text -> User.UserId -> Business.ActingRole -> STM (Either User.Err ())
+linkBusinessUnitToUser
+  :: StmDb
+  -> Text
+  -> User.UserId
+  -> Business.ActingRole
+  -> STM (Either User.Err ())
 linkBusinessUnitToUser db slug uid role = do
   mentity <- selectUnitBySlug db slug
   case mentity of
     Just Business.Unit {..} -> do
       let replaceOlder units =
             [ if Business._entitySlug e == slug
-                then
-                  case role of
-                    Business.Holder ->
-                      e { Business._entityHolders =
-                          nub $ uid : _entityHolders
-                      }
+                then case role of
+                  Business.Holder ->
+                    e { Business._entityHolders = nub $ uid : _entityHolders }
+                  _ -> e
                 else e
             | e <- units
             ]
@@ -503,7 +507,7 @@ createEmail db template senderAddr recipientAddr = do
 
 createEmailFull :: StmDb -> Email.Email -> STM (Either Email.Err Email.EmailId)
 createEmailFull db new = do
-  modifyEmails db (++ [new])
+  modifyEmails db (<> [new])
   pure . Right $ Email._emailId new
 
 modifyEmails :: StmDb -> ([Email.Email] -> [Email.Email]) -> STM ()

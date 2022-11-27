@@ -1,10 +1,11 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
--- An attempt at creating a DSL to make it easy to play with the high-level
--- operations provided by Curiosity.
--- In the future this might be useful to try to express complex business rules
--- clearly, possibly for non-developers.
+{-# LANGUAGE TemplateHaskellQuotes #-}
+{- | An attempt at creating a DSL to make it easy to play with the high-level
+operations provided by Curiosity.
+In the future this might be useful to try to express complex business rules
+clearly, possibly for non-developers.
+-}
 module Curiosity.Dsl
   ( Run(..)
   , run
@@ -20,8 +21,7 @@ module Curiosity.Dsl
 import qualified Control.Concurrent.STM        as STM
 import qualified Curiosity.Core                as Core
 import qualified Curiosity.Data                as Data
-import           Curiosity.Data                 ( HaskDb
-                                                )
+import           Curiosity.Data                 ( HaskDb )
 import qualified Curiosity.Data.Email          as Email
 import qualified Curiosity.Data.User           as User
 import qualified Language.Haskell.TH.Syntax    as Syntax
@@ -40,10 +40,7 @@ newtype Run a = Run { runM :: ReaderT Core.StmDb STM a }
 -- deriving instance MonadFail (Run (Either Text a))
 
 run :: forall a . HaskDb -> Run a -> IO a
-run db Run {..} =
-  STM.atomically $ do
-     db' <- Core.instantiateStmDb db
-     runReaderT runM db'
+run db Run {..} = STM.atomically $ Core.instantiateStmDb db >>= runReaderT runM
 
 
 --------------------------------------------------------------------------------
@@ -80,13 +77,12 @@ example = do
   signup "bob"   "b" "bob@example.com"
 
   mprofilea <- user "alice"
-  a         <- case mprofilea of
-    Just profile -> profile `can` 'User.SetUserEmailAddrAsVerified
-    Nothing      -> pure False
+  a         <- mprofilea `canIfPresent` 'User.SetUserEmailAddrAsVerified
 
   mprofileb <- user "bob"
-  b         <- case mprofileb of
-    Just profile -> profile `can` 'User.SetUserEmailAddrAsVerified
-    Nothing      -> pure False
+  b         <- mprofileb `canIfPresent` 'User.SetUserEmailAddrAsVerified
 
-  return (a, b)
+  pure (a, b)
+ where
+  mProfile `canIfPresent` permission =
+    maybe (pure False) (`can` permission) mProfile

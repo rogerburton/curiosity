@@ -104,6 +104,7 @@ import           Curiosity.Runtime.Error       as RErr
 import           Curiosity.Runtime.IO          as RIO
 import           Curiosity.Runtime.IO.AppM     as AppM
 import           Curiosity.Runtime.Type        as RType
+import           Curiosity.STM.Helpers          ( atomicallyM )
 import qualified Data.Aeson.Text               as Aeson
 import           Data.List                      ( lookup
                                                 , nub
@@ -186,38 +187,38 @@ reset = ML.localEnv (<> "Command" <> "Reset") $ do
     Data.Normal  -> liftIO $ toEpochTime <$> getUnixTime
     Data.Stepped -> pure 0
     Data.Mixed   -> liftIO $ toEpochTime <$> getUnixTime
-  liftIO . STM.atomically $ Core.reset db now
+  atomicallyM $ Core.reset db now
   ML.info "State is now empty."
 
 -- | Retrieve the whole state as a pure value.
 state :: RunM Data.HaskDb
 state = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.readFullStmDbInHask' db
+  atomicallyM $ Core.readFullStmDbInHask' db
 
 -- | Retrieve the current simulated time.
 time :: RunM EpochTime
 time = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.readTime db
+  atomicallyM $ Core.readTime db
 
 -- | Set the current simulated time.
 setTime :: EpochTime -> RunM ()
 setTime x = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.writeTime db x
+  atomicallyM $ Core.writeTime db x
 
 -- | Advance the time by a second or to the next minute.
 stepTime :: Bool -> RunM EpochTime
 stepTime minute = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.stepTime db minute
+  atomicallyM $ Core.stepTime db minute
 
 -- | Retrieve the stepping mode.
 readSteppingMode :: RunM Data.SteppingMode
 readSteppingMode = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.readSteppingMode db
+  atomicallyM $ Core.readSteppingMode db
 
 -- | Retrieve the threads state.
 threads :: RunM [Text]
@@ -250,7 +251,7 @@ spawnEmailThread' runtime mvar = do
   case mthread of
     Nothing -> do
       ML.localEnv (<> "Threads" <> "Email") $ do
-        ML.info $ "Starting email thread."
+        ML.info "Starting email thread."
       liftIO $ do
         t <- forkIO $ runRunM runtime emailThread
         putMVar mvar t
@@ -275,7 +276,7 @@ killEmailThread' mvar = do
       pure "Email thread already stopped."
     Just t -> do
       ML.localEnv (<> "Threads" <> "Email") $ do
-        ML.info $ "Stopping email thread."
+        ML.info "Stopping email thread."
       liftIO $ killThread t
       pure "Email thread stopped."
 
@@ -293,47 +294,50 @@ emailStep :: RunM [Email.Email]
 emailStep = do
   db      <- asks _rDb
   records <- emailStepDryRun
-  ML.localEnv (<> "Actions" <> "SendEmails") $ do
-    when (not . null $ records)
-      $  ML.info
+  logEmails records
+  -- TODO Have a single operation ?
+  atomicallyM $ mapM_ (setEmailDone db) records
+  pure records
+ where
+  logEmails records =
+    ML.localEnv (<> "Actions" <> "SendEmails")
+      .  unless (null records)
+      .  ML.info
       $  "Processing "
       <> show (length records)
       <> " emails..."
-  -- TODO Have a single operation ?
-  liftIO . STM.atomically $ mapM_ (setEmailDone db) records
-  pure records
 
 emailStepDryRun :: RunM [Email.Email]
 emailStepDryRun = do
-  db      <- asks _rDb
-  records <- liftIO . STM.atomically $ filterEmails db Email.EmailsTodo
-  pure records
+  db <- asks _rDb
+  atomicallyM $ filterEmails db Email.EmailsTodo
 
 verifyEmailStep :: RunM [User.UserProfile]
 verifyEmailStep = do
   db      <- asks _rDb
   records <- verifyEmailStepDryRun
-  ML.localEnv (<> "Actions" <> "VerifyEmails") $ do
-    when (not . null $ records)
-      $  ML.info
-      $  "Processing "
-      <> show (length records)
-      <> " users..."
+  logUsers records
   -- TODO Have a single operation ?
-  liftIO . STM.atomically $ mapM_
+  atomicallyM $ mapM_
     ( setUserEmailAddrAsVerified db
     . User._userCredsName
     . User._userProfileCreds
     )
     records
   pure records
+ where
+  logUsers records =
+    ML.localEnv (<> "Actions" <> "VerifyEmails")
+      $  unless (null records)
+      $  ML.info
+      $  "Processing "
+      <> show (length records)
+      <> " users..."
 
 verifyEmailStepDryRun :: RunM [User.UserProfile]
 verifyEmailStepDryRun = do
   db      <- asks _rDb
-  records <- liftIO . STM.atomically $ filterUsers
-    db
-    User.PredicateEmailAddrToVerify
+  records <- atomicallyM $ filterUsers db User.PredicateEmailAddrToVerify
   pure records
 
 -- | Natural transformation from some `AppM` in any given mode, to a servant
@@ -347,7 +351,7 @@ appMHandlerNatTrans rt appM =
       unwrapReaderT          = (`runReaderT` rt) . runAppM $ appM
       -- Map our errors to `ServantError`
       runtimeErrToServantErr = withExceptT Errs.asServantError
-  in
+  in 
       -- Re-wrap as servant `Handler`
       Servant.Handler $ runtimeErrToServantErr unwrapReaderT
 
@@ -382,10 +386,8 @@ handleCommand runtime@Runtime {..} user command = do
       stepRunM runtime emailStep
       pure (ExitSuccess, ["Email queue processed."])
     Command.CreateBusinessUnit input -> do
-      output <-
-        runAppMSafe runtime . liftIO . STM.atomically $ Core.createBusiness
-          _rDb
-          input
+      output <- runAppMSafe runtime . atomicallyM $ Core.createBusiness _rDb
+                                                                        input
       case output of
         Right mid -> do
           case mid of
@@ -394,10 +396,8 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.UpdateBusinessUnit input -> do
-      output <-
-        runAppMSafe runtime . liftIO . STM.atomically $ Core.updateBusiness
-          _rDb
-          input
+      output <- runAppMSafe runtime . atomicallyM $ Core.updateBusiness _rDb
+                                                                        input
       case output of
         Right mid -> do
           case mid of
@@ -415,9 +415,7 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["Business unit updated: " <> slug])
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateLegalEntity input -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createLegal
-        _rDb
-        input
+      output <- runAppMSafe runtime . atomicallyM $ createLegal _rDb input
       case output of
         Right mid -> do
           case mid of
@@ -453,12 +451,15 @@ handleCommand runtime@Runtime {..} user command = do
     Command.Signup input -> do
       muid <- stepRunM runtime $ signupUser input
       case muid of
-        Right (User.UserId uid, Email.EmailId eid) ->
-          pure (ExitSuccess, ["User created: " <> uid,
-            "Signup confirmation email enqueued: " <> eid])
+        Right (User.UserId uid, Email.EmailId eid) -> pure
+          ( ExitSuccess
+          , [ "User created: " <> uid
+            , "Signup confirmation email enqueued: " <> eid
+            ]
+          )
         Left err -> case err of
           User.ValidationErrs errs -> pure (ExitFailure 1, map show errs)
-          _ -> pure (ExitFailure 1, [show err])
+          _                        -> pure (ExitFailure 1, [show err])
     Command.Invite input -> do
       muid <- stepRunM runtime $ inviteUser input
       case muid of
@@ -466,10 +467,7 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["User created: " <> uid])
         Left err -> pure (ExitFailure 1, [show err])
     Command.SelectUser useHs uid short -> do
-      output <-
-        runAppMSafe runtime . liftIO . STM.atomically $ Core.selectUserById
-          _rDb
-          uid
+      output <- runAppMSafe runtime . atomicallyM $ Core.selectUserById _rDb uid
       case output of
         Right mprofile -> do
           case mprofile of
@@ -495,7 +493,7 @@ handleCommand runtime@Runtime {..} user command = do
             let User.UserId i = _userProfileId
                 n             = case _userProfileCreds of
                   User.Credentials {..} ->
-                    let User.UserName n = _userCredsName in n
+                    let User.UserName n' = _userCredsName in n'
                   User.InviteToken _ -> "/"
             in  i <> " " <> n
       pure (ExitSuccess, map f profiles)
@@ -553,8 +551,7 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.CreateInvoice -> do
-      output <- runAppMSafe runtime . liftIO . STM.atomically $ createInvoice
-        _rDb
+      output <- runAppMSafe runtime . atomicallyM $ createInvoice _rDb
       case output of
         Right mid -> do
           case mid of
@@ -569,7 +566,7 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitSuccess, ["Quotation form created: " <> key])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FormValidateQuotation input ->
-      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
+      atomicallyM $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mcontract <- readCreateQuotationFormResolved _rDb profile input
           case mcontract of
@@ -585,7 +582,7 @@ handleCommand runtime@Runtime {..} user command = do
         Nothing ->
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.FormSubmitQuotation input ->
-      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
+      atomicallyM $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mid <- submitCreateQuotationForm _rDb (profile, input)
           case mid of
@@ -605,7 +602,7 @@ handleCommand runtime@Runtime {..} user command = do
         Right ()  -> pure (ExitSuccess, ["Quotation rejected."])
         Left  err -> pure (ExitFailure 1, [show err])
     Command.EmitInvoice input ->
-      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
+      atomicallyM $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mids <- invoiceOrder _rDb (profile, input)
           case mids of
@@ -627,7 +624,7 @@ handleCommand runtime@Runtime {..} user command = do
           pure (ExitFailure 1, ["Username not found: " <> User.unUserName user])
     Command.SendReminder input ->
       -- TODO Check this is the "system" user ?
-                                  liftIO . STM.atomically $ do
+                                  atomicallyM $ do
       Core.createEmail _rDb
                        Email.InvoiceReminderEmail
                        "TODO sender email addr"
@@ -638,7 +635,7 @@ handleCommand runtime@Runtime {..} user command = do
         )
     Command.MatchPayment input ->
       -- TODO Check this is the "system" user ?
-                                  liftIO . STM.atomically $ do
+                                  atomicallyM $ do
       mids <- matchPayment _rDb input
       case mids of
         Right (id0, id1) -> pure
@@ -670,7 +667,7 @@ handleCommand runtime@Runtime {..} user command = do
             Left err -> pure (ExitFailure 1, [show err])
         Left err -> pure (ExitFailure 1, [show err])
     Command.FormValidateSimpleContract input ->
-      liftIO . STM.atomically $ Core.selectUserByUsername _rDb user >>= \case
+      atomicallyM $ Core.selectUserByUsername _rDb user >>= \case
         Just profile -> do
           mcontract <- readCreateSimpleContractForm _rDb (profile, input)
           case mcontract of
@@ -800,7 +797,7 @@ updateLegal db Legal.Update {..} = do
 updateLegal' :: Legal.Update -> RunM (Either User.Err ())
 updateLegal' update = do
   db <- asks _rDb
-  liftIO . STM.atomically $ updateLegal db update
+  atomicallyM $ updateLegal db update
 
 linkLegalEntityToUser
   :: Core.StmDb
@@ -830,7 +827,7 @@ linkLegalEntityToUser'
   :: Text -> User.UserId -> Legal.ActingRole -> RunM (Either User.Err ())
 linkLegalEntityToUser' slug uid role = do
   db <- asks _rDb
-  liftIO . STM.atomically $ linkLegalEntityToUser db slug uid role
+  atomicallyM $ linkLegalEntityToUser db slug uid role
 
 updateLegalEntityIsSupervised
   :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
@@ -851,7 +848,7 @@ updateLegalEntityIsSupervised db slug b = do
 updateLegalEntityIsSupervised' :: Text -> Bool -> RunM (Either User.Err ())
 updateLegalEntityIsSupervised' slug b = do
   db <- asks _rDb
-  liftIO . STM.atomically $ updateLegalEntityIsSupervised db slug b
+  atomicallyM $ updateLegalEntityIsSupervised db slug b
 
 updateLegalEntityIsHost
   :: Core.StmDb -> Text -> Bool -> STM (Either User.Err ())
@@ -872,7 +869,7 @@ updateLegalEntityIsHost db slug b = do
 updateLegalEntityIsHost' :: Text -> Bool -> RunM (Either User.Err ())
 updateLegalEntityIsHost' slug b = do
   db <- asks _rDb
-  liftIO . STM.atomically $ updateLegalEntityIsHost db slug b
+  atomicallyM $ updateLegalEntityIsHost db slug b
 
 modifyLegalEntities
   :: Core.StmDb -> ([Legal.Entity] -> [Legal.Entity]) -> STM ()
@@ -884,13 +881,13 @@ modifyLegalEntities db f =
 selectUnitBySlug :: Text -> RunM (Maybe Business.Unit)
 selectUnitBySlug slug = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.selectUnitBySlug db slug
+  atomicallyM $ Core.selectUnitBySlug db slug
 
 linkBusinessUnitToUser'
   :: Text -> User.UserId -> Business.ActingRole -> RunM (Either User.Err ())
 linkBusinessUnitToUser' slug uid role = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.linkBusinessUnitToUser db slug uid role
+  atomicallyM $ Core.linkBusinessUnitToUser db slug uid role
 
 
 --------------------------------------------------------------------------------
@@ -1152,12 +1149,11 @@ formNewQuotation user input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
     ML.info "Instantiating new quotation form..."
     db   <- asks _rDb
-    mkey <-
-      liftIO . STM.atomically $ Core.selectUserByUsername db user >>= \case
-        Just profile -> do
-          key <- newCreateQuotationForm db (profile, input)
-          pure $ Right key
-        Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
+    mkey <- atomicallyM $ Core.selectUserByUsername db user >>= \case
+      Just profile -> do
+        key <- newCreateQuotationForm db (profile, input)
+        pure $ Right key
+      Nothing -> pure . Left . User.UserNotFound $ User.unUserName user
     case mkey of
       Left  err -> ML.info $ "Can't instantiate form: " <> show err
       Right key -> ML.info $ "Quotation form created: " <> key
@@ -1171,7 +1167,7 @@ formNewQuotation' profile input =
   ML.localEnv (<> "Command" <> "FormNewQuotation") $ do
     ML.info "Instantiating new quotation form..."
     db  <- asks _rDb
-    key <- liftIO . STM.atomically $ do
+    key <- atomicallyM $ do
       newCreateQuotationForm db (profile, input)
     ML.info $ "Quotation form created: " <> key
     pure key
@@ -1194,7 +1190,7 @@ readCreateQuotationFormResolved'
        (Either () (Quotation.CreateQuotationAll, Maybe User.UserProfile))
 readCreateQuotationFormResolved' profile key = do
   db <- asks _rDb
-  liftIO . STM.atomically $ readCreateQuotationFormResolved db profile key
+  atomicallyM $ readCreateQuotationFormResolved db profile key
 
 -- | A version of `readCreateQuotationForm'` that also tries to lookup related
 -- data, e.g. the client, which is used for validation.
@@ -1220,7 +1216,7 @@ readCreateQuotationForm'
   :: User.UserProfile -> Text -> RunM (Either () Quotation.CreateQuotationAll)
 readCreateQuotationForm' profile key = do
   db <- asks _rDb
-  liftIO . STM.atomically $ readCreateQuotationForm db (profile, key)
+  atomicallyM $ readCreateQuotationForm db (profile, key)
 
 readCreateQuotationForm
   :: Core.StmDb
@@ -1232,7 +1228,7 @@ readCreateQuotationForms'
   :: User.UserProfile -> RunM (Either () [(Text, Quotation.CreateQuotationAll)])
 readCreateQuotationForms' profile = do
   db <- asks _rDb
-  liftIO . STM.atomically $ readCreateQuotationForms db profile
+  atomicallyM $ readCreateQuotationForms db profile
 
 readCreateQuotationForms
   :: Core.StmDb
@@ -1302,7 +1298,7 @@ signQuotation
 signQuotation user input = ML.localEnv (<> "Command" <> "SignQuotation") $ do
   ML.info "Signing quotation..."
   db   <- asks _rDb
-  moid <- liftIO . STM.atomically $ signQuotation' db user input
+  moid <- atomicallyM $ signQuotation' db user input
   case moid of
     Right (Order.OrderId oid) -> do
       ML.info $ "Order created: " <> oid
@@ -1320,10 +1316,10 @@ rejectQuotation user input mcomment =
   ML.localEnv (<> "Command" <> "RejectQuotation") $ do
     ML.info "Rejecting quotation..."
     db   <- asks _rDb
-    moid <- liftIO . STM.atomically $ rejectQuotation' db user input mcomment
+    moid <- atomicallyM $ rejectQuotation' db user input mcomment
     case moid of
       Right () -> do
-        ML.info $ "Quotation rejected."
+        ML.info "Quotation rejected."
         pure $ Right ()
       Left err@(Quotation.Err msg) -> do
         ML.info msg
@@ -1377,11 +1373,7 @@ setQuotationAsSigned db id oid = do
 
 rejectQuotation' db user input mcomment =
   Core.selectUserByUsername db user >>= \case
-    Just profile -> do
-      mid <- setQuotationAsRejectedFull db profile input mcomment
-      case mid of
-        Right id  -> pure $ Right id
-        Left  err -> pure $ Left err
+    Just profile -> setQuotationAsRejectedFull db profile input mcomment
     Nothing ->
       pure
         $  Left
@@ -1389,6 +1381,7 @@ rejectQuotation' db user input mcomment =
         $  "Username not found: "
         <> User.unUserName user
 
+-- FIXME: Remove the "user" param since not used.
 setQuotationAsRejectedFull
   :: Core.StmDb
   -> User.UserProfile
@@ -1437,7 +1430,7 @@ filterQuotations db predicate = do
 filterQuotations' :: Quotation.Predicate -> RunM [Quotation.Quotation]
 filterQuotations' predicate = do
   db <- asks _rDb
-  liftIO . STM.atomically $ filterQuotations db predicate
+  atomicallyM $ filterQuotations db predicate
 
 selectQuotationById
   :: Core.StmDb -> Quotation.QuotationId -> IO (Maybe Quotation.Quotation)
@@ -1454,7 +1447,7 @@ filterOrders db predicate = do
 filterOrders' :: Order.Predicate -> RunM [Order.Order]
 filterOrders' predicate = do
   db <- asks _rDb
-  liftIO . STM.atomically $ filterOrders db predicate
+  atomicallyM $ filterOrders db predicate
 
 
 --------------------------------------------------------------------------------
@@ -1684,13 +1677,14 @@ filterUsers db predicate = do
 filterUsers' :: User.Predicate -> RunM [User.UserProfile]
 filterUsers' predicate = do
   db <- asks _rDb
-  liftIO . STM.atomically $ filterUsers db predicate
+  atomicallyM $ filterUsers db predicate
 
-signupUser :: User.Signup -> RunM (Either User.Err (User.UserId, Email.EmailId))
+signupUser
+  :: User.Signup -> RunM (Either User.Err (User.UserId, Email.EmailId))
 signupUser input = ML.localEnv (<> "Command" <> "Signup") $ do
   ML.info "Signing up new user..."
   db   <- asks _rDb
-  muid <- liftIO . STM.atomically $ Core.signupUser db input
+  muid <- atomicallyM $ Core.signupUser db input
   case muid of
     Right (User.UserId uid, Email.EmailId eid) -> do
       ML.info $ "User created: " <> uid
@@ -1704,7 +1698,7 @@ inviteUser :: User.Invite -> RunM (Either User.Err User.UserId)
 inviteUser input = ML.localEnv (<> "Command" <> "Signup") $ do
   ML.info "Inviting new user..."
   db   <- asks _rDb
-  muid <- liftIO . STM.atomically $ Core.inviteUser db input
+  muid <- atomicallyM $ Core.inviteUser db input
   case muid of
     Right (User.UserId uid, Email.EmailId eid) -> do
       ML.info $ "User created: " <> uid
@@ -1776,7 +1770,7 @@ readLegalEntities db = do
   records <- STM.readTVar tvar
   pure records
 
-withRuntimeAtomically f a = ask >>= \rt -> liftIO . STM.atomically $ f rt a
+withRuntimeAtomically f a = ask >>= \rt -> atomicallyM $ f rt a
 
 
 --------------------------------------------------------------------------------
@@ -1789,7 +1783,7 @@ filterEmails db predicate = do
 filterEmails' :: Email.Predicate -> RunM [Email.Email]
 filterEmails' predicate = do
   db <- asks _rDb
-  liftIO . STM.atomically $ filterEmails db predicate
+  atomicallyM $ filterEmails db predicate
 
 setEmailDone :: Core.StmDb -> Email.Email -> STM (Either Email.Err ())
 setEmailDone db Email.Email {..} = do
@@ -1809,7 +1803,7 @@ setEmailDone db Email.Email {..} = do
 selectEmailById :: Email.EmailId -> RunM (Maybe Email.Email)
 selectEmailById eid = do
   db <- asks _rDb
-  liftIO . STM.atomically $ Core.selectEmailById db eid
+  atomicallyM $ Core.selectEmailById db eid
 
 --------------------------------------------------------------------------------
 readForm
