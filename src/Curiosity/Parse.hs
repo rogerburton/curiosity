@@ -43,6 +43,8 @@ data ServerConf = ServerConf
   , _serverScenariosDir  :: FilePath
   , _serverCookie        :: SAuth.CookieSettings
     -- ^ Settings for setting cookies as a server (for authentication etc.).
+  , _serverUnixDomain    :: Bool
+    -- ^ Enable (when True) the UNIX-domain socket server.
   }
   deriving (Eq, Show)
 
@@ -97,6 +99,8 @@ serverParser = do
     (A.long "scenarios-dir" <> A.value "./scenarios/" <> A.metavar "DIR" <> A.help
       "A directory containing scenarios."
     )
+  _serverUnixDomain <- not <$> A.switch
+    (A.long "no-socket" <> A.help "Disable the UNIX-domain socket server.")
 
   pure ServerConf
     {
@@ -120,6 +124,7 @@ defaultServerConf = ServerConf
   , _serverStaticDir     = "./_site/"
   , _serverDataDir       = "./data/"
   , _serverScenariosDir  = "./scenarios/"
+  , _serverUnixDomain    = True
   }
 
 
