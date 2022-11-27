@@ -234,6 +234,7 @@ handleServe conf serverConf = do
   threads <- Rt.emptyHttpThreads
   runtime@Rt.Runtime {..} <- Rt.bootConf conf threads >>= either throwIO pure
   Rt.runRunM runtime Rt.spawnEmailThread
+  Rt.runRunM runtime Rt.spawnUnixThread
   P.startServer serverConf runtime >>= P.endServer _rLoggers
   mPowerdownErrs <- Rt.powerdown runtime
   maybe exitSuccess throwIO mPowerdownErrs

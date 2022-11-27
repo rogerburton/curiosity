@@ -8,6 +8,8 @@ module Curiosity.Runtime
   ( emptyReplThreads
   , emptyHttpThreads
   , spawnEmailThread
+  , spawnUnixThread
+  , runWithRuntime
   , RunM(..)
   , reset
   , state
@@ -106,17 +108,23 @@ import           Curiosity.Runtime.IO.AppM     as AppM
 import           Curiosity.Runtime.Type        as RType
 import           Curiosity.STM.Helpers          ( atomicallyM )
 import qualified Data.Aeson.Text               as Aeson
+import qualified Data.ByteString.Char8         as B
 import           Data.List                      ( lookup
                                                 , nub
                                                 )
 import qualified Data.Map                      as M
-import qualified Data.Text.Encoding            as TE
+import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Lazy                as LT
 import           Data.UnixTime                  ( formatUnixTime
                                                 , fromEpochTime
                                                 , getUnixTime
                                                 , toEpochTime
                                                 )
+import           Network.Socket
+import           Network.Socket.ByteString      ( recv
+                                                , sendAll
+                                                )
+import qualified Options.Applicative           as A
 import           Prelude                 hiding ( state )
 import qualified Servant
 import           System.PosixCompat.Types       ( EpochTime )
@@ -125,13 +133,17 @@ import           System.PosixCompat.Types       ( EpochTime )
 showThreads :: Threads -> IO [Text]
 showThreads ts = case ts of
   NoThreads        -> pure ["Threads are disabled."]
-  ReplThreads mvar -> showThreads' mvar
-  HttpThreads mvar -> showThreads' mvar
+  ReplThreads mvarEmails ->
+    showThreads' "Email" mvarEmails
+  HttpThreads mvarEmails mvarUnix -> do
+    t1 <- showThreads' "Email" mvarEmails
+    t2 <- showThreads' "UNIX-domain socket" mvarUnix
+    pure $ t1 <> t2
 
-showThreads' :: MVar ThreadId -> IO [Text]
-showThreads' mvar = do
+showThreads' :: Text -> MVar ThreadId -> IO [Text]
+showThreads' name mvar = do
   b <- isEmptyMVar mvar
-  if b then pure ["Email thread: stopped."] else pure ["Email thread: running."]
+  if b then pure [name <> " thread: stopped."] else pure [name <> " thread: running."]
 
 
 --------------------------------------------------------------------------------
@@ -228,13 +240,14 @@ threads = do
 
 emptyReplThreads :: IO Threads
 emptyReplThreads = do
-  mvar <- newEmptyMVar
-  pure $ ReplThreads mvar
+  mvarEmails <- newEmptyMVar
+  pure $ ReplThreads mvarEmails
 
 emptyHttpThreads :: IO Threads
 emptyHttpThreads = do
-  mvar <- newEmptyMVar
-  pure $ HttpThreads mvar
+  mvarEmails <- newEmptyMVar
+  mvarUnix <- newEmptyMVar
+  pure $ HttpThreads mvarEmails mvarUnix
 
 spawnEmailThread :: RunM Text
 spawnEmailThread = do
@@ -242,8 +255,8 @@ spawnEmailThread = do
   ts      <- asks _rThreads
   case ts of
     NoThreads        -> pure "Threads are disabled."
-    ReplThreads mvar -> spawnEmailThread' runtime mvar
-    HttpThreads mvar -> spawnEmailThread' runtime mvar
+    ReplThreads mvarEmails -> spawnEmailThread' runtime mvarEmails
+    HttpThreads mvarEmails _ -> spawnEmailThread' runtime mvarEmails
 
 spawnEmailThread' :: Runtime -> MVar ThreadId -> RunM Text
 spawnEmailThread' runtime mvar = do
@@ -265,8 +278,8 @@ killEmailThread = do
   ts <- asks _rThreads
   case ts of
     NoThreads        -> pure "Threads are disabled."
-    ReplThreads mvar -> killEmailThread' mvar
-    HttpThreads mvar -> killEmailThread' mvar
+    ReplThreads mvarEmails -> killEmailThread' mvarEmails
+    HttpThreads mvarEmails _ -> killEmailThread' mvarEmails
 
 killEmailThread' :: MVar ThreadId -> RunM Text
 killEmailThread' mvar = do
@@ -339,6 +352,35 @@ verifyEmailStepDryRun = do
   db      <- asks _rDb
   records <- atomicallyM $ filterUsers db User.PredicateEmailAddrToVerify
   pure records
+
+spawnUnixThread :: RunM Text
+spawnUnixThread = do
+  runtime <- ask
+  ts      <- asks _rThreads
+  case ts of
+    NoThreads        -> pure "Threads are disabled."
+    ReplThreads _ -> pure "No UNIX-domain socket thread in REPL." -- TODO
+    HttpThreads _ mvarUnix -> spawnUnixThread' runtime mvarUnix
+
+spawnUnixThread' :: Runtime -> MVar ThreadId -> RunM Text
+spawnUnixThread' runtime mvar = do
+  mthread <- liftIO $ tryTakeMVar mvar
+  case mthread of
+    Nothing -> do
+      ML.localEnv (<> "Threads" <> "UNIX") $ do
+        ML.info "Starting UNIX-domain socket thread."
+      liftIO $ do
+        t <- forkIO $ runRunM runtime unixThread
+        putMVar mvar t
+        pure "UNIX-domain socket thread started."
+    Just t -> do
+      liftIO $ putMVar mvar t
+      pure "UNIX-domain socket thread alread running."
+
+unixThread :: RunM ()
+unixThread = do
+  runtime <- ask
+  liftIO $ runWithRuntime runtime
 
 -- | Natural transformation from some `AppM` in any given mode, to a servant
 -- Handler.
@@ -729,7 +771,7 @@ handleCommand runtime@Runtime {..} user command = do
         then runRunM runtime $ stepTime minute
         else runRunM runtime time
       output' <- liftIO $ formatUnixTime fmt $ fromEpochTime output
-      pure (ExitSuccess, [TE.decodeUtf8 output'])
+      pure (ExitSuccess, [T.decodeUtf8 output'])
     _ -> do
       -- TODO It seems that showing the command causes a stack overflow. For
       -- instance the error happens by passing the Log or the Reset commands.
@@ -1846,3 +1888,48 @@ deleteForm getTVar db (profile, key) =
   where username = User._userCredsName $ User._userProfileCreds profile
 
 
+--------------------------------------------------------------------------------
+runWithRuntime runtime = do
+  putStrLn @Text "Creating curiosity.sock..."
+  sock <- socket AF_UNIX Stream 0
+  bind sock $ SockAddrUnix "curiosity.sock"
+  listen sock maxListenQueue
+
+  putStrLn @Text "Listening on curiosity.sock..."
+  server runtime sock -- TODO bracket (or catch) and close
+  close sock
+
+server runtime sock = do
+  (conn, _) <- accept sock -- TODO bracket (or catch) and close too
+  void $ forkFinally
+    (handler runtime conn)
+    (const $ putStrLn @Text "Closing connection." >> close conn)
+  server runtime sock
+
+handler runtime conn = do
+  putStrLn @Text "New connection..."
+  sendAll conn "Curiosity UNIX-domain socket server.\n"
+  repl runtime conn
+
+repl runtime conn = do
+  msg <- recv conn 1024
+  let command = map B.unpack $ B.words msg -- TODO decodeUtf8
+  case command of
+    _ | B.null msg -> return () -- Connection lost.
+    ["quit"]       -> return ()
+    []             -> repl runtime conn
+    _              -> do
+      let result = A.execParserPure A.defaultPrefs Command.parserInfo command
+      case result of
+        A.Success command -> do
+          case command of
+            _ -> do
+              (_, output) <- handleCommand runtime "TODO" command
+              mapM_ (\x -> sendAll conn (T.encodeUtf8 x <> "\n")) output
+        A.Failure err -> case err of
+          A.ParserFailure execFailure -> do
+            let (msg, _, _) = execFailure "cty"
+            sendAll conn (B.pack $ show msg <> "\n")
+        A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
+
+      repl runtime conn
