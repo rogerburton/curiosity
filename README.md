@@ -31,6 +31,8 @@ demonstrate and explore the features of the application.
 - `cty repl` is similar but exposes a
   [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)
   instead of an HTTP server to run commands and interact with the state.
+- `cty run` interprets scripts containing commands (the same commands that the
+  REPL uses).
 - `cty-sock` offers a text interface similar to `cty repl` but through a
   UNIX-domain socket, and accepts multiple clients.
 - Other commands of `cty` are meant to be a client for the `cty-sock` server.
@@ -249,6 +251,28 @@ The REPL accepts commands similar to the `cty` sub-commands, including
 > user signup alice secret alice@example.com --accept-tos
 > --help
 ```
+
+# Example scripts
+
+Scripts (i.e. files containing commands) can be run with `cty run`. Exampe
+scripts can be found within the repository, in the [`scenarios/`
+directory](https://github.com/hypered/curiosity/tree/main/scenarios).
+
+```
+$ cty run scenarios/user-signup.txt
+1: reset
+State is now empty.
+3: user signup alice secret alice@example.com --accept-tos
+User created: USER-1
+Signup confirmation email enqueued: EMAIL-1
+4: user get USER-1 --short
+USER-1 alice
+5: quit
+Exiting
+```
+
+Such scripts, together with their expected output, are used as a high-level
+[testing mechanism](https://smartcoop.sh/documentation/tests).
 
 # Docker image
 
