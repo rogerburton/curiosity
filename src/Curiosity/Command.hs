@@ -12,6 +12,7 @@ module Curiosity.Command
   , ObjectType(..)
   , parserInfo
   , parserInfoWithTarget
+  , commandToString
   ) where
 
 import qualified Commence.Runtime.Storage      as S
@@ -1020,3 +1021,22 @@ parserLog =
 parserShowId :: A.Parser Command
 parserShowId =
   ShowId <$> A.argument A.str (A.metavar "ID" <> A.help "An object ID")
+
+
+--------------------------------------------------------------------------------
+-- | Serialise a `Command` to a string, suitable to be sent to `cty-sock` for
+-- instance.
+commandToString :: Command -> Either Text Text
+commandToString = \case
+  Init _      -> Left "Can't send `init` to a server."
+  State useHs -> Right $ "state" <> if useHs then " --hs" else ""
+  Signup User.Signup {..} ->
+    Right $ "user signup " <> User.unUserName username
+      <> " " <> {- TODO -} T.take 1 (User.unUserName username)
+      <> " " <> User.unUserEmailAddr email
+      <> (if tosConsent then " --accept-tos" else "")
+  SelectUser useHs userId isShort ->
+    Right $ "user get " <> User.unUserId userId
+      <> (if useHs then " --hs" else "")
+      <> (if isShort then " --short" else "")
+  _           -> Left "Unimplemented"

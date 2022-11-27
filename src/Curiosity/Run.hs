@@ -13,7 +13,6 @@ import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server              as Srv
 import qualified Data.Aeson                    as Aeson
-import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -304,23 +303,17 @@ client path command = do
   -- let response = T.decodeUtf8 msg -- TODO decodeUtf8
   -- putStrLn response
 
-  command' <- commandToString command
-  send sock command'
-  msg <- recv sock 1024
-  let response = T.decodeUtf8 msg -- TODO decodeUtf8
-  putStrLn response
+  let ecommand = Command.commandToString command
+  case ecommand of
+    Right command' -> do
+      send sock $ T.encodeUtf8 command'
+      msg <- recv sock 1024
+      let response = T.decodeUtf8 msg -- TODO decodeUtf8
+      putStrLn response
+    Left err -> putStrLn $ "ERROR: " <> err
 
   close sock
   exitSuccess
-
-commandToString = \case
-  Command.Init _ -> do
-    putStrLn @Text "Can't send `init` to a server."
-    exitFailure
-  Command.State useHs -> pure $ "state" <> if useHs then " --hs" else ""
-  _                   -> do
-    putStrLn @Text "Unimplemented"
-    exitFailure
 
 
 --------------------------------------------------------------------------------
