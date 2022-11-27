@@ -39,7 +39,7 @@ let
     set -euo pipefail
     ${nixpkgs.hivemind}/bin/hivemind ${procFile}
   '';
-  run-vm-test = import ./vm-test.nix attrs;
+  run-vm-tests = import ./vm-test.nix attrs;
 in {
-  inherit run-full-environment run-nginx run-vm-test;
+  inherit run-full-environment run-nginx run-vm-tests;
 }

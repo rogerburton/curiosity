@@ -15,6 +15,7 @@ import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Options.Applicative           as A
 import           Prelude                 hiding ( state )
+import           System.Directory               ( doesFileExist, removeFile )
 import           System.FilePath                ( (</>) )
 import           Test.Hspec
 
@@ -74,8 +75,8 @@ spec = do
       ]
 
   describe "Command-line interface execution" $ do
-    let go (arguments, state) = it ("Runs '" <> T.unpack arguments <> "'") $ do
-          stateFile <- pure "/tmp/curiosity-test-state.json"
+    let stateFile = "/tmp/curiosity-test-state.json"
+        go (arguments, state) = it ("Runs '" <> T.unpack arguments <> "'") $ do
 
           let A.Success command =
                 A.execParserPure A.defaultPrefs Command.parserInfo
@@ -123,6 +124,9 @@ spec = do
                                          ]
               , Data._dbEpochTime    = 120
               }
+        runIO $ do
+          fileExists <- doesFileExist stateFile
+          when fileExists $ removeFile stateFile
         mapM_
           go
           [ ("init --stepped", Data.emptyHask)

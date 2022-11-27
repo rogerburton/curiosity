@@ -8,7 +8,7 @@ if [[ -z "${CURIOSITY_ENDPOINT:-}" ]]; then
     exit 1
 fi
 
-echo "[+] Querying curiosity root endpoint"
+echo "[+] Querying Curiosity root endpoint"
 curl -s --show-error -f -v "$CURIOSITY_ENDPOINT" > /dev/null
 echo "[+] Checking that static assets are brotli-compressed"
 curl -s --show-error -H "Accept-Encoding: br" "$CURIOSITY_ENDPOINT"/static/css/main.css | brotli -d | grep "@charset"
