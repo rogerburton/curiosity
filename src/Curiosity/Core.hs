@@ -380,7 +380,7 @@ createUserFull' db newProfile = do
  where
   newProfileId = User._userProfileId newProfile
   createNew    = do
-    modifyUsers db (++ [newProfile])
+    modifyUsers db (<> [newProfile])
     pure $ Right newProfileId
   existsErr = pure . Left $ User.UserExists
 
@@ -435,7 +435,7 @@ createBusiness db Business.Create {..} = do
 createBusinessFull
   :: StmDb -> Business.Unit -> STM (Either Business.Err Business.UnitId)
 createBusinessFull db new = do
-  modifyBusinessUnits db (++ [new])
+  modifyBusinessUnits db (<> [new])
   pure . Right $ Business._entityId new
 
 updateBusiness :: StmDb -> Business.Update -> STM (Either Business.Err ())
@@ -507,7 +507,7 @@ createEmail db template senderAddr recipientAddr = do
 
 createEmailFull :: StmDb -> Email.Email -> STM (Either Email.Err Email.EmailId)
 createEmailFull db new = do
-  modifyEmails db (++ [new])
+  modifyEmails db (<> [new])
   pure . Right $ Email._emailId new
 
 modifyEmails :: StmDb -> ([Email.Email] -> [Email.Email]) -> STM ()
