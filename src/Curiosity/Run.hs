@@ -333,7 +333,6 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
           case command of
             -- We ignore the Configuration here. Probably this should be moved
             -- to Rt.handleCommand too.
-            Command.Reset              -> Rt.runRunM runtime $ Rt.reset
             Command.Run _ scriptPath _ -> do
               (code, _) <- liftIO $ Inter.interpret runtime user scriptPath
               case code of

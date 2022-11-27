@@ -173,7 +173,7 @@ non-interactively...:
 $ nix-build -A run-vm-tests
 ```
 
-... or non-interactively:
+... or interactively:
 
 ```sh
 $ nix-build -A run-vm-tests.driverInteractive

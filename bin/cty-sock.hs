@@ -9,6 +9,7 @@ import qualified Curiosity.Command             as Command
 import qualified Curiosity.Parse               as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Data.ByteString.Char8         as B
+import qualified Data.Text.Encoding            as T
 import           Network.Socket
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
@@ -62,8 +63,15 @@ repl runtime conn = do
     _              -> do
       let result = A.execParserPure A.defaultPrefs Command.parserInfo command
       case result of
-        A.Success x -> print x >> sendAll conn (B.pack $ show x <> "\n")
-        A.Failure err -> print err
+        A.Success command -> do
+          case command of
+            _ -> do
+              (_, output) <- Rt.handleCommand runtime "TODO" command
+              mapM_ (\x -> sendAll conn (T.encodeUtf8 x <> "\n")) output
+        A.Failure err -> case err of
+          A.ParserFailure execFailure -> do
+            let (msg, _, _) = execFailure "cty"
+            sendAll conn (B.pack $ show msg <> "\n")
         A.CompletionInvoked _ -> print @IO @Text "Shouldn't happen"
 
       repl runtime conn

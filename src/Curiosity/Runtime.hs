@@ -373,6 +373,9 @@ handleCommand runtime@Runtime {..} user command = do
             then show value
             else LT.toStrict (Aeson.encodeToLazyText value)
       pure (ExitSuccess, [value'])
+    Command.Reset -> do
+      runRunM runtime reset
+      pure (ExitSuccess, ["State is now empty."])
     Command.Threads -> do
       value <- runRunM runtime threads
       pure (ExitSuccess, value)
