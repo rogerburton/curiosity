@@ -39,6 +39,7 @@ in rec
     toplevel = os.config.system.build.toplevel;
     image = os.config.system.build.digitalOceanImage;
     runvm = qemu.config.system.build.vm;
+    run-vm-tests-interactive = run-vm-tests.driverInteractive;
     docker = (import ./docker { inherit nixpkgs; });
 
     # A shell to try out our binaries
