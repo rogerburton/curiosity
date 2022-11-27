@@ -460,12 +460,10 @@ linkBusinessUnitToUser db slug uid role = do
     Just Business.Unit {..} -> do
       let replaceOlder units =
             [ if Business._entitySlug e == slug
-                then
-                  case role of
-                    Business.Holder ->
-                      e { Business._entityHolders =
-                          nub $ uid : _entityHolders
-                      }
+                then case role of
+                  Business.Holder ->
+                    e { Business._entityHolders = nub $ uid : _entityHolders }
+                  _ -> e
                 else e
             | e <- units
             ]
