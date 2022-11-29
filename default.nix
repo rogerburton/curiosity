@@ -35,7 +35,7 @@ in rec
     inherit nixpkgs binaries content data scenarios haddock run;
     inherit (run) run-vm-tests;
     static = (import "${sources.smart-design-hs}").static;
-    man-pages = (import ./man {}).man-pages;
+    man-pages = (import ./man { inherit nixpkgs; }).man-pages;
     toplevel = os.config.system.build.toplevel;
     image = os.config.system.build.digitalOceanImage;
     runvm = qemu.config.system.build.vm;

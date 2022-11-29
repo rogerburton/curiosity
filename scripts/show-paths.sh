@@ -5,3 +5,5 @@
 
 echo "content:"
 nix-store -q --outputs $(nix-instantiate default.nix -A content 2>/dev/null)
+echo "man-pages:"
+nix-store -q --outputs $(nix-instantiate default.nix -A man-pages 2>/dev/null)
