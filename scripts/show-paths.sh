@@ -13,3 +13,5 @@ echo "man-pages:"
 nix-store -q --outputs $(nix-instantiate default.nix -A man-pages 2>/dev/null)
 echo "scenarios:"
 nix-store -q --outputs $(nix-instantiate default.nix -A scenarios 2>/dev/null)
+echo "static:"
+nix-store -q --outputs $(nix-instantiate default.nix -A static 2>/dev/null)
