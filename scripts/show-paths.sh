@@ -5,6 +5,8 @@
 
 echo "content:"
 nix-store -q --outputs $(nix-instantiate default.nix -A content 2>/dev/null)
+echo "binaries:"
+nix-store -q --outputs $(nix-instantiate default.nix -A binaries 2>/dev/null)
 echo "data:"
 nix-store -q --outputs $(nix-instantiate default.nix -A data 2>/dev/null)
 echo "man-pages:"
