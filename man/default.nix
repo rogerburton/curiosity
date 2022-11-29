@@ -8,7 +8,7 @@ let
 in
 {
   man-pages = nixpkgs.stdenv.mkDerivation {
-    name = "man";
+    name = "man-pages";
     src = nix-filter {
       root = ../.;
       include = with nix-filter; [
