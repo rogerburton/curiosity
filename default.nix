@@ -23,7 +23,7 @@ let
     binaries = nixpkgs.haskellPackages.curiosity;
     content = (import ./content { inherit nixpkgs; }).html.all;
     data = (import ./content {}).data;
-    scenarios = (import ./content {}).scenarios;
+    scenarios = (import ./content { inherit nixpkgs; }).scenarios;
     haddock = nixpkgs.haskellPackages.curiosity.doc;
     run = import ./scripts/integration-tests {
       inherit nixpkgs binaries haddock content data scenarios;
