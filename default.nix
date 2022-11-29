@@ -21,7 +21,7 @@ let
     ];
   };
     binaries = nixpkgs.haskellPackages.curiosity;
-    content = (import ./content {}).html.all;
+    content = (import ./content { inherit nixpkgs; }).html.all;
     data = (import ./content {}).data;
     scenarios = (import ./content {}).scenarios;
     haddock = nixpkgs.haskellPackages.curiosity.doc;

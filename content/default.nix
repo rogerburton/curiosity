@@ -1,24 +1,24 @@
-{ nixpkgs ? <nixpkgs>
+{ nixpkgs ? import <nixpkgs> {}
 }:
 
 let
-  pkgs = import nixpkgs {};
   sources = import ../nix/sources.nix {};
   nix-filter = import sources.nix-filter;
 
 in
 {
-  html.all = pkgs.stdenv.mkDerivation {
+  html.all = nixpkgs.stdenv.mkDerivation {
     name = "content";
     src = nix-filter {
       root = ../.;
       include = [
         "content"
         "man"
-        "scripts"
+        "scripts/doc.Makefile"
+        "scripts/template.html"
       ];
     };
-    nativeBuildInputs = [ pkgs.mandoc pkgs.pandoc ];
+    nativeBuildInputs = [ nixpkgs.mandoc nixpkgs.pandoc ];
     installPhase = ''
       # Make sure we don't use an already built _site/.
       rm -rf _site
@@ -31,7 +31,7 @@ in
   };
 
   # Define this here, instead of creating a .nix file in data/.
-  data = pkgs.stdenv.mkDerivation {
+  data = nixpkgs.stdenv.mkDerivation {
     name = "data";
     src = nix-filter {
       root = ../.;
@@ -45,7 +45,7 @@ in
   };
 
   # Define this here, instead of creating a .nix file in scenarios/.
-  scenarios = pkgs.stdenv.mkDerivation {
+  scenarios = nixpkgs.stdenv.mkDerivation {
     name = "scenarios";
     src = nix-filter {
       root = ../.;
