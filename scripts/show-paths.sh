@@ -15,3 +15,5 @@ echo "scenarios:"
 nix-store -q --outputs $(nix-instantiate default.nix -A scenarios 2>/dev/null)
 echo "static:"
 nix-store -q --outputs $(nix-instantiate default.nix -A static 2>/dev/null)
+echo "toplevel:"
+nix-store -q --outputs $(nix-instantiate default.nix -A toplevel 2>/dev/null)

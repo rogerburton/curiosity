@@ -43,4 +43,4 @@ jobs:
         sudo cp .github/workflows/post-build-hook /etc/nix/post-build-hook
 
     - name: Build Curiosity
-      run: nix-build -A binaries --show-trace
+      run: nix-build -A toplevel --show-trace
