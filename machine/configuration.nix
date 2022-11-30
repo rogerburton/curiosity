@@ -99,5 +99,13 @@ in
 
   users.groups.alice = {};
 
+  nix.binaryCaches = [
+    "https://cache.nixos.org/"
+    "https://s3.eu-central-003.backblazeb2.com/curiosity-store/"
+  ];
+  nix.binaryCachePublicKeys = [
+    "curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w="
+  ];
+
   system.stateVersion = "22.05";
 }
