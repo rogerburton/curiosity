@@ -14,12 +14,13 @@ In particular, in addition of working features, we want
 A demonstration instance of Curiosity is running at
 [smartcoop.sh](https://smartcoop.sh). It contains
 [documentation](https://smartcoop.sh/documentation) that complements this
-README.
+README. If you're non-technical, those links are a better starting point. The
+rest of this README is intended for more technical profiles.
 
 # Content
 
 Curiosity offers multiple tools compiled as a single executable, called
-[`cty`](#cty).  The main command, `cty serve`, is a web application. In
+[`cty`](#cty). The main command, `cty serve`, is a web application. In
 particular it uses the `servant` and `stm` libraries. The `stm` library is used
 instead of a regular relational database (e.g. PostgreSQL). This means the
 whole state of the application is in memory instead of a "real" database.

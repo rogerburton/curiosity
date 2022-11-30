@@ -18,10 +18,9 @@ machine image, or a Docker image.
 
 ## Development environment
 
-Curiosity is developed using the [Nix package
-manager](https://nixos.org/guides/how-nix-works.html). It provides a reliable
-way to specify dependencies and build our artifacts: the `cty` binary of
-course, but also for instance virtual machine or Docker images.
+Curiosity is developed using the [Nix package manager](/documentation/nix). It
+provides a reliable way to specify dependencies and build our artifacts: the
+`cty` binary of course, but also for instance virtual machine or Docker images.
 
 One of the most useful tool of Nix is `nix-shell`. It runs a Bash shell in
 which all the necessary dependencies to work on the project are automatically
