@@ -20,6 +20,7 @@ title: Curiosity
 - [Live data](/documentation/live-data)
 - [Man pages](/documentation/man-pages)
 - [Messages](/documentation/messages)
+- [Nix](/documentation/nix)
 - [Objects](/documentation/objects)
 - [Permissions](/documentation/permissions)
 - [Processes](/documentation/processes)
