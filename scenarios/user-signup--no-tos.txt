@@ -1,0 +1,3 @@
+reset
+# Shows that --accept-tos must be provided
+user signup alice secret alice@example.com
