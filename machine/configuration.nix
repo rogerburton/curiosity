@@ -13,11 +13,24 @@ let
 
     if [[ -n $SSH_ORIGINAL_COMMAND ]]
     then
-      # TODO Replace by cty --user <username>
-      cty parse -c "$SSH_ORIGINAL_COMMAND"
+      if [[ "$1" -ne "-c" ]]
+      then
+        echo "Expecting '-c' option."
+        exit 1
+      fi
+      regex="^cty --user ([a-z]+)$"
+      if [[ $2 =~ $regex ]]
+      then
+        username="''${BASH_REMATCH[1]}"
+        cty --user $username --socket /curiosity.sock $SSH_ORIGINAL_COMMAND
+      else
+        echo "Expecting 'cty --user <username>' command prefix."
+        exit 1
+      fi
     else
       echo "Hi <username>, your SSH key is recognized, but"
       echo "Curiosity does not offer an interactive shell."
+      exit 1
     fi
   '';
 in
