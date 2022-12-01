@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {}
+{ nixpkgs ? import (import ../nix/sources.nix {}).nixpkgs {}
 }:
 
 let
