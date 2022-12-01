@@ -34,8 +34,8 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.B2_APPKEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPKEY }}
       run: |
-        sudo bash -c "echo ${SIGNING_KEY} > /etc/nix/key.private"
         sudo mkdir -p /run/keys
+        sudo bash -c "echo ${SIGNING_KEY} > /run/keys/nix-signing-key.private"
         sudo bash -c "echo ${AWS_ACCESS_KEY_ID} > /run/keys/AWS_ACCESS_KEY_ID"
         sudo bash -c "echo ${AWS_SECRET_ACCESS_KEY} > /run/keys/AWS_SECRET_ACCESS_KEY"
         sudo cp .github/workflows/post-build-hook /etc/nix/post-build-hook
