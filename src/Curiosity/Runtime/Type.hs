@@ -36,6 +36,7 @@ data Threads =
   | HttpThreads
     -- ^ Means the main thread is the HTTP server, started with `cty serve`.
     { _tEmailThread :: MVar ThreadId
+    , _tUnixThread :: MVar ThreadId -- ^ UNIX-domain socket server thread.
     }
 
 makeLenses ''Runtime

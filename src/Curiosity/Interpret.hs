@@ -174,12 +174,6 @@ interpretLines runtime user dir content nesting acc0 accumulate = go user acc0 0
         case result of
           A.Success command -> do
             case command of
-              Command.Reset -> do
-                Rt.runRunM runtime $ Rt.reset
-                st <- Rt.runRunM runtime Rt.state
-                let t = trace' ["State is now empty."] ExitSuccess [] st
-                    acc' = accumulate t acc
-                go user' acc' nbr' rest
               Command.Run _ scriptPath _ -> do
                 output' <- liftIO $ interpretFile runtime
                                                   user

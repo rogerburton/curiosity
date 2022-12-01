@@ -39,6 +39,7 @@ in rec
     toplevel = os.config.system.build.toplevel;
     image = os.config.system.build.digitalOceanImage;
     runvm = qemu.config.system.build.vm;
+    run-vm-tests-interactive = run-vm-tests.driverInteractive;
     docker = (import ./docker { inherit nixpkgs; });
 
     # A shell to try out our binaries
@@ -60,7 +61,6 @@ in rec
       # usable even without those conditions.
       shellHook = ''
         source <(cty             --bash-completion-script `which cty`)
-        source <(cty-sock        --bash-completion-script `which cty-sock`)
         export CURIOSITY_STATIC_DIR=${content}
         export CURIOSITY_DATA_DIR=${data}
         export CURIOSITY_SCENARIOS_DIR=${scenarios}

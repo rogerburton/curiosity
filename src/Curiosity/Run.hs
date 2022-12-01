@@ -13,7 +13,6 @@ import qualified Curiosity.Process             as P
 import qualified Curiosity.Runtime             as Rt
 import qualified Curiosity.Server              as Srv
 import qualified Data.Aeson                    as Aeson
-import qualified Data.ByteString.Char8         as B
 import qualified Data.ByteString.Lazy          as BS
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -91,6 +90,15 @@ run (Command.CommandWithTarget (Command.Serve conf serverConf) target _) = do
     Command.MemoryTarget -> handleServe conf serverConf'
     Command.StateFileTarget path ->
       handleServe conf { P._confDbFile = Just path } serverConf'
+    Command.UnixDomainTarget _ -> do
+      putStrLn @Text "TODO"
+      exitFailure
+
+run (Command.CommandWithTarget (Command.Sock conf) target _) = do
+  case target of
+    Command.MemoryTarget -> handleSock conf
+    Command.StateFileTarget path ->
+      handleSock conf { P._confDbFile = Just path }
     Command.UnixDomainTarget _ -> do
       putStrLn @Text "TODO"
       exitFailure
@@ -235,9 +243,20 @@ handleServe conf serverConf = do
   threads <- Rt.emptyHttpThreads
   runtime@Rt.Runtime {..} <- Rt.bootConf conf threads >>= either throwIO pure
   Rt.runRunM runtime Rt.spawnEmailThread
+  when (P._serverUnixDomain serverConf) $
+    void $ Rt.runRunM runtime Rt.spawnUnixThread
   P.startServer serverConf runtime >>= P.endServer _rLoggers
   mPowerdownErrs <- Rt.powerdown runtime
   maybe exitSuccess throwIO mPowerdownErrs
+
+
+--------------------------------------------------------------------------------
+handleSock :: P.Conf -> IO ExitCode
+handleSock conf = do
+  putStrLn @Text "Creating runtime..."
+  runtime <- Rt.bootConf conf Rt.NoThreads >>= either throwIO pure
+  Rt.runWithRuntime runtime
+  exitSuccess
 
 
 --------------------------------------------------------------------------------
@@ -292,26 +311,29 @@ handleError e
 
 
 --------------------------------------------------------------------------------
+-- | This is the UNIX-domain client code (i.e. meant to interact with
+-- `cty sock`).
 client :: FilePath -> Command.Command -> IO ExitCode
 client path command = do
   sock <- socket AF_UNIX Stream 0
   connect sock $ SockAddrUnix path
-  command' <- commandToString command
-  send sock command'
-  msg <- recv sock 1024
-  let response = map B.unpack $ B.words msg -- TODO decodeUtf8
-  print response
+
+  _  <- recv sock 1024
+  -- Just swallow the initial server banner for now.
+  -- let response = T.decodeUtf8 msg -- TODO decodeUtf8
+  -- putStrLn response
+
+  let ecommand = Command.commandToString command
+  case ecommand of
+    Right command' -> do
+      send sock $ T.encodeUtf8 command'
+      msg <- recv sock 1024
+      let response = T.decodeUtf8 msg -- TODO decodeUtf8
+      putStrLn response
+    Left err -> putStrLn $ "ERROR: " <> err
+
   close sock
   exitSuccess
-
-commandToString = \case
-  Command.Init _ -> do
-    putStrLn @Text "Can't send `init` to a server."
-    exitFailure
-  Command.State useHs -> pure $ "state" <> if useHs then " --hs" else ""
-  _                   -> do
-    putStrLn @Text "Unimplemented"
-    exitFailure
 
 
 --------------------------------------------------------------------------------
@@ -333,7 +355,6 @@ repl runtime user = HL.runInputT HL.defaultSettings loop
           case command of
             -- We ignore the Configuration here. Probably this should be moved
             -- to Rt.handleCommand too.
-            Command.Reset              -> Rt.runRunM runtime $ Rt.reset
             Command.Run _ scriptPath _ -> do
               (code, _) <- liftIO $ Inter.interpret runtime user scriptPath
               case code of

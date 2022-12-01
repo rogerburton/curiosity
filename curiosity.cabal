@@ -178,21 +178,6 @@ executable cty
   ghc-options:
     -threaded
 
--- A multi-client REPL, exposed through a UNIX-domain socker
-executable cty-sock
-  import: common-dependencies, lang-settings, common-extensions
-  main-is: cty-sock.hs
-  build-depends:
-      optparse-applicative
-    , curiosity
-    , async
-    , bytestring
-    , fast-logger
-    , network
-  hs-source-dirs: bin
-  ghc-options:
-    -threaded
-
 test-suite curiosity-tests
   import: common-dependencies, lang-settings, common-extensions
   build-depends:
@@ -204,6 +189,7 @@ test-suite curiosity-tests
     , QuickCheck
   other-modules:
       CuriositySpec
+    , Curiosity.CommandSpec
     , Curiosity.CoreSpec
     , Curiosity.DataSpec
     , Curiosity.RunSpec

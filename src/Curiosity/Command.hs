@@ -12,6 +12,7 @@ module Curiosity.Command
   , ObjectType(..)
   , parserInfo
   , parserInfoWithTarget
+  , commandToString
   ) where
 
 import qualified Commence.Runtime.Storage      as S
@@ -32,7 +33,8 @@ import qualified Options.Applicative           as A
 
 --------------------------------------------------------------------------------
 -- | Describes the command available from the command-line with `cty`, or
--- within the UNIX-domain socket server, `cty-sock`, or the `cty-repl-2` REPL.
+-- within the UNIX-domain socket server, `cty sock`, or the `cty repl` REPL, or
+-- the `cty run` interpreter.
 data Command =
     Layout
     -- ^ Display the routing layout of the web server.
@@ -42,10 +44,18 @@ data Command =
     -- ^ Set the state file to the empty state.
   | Repl P.Conf
     -- ^ Run a REPL.
-  | Serve P.Conf P.ServerConf
-    -- ^ Run an HTTP server.
   | Run P.Conf FilePath RunOutput
     -- ^ Interpret a script. If True, outputs traces, otherwise only the final state.
+  | Serve P.Conf P.ServerConf
+    -- ^ Run an HTTP server.
+  | Sock P.Conf
+    -- ^ Run a UNIX-domain socket server.
+    -- This is a simple UNIX-domain socket REPL server. The accepted commands
+    -- re-use the optparse-applicative parsers behind the `cty` command-line tool,
+    -- ensuring a similar experience. It is possible to interact with this server
+    -- with e.g.:
+    --
+    --   nc -U curiosity.sock
   | Parse ParseConf
     -- ^ Parse a single command.
   | State Bool
@@ -144,7 +154,7 @@ data ObjectType = ParseState | ParseUser
   deriving (Eq, Show)
 
 -- | The same commands, defined above, can be used within the UNIX-domain
--- socket server, `cty-sock`, but also from a real command-line tool, `cty`.
+-- socket server, `cty sock`, but also from a real command-line tool, `cty`.
 -- In the later case, a user might want to direct the command-line tool to
 -- interact with a server, or a local state file. This data type is meant to
 -- augment the above commands with such options. In addition, the command is
@@ -168,22 +178,19 @@ parserInfo :: A.ParserInfo Command
 parserInfo =
   A.info (parser <**> A.helper)
     $  A.fullDesc
-    <> A.header "cty-sock - Curiosity's UNIX-domain socket server"
+    <> A.header "cty - Curiosity, a prototype application for Smart Coop"
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
-        \of a web application for Smart.\n\n\
-        \cty-sock offers a networked REPL exposed over a UNIX-domain socket."
+        \of a web application for Smart."
 
 parserInfoWithTarget :: A.ParserInfo CommandWithTarget
 parserInfoWithTarget =
   A.info (parser' <**> A.helper)
     $  A.fullDesc
-    <> A.header "cty - Curiosity's main server-side program"
+    <> A.header "cty - Curiosity, a prototype application for Smart Coop"
     <> A.progDesc
          "Curiosity is a prototype application to explore the design space \
-        \of a web application for Smart.\n\n\
-        \cty offers a command-line interface against a running server or \
-        \a state file."
+        \of a web application for Smart."
  where
   parser' = do
     user <-
@@ -245,14 +252,20 @@ parser =
            (A.info (parserRepl <**> A.helper) $ A.progDesc "Start a REPL")
 
       <> A.command
+           "run"
+           (A.info (parserRun <**> A.helper) $ A.progDesc "Interpret a script"
+           )
+
+      <> A.command
            "serve"
            ( A.info (parserServe <**> A.helper)
            $ A.progDesc "Run the Curiosity HTTP server"
            )
 
       <> A.command
-           "run"
-           (A.info (parserRun <**> A.helper) $ A.progDesc "Interpret a script"
+           "sock"
+           ( A.info (parserSock <**> A.helper)
+           $ A.progDesc "Run the Curiosity UNIX-domain server"
            )
 
       <> A.command
@@ -407,9 +420,6 @@ parserReset = pure Reset
 parserRepl :: A.Parser Command
 parserRepl = Repl <$> P.confParser
 
-parserServe :: A.Parser Command
-parserServe = Serve <$> P.confParser <*> P.serverParser
-
 parserRun :: A.Parser Command
 parserRun =
   Run
@@ -434,6 +444,12 @@ parserRun =
                  "Display traces but not the final state. This is the default."
             )
         )
+
+parserServe :: A.Parser Command
+parserServe = Serve <$> P.confParser <*> P.serverParser
+
+parserSock :: A.Parser Command
+parserSock = Sock <$> P.confParser
 
 parserParse :: A.Parser Command
 parserParse = Parse <$> (parserCommand <|> parserFileName <|> parserObject)
@@ -1020,3 +1036,23 @@ parserLog =
 parserShowId :: A.Parser Command
 parserShowId =
   ShowId <$> A.argument A.str (A.metavar "ID" <> A.help "An object ID")
+
+
+--------------------------------------------------------------------------------
+-- | Serialise a `Command` to a string, suitable to be sent to `cty sock` for
+-- instance.
+commandToString :: Command -> Either Text Text
+commandToString = \case
+  Init _      -> Left "Can't send `init` to a server."
+  Reset       -> Right "reset"
+  State useHs -> Right $ "state" <> if useHs then " --hs" else ""
+  Signup User.Signup {..} ->
+    Right $ "user signup " <> User.unUserName username
+      <> " " <> {- TODO -} T.take 1 (User.unUserName username)
+      <> " " <> User.unUserEmailAddr email
+      <> (if tosConsent then " --accept-tos" else "")
+  SelectUser useHs userId isShort ->
+    Right $ "user get " <> User.unUserId userId
+      <> (if useHs then " --hs" else "")
+      <> (if isShort then " --short" else "")
+  _           -> Left "Unimplemented"
