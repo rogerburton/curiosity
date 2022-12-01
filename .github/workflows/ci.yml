@@ -21,8 +21,6 @@ jobs:
 
     - name: Install Nix
       uses: cachix/install-nix-action@v18
-      env:
-        SIGNING_PUB: ${{ secrets.NIX_PUB_KEY }}
       with:
         nix_path: nixpkgs=channel:nixos-22.05
         extra_nix_config: |
