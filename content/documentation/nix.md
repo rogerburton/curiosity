@@ -49,7 +49,7 @@ responsible to build the toplevel on every change.
 To configure your own NixOS system to use our binary cache, you can add the
 following values to your `configuration.nix` file:
 
-```
+```nix
 nix.binaryCaches = [
   "https://cache.nixos.org/"
   "https://s3.eu-central-003.backblazeb2.com/curiosity-store/"
@@ -57,6 +57,14 @@ nix.binaryCaches = [
 nix.binaryCachePublicKeys = [
   "curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w="
 ];
+```
+
+On a non-NixOS system, you can edit the `/etc/nix/nix.conf` file and set the
+`substituters` and `trusted-public-keys` configuration attributes to:
+
+```
+substituters = https://cache.nixos.org/ https://s3.eu-central-003.backblazeb2.com/curiosity-store/
+trusted-public-keys = curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w=
 ```
 
 # Environments

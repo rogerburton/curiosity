@@ -79,7 +79,8 @@ $ nix-build -A run-vm-tests
 ```
 
 A [GitHub action](https://github.com/hypered/curiosity/actions) is used to run
-the tests on every commit, and report the results on each Pull Request.
+the tests on every commit, and report the results on each Pull Request. It is
+also used to populate a [Nix binary cache](#nix-binary-cache).
 
 # Running
 
@@ -278,9 +279,10 @@ Exiting
 Such scripts, together with their expected output, are used as a high-level
 [testing mechanism](https://smartcoop.sh/documentation/tests).
 
-# Nix Cache
+# Nix binary cache
 
-You can re-use the curiosity binaries built by the CI through a custom Nix binary cache.
+You can re-use the Curiosity binaries built by the CI through a custom Nix
+binary cache.
 
 On a NixOS system add the following snippet to your system configuration:
 
@@ -291,7 +293,8 @@ nix.settings = {
 }
 ```
 
-On a non-NixOS system, you can edit the `/etc/nix/nix.conf` file and set the `substituters` and `trusted-public-keys` configuration attributes to:
+On a non-NixOS system, you can edit the `/etc/nix/nix.conf` file and set the
+`substituters` and `trusted-public-keys` configuration attributes to:
 
 ```
 substituters = https://s3.eu-central-003.backblazeb2.com/curiosity-store/ https://cache.nixos.org/
