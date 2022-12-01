@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -eu
+set -f
+export IFS=' '
+# Adding back the nix profile to the $PATH, it's originally missing.
+# I assume cachix/install-nix-action only change the user's $PATH.
+PATH=/nix/var/nix/profiles/default/bin:$PATH
+export AWS_ACCESS_KEY_ID=$(cat /run/keys/AWS_ACCESS_KEY_ID)
+export AWS_SECRET_ACCESS_KEY=$(cat /run/keys/AWS_SECRET_ACCESS_KEY)
+nix_signing_key="/run/keys/nix-signing-key.private"
+
+echo "Signing paths" $OUT_PATHS
+nix store sign --key-file $nix_signing_key --recursive $OUT_PATHS
+echo "Uploading paths" $OUT_PATHS
+exec nix copy \
+     --to 's3://curiosity-store?endpoint=s3.eu-central-003.backblazeb2.com' \
+     --secret-key-files $nix_signing_key \
+     $OUT_PATHS

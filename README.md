@@ -14,12 +14,13 @@ In particular, in addition of working features, we want
 A demonstration instance of Curiosity is running at
 [smartcoop.sh](https://smartcoop.sh). It contains
 [documentation](https://smartcoop.sh/documentation) that complements this
-README.
+README. If you're non-technical, those links are a better starting point. The
+rest of this README is intended for more technical profiles.
 
 # Content
 
 Curiosity offers multiple tools compiled as a single executable, called
-[`cty`](#cty).  The main command, `cty serve`, is a web application. In
+[`cty`](#cty). The main command, `cty serve`, is a web application. In
 particular it uses the `servant` and `stm` libraries. The `stm` library is used
 instead of a regular relational database (e.g. PostgreSQL). This means the
 whole state of the application is in memory instead of a "real" database.
@@ -78,7 +79,8 @@ $ nix-build -A run-vm-tests
 ```
 
 A [GitHub action](https://github.com/hypered/curiosity/actions) is used to run
-the tests on every commit, and report the results on each Pull Request.
+the tests on every commit, and report the results on each Pull Request. It is
+also used to populate a [Nix binary cache](#nix-binary-cache).
 
 # Running
 
@@ -276,6 +278,28 @@ Exiting
 
 Such scripts, together with their expected output, are used as a high-level
 [testing mechanism](https://smartcoop.sh/documentation/tests).
+
+# Nix binary cache
+
+You can re-use the Curiosity binaries built by the CI through a custom Nix
+binary cache.
+
+On a NixOS system add the following snippet to your system configuration:
+
+```nix
+nix.settings = {
+  substituters = [ "https://s3.eu-central-003.backblazeb2.com/curiosity-store/" "https://cache.nixos.org/" ];
+  trusted-public-keys = [ "curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w=" "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=" ];
+}
+```
+
+On a non-NixOS system, you can edit the `/etc/nix/nix.conf` file and set the
+`substituters` and `trusted-public-keys` configuration attributes to:
+
+```
+substituters = https://s3.eu-central-003.backblazeb2.com/curiosity-store/ https://cache.nixos.org/
+trusted-public-keys = curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+```
 
 # Docker image
 

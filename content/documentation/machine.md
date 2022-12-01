@@ -15,7 +15,7 @@ for local development and the virtual machine available at
 
 ## Built with Nix
 
-The build system used for Curiosity is [Nix](https://nixos.org/). It ensures
+The build system used for Curiosity is [Nix](/documentation/nix). It ensures
 that the complete system, or its different parts, can be built reliably from
 source.
 
