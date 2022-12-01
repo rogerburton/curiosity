@@ -50,11 +50,11 @@ To configure your own NixOS system to use our binary cache, you can add the
 following values to your `configuration.nix` file:
 
 ```nix
-nix.binaryCaches = [
+nix.settings.substituters = [
   "https://cache.nixos.org/"
   "https://s3.eu-central-003.backblazeb2.com/curiosity-store/"
 ];
-nix.binaryCachePublicKeys = [
+nix.settings.trusted-public-keys = [
   "curiosity-store:W3LXUB+6DjtZkKV0gEfNXGtTjA+hMqjPUoK6mzzco+w="
 ];
 ```
