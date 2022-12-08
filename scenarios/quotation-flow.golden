@@ -18,7 +18,7 @@ Modifying default user.
 11: forms quotation new --client charlie
 Quotation form created: TBPJLIUG
 13: forms quotation submit TBPJLIUG
-# TODO Add either a --dry-form option or a validate subcommand to execute only the validation code
+# TODO Add either a --dry-form option or a "validate" subcommand to execute only the validation code
 Quotation form validated.
 Quotation created: QUOT-1
 Quotation sent to client: QUOT-1
